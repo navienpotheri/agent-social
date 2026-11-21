@@ -75,7 +75,7 @@ test("DK1400: the log's refusals are printed as they are: reviewers of the autho
 
 test("DK1400: --all publishes every card in the catalogue (one price list, then every course record)", async () => {
   const w = await world();
-  const flags = { all: true, author: w.author.did, reviewers: `${w.r1.did},${w.r2.did}` };
+  const flags = { all: true, author: w.author.did, reviewers: `${w.r1.did},${w.r2.did}`, "no-intake": "written before the intake rule (DK1751)" };
   const cards = loadCatalogue(engineIds()).courses;
   assert.equal((await w.run(["publish"], flags)).code, 0);
   assert.equal(((await w.k.log.priceLists()) as unknown[]).length, 2, "one list for all the cards");

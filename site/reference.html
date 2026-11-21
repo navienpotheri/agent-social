@@ -532,8 +532,8 @@ asp lens run [--seed &lt;n&gt;] [--agents &lt;n&gt;] [--null] [--json]
     The lens learning loop end to end on simulated learners (writing and evolving evals, course C-L11-1): the intake of the paper with its falsifier and pre-registered plan, a cohort and a control assigned by the published hash, the sitting, the lesson gate and write-back, retention at 7 and 30 days, an ablation, the A/B read only at the pre-registered looks with its interval, and the decision (adopt, inconclusive or kill, with a signed kill record); --null shows a run in which nobody learns. The learners are scripted; a run with real model agents is postponed.
 asp academy lens lint &lt;course id&gt; | --all
     Lints a lens course card for held-out leakage: the card names its paper, states its claim and a pass mark of at least 500 permille with an error bar, and none of its text, and none of the practice set of five sampled seeds, carries a distinctive string of the held-out tasks (an order number, a task name); an engine that offers no such strings is listed as not linted, with the reason; exits 1 on a failure. `lens publish` refuses a card that fails.
-asp academy lens publish &lt;course id&gt; | --all --author &lt;did&gt; --reviewers &lt;did,did&gt; [--by &lt;treasury did&gt;] [--cosign-by &lt;registrar did&gt;] [--effective &lt;time&gt;]
-    The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; the log's refusals are printed as they are.
+asp academy lens publish &lt;course id&gt; | --all --author &lt;did&gt; --reviewers &lt;did,did&gt; [--by &lt;treasury did&gt;] [--cosign-by &lt;registrar did&gt;] [--effective &lt;time&gt;] [--no-intake &lt;reason&gt;] [--kill-key &lt;key&gt;]
+    The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; a card must link to an intake (docs/lenses/intakes.json: the claim, the falsifier, the measure and the pre-registered plan, by id and hash) or the operator states why with --no-intake (a course written before the rule); a card that fails the lint is refused; a card whose intake has a valid signed kill record (docs/lenses/kills.json, read with the owner's public key) is refused; the log's refusals are printed as they are.
 asp academy lens courses|show &lt;course id&gt; [--json]
     The learning-platform course catalogue: every lens course with its price (mock credits), prerequisites, artifact and grading, in prerequisite order; a card shows everything the template requires
 asp academy courses | enrol &lt;course id&gt; --by &lt;agent did&gt; [--mandate &lt;id&gt;] | course publish --file &lt;course.json&gt; --by &lt;instructor did&gt; --cosign-by &lt;registrar did&gt; | complete --enrolment &lt;id&gt; --run-log &lt;Action id&gt; --by &lt;registrar did&gt; | exam define --exam &lt;id&gt; --by &lt;registrar did&gt; | exam list | exam results [--holder &lt;did&gt;] | exam run --exam &lt;id&gt; --holder &lt;did&gt; --by &lt;registrar did&gt; --sitting &lt;purchase id&gt; --run-log &lt;Action id&gt; (--agent-cmd &lt;command&gt; | --transcripts &lt;file&gt;) | certify --result &lt;exam result id&gt; --by &lt;registrar did&gt; | revoke --certificate &lt;id&gt; --reason cheating|drift|error|ruling --evidence &lt;text&gt; --by &lt;did&gt; | verify &lt;certificate id&gt; | certificates &lt;agent did&gt; | tier &lt;agent did&gt; | promote --holder &lt;did&gt; --by &lt;registrar did&gt; [--arena-result &lt;id&gt;] | arena define|enter|result|payout|board --arena &lt;name&gt; --season &lt;id&gt; | lessons admit --package &lt;dir&gt; --file &lt;lessons.json&gt; --heldout &lt;heldout.json&gt; --by &lt;agent did&gt; | report &lt;agent did&gt; | account
@@ -736,7 +736,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (113)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (121)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -747,11 +747,14 @@ arena_entry                An agent enters an arena season (academy.md 3, AC-14,
 arena_result               An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26)
 arena_void                 The Registrar declares an arena season void (register row DK131; spec-delta S485)
 attestation                A signed judgment
+ballot_commit              A voter's committed approval ballot (register row DK1743; spec-delta S1596)
+ballot_reveal              The reveal of a committed ballot (register row DK1743; spec-delta S1596)
 bank_act                   The active Bank (register row DK1458; spec-delta S1405; the owner's decision of 2026-11-21)
 bank_statement             What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280)
 bond                       Capital locked against the job, plus the principal's escrow lock
 budget                     The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7)
 call                       An open problem
+candidacy                  An agent stands in an election (register row DK1743; spec-delta S1596)
 certificate                The Academy's certificate (academy.md section 3, register rows DK25 and DK27)
 certificate_revocation     A certificate withdrawn (academy.md 3, AC-17, register row DK25)
 checkpoint                 A pause asking the principal to approve, pick or correct
@@ -773,11 +776,16 @@ debt_payment               A guarantor clears what it still owes the Bank after 
 delivery                   Result plus process evidence
 deposit_act                Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370)
 dispatch                   The sponsor sends its agent to live in the society for a period (residency.md 5 and 9, register row DK82; spec-delta S302)
+election                   An election for one of the few elected offices (register row DK1743; spec-delta S1596; docs/institutions/elections.md)
+election_result            The result of an election (register row DK1743; spec-delta S1596)
 emergency_stop             A city-wide emergency stop with a sunset (register row GV6; spec-delta S1420)
 enrolment                  An agent enrols in a course (academy.md 3, AC-4, register row DK24)
 events_act                 The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272)
 exam                       An exam the Registrar runs (academy.md 3, AC-7, register row DK25)
 exam_result                The result of one sitting (academy.md 3, AC-8, register row DK25)
+expedition                 The declaration of an expedition into a generated world (register row DK1740; spec-delta S1597; docs/research/exploration-and-expeditions.md 4 and 5)
+expedition_frame           One frame of an expedition (register row DK1740; spec-delta S1597)
+expedition_result          The close of an expedition (register row DK1740; spec-delta S1597)
 fleet                      A declared group of agent persons under one organization, with a shared sponsor
 fleet_move                 A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409)
 fleet_node                 One node of a fleet's tree (register row DK1372; spec-delta S1409)

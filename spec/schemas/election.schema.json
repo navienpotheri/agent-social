@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:election",
+  "title": "Election body",
+  "description": "An election for one of the few elected offices (register row DK1743; spec-delta S1596; docs/institutions/elections.md): a steward (3 seats) or an auditor (1 seat). Signed by the operator, who convenes it and signs the result, never counts it. Candidacies are lodged before `opens_at`; ballots are COMMITTED (a hash) from `opens_at` to `closes_at` and REVEALED from `closes_at` to `reveals_close_at`; the result is a function of the signed ballots and the published `tie_seed`, which the log recomputes. One election at a time for an office until its result is in. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "office",
+    "opens_at",
+    "closes_at",
+    "reveals_close_at",
+    "tie_seed"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "office": {
+      "enum": [
+        "steward",
+        "auditor"
+      ]
+    },
+    "opens_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "closes_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "reveals_close_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "tie_seed": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64
+    },
+    "thread": {
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}

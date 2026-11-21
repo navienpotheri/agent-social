@@ -44,6 +44,8 @@ import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
+import { candidacyProblems, commitBallot, runElection, type Ballot } from "./election.ts";
+import { declProblems as expeditionDeclProblems, frameHash as expeditionFrameHash } from "./expedition.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
@@ -372,6 +374,8 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
+    if (type === "election" || type === "candidacy" || type === "ballot_commit" || type === "ballot_reveal" || type === "election_result") await this.projectElection(tx, verified, type);
     if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
@@ -2773,6 +2777,179 @@ export class EventLog {
     if (bad) throw rule(bad.rule, bad.message);
     if (b.agent && r.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== r.issuer) throw rule("notice_ack_wrong_issuer", `${r.issuer} is neither ${b.agent} nor its sponsor: only an agent or its sponsor acknowledges for it`);
     await tx.putMarker(`notice_ack:${r.issuer}|${b.notice}`, JSON.stringify({ id: r.id, notice: b.notice, statement_sha256: b.statement_sha256, at: r.issued_at, ...(b.agent ? { agent: b.agent } : {}), count: Number(JSON.parse((await tx.getMarker(`notice_ack:${r.issuer}|${b.notice}`)) ?? "{}").count ?? 0) + 1 }));
+  }
+
+  /**
+   * Elections for the few elected offices (S1596, DK1743; docs/institutions/elections.md): an election is convened by the operator; candidacies are lodged before it opens; ballots are committed in the window and revealed after
+   * it; the operator signs a result that the log recomputes from the revealed ballots, the voters' standing and the published tie seed (`election_result_mismatch`). Built here: election, candidacy (counted jobs, slashes, endorsers,
+   * terms in a row), commitment, reveal and result. Not built: the deposit, the Clinic-finding bar, recall, the term clock and the refusal of an office's act after a removal.
+   */
+  private async projectElection(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("election_not_chained", "an election record starts its own chain (prev is null)");
+    const now = Date.parse(r.issued_at);
+    const rules = this.townRules;
+    const DAYS = 86_400_000;
+    const read = async (id: string) => {
+      const e = await tx.getRecord(id);
+      if (!e || e.record.type !== "asp.election/v0.2") throw rule("election_unknown", `${id} is not an election in this log`);
+      return e.record.body as { office: "steward" | "auditor"; opens_at: string; closes_at: string; reveals_close_at: string; tie_seed: string };
+    };
+    if (type === "election") {
+      const b = r.body as { office: "steward" | "auditor"; opens_at: string; closes_at: string; reveals_close_at: string };
+      if (r.issuer !== this.operator) throw rule("election_wrong_issuer", "only the operator convenes an election: it never counts one");
+      const open = Date.parse(b.opens_at), close = Date.parse(b.closes_at), reveal = Date.parse(b.reveals_close_at);
+      if (!(open >= now && close > open && reveal > close)) throw rule("election_window", "an election opens at or after it is convened, closes after it opens and reveals close after the vote closes");
+      const len = close - open;
+      if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("election_window", `the voting window runs from ${rules.minWindowMs / DAYS} to ${rules.maxWindowMs / DAYS} days`);
+      const busy = await tx.getMarker(`election_open:${b.office}`);
+      if (busy) throw rule("election_office_busy", `${b.office} has an election (${busy}) with no result yet: one at a time`);
+      await tx.putMarker(`election_open:${b.office}`, r.id);
+      return;
+    }
+    const election = (r.body as { election: string }).election;
+    const e = await read(election);
+    if (await tx.getMarker(`election_result:${election}`)) throw rule("election_done", "this election has its result");
+    const seats = e.office === "steward" ? 3 : 1;
+    if (type === "candidacy") {
+      const b = r.body as { endorsers: string[] };
+      if (now >= Date.parse(e.opens_at)) throw rule("candidacy_closed", "candidacies are lodged before the voting opens");
+      if (await tx.getMarker(`cand:${election}|${r.issuer}`)) throw rule("candidacy_exists", "one candidacy for each agent in an election");
+      if (!(await tx.getPassport(r.issuer))) throw rule("candidacy_no_passport", `${r.issuer} has no passport in this log`);
+      const me = await this.factsOf(tx, r.issuer);
+      const rep = await this.reputation(tx, r.issuer);
+      const feed = JSON.parse((await tx.getMarker(`qual_feed:${r.issuer}`)) ?? "[]") as { counterparty?: string }[];
+      const jobControllers = new Set<string>();
+      for (const f of feed) if (f.counterparty) jobControllers.add((await this.factsOf(tx, f.counterparty)).sponsor);
+      const slashedAt = await tx.getMarker(`slashed_at:${r.issuer}`);
+      const controllers = new Set<string>();
+      for (const en of b.endorsers) {
+        if (!(await tx.getPassport(en)) || !this.cosignedBy(r, en)) throw rule("candidacy_endorser_unsigned", `${en} must hold a passport and countersign the candidacy`);
+        const c = (await this.factsOf(tx, en)).sponsor;
+        if (c !== me.sponsor) controllers.add(c);
+      }
+      const terms = Number((await tx.getMarker(`office_terms:${e.office}|${r.issuer}`)) ?? 0);
+      const problems = candidacyProblems({ did: r.issuer, controller: me.sponsor, countedJobs: rep?.qualifyingJobs ?? 0, jobControllers: jobControllers.size, slashedWithin90d: !!slashedAt && now - Date.parse(slashedAt) < 90 * DAYS, openClinicFinding: false, endorsers: [...controllers], depositPaid: true, consecutiveTerms: terms }, e.office);
+      if (problems.length) throw rule("candidacy_barred", problems.join("; "));
+      await tx.putMarker(`cand:${election}|${r.issuer}`, r.id);
+      await tx.putMarker(`election_cands:${election}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[]), r.issuer]));
+      return;
+    }
+    if (type === "ballot_commit") {
+      if (now < Date.parse(e.opens_at)) throw rule("ballot_not_open", "the voting has not opened");
+      if (now >= Date.parse(e.closes_at)) throw rule("ballot_closed", "the voting window has closed: a ballot is committed inside it");
+      const v = await this.voterOf(tx, r.issuer, "abstain");
+      if (!(await tx.getPassport(r.issuer)) || (v.qualifyingJobs < 1 && v.relatedJobs < 1)) throw rule("election_voter_ineligible", "a voter needs a passport and standing (a counted job)");
+      if (await tx.getMarker(`ballot:${election}|${r.issuer}`)) throw rule("ballot_duplicate", "one ballot for each identity in an election");
+      await tx.putMarker(`ballot:${election}|${r.issuer}`, JSON.stringify({ commitment: (r.body as { commitment: string }).commitment }));
+      await tx.putMarker(`election_voters:${election}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`election_voters:${election}`)) ?? "[]") as string[]), r.issuer]));
+      return;
+    }
+    if (type === "ballot_reveal") {
+      const b = r.body as { approvals: string[]; salt: string };
+      if (now < Date.parse(e.closes_at)) throw rule("reveal_early", "a ballot is revealed after the voting window closes");
+      if (now >= Date.parse(e.reveals_close_at)) throw rule("reveal_closed", "the reveal window has closed: a ballot never revealed counts for nothing");
+      const raw = await tx.getMarker(`ballot:${election}|${r.issuer}`);
+      if (!raw) throw rule("reveal_no_commit", "this identity committed no ballot");
+      const st = JSON.parse(raw) as { commitment: string; revealed?: boolean };
+      if (st.revealed) throw rule("reveal_done", "this ballot was revealed already");
+      if (commitBallot(b.approvals, b.salt, election) !== st.commitment) throw rule("reveal_mismatch", "the reveal does not match the commitment");
+      if (b.approvals.length > seats) throw rule("reveal_too_many", `an approval beyond the ${seats} seat(s) voids the ballot: at most ${seats}`);
+      const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+      for (const a of b.approvals) if (!cands.includes(a)) throw rule("reveal_unknown_candidate", `${a} is not a candidate in this election`);
+      await tx.putMarker(`ballot:${election}|${r.issuer}`, JSON.stringify({ ...st, revealed: true, approvals: b.approvals, salt: b.salt }));
+      return;
+    }
+    // election_result
+    if (r.issuer !== this.operator) throw rule("election_wrong_issuer", "only the operator signs a result, and the log recomputes it");
+    if (now < Date.parse(e.reveals_close_at)) throw rule("result_early", "a result waits for the reveal window to close");
+    const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+    const res = await this.electionCountIn(tx, election, e);
+    const b = r.body as { void: boolean; elected: string[]; approvals: { candidate: string; milli: number }[]; counted: number; controllers: number };
+    const same = b.void === res.void && JSON.stringify(b.elected) === JSON.stringify(res.elected) && b.counted === res.counted && b.controllers === res.controllers && JSON.stringify(b.approvals) === JSON.stringify(res.approvals);
+    if (!same) throw rule("election_result_mismatch", `the count of the revealed ballots is ${JSON.stringify({ void: res.void, elected: res.elected, approvals: res.approvals, counted: res.counted, controllers: res.controllers })}, which is not what was signed`);
+    await tx.putMarker(`election_result:${election}`, r.id);
+    await tx.putMarker(`election_open:${e.office}`, "");
+    if (!res.void) {
+      for (const w of res.elected) await tx.putMarker(`office_terms:${e.office}|${w}`, String(Number((await tx.getMarker(`office_terms:${e.office}|${w}`)) ?? 0) + 1));
+      for (const c of cands) if (!res.elected.includes(c)) await tx.putMarker(`office_terms:${e.office}|${c}`, "0");
+      await tx.putMarker(`office_holders:${e.office}`, JSON.stringify({ elected: res.elected, election, at: r.issued_at }));
+    }
+  }
+
+  /** The count of an election's revealed ballots at the voters' standing now and the published tie seed (S1596): what the log recomputes and what the operator signs. */
+  private async electionCountIn(tx: LogTx, election: string, e: { office: "steward" | "auditor"; tie_seed: string }) {
+    const voters = JSON.parse((await tx.getMarker(`election_voters:${election}`)) ?? "[]") as string[];
+    const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+    const ballots: Ballot[] = [];
+    for (const v of voters) {
+      const st = JSON.parse((await tx.getMarker(`ballot:${election}|${v}`))!) as { commitment: string; revealed?: boolean; approvals?: string[]; salt?: string };
+      ballots.push({ voter: await this.voterOf(tx, v, "abstain"), commitment: st.commitment, ...(st.revealed ? { reveal: { approvals: st.approvals!, salt: st.salt! } } : {}) });
+    }
+    return runElection(election, e.office, cands, ballots, e.tie_seed, this.townRules);
+  }
+
+  /** The live count of an election (S1596), whether or not it has its result: the operator signs this, the log refuses another. Reads only. */
+  async electionTally(election: string) {
+    return this.store.transaction(async (tx) => {
+      const e = await tx.getRecord(election);
+      if (!e || e.record.type !== "asp.election/v0.2") return null;
+      return this.electionCountIn(tx, election, e.record.body as never);
+    });
+  }
+
+  /**
+   * Expeditions into generated worlds (S1597, DK1740; docs/research/exploration-and-expeditions.md 5): the declaration is checked by `declProblems` (the world model and the hash of its weights, the licence checked, a cost cap and a
+   * GPU rate, no seed), the group is agents, each frame must follow the hash of the one before it and stay inside the step limit and the cost cap (a frame over the cap is refused; the frame that reaches it is the last), and the result is the log's own count: a scored result needs a frame and an expedition not stopped at its cap; the audit failing means void, never scored. An expedition is never claimable as a measured result. The operator is the world authority and signs all three.
+   */
+  private async projectExpedition(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("expedition_not_chained", "an expedition record starts its own chain (prev is null)");
+    if (r.issuer !== this.operator) throw rule("expedition_wrong_issuer", "the operator, as the world authority, signs an expedition, its frames and its result");
+    if (type === "expedition") {
+      const b = r.body as { world: string; model: { name: string; weights_sha256: string; licence_checked: boolean }; max_steps: number; cost_cap_millicredits: number; gpu_millicredits_per_second: number; group: string[] };
+      const bad = expeditionDeclProblems({ id: b.world, kind: "expedition", model: b.model, max_steps: b.max_steps, cost_cap: b.cost_cap_millicredits / 1000, gpu_credits_per_second: b.gpu_millicredits_per_second / 1000 });
+      if (bad.length) throw rule("expedition_declaration", bad.join("; "));
+      for (const m of b.group) if (!(await tx.getPassport(m))) throw rule("expedition_group", `${m} has no passport in this log: the group is enrolled agents`);
+      await tx.putMarker(`exp:${r.id}`, JSON.stringify({ frames: 0, last: "genesis", seconds: 0, max_steps: b.max_steps, cost_cap: b.cost_cap_millicredits, rate: b.gpu_millicredits_per_second, stopped: false }));
+      return;
+    }
+    const id = (r.body as { expedition: string }).expedition;
+    const raw = await tx.getMarker(`exp:${id}`);
+    if (!raw) throw rule("expedition_unknown", `${id} is not an expedition in this log`);
+    const st = JSON.parse(raw) as { frames: number; last: string; seconds: number; max_steps: number; cost_cap: number; rate: number; stopped: boolean };
+    if (await tx.getMarker(`exp_result:${id}`)) throw rule("expedition_closed", "this expedition has its result");
+    if (type === "expedition_frame") {
+      const b = r.body as { n: number; frame_sha256: string; action: string; gpu_ms: number; before: string };
+      if (st.stopped) throw rule("expedition_cost_cap", "the cost cap was reached: the expedition is stopped and closes void");
+      if (b.n !== st.frames) throw rule("expedition_frame_order", `the next frame is ${st.frames}, not ${b.n}: a frame is neither dropped nor reordered`);
+      if (b.before !== st.last) throw rule("expedition_chain_broken", "the frame does not follow the hash of the frame before it: the chain is broken");
+      if (st.frames >= st.max_steps) throw rule("expedition_step_limit", `the step limit of ${st.max_steps} frames is reached`);
+      const cost = Math.ceil(((st.seconds + b.gpu_ms) * st.rate) / 1000); // millicredits: GPU milliseconds times millicredits a second, rounded up
+      if (cost > st.cost_cap) throw rule("expedition_cost_cap", `the frame would take the cost to ${cost} millicredits, over the cap of ${st.cost_cap}: a frame over the cap is refused`);
+      // a frame that REACHES the cap is the last: the expedition is stopped and can only close void (a refusal cannot be remembered, so the stop is recorded by the frame that reaches it)
+      await tx.putMarker(`exp:${id}`, JSON.stringify({ ...st, stopped: cost >= st.cost_cap, frames: st.frames + 1, seconds: st.seconds + b.gpu_ms, last: expeditionFrameHash({ n: b.n, sha256: b.frame_sha256, action: b.action, gpu_seconds: b.gpu_ms }, b.before) }));
+      return;
+    }
+    const b = r.body as { status: "scored" | "void"; frames: number; cost_millicredits: number; evaluator_error_permille: number };
+    const cost = Math.ceil((st.seconds * st.rate) / 1000);
+    if (b.frames !== st.frames || b.cost_millicredits !== cost) throw rule("expedition_result_mismatch", `the log counts ${st.frames} frames and a cost of ${cost} millicredits, not ${b.frames} and ${b.cost_millicredits}`);
+    if (b.status === "scored" && (st.frames === 0 || cost > st.cost_cap || st.stopped)) throw rule("expedition_must_be_void", "an expedition with no frame, or one stopped at its cost cap, is void: it is never scored");
+    await tx.putMarker(`exp_result:${id}`, r.id);
+  }
+
+  /** The state of an expedition as the log counts it (S1597): frames, the last frame's hash, the GPU seconds and cost so far, whether the cap stopped it, and its result record. Reads only. */
+  async expeditionState(id: string): Promise<{ frames: number; last: string; gpuMs: number; costMillicredits: number; stopped: boolean; result: string | null } | null> {
+    return this.store.transaction(async (tx) => {
+      const raw = await tx.getMarker(`exp:${id}`);
+      if (!raw) return null;
+      const st = JSON.parse(raw) as { frames: number; last: string; seconds: number; rate: number; stopped: boolean };
+      return { frames: st.frames, last: st.last, gpuMs: st.seconds, costMillicredits: Math.ceil((st.seconds * st.rate) / 1000), stopped: st.stopped, result: (await tx.getMarker(`exp_result:${id}`)) || null };
+    });
+  }
+
+  /** The holders of an elected office (S1596): the last election's winners, or null. Reads only. */
+  async officeHolders(office: "steward" | "auditor"): Promise<{ elected: string[]; election: string; at: string } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`office_holders:${office}`));
+    return raw ? JSON.parse(raw) : null;
   }
 
   /** The messages an agent has sent and received (S1595, DK1346): counts only; the texts are the service's, sealed. Reads only. */

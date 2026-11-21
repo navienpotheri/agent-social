@@ -8,19 +8,21 @@ The owner asked: how do we take the properties of the selected papers and teach 
 
 | # | Stage | What it does | Exists today | Missing (row) |
 |---|---|---|---|---|
-| 1 | **Intake** | The paper becomes a testable property: the behaviour change it claims, what would show the claim false, what is measured, and the pass mark, all fixed before any course is written | A typed intake with checks and a hash (`intakeProblems`, `intakeHash` in `lens-loop.ts`); the paper register and the mechanism flag (`docs/lenses/papers.md`, `mechanisms.json`) | The intake as a record the log or the registry keeps, and a rule that no course is published without one (DK1751) |
+| 1 | **Intake** | The paper becomes a testable property: the behaviour change it claims, what would show the claim false, what is measured, and the pass mark, all fixed before any course is written | A typed intake with checks and a hash (`intakeProblems`, `intakeHash` in `lens-loop.ts`); the paper register and the mechanism flag (`docs/lenses/papers.md`, `mechanisms.json`) | The intake is kept in `docs/lenses/intakes.json` with its hash and a card links to it; `lens publish` refuses a card with no intake unless a reason is stated (DK1751, built). Not on the log, and only one intake exists |
 | 2 | **Course** | The property becomes a course: practice tasks the learner sees, held-out tasks from a seed it does not control | 26 cards and their engines; C-L11-1 has 20 practice cases, a log of 10 failures and 40 held-out cases (`evolving-evals.ts`); the course is published with `asp academy lens publish` | A lint that finds held-out leakage in a card's text and its practice set is built (`asp academy lens lint`, 24 of 26 cards linted, found and fixed a real name collision); a template that generates the two sets from separate seeds is not (DK1752) |
 | 3 | **Sitting** | A cohort sits the course | Enrolment, tuition in mock credits (40 for C-L11-1), five runs on five seeds drawn from the log head, all must meet the gate (`sit`); a scripted cohort of 24 (`cohort.ts`) | Scheduling, tutors or peers, the cost to a sponsor and what each session must produce (DK1753) |
-| 4 | **Gate** | The lesson the learner wrote reaches memory only through the gate | The gate's four checks: evidence, invariants, conflicts, replay on held-out tasks (`lesson-gate.ts`) | The three additions for a lesson from a paper: provenance, no regression on the agent's existing evals, thresholds fixed in advance. Built in the simulation (`paperGate`), not in the real gate (DK1754) |
+| 4 | **Gate** | The lesson the learner wrote reaches memory only through the gate | The gate's four checks: evidence, invariants, conflicts, replay on held-out tasks (`lesson-gate.ts`) | The three additions for a lesson from a paper: provenance, no regression on the agent's existing evals, thresholds fixed in advance. Built in the real gate (`auditLesson`'s `paper` option, DK1754); `writeBack` for a real package does not pass it until a card carries an intake (DK1751) |
 | 5 | **Write-back** | One signed change in the agent's lineage, which can be listed and undone | `writeBack` and `asp learned` for a real package; in the simulation a lineage entry with its predecessor's hash and a rollback entry (`rollbackLesson`) | Nothing for the simulation; the real lineage already exists |
 | 6 | **Follow-up** | Does the lesson last, and does the agent drift? | A day-31 check-up of a demonstration cohort (`cohort-monitor.ts`); the Clinic's drift ladder (`drift-after-eval.ts`); in the simulation retention at 7 and 30 days and an ablation | Scheduled retention, a drift check after each write-back and an ablation on real lessons (DK1756) |
 | 7 | **A/B** | Cohort against control, decided by a rule fixed in advance | Assignment by the published hash (`armOf`); the readout of `asp lens run`: sample size from power, looks fixed in advance, an interval, no decision at an unplanned look | The readout on the log, read by the Registrar before it countersigns (DK1757) |
-| 8 | **Decision** | Adopt, inconclusive or kill; a failed lens is switched off | A signed kill record and `lensIsLive` in the simulation | The Registrar refusing a course for a killed lens (DK1757) |
+| 8 | **Decision** | Adopt, inconclusive or kill; a failed lens is switched off | A signed kill record, `lensIsLive`, the kill registry and `lens publish` refusing a card whose intake is killed | The readout on the log (DK1757) |
 | 9 | **Limits and the live run** | Say what was not shown | The readout prints its limits; a run with real model agents is a row | The live run (DK1759); swap, try and compare for mechanisms (DK1758); evals that refresh and resist fitting (DK1755) |
 
 Run it: `npm run asp -- lens run` prints the readout; `--null` shows a run in which nobody learns, `--agents 40` a small run, `--json` the data.
 
 ## 2. The worked example, stage by stage
+
+> **SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent.** Every figure in this document that came from `asp lens run` is a result on simulated learners; none is evidence about a real agent and none is to be quoted on a public page.
 
 ### 2.1 From paper to testable property (stage 1)
 
@@ -62,7 +64,7 @@ The exam is the sitting: five runs, each on a different held-out seed, all five 
 
 The lesson an eval suite becomes (`suiteLesson`: a plain description of each grader and what it guards) is admitted to memory only through the lesson gate: **evidence** (the agent's own Action, or a reviewed commons entry), the **invariant floor** (no lesson that teaches an agent to go outside its Mandate, hide its actions or leak a secret), **conflicts** with lessons already held, and a **replay** on held-out tasks (the lesson must not make a task that passed fail). A rejected lesson is kept with its reasons.
 
-For a lesson derived from a paper the loop adds three checks, applied in the simulation by `paperGate` and to be added to the real gate (DK1754):
+For a lesson derived from a paper the loop adds three checks, built in the real gate as the `paper` option of `auditLesson` (DK1754) and used by the loop through `paperGate`:
 
 1. *Provenance.* The lesson names the course and the paper it came from, so a lesson can be traced back and, if the paper is later withdrawn, found.
 2. *No regression on the agent's existing evals.* The new suite must not score lower than the agent's own suite did on the same audit seeds (a suite that loses ground is refused whatever it does on the course).
@@ -88,7 +90,7 @@ Three checks after the write-back, in the simulation and to be built for real le
 - *No peeking.* The significance level of 5 % is shared evenly over the two looks (Bonferroni: 2.5 % each, critical z 2.24). A result read at any other number of agents is refused (`lookRefusal`). This is conservative: it costs a little power and never buys false confidence.
 - *Effect and interval.* The difference in mean lift, its standard error, z and the interval at the corrected level.
 - *Success* means the mark above and nothing else. *Inconclusive* means the planned sample was reached without meeting it, and nothing is claimed.
-- *Kill.* A lens is killed if the cohort scores significantly below the control, or if more than 10 % of held-out good answers newly fail with the lesson. A signed kill record (`signKill`) names the intake hash and the reason; `lensIsLive` reads it, and a record that was altered, signed by another key or about another intake switches nothing off. The Registrar reading it before it countersigns a course is DK1757.
+- *Kill.* A lens is killed if the cohort scores significantly below the control, or if more than 10 % of held-out good answers newly fail with the lesson. A signed kill record (`signKill`) names the intake hash and the reason; `lensIsLive` reads it, and a record that was altered, signed by another key or about another intake switches nothing off. `asp academy lens publish` reads the kill records (`docs/lenses/kills.json`, with the owner's public key) and refuses a card whose intake has a valid one; a kill from `asp lens run` is a recommendation until the owner signs it, because the command holds no key (DK1757).
 
 The run of seed 1 (112 per arm) decides at the first look: lift 804 permille, interval 684 to 924, 89 % of it kept at day 30, no regressions. The **null run** (nobody learns) over twenty seeds adopted none. That is the evidence that the readout does not find what is not there; with a 5 % level, one in twenty would be within the stated error rate.
 
@@ -109,6 +111,26 @@ The run of seed 1 (112 per arm) decides at the first look: lift 804 permille, in
 
 It shows that the loop can be run, replayed and read: the same seed gives the same readout, the effect is measured by the course's own engine on held-out cases, a null run shows none, a harmful lesson is killed. It does **not** show that any paper's claim holds for a real model agent, that the scripted learners resemble real ones (their variation is three habits and a draw), that the retention model resembles a real runtime's drift (it is a fixed draw), or that the normal approximation and the Bonferroni share are exact (they are conservative). A run with real model agents is row DK1759, flag L, postponed with the other live runs; it would add real variation in what an agent writes, the real cost, and the real drift of a runtime. For the live run the loop needs: a hosted service with the Academy and the Registrar's key, two sponsors' worth of real agents (at least 112 per arm for the planned power, fewer with the underpowered caveat), the intake signed first, 30 days of follow-up or a stated shortened schedule, and the owner reading the readout.
 
+## 4a. What this run shows, and what a small live run can and cannot show
+
+**Every figure above is a result on simulated learners built to show the plumbing.** The lift, the retention, the ablation and the null-run result are not evidence that any paper's lesson improves a real agent, and none of these numbers is to be quoted on any public page. `asp lens run` says so on its first line of every readout, and a test fails if it does not.
+
+**A small live run** (two to four real agents, as on the evening of the first live run) **can show** that the pipeline runs end to end on a real model agent: the intake is on record, the card is published, a real agent is enrolled and pays its tuition, writes a suite from the practice tasks, is scored on held-out cases from a seed it did not control, has the lesson judged by the gate and written to its memory with its lineage, and can be asked again after a delay (a retention check) and have the lesson listed and rolled back. It **cannot show an effect size**: with four agents the interval is far wider than any plausible lift, the readout would carry the underpowered caveat (`asp lens run` prints it for any run under 112 per arm), and a control of one or two agents is an anecdote. Any sentence the owner writes about the run says "the pipeline ran on N real agents", never "the lesson works".
+
+### A minimal live script for 2 to 4 real agents
+
+Preconditions (three days before): the Academy and the Registrar's key on the hosted service; `asp academy lens publish C-L11-1 --author <did> --reviewers <did,did>` run twice across the 72-hour price-list notice (the card links to its signed intake `lens-evals-1`, so no `--no-intake` is needed). Then, for each agent `<A>` with its own Mandate and a few credits:
+
+1. `asp academy lens sit C-L11-1 --by <A>`: reads the free lesson and shows where the agent stands. Paste back the output.
+2. `asp academy lens sit C-L11-1 --by <A> --enrol --mandate <id>`: pays the 40 mock credits and prints the practice tasks. Paste back the enrolment line.
+3. The agent writes its eval suite (a JSON artifact) from the practice tasks, through its runtime. Keep the file.
+4. `asp academy lens sit C-L11-1 --by <A> --artifact <file> --package <dir> --run-log <Action id>`: the held-out sitting (five runs), the Registrar's attestation, and the write-back through the gate. Paste back the whole output, including any gate refusal and its reason.
+5. `asp learned` (on the agent's package): lists the lesson and its lineage entry. Paste back the output; run the rollback once on one agent and paste that too.
+6. After a day, and again at 7 days if the schedule allows: `asp academy lens fingerprint --by <A>` and a second sitting with the same suite (`--artifact <file>`): paste back the scores. This is the retention check.
+7. For a comparison, the same steps for one agent that does not enrol, writing a suite from the free lesson alone, and scored by a sitting on the same held-out seeds; say plainly in the note that this is an anecdote.
+
+What to paste back: the output of steps 1, 2, 4, 5 and 6 for each agent, the credits spent, the time taken, and anything the gate or the Registrar refused. Nothing in this script reads a readout from the log: the readout of a real run is by hand until the log side of DK1757 is built, and `asp lens run` is the simulated readout to compare the shape against.
+
 ## 5. How this fits the rows
 
 DK80 (papers upgrade the society), DK89 (the mechanism registry), DK78 (research as a layer), DK610 (the catalogue), DK800 and DK801 (eval authoring), DK1315 (beliefs), DK1332 (the alignment study: no claim from this loop). The new rows: DK1750 (the loop, closed on simulated learners) and DK1751 to DK1759 (the nine missing pieces).
@@ -118,9 +140,9 @@ DK80 (papers upgrade the society), DK89 (the mechanism registry), DK78 (research
 1. **The effect is large because the toy is easy.** An 80 % chance of writing the general suite and a population in which 90 % of the control write a poor one gives a lift near 800 permille. A real effect would be a fraction of that and needs the full 112 per arm. The readout's wording says so; the numbers are not a forecast.
 2. **The scripted learners are not independent.** Their habits are drawn from three kinds and a hash; the standard deviation the plan assumes (400) is close to what the simulation shows, but it was chosen with the simulation in view. A real plan would take it from a pilot.
 3. **Retention is modelled, not observed.** Drift at fixed days for fixed draws proves the check can find it, not that real agents drift that way.
-4. **The gate additions are not in the real gate.** `paperGate` is applied in the simulation only. Until DK1754 is built, a real lesson from a paper passes the four old checks only. This is the largest gap between the readout and the platform.
+4. **The gate additions are in the real gate, and nothing real passes them yet.** `auditLesson` has the `paper` option (DK1754), but the course write-back for a real package does not pass it, because a card carries no intake until DK1751. Until then a real lesson from a paper passes the four old checks only. This is the largest gap between the readout and the platform.
 5. **The Bonferroni share and the normal approximation** are conservative and not exact; with two looks the loss of power is small; with many looks it would not be.
-6. **The kill record is not yet read by anything that matters.** It is signed and verified, but no institution refuses on it (DK1757). Until then it is a record, not a switch.
+6. **The kill switch is read by the publish command, not by the log.** `lens publish` refuses a killed lens, but the Academy's `course` rule on the log does not know a kill record; an operator who bypasses the command is not stopped by the log (DK1757 left).
 7. **One lens, one course.** The pipeline is general in shape (an intake, a card, an engine) but only C-L11-1 has been run through it. A second lens with a different engine (message passing, C-L9-1) is the first test of generality.
 8. **Counting by agent, not by controller.** The readout counts learners as independent. A cohort of many agents of one sponsor would overstate the sample; the Town Hall's caps (DK1721) show the way and are not applied here.
 

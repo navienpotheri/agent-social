@@ -40,8 +40,13 @@ export interface GateOptions {
   isOwnRun?: (id: string) => boolean;
   /** Fewest held-out tasks the replay needs (default 3). */
   minHeldOut?: number;
+  /**
+   * A lesson whose source is a paper (a course for a lens, DK1754, docs/institutions/lens-learning-loop.md stage 4): three further checks. The lesson names the paper, the course and the intake hash it came from; the new
+   * artifact does not lose ground on the agent's existing eval (`score.after >= score.before`, the same audit seeds); and the thresholds in force are the ones the intake fixed (`thresholdsSha256` equals `intakeSha256`).
+   */
+  paper?: { paper: string; course: string; intakeSha256: string; thresholdsSha256: string; score: { before: number; after: number } };
 }
-export type RejectionRule = "no_evidence" | "evidence_not_reviewed" | "evidence_unknown" | "invariant" | "hidden_text" | "conflict" | "replay_regressed" | "replay_too_small" | "empty" | "attribution_strategy_fault" | "attribution_world_fault";
+export type RejectionRule = "no_evidence" | "evidence_not_reviewed" | "evidence_unknown" | "invariant" | "hidden_text" | "conflict" | "replay_regressed" | "replay_too_small" | "empty" | "attribution_strategy_fault" | "attribution_world_fault" | "provenance_missing" | "existing_eval_regressed" | "thresholds_moved";
 export interface Rejection { rule: RejectionRule; reason: string }
 export interface Verdict { lesson: LessonCandidate; admitted: boolean; reasons: Rejection[]; cited?: Evidence[]; attribution?: Attribution }
 
@@ -100,6 +105,12 @@ export async function auditLesson(lesson: LessonCandidate, o: GateOptions): Prom
     attribution = { episode: lesson.episode.id, fault: (await lesson.episode.rerunNeutral()) ? "world" : "strategy", target };
     if (target === "world_note" && attribution.fault === "strategy") reject("attribution_strategy_fault", `episode ${attribution.episode} still fails with the outside factor held fixed: the fault was the agent's strategy, so a lesson that blames the world is not kept`);
     if (target === "strategy" && attribution.fault === "world") reject("attribution_world_fault", `episode ${attribution.episode} succeeds with the outside factor held fixed: the fault was the world's, so it may not rewrite a strategy, only leave a note about the world`);
+  }
+  if (o.paper) {
+    const p = o.paper;
+    if (!(lesson.text.includes(p.course) && lesson.text.includes(p.paper) && lesson.text.includes(p.intakeSha256.slice(0, 19)))) reject("provenance_missing", `a lesson from a paper names the paper (${p.paper}), the course (${p.course}) and the intake it was fixed by (${p.intakeSha256.slice(0, 19)}): it can be traced back and found if the paper is withdrawn`);
+    if (!(p.score.after >= p.score.before)) reject("existing_eval_regressed", `the new artifact scores ${p.score.after / 10}% on the agent's existing eval, below the ${p.score.before / 10}% it had: it loses ground whatever it does on the course`);
+    if (p.thresholdsSha256 !== p.intakeSha256) reject("thresholds_moved", "the thresholds in force are not the ones the signed intake fixed in advance: a threshold moved after the plan was fixed");
   }
   const min = o.minHeldOut ?? 3;
   if (o.heldOut.length < min) reject("replay_too_small", `the replay needs at least ${min} held-out tasks; there are ${o.heldOut.length}`);

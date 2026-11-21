@@ -16,6 +16,8 @@
  * course's own engine, and a null run (nobody learns) shows no effect. A real model-agent run is postponed with the other live runs (register row DK1759). Pure and deterministic: the same seed gives the same readout.
  */
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { b64urlDecode, b64urlEncode, publicKeyFromSeed, signBytes, verifyBytes } from "@agent-social/asp-core";
 import { auditLesson, type HeldOutTask } from "@agent-social/asp-package";
 import { armOf } from "@agent-social/asp-log";
@@ -24,6 +26,7 @@ import { engineIds, sit } from "./lens-courses/index.ts";
 import { REPLAY_TASKS } from "./lens-courses/writeback.ts";
 import { copierSuite, doNothingSuite, flagAllSuite, honestSuite, overfitterSuite, practiceFor, runSuite, suiteLesson, type EvalSuite } from "./lens-courses/evolving-evals.ts";
 
+export const SIMULATED_NOTICE = "SIMULATED learners: this shows the pipeline works, not that any lesson works on a real agent.";
 export const LOOP_SCOPE = "Scripted learners on a toy world, scored by the course's own engine on held-out cases: no real model, nothing changes model weights, credits are accounting entries and not money. A run with real model agents is postponed (register row DK1759) and would add: real variation in what an agent writes, real cost, and the drift of a real runtime.";
 
 // ---------------------------------------------------------------- 1. intake: a paper becomes a testable property
@@ -82,6 +85,23 @@ export function intakeProblems(i: Intake, courses: readonly Pick<CourseCard, "id
   return out;
 }
 
+/** The intakes the registry holds (docs/lenses/intakes.json), by id. */
+export const INTAKES_FILE = fileURLToPath(new URL("../../../docs/lenses/intakes.json", import.meta.url));
+export function loadIntakes(file = INTAKES_FILE): Intake[] { return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { intakes: Intake[] }).intakes : []; }
+/** The signed kill records the registry holds (docs/lenses/kills.json). */
+export const KILLS_FILE = fileURLToPath(new URL("../../../docs/lenses/kills.json", import.meta.url));
+export function loadKills(file = KILLS_FILE): (KillRecord & { sig: string })[] { return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { kills: (KillRecord & { sig: string })[] }).kills : []; }
+/** What bars a course card on its intake (DK1751): a card that names an intake names one the registry holds, with the hash of the plan as it stands, and for the course the intake names. A card with no intake is not refused here: `lens publish` refuses it unless the operator states why (a course written before the rule). */
+export function cardIntakeProblems(card: Pick<CourseCard, "id" | "intake">, intakes: readonly Intake[]): string[] {
+  if (!card.intake) return [];
+  const i = intakes.find((x) => x.id === card.intake!.id);
+  if (!i) return [`${card.id} names the intake ${card.intake.id}, which the registry does not hold`];
+  const out: string[] = [];
+  if (intakeHash(i) !== card.intake.sha256) out.push(`${card.id} names the intake ${i.id} with the hash ${card.intake.sha256.slice(0, 19)}, but the plan as it stands hashes to ${intakeHash(i).slice(0, 19)}: a plan changed after the course was linked to it is a different intake`);
+  if (i.course !== card.id) out.push(`the intake ${i.id} is for the course ${i.course}, not ${card.id}`);
+  return out;
+}
+
 // ---------------------------------------------------------------- statistics, fixed in advance
 
 /** The standard normal distribution function (Abramowitz and Stegun 7.1.26 on erf). */
@@ -135,17 +155,11 @@ function habitSuite(h: Habit, practice: ReturnType<typeof practiceFor>): EvalSui
 const learns = (id: string, seed: number, pLearnPermille: number): boolean => draw(`learn|${seed}|${id}`) * 1000 < pLearnPermille;
 
 export interface Gate { admitted: boolean; reasons: string[]; extras: { provenance: boolean; no_regression: boolean; thresholds_fixed: boolean } }
-/** The lesson gate for a paper-derived lesson: the gate's own checks (evidence, invariants, replay) plus three additions: the lesson names the paper and course it came from, the new suite does not lose ground on the agent's existing eval, and the thresholds in force are those the intake fixed. */
+/** The lesson gate for a paper-derived lesson: the REAL gate of asp-package (evidence, invariants, conflicts, replay) with its paper option (DK1754): the lesson names the paper, the course and the intake hash it came from, the new suite does not lose ground on the agent's existing eval, and the thresholds in force are those the intake fixed in advance. */
 export async function paperGate(lesson: { id: string; text: string }, evidenceRun: string, intake: Intake, before: number, after: number, thresholdsHash: string): Promise<Gate> {
-  const v = await auditLesson({ id: lesson.id, text: lesson.text, evidence: [{ kind: "run", ref: evidenceRun }], source: "course" }, { existing: [], heldOut: REPLAY_TASKS as HeldOutTask[], minHeldOut: 3, isOwnRun: (r) => r === evidenceRun });
-  const reasons = v.reasons.map((r) => `${r.rule}: ${r.reason}`);
-  const provenance = lesson.text.includes(intake.course);
-  const noRegression = after >= before;
-  const fixed = thresholdsHash === intakeHash(intake);
-  if (!provenance) reasons.push(`provenance: the lesson does not name the course ${intake.course} it came from`);
-  if (!noRegression) reasons.push(`regression: the new suite scores ${after / 10}% on the agent's existing eval, below the ${before / 10}% it had`);
-  if (!fixed) reasons.push("thresholds: the thresholds in force are not the ones the intake fixed in advance");
-  return { admitted: reasons.length === 0, reasons, extras: { provenance, no_regression: noRegression, thresholds_fixed: fixed } };
+  const v = await auditLesson({ id: lesson.id, text: lesson.text, evidence: [{ kind: "run", ref: evidenceRun }], source: "course" }, { existing: [], heldOut: REPLAY_TASKS as HeldOutTask[], minHeldOut: 3, isOwnRun: (r) => r === evidenceRun, paper: { paper: intake.paper, course: intake.course, intakeSha256: intakeHash(intake), thresholdsSha256: thresholdsHash, score: { before, after } } });
+  const has = (rule: string) => v.reasons.some((r) => r.rule === rule);
+  return { admitted: v.admitted, reasons: v.reasons.map((r) => `${r.rule}: ${r.reason}`), extras: { provenance: !has("provenance_missing"), no_regression: !has("existing_eval_regressed"), thresholds_fixed: !has("thresholds_moved") } };
 }
 
 // ---------------------------------------------------------------- the run
@@ -169,7 +183,10 @@ export interface Readout {
   retention: { day0: number; day7: number; day30: number; share_kept_permille: number; floor_permille: number; flagged: number };
   ablation: { n: number; with_lesson: number; without_lesson: number; effect: number };
   regressions: number;
+  /** The signed kill record, present only when a key was given to sign it (the owner's; the command never signs with a key of its own). */
   kill: (KillRecord & { sig: string }) | null;
+  /** What a kill would say, unsigned: a recommendation until the owner signs it. */
+  kill_recommended: KillRecord | null;
   limits: string[];
 }
 
@@ -226,7 +243,7 @@ export async function runLoop(o: LoopOptions = {}): Promise<Readout> {
         passed = sitting.passed;
         if (passed) {
           const lesson = suiteLesson(written);
-          const textWithProvenance = `${lesson.text}\n(source: course ${intake.course}, paper ${intake.paper})`;
+          const textWithProvenance = `${lesson.text}\n(source: course ${intake.course}, paper ${intake.paper}, intake ${ihash.slice(0, 19)})`;
           const gate = await paperGate({ id: lesson.id, text: textWithProvenance }, `action:${id}:sitting`, intake, before, score(written, beforeSeeds), ihash);
           admitted = gate.admitted; gateReasons = gate.reasons;
           if (admitted) {
@@ -288,14 +305,14 @@ export async function runLoop(o: LoopOptions = {}): Promise<Readout> {
   const day30 = r1(days("cohort", (r) => r.day30 ?? 0) - days("control", (r) => r.day30 ?? 0));
   const ab = cohortRows.filter((r) => r.ablated !== null);
   const abl = { n: ab.length, with_lesson: Math.round(mean(ab.map((r) => r.after))), without_lesson: Math.round(mean(ab.map((r) => r.after - (r.ablated ?? 0)))), effect: Math.round(mean(ab.map((r) => r.ablated ?? 0))) };
-  const killSeed = o.killSeed ?? new Uint8Array(32).fill(7);
-  const kill = decision === "kill" ? signKill({ intake: ihash, lens: intake.lens, reason, at: "end of the readout", seed_key: b64urlEncode(publicKeyFromSeed(killSeed)) }, killSeed) : null;
+  const rec: KillRecord | null = decision === "kill" ? { intake: ihash, lens: intake.lens, reason, at: "end of the readout", seed_key: o.killSeed ? b64urlEncode(publicKeyFromSeed(o.killSeed)) : "unsigned" } : null;
+  const kill = rec && o.killSeed ? signKill(rec, o.killSeed) : null;
   return {
     scope: LOOP_SCOPE, seed, null_run: !!o.nullRun, intake, intake_sha256: ihash, planned_n_per_arm: perArm, sample_size_from_power: sampleSizePerArm(p), z_crit: r1(zc), learners: rows,
     cohort: { n: cohortRows.length, sat: cohortRows.filter((r) => r.sat).length, passed: cohortRows.filter((r) => r.passed).length, admitted: cohortRows.filter((r) => r.admitted).length },
     looks, decision, reason,
     retention: { day0, day7, day30, share_kept_permille: day0 > 0 ? Math.round((day30 / day0) * 1000) : 0, floor_permille: p.retention_floor_permille, flagged: cohortRows.filter((r) => r.flag !== "ok").length },
-    ablation: abl, regressions: regressionPermille, kill,
+    ablation: abl, regressions: regressionPermille, kill, kill_recommended: rec && !kill ? rec : null,
     limits: [
       ...(perArm < sampleSizePerArm(p) ? [`underpowered: ${perArm} agents per arm is below the ${sampleSizePerArm(p)} the pre-registered power asks for, so a failure to find an effect here says little and a found effect is read with that in mind`] : []),
       "the learners are scripted and the world is a toy: a decision here says the loop works from intake to decision, never that the paper's claim holds for a real model agent",
@@ -344,7 +361,7 @@ export function lensIsLive(intake: Intake, kills: readonly (KillRecord & { sig: 
 // ---------------------------------------------------------------- the readout in words
 
 export function formatReadout(r: Readout): string {
-  const L: string[] = [];
+  const L: string[] = [SIMULATED_NOTICE];
   const pct = (x: number) => `${r1(x / 10)}%`;
   L.push(`Lens learning loop: ${r.intake.paper} (${r.intake.lens}), course ${r.intake.course}${r.null_run ? "  [NULL RUN: nobody learns, so no effect should show]" : ""}`);
   L.push(`  ${r.scope}`);
@@ -358,6 +375,7 @@ export function formatReadout(r: Readout): string {
   L.push(`  regressions: ${r.regressions / 10}% of held-out good answers newly flagged (kill rule: above ${r.intake.prereg.kill.regression_max_permille / 10}%)`);
   L.push(`  DECISION: ${r.decision}. ${r.reason}`);
   if (r.kill) L.push(`  kill record signed (${r.kill.sig.slice(0, 16)}...): the lens is switched off for this intake`);
+  else if (r.kill_recommended) L.push("  kill recommended and NOT signed: the owner's key signs a kill record; until then the lens stays on and this is a recommendation");
   for (const l of r.limits) L.push(`  limit: ${l}`);
   return L.join("\n");
 }

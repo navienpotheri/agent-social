@@ -212,3 +212,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 lane-protocol-3 done: DK1346 protocol (S1595, UC-1923), DK183/DK386 closed, T22 option. Next: DK1322 question, H15 fleet rate in log, DK1457 harness
 - 2026-11-22 held by lane-protocol-3 (DK402 insurance hold and exclusions; then the 69 must rows in my area), 19:48Z
 - 2026-11-22 held by lane-society-2 (the lens learning loop DK1750, rows DK1751 to DK1759; then the four design packs: exploration, games, forum mechanisms, elections; then IS9), 01:30Z
+- 2026-11-22 held by lane-protocol-3 (mutation-check of closed rows E11 CY8 DK854 DK1405 DK1343 DK1382 DK1471 DK1726 DK1730 DK402 DK1721; results in docs/verification-log.md), 20:19Z

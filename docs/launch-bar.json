@@ -3,8 +3,8 @@
  "counts": {
   "must": 65,
   "withdraw": 106,
-  "after": 338,
-  "total": 509
+  "after": 336,
+  "total": 507
  },
  "mustWorkerHours": 308.2,
  "entries": [
@@ -5990,18 +5990,6 @@
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
   },
   {
-   "id": "DK1751",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Nothing turns a paper into a testable property before a course is written: the registry holds a citation and a flag, but not the behaviour change claimed, what would falsify it, the measure and the p…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark",
-   "says": "site, docs: say 'planned'"
-  },
-  {
    "id": "DK1752",
    "pri": "A",
    "status": "partial",
@@ -6023,18 +6011,6 @@
    "size": "",
    "flags": "",
    "why": "Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces",
-   "says": "site, docs: say 'planned'"
-  },
-  {
-   "id": "DK1754",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The lesson gate checks evidence, invariants, conflicts and a replay, but not what a paper-derived lesson needs: provenance to the paper and the course, a check that the agent's existing evals do not…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance",
    "says": "site, docs: say 'planned'"
   },
   {

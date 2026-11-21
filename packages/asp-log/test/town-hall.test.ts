@@ -5,7 +5,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_TOWN_RULES, countVotes, type Voter } from "../src/index.ts";
+import { DEFAULT_TOWN_RULES, countVotes, voterWeightMilli, type Voter } from "../src/index.ts";
 import { DAY, jump, kit, mk, nowIso, operator, refusedBy } from "./society-kit.ts";
 
 const iso = (ms: number): string => new Date(ms).toISOString().replace(".000Z", "Z");
@@ -169,4 +169,14 @@ test("end to end: agents vote a real setting, the enactment changes how the Mark
   await k.log.append(await post(20, "after-short"));
   // the same route cannot touch a reserved area: a key under safety. is refused at the proposal
   assert.equal(await refusedBy(k.log.append(proposal(a[1], { kind: "setting", key: "safety.floor.max_spend", value: 1 }))), "town_reserved_matter");
+});
+
+test("the weight of one vote before the caps: a full vote with an arm's-length job, a quarter with only related-party runs, none without standing (and a vote with none counts for nothing)", () => {
+  const rules = DEFAULT_TOWN_RULES;
+  assert.equal(voterWeightMilli({ qualifyingJobs: 1, relatedJobs: 0 }, rules), 1000);
+  assert.equal(voterWeightMilli({ qualifyingJobs: 0, relatedJobs: 1 }, rules), 250);
+  assert.equal(voterWeightMilli({ qualifyingJobs: 0, relatedJobs: 0 }, rules), 0);
+  const v = (controller: string, qualifyingJobs: number, relatedJobs: number): Voter => ({ did: `did:web:x:${controller}`, controller, fleet: null, qualifyingJobs, relatedJobs, choice: "yes" });
+  const tally = countVotes([v("a", 1, 0), v("b", 0, 1), v("c", 0, 0)], rules, "setting");
+  assert.deepEqual([tally.yes_milli, tally.counted, tally.controllers], [1250, 2, 2], "the voter with no standing is not counted and adds nothing");
 });

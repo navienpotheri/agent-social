@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Signed kill records (register row DK1757, docs/institutions/lens-learning-loop.md stage 8): a record names the intake it switches off by hash and carries the owner's signature. `asp academy lens publish` refuses a card whose intake has a valid kill record. Empty: no lens has been switched off.",
+  "kills": []
+}

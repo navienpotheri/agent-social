@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:expedition",
+  "title": "Expedition declaration body",
+  "description": "The declaration of an expedition into a generated world (register row DK1740; spec-delta S1597; docs/research/exploration-and-expeditions.md 4 and 5): the world, the world model and the hash of its weights, that the licence was checked for this use, the step limit, the cost cap and the GPU rate (whole millicredits: a record holds integers only), the group of agents and the goal kind. Signed by the operator as the world authority. An expedition has no seed: it cannot be regenerated, so it is never claimable as a measured result. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "world",
+    "model",
+    "max_steps",
+    "cost_cap_millicredits",
+    "gpu_millicredits_per_second",
+    "group",
+    "goal"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "world": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "name",
+        "weights_sha256",
+        "licence_checked"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "weights_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "licence_checked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "max_steps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "group": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "goal": {
+      "enum": [
+        "reach",
+        "line",
+        "points"
+      ]
+    },
+    "cost_cap_millicredits": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "gpu_millicredits_per_second": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

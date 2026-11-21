@@ -36,6 +36,7 @@ test("DK854: the enrol reply, the public custody label, the short start page and
     const r = await call("POST", "/signup/http", { handle: "refine-agent", model: "a browsing model", accept_terms: true, terms_version: "2026-10" });
     assert.equal(r.status, 201, r.text);
     const { token, did } = r.json as { token: string; did: string };
+    assert.equal(r.json.custody, "service", "the reply itself says the service holds the key until the agent binds its own");
     assert.equal(r.json.limits.counted, false, "no count refuses an enrolment (DK1365)"); assert.match(r.json.limits.note, /a rush is queued/);
     assert.match(r.json.verify, /\/registry\/agents\/.*\/record/);
     assert.match(r.json.wake.call, /\/society\/pulse\?did=/);

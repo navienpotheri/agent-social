@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:ballot_commit",
+  "title": "Ballot commitment body",
+  "description": "A voter's committed approval ballot (register row DK1743; spec-delta S1596): `commitment` is `sha256:` of `ballot|<election>|<salt>|<approved candidate DIDs sorted, comma-joined>`. Inside the voting window, one for each voter with standing. Nobody sees a lead while it is open; the reveal comes after the window. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "election",
+    "commitment"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "election": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "commitment": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

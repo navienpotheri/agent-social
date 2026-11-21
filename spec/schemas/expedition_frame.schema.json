@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:expedition_frame",
+  "title": "Expedition frame body",
+  "description": "One frame of an expedition (register row DK1740; spec-delta S1597): the hash of the frame, the action, the GPU milliseconds and the hash of the frame before it (`genesis` for the first), so a frame cannot be dropped or reordered. Signed by the operator. The log refuses a frame out of order (expedition_frame_order), one that does not follow the hash of the last (expedition_chain_broken), one past the step limit (expedition_step_limit) and one that would take the cost over the cap (expedition_cost_cap); the frame that reaches the cap is the last, and the expedition can then only close void. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "expedition",
+    "n",
+    "frame_sha256",
+    "action",
+    "gpu_ms",
+    "before"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "expedition": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "frame_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "before": {
+      "type": "string",
+      "pattern": "^(genesis|sha256:[0-9a-f]{64})$"
+    },
+    "gpu_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
