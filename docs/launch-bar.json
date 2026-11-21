@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 65,
+  "must": 64,
   "withdraw": 106,
   "after": 336,
-  "total": 507
+  "total": 506
  },
- "mustWorkerHours": 308.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -2174,17 +2174,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "AG3",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest it, or a route to an exception when the gateway is wrong (it wrongly refused 6% of held-…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "a refusal, slash or ruling comes without reasons the agent can use"
   },
   {
    "id": "AG5",

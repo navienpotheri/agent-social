@@ -5,9 +5,9 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 507 register rows are not closed (223 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 506 register rows are not closed (222 at priority A, 212 at B, 49 at C). Sorted:
 
-- **Must close before launch: 65 rows, 308 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 64 rows, 305 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 106 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 336 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -17,13 +17,13 @@ Three honest dates, at about 10 productive build-hours a day for one worker (an 
 |---|---|---|
 | **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 30 | **2026-11-25** |
 | **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 69 | 2026-11-28 |
-| **Full**: all 65 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 308 | 2026-12-22 |
+| **Full**: all 64 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 305 | 2026-12-22 |
 
 The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 16 rows** (the register rows whose status is closed and whose text says closed on that date): DK27, DK183, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754.
+**Closed on 2026-11-22: 17 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK183, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -41,10 +41,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 65 (308.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 64 (305.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 106 |
 | After launch | 336 |
-| Total not closed | 507 |
+| Total not closed | 506 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -57,7 +57,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
-| AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
 | DK1 | ? | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | partial | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
