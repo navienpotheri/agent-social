@@ -224,7 +224,7 @@
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
  *   asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
- *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement, purchase, Treasury and Clinic flows the log can report today (the Clinic line: checkups and restores bought, free checkups, refunds); `--by-flow clinic` is the same, named for the Clinic.
+ *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement, purchase, Treasury, Clinic, Bank, deposit, Insurer and Courts flows the log can report today (the Clinic line: checkups and restores bought, free checkups, refunds; the Bank line: reserve, credit lines, lent, returned, owed, defaults, debt cleared); `--by-flow clinic` is the same, named for the Clinic.
  *
  *   Assignment mode (one performer bidding directly):
  *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>] [--verifier <did>]
@@ -4754,7 +4754,12 @@ async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string):
     const cl = flows.clinic;
     io.out(`  Clinic (DK161): ${n(cl.checkupsBought.count)} checkup(s) bought for ${n(cl.checkupsBought.amount)}, ${n(cl.restoresBought.count)} restore(s) bought for ${n(cl.restoresBought.amount)}, ${n(cl.freeCheckups.count)} free checkup(s) paid by the Treasury's budget line (${n(cl.freeCheckups.amount)}), ${n(cl.refunds.count)} refund(s) of ${n(cl.refunds.amount)}`);
     const tr = flows.treasury;
-    io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}`);
+    io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}, ${n(tr.handouts.count)} handout(s) for ${n(tr.handouts.amount)}`);
+    const bk = flows.bank, dp = flows.deposits, ins = flows.insurer, ct = flows.courts;
+    io.out(`  Bank (DK1452): reserve ${n(bk.reserve)}; ${n(bk.linesOpened.count)} credit line(s) opened for ${n(bk.linesOpened.amount)}, ${n(bk.lent.count)} drawn (lent ${n(bk.lent.amount)}), ${n(bk.returned)} returned, ${n(bk.outstanding)} still owed; ${n(bk.defaults.count)} default(s) of ${n(bk.defaults.unpaid)}, ${n(bk.debtCleared.count)} debt payment(s) of ${n(bk.debtCleared.amount)}`);
+    io.out(`  Deposits: ${n(dp.made.count)} made for ${n(dp.made.amount)}, ${n(dp.withdrawn.count)} withdrawn for ${n(dp.withdrawn.amount)}, ${n(dp.rewards.count)} Treasury reward(s) of ${n(dp.rewards.amount)}; the deposit account holds ${n(dp.held)}`);
+    io.out(`  Insurer: reserve ${n(ins.reserve)}; ${n(ins.policies.count)} policy(ies) for ${n(ins.policies.premiums)} in premiums, ${n(ins.claims)} claim(s): paid ${n(ins.decisions.paid.count)} (${n(ins.decisions.paid.amount)}), reduced ${n(ins.decisions.reduced.count)} (${n(ins.decisions.reduced.amount)}), denied ${n(ins.decisions.denied.count)}`);
+    io.out(`  Courts: ${n(ct.appealsFiled)} appeal(s) filed; decided affirmed ${n(ct.appealRulings.affirmed)}, reversed ${n(ct.appealRulings.reversed)}, varied ${n(ct.appealRulings.varied)}; appeal jurors paid ${n(ct.jurorsPaid)} (unpaid ${n(ct.jurorShortfall)}); ${n(ct.penalties.count)} juror penalt(ies) of ${n(ct.penalties.amount)} to the Treasury`);
     io.out("  not available from the log yet:");
     for (const u of flows.unavailable) io.out(`    - ${u}`);
   }
@@ -5648,13 +5653,16 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     // A ruling's fault on the performer *is* the payout formula (asp-log's checkRulingPanel guard,
     // docs/spec-deltas.md S13) — derive it here rather than making the caller compute it by hand.
+    let rulingFees: number | undefined;
     if (basis === "ruling" && (escrowReleased === undefined || bondSlashed === undefined)) {
       const [rulingRec, escrow] = await Promise.all([local.log.get(cited!), local.log.escrow(contract)]);
       const contractRec = await local.log.get(contract);
       const performer = (contractRec!.record.body as any).performer;
-      const fault = (rulingRec?.record.body as any)?.fault?.[performer] ?? 0;
-      escrowReleased ??= Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
-      bondSlashed ??= Math.ceil((escrow!.bondLocked * fault) / 1000);
+      const fault = (await local.log.effectiveFault(cited!))?.[performer] ?? (rulingRec?.record.body as any)?.fault?.[performer] ?? 0; // the corrected map after an appeal (S1400)
+      const paid = await local.log.rulingSettlement(contract, cited!, now());
+      escrowReleased ??= paid?.escrow_released ?? Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
+      bondSlashed ??= paid?.bond_slashed ?? Math.ceil((escrow!.bondLocked * fault) / 1000);
+      if (v.fees === undefined && paid && paid.fees > 0) rulingFees = paid.fees; // the job tax of the price list in force, on top of what is released (S1401)
     }
 
     const body: Record<string, unknown> = {
@@ -5666,6 +5674,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Comes out of the same escrow, on top of escrow_released; credits to the local mock platform
     // account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient (MOCKS.md).
     if (v.fees) body.fees = { value: Math.trunc(Number(v.fees)), unit: "credit" };
+    else if (rulingFees) body.fees = { value: rulingFees, unit: "credit" };
     if (v["agent-permille"] !== undefined) body.earnings_split = { agent_permille: Math.trunc(Number(v["agent-permille"])) };
     if (basis === "revoked") body.pro_rata_permille =Math.trunc(Number(v["pro-rata"] ?? "0"));
     else if (basis === "accepted" || basis === "ruling") body.cites = cited;

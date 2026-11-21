@@ -33,7 +33,8 @@ Every ruling is indexed by Article, verdict, route and price band. A panel is sh
 
 ## What this charter does not do
 
-- It does not hold a ruling's money: a ruling's settlement is final when it is signed, so an appeal changes the record, the precedent and the fee, not the credits already moved. Holding the settlement for 72 hours (courts.md decision 1) needs the owner's decision and a lifecycle change in both SDKs (register row DK121).
+- It does not move money after the hold: a ruling's settlement is held for **72 hours** after the ruling so that an appeal can change the money (Code 3.8; owner decision 2026-11-13; spec-delta S1400). Both parties may waive the hold by both cosigning the settlement. An appeal filed while the settlement has not been made holds it until the appeal is decided, or 7 days after the appeal was filed if nobody decides it. After the hold and the appeal, the money is final; an appeal filed later (up to 14 days) changes the record, the precedent and a juror's penalty, not the credits already moved.
+- It does not let the loser of an appeal avoid its cost: the five appeal jurors are paid the appeal fee by the loser of the appeal (from the fee itself when the appeal fails; by the other party, as far as it has the credits, when it reverses or varies the ruling), and a juror whose ruling is reversed loses 20 % of its stake to the Treasury.
 - It does not make the Courts independent of the operator: the operator seats the jurors and holds their keys in the beta.
 - It does not hear matters outside a contract dispute or a report (institutional cases are register row DK120).
 

@@ -272,6 +272,25 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   lc("silence_after_deadline", "Principal-mode silence past review_deadline counts as acceptance", c, { state: "Settled" });
 }
 {
+  // S1400 (DK121): a ruling's settlement is held so an appeal can change the money. Each record is 5 minutes after the one before: the ruling is at t=25 minutes, the settlement at t=30 (300 seconds later).
+  const hold = (seconds: number, opts: { by?: Party; cosigners?: Party[] } = {}) => {
+    const c = new Chain(); c.contractRec({ body: { appeal_hold_seconds: seconds } }); c.bond(); c.mandate();
+    const d = c.deliver(); c.reject(d.id); const r = c.ruling(); c.settle("ruling", r.id, opts);
+    return c;
+  };
+  lc("ruling_settled_after_hold", "A ruling's settlement 300 seconds after the ruling is accepted when the contract's hold is 200 seconds", hold(200), { state: "Settled" });
+  lc("ruling_settled_at_hold_boundary", "A settlement exactly one hold after the ruling is accepted (the hold has passed)", hold(300), { state: "Settled" });
+  lc("ruling_settled_in_hold", "A settlement before the hold has passed is refused: an appeal could still change the money", hold(301), err("GUARD_FAILED", 6, "past_appeal_window"));
+  lc("ruling_settled_in_hold_waived", "Both parties cosign a settlement inside the hold: a waiver, accepted", hold(86_400, { cosigners: [alice, coder] }), { state: "Settled" });
+  lc("ruling_hold_waiver_one_party", "One party's cosignature is not a waiver: the settlement inside the hold is refused", hold(86_400, { cosigners: [alice] }), err("GUARD_FAILED", 6, "past_appeal_window"));
+  lc("ruling_hold_waiver_wrong_party", "A cosignature by someone who is not a party is not a waiver", hold(86_400, { cosigners: [panel] }), err("GUARD_FAILED", 6, "past_appeal_window"));
+  {
+    const c = new Chain(); c.contractRec(); c.bond(); c.mandate();
+    const d = c.deliver(); c.reject(d.id); const r = c.ruling(); c.settle("ruling", r.id);
+    lc("ruling_settled_without_hold", "A contract with no appeal hold settles on a ruling at once (contracts made before S1400)", c, { state: "Settled" });
+  }
+}
+{
   // Gap M10: a dispute that no one rules on. The rejection is at t=20 minutes and the settlement at t=25, 300 seconds later.
   const c = new Chain(); c.contractRec({ body: { ruling_window_seconds: 200 } }); c.bond(); c.mandate();
   const d = c.deliver(); c.reject(d.id);

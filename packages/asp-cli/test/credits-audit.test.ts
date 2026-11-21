@@ -36,11 +36,17 @@ test("asp credits audit: balanced over every account, with the figures; --json a
   assert.match(flows.out, /By flow \(whole log\):/);
   assert.match(flows.out, /minted 420/);
   assert.match(flows.out, /not available from the log yet:/);
-  assert.match(flows.out, /credit lines, premiums, claims and reserves of the Bank and the Insurer/);
+  assert.match(flows.out, /Bank \(DK1452\): reserve 0; 0 credit line\(s\) opened for 0/, "the Bank, deposits, Insurer and Courts lines are in the report (DK1452)");
+  assert.match(flows.out, /Deposits: 0 made for 0/);
+  assert.match(flows.out, /Insurer: reserve 0; 0 policy\(ies\)/);
+  assert.match(flows.out, /Courts: 0 appeal\(s\) filed/);
+  assert.match(flows.out, /interest and the Bank holding agents' credits/, "what is not built is named: the owner's target (DK1458)");
 
   const since = JSON.parse((await asp(home, ["credits", "audit", "--by-flow", "--since", "2026-01-01T00:00:00Z", "--json"])).out);
   assert.equal(since.flows.since, "2026-01-01T00:00:00Z");
   assert.equal(since.flows.settlements.count, 0);
+  assert.equal(since.flows.bank.linesOpened.count, 0);
+  assert.equal(since.flows.courts.appealsFiled, 0);
 });
 
 test("asp credits audit: the Treasury, burned and institution figures, signed against unsigned mints, and --require-signed (credits.md CR-2, CR-3)", async () => {

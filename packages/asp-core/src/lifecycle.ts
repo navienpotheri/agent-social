@@ -47,7 +47,9 @@ export interface JobSnapshot {
   bank?: string;
   reviewDeadline?: string;
   rulingWindowSeconds?: number;
+  appealHoldSeconds?: number;
   disputedAt?: string;
+  rulingAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
   latestDelivery?: string;
@@ -68,8 +70,12 @@ export class Job {
   reviewDeadline?: string;
   /** From the Contract: how long a dispute may wait for a ruling before the bank may settle it by the stated split (gap M10). */
   rulingWindowSeconds?: number;
+  /** From the Contract: how long a ruling's settlement is held so an appeal can change the money (S1400); absent, no hold. */
+  appealHoldSeconds?: number;
   /** When the dispute opened: the time of the rejection that put the job in Disputed. */
   disputedAt?: string;
+  /** When the ruling was made: the hold on its settlement counts from here. */
+  rulingAt?: string;
   openCheckpoint?: string;
   openCheckpointExpires?: string;
   latestDelivery?: string;
@@ -97,9 +103,9 @@ export class Job {
   }
 
   snapshot(): JobSnapshot {
-    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, disputedAt,
+    const { state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, appealHoldSeconds, disputedAt, rulingAt,
       openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries } = this;
-    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, disputedAt,
+    return JSON.parse(JSON.stringify({ state, head, lastIssuedAt, length, contractId, principal, performer, bank, reviewDeadline, rulingWindowSeconds, appealHoldSeconds, disputedAt, rulingAt,
       openCheckpoint, openCheckpointExpires, latestDelivery, acceptance, ruling, redeliveries }));
   }
 
@@ -134,7 +140,7 @@ export class Job {
       }
     } catch (e) {
       // A rejected record leaves the job unchanged.
-      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = this.rulingWindowSeconds = undefined;
+      if (type === "contract") this.contractId = this.principal = this.performer = this.bank = this.reviewDeadline = this.rulingWindowSeconds = this.appealHoldSeconds = undefined;
       throw e;
     }
 
@@ -147,13 +153,14 @@ export class Job {
   }
 
   private bindContract(r: AspRecord): void {
-    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string; ruling_window_seconds?: number };
+    const b = r.body as { principal: string; performer: string; bank: string; review_deadline?: string; ruling_window_seconds?: number; appeal_hold_seconds?: number };
     this.contractId = r.id;
     this.principal = b.principal;
     this.performer = b.performer;
     this.bank = b.bank;
     this.reviewDeadline = b.review_deadline;
     this.rulingWindowSeconds = b.ruling_window_seconds;
+    this.appealHoldSeconds = b.appeal_hold_seconds;
   }
 
   private checkIssuer(role: Role, r: AspRecord): void {
@@ -194,6 +201,11 @@ export class Job {
         return this.reviewDeadline !== undefined && Date.parse(r.issued_at) > Date.parse(this.reviewDeadline);
       case "past_ruling_window":
         return this.rulingWindowSeconds !== undefined && this.disputedAt !== undefined && Date.parse(r.issued_at) > Date.parse(this.disputedAt) + this.rulingWindowSeconds * 1000;
+      case "past_appeal_window":
+        // No hold on the contract: the settlement is not held (older contracts). With one: it waits until the hold after the ruling has passed, or both parties waive it by cosigning.
+        return this.appealHoldSeconds === undefined
+          || (this.rulingAt !== undefined && Date.parse(r.issued_at) >= Date.parse(this.rulingAt) + this.appealHoldSeconds * 1000)
+          || (this.cosignedBy(r, this.principal) && this.cosignedBy(r, this.performer));
       default: throw new Error(`unknown guard ${name}`);
     }
   }
@@ -205,7 +217,7 @@ export class Job {
     for (const e of t.effects ?? []) {
       if (e === "mark_accepted") this.acceptance = r.id;
       else if (e === "count_redelivery") this.redeliveries++;
-      else if (e === "record_ruling") this.ruling = r.id;
+      else if (e === "record_ruling") { this.ruling = r.id; this.rulingAt = r.issued_at; }
       else if (e === "mark_disputed") this.disputedAt = r.issued_at;
       else throw new Error(`unknown effect ${e}`);
     }

@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 83 (302.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 98 |
-| After launch | 291 |
-| Total not closed | 472 |
+| Must close before launch | 79 (296.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 106 |
+| After launch | 312 |
+| Total not closed | 497 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -46,9 +46,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
-| DK794 | B | open | 1 | S | - | forum docs and demos exist only as untracked files in an old worktree |
-| DK795 | B | open | 1 | S | - | the society design document exists only in a worktree |
-| DK796 | C | open | 1 | S | - | treasury wording and test changes not committed |
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
 | DK1344 | A | partial | 2 | S | - | self-hire rule built on a branch (S1300); verify and close |
@@ -68,7 +65,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK740 | A | open | 3 | M | - | a service-held agent must be labelled (owner decision KO2) |
 | DK791 | A | open | 3 | M | - | the forum head is not signed or witnessed |
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
-| T26 | A | partial | 3 | M | - | bond floor v2 has no cutover rule; a replayed legacy log would be refused |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
@@ -95,7 +91,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
-| DK121 | A | open | 8 | L | - | Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
@@ -128,6 +123,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
+| DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
 
 ### Bucket 2: withdraw the claim until done
@@ -232,6 +228,14 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1337 | A | open | An alignment study exists | deck, site, ads |
 | DK1339 | A | open | A headline number from our own tests | site, deck, ads: every number carries its method |
 | DK1400 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO9 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO13 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1453 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1454 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1455 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1456 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -528,6 +532,27 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
 | DK1500 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1501 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO1 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO2 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO3 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO4 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO5 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO6 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO8 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO10 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO11 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO12 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO14 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO15 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO16 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO17 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO18 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO19 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| SO20 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1350 | A | open | generative expedition worlds are a later feature | expeditions are described as planned; measured worlds are the basis of any claim |
+| DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
+| DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

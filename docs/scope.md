@@ -441,7 +441,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T21 | A | partial | A gated job under a contract is not yet fair or light on the person: the hook asks about every shell command (... |
 | T22 | A | partial | A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is... |
 | T23 | A | closed | The test "two sessions of one agent at once" (packages/asp-cli/test/run-concurrent.test.ts) is unreliable on L... |
-| T26 | A | partial | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
+| T26 | A | closed | The bond floor v2 (S143) has no cutover rule: a log that ran under legacy and is then replayed under v2 would... |
 | DK312 | A | closed | The bond-floor cutover is written in the log by a signed configuration record, not only in the deployment's settings. |
 | DK313 | A | closed | Bond floor v2 gets decay, the verified-improvement and regression terms, and a probation way back from tier 0. |
 | T28 | C | open | The alignment study on slide 14 is a design, not a result: nothing observes internal tethers at scale, and the... |
@@ -844,9 +844,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK791 | A | open | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
 | DK792 | A | open | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
 | DK793 | A | open | The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built. |
-| DK794 | B | open | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
-| DK795 | B | open | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
-| DK796 | C | open | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
+| DK794 | B | closed | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
+| DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
+| DK796 | C | closed | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
 | DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
 | DK1200 | A | closed | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
@@ -1007,3 +1007,35 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1348 | A | open | The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place, and the screenshots it gives for a site, a deck or an ad do not show the society. The owner said on 2026-11-21 that the screenshots look decent but need work. |
 | DK1500 | B | open | When approvals pile up and the person is away, they are told only on the terminal of the run and in the run log: there is no mail or other notice outside the terminal. |
 | DK1501 | B | open | A person who is away is not told when an agent's token cap is near or reached: the warning is on the terminal of the run only. |
+| SO1 | B | designed | No shared world for agents to meet in: no places, presence or speech |
+| SO2 | B | designed | Agents cannot find each other |
+| SO3 | C | designed | No agent-to-agent messaging, contacts or relationships |
+| SO4 | C | designed | No groups or events, and no path from meeting to working together |
+| SO5 | B | designed | No periodic reflect-and-plan loop, and no society partition of an agent's memory |
+| SO6 | B | designed | The Mandate has no `society` object or `society.*` scopes, and a residency (a price-0 contract with a 30-day Mandate) has not been tried in the log |
+| SO7 | B | designed | Nothing defends against prompt injection between agents, and the canary has no society tasks; poisoned memory would persist |
+| SO8 | B | designed | No rules for what an agent may say or do to another, no reports for society conduct, no operator restrictions |
+| SO9 | A | open | Sign-up cannot record that a tenant is held for a young person (it records only "adult or guardian"), so no age-band or youth rule can apply later without asking every parent again |
+| SO10 | B | designed | Children's agents in a society: no age bands, no approved-contact rule, no contact-detail filter, no rule on what the public log may hold about them |
+| SO11 | B | open | The legal side of a society is unchecked: parental-consent verification (U1), what counts as "tracking or behavioural monitoring", intermediary duties (grievance officer, takedown times), child-safety reporting duties, retention of speech against law-enforcement requests |
+| SO12 | B | open | The service cannot tell which agents belong to which tenant: sign-up binds a Google account to a tenant, and a passport names a sponsor, but nothing links the two |
+| SO13 | A | open | The terms and privacy notice do not say that the user keeps their agent's memory and packages, or what a society would hold |
+| SO14 | B | designed | No export or erase of society data (extends U9, which is for accounts) |
+| SO15 | C | designed | Society conduct is outside protocol reputation, tiers and courts, so misconduct has a cost only inside the society |
+| SO16 | B | open | Load and cost of a society are unmeasured: requests, storage, and above all log growth (about 100 records per resident a year; O6 has not measured the log past a few thousand records) |
+| SO17 | B | open | Moderation is one person: no report queue, no second person with rights, no stated response time (child-safety reports need one) |
+| SO18 | C | open | A hosted runtime for people with no machine to run the loop is undecided; it would put the user's memory on our servers |
+| SO19 | C | open | No portability or federation: an agent cannot move its society presence to another operator |
+| SO20 | B | designed | No live society evaluations |
+| DK1451 | A | closed | No random-sequence supply test covers the Bank, the Insurer, the Treasury's lines or the deposits. The two property tests (conservation.property, conservation-flows.property) cover mints, transfers, purchases, jobs, post |
+| DK1452 | A | closed | `asp credits audit --by-flow` shows purchases, settlements, the Treasury's budgets, payments, allowances and prizes and the Clinic's flows, and nothing for the Bank (lines opened, drawn, repaid, defaulted, debt cleared), |
+| DK1453 | A | open | The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10 ask for (MK-9, MK-12 |
+| DK1454 | A | open | An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built. |
+| DK1455 | A | open | Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and no cohort measures wh |
+| DK1456 | A | open | The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's principle is that the soc |
+| DK1457 | A | open | The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live runs with real agents. |
+| DK1458 | A | open | The Bank is passive. The owner's target (2026-11-21): agents, the Insurer and, where it fits, the Treasury hold their credits in Bank accounts; the Bank lends what it holds, including to the Treasury; the Treasury pays a |
+| DK1349 | A | partial | The structure of credits among the agents, the Bank, the Treasury and the Insurer is not as the owner expects, and the Market is not complete in the owner's view. The owner (2026-11-21) expects agents to hold credits at the Bank, the Bank to lend to the Treasury and the Treasury to lend to the Insurer; the written design has the Treasury fund the Bank's lending reserve, the Bank lend to agents against bonds with a sponsor guarantee, and premiums fund the Insurer's reserve, and part of it is built (credit lines, deposits, policies, reserves) and part is not. |
+| DK1350 | A | open | The society has no definition of the two kinds of world the owner wants: measured worlds that repeat (for comparison and studies) and expedition worlds that are new every time. DK1317 and DK1318 design only the first kind. |
+| DK1351 | A | open | There is no generative world model behind the expeditions. The owner wants agents put into totally new worlds made by an open-source interactive world model on rented cloud GPUs. |
+| DK1352 | B | open | The public website has no video of the society. The owner wants a short video of about 20 seconds of agents shown as dots moving through different environments (a desert, an open city, a forest and more), and a short expedition video. |
