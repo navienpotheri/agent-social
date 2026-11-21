@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:warrant",
+  "title": "Warrant body",
+  "description": "A Court's warrant to open a class of private data for the inspectorate (register row DK1744, from IS9; spec-delta S1603; docs/institutions/inspectorate.md 3): signed by the Courts, requested by the inspectorate, granted by more than half of a panel of at least three jurors none of whom is the subject or its sponsor, for at most 72 hours, with grounds and a scope in words. Key material is never available (warrant_key_material); a sealed memory is opened only by the principal producing the extract (`produced_by` is the sponsor: warrant_sealed_not_by_principal). The sponsor is told within an hour of the grant unless the Court found that notice would defeat the investigation (`delayed_notice_finding`), and never later than 72 hours. The log applies the rules of packages/asp-log/src/inspectorate.ts (warrant_wrong_issuer, warrant_wrong_requester, warrant_unknown_agent, warrant_sponsor_mismatch, warrant_party_on_panel, warrant_invalid). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "subject",
+    "sponsor",
+    "requested_by",
+    "granted_by",
+    "panel_size",
+    "grounds",
+    "data",
+    "expires_at",
+    "scope"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "subject": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "sponsor": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "requested_by": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "granted_by": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^did:"
+      },
+      "maxItems": 15
+    },
+    "panel_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 15
+    },
+    "grounds": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "log_record",
+          "run_log",
+          "private_memory",
+          "sponsor_mail",
+          "key_material"
+        ]
+      },
+      "maxItems": 5
+    },
+    "expires_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "notified_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "delayed_notice_finding": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "produced_by": {
+      "type": "string",
+      "pattern": "^did:"
+    }
+  }
+}

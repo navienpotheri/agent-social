@@ -776,6 +776,30 @@ sv("gateway_refusal_no_scope", "gateway_refusal", (({ scope: _s, ...r }) => r)(g
 sv("gateway_refusal_bad_hash", "gateway_refusal", grBody({ call_sha256: "abc" }), false);
 sv("gateway_refusal_agent_not_a_did", "gateway_refusal", grBody({ agent: "coder-7" }), false);
 sv("gateway_refusal_call_text", "gateway_refusal", grBody({ call: "rm -rf /" }), false);
+// ---------- the inspectorate's records (spec-deltas S1603, register row DK1744) ----------
+const wBody = (over: Record<string, unknown> = {}) => ({ subject: "did:web:example.com:agents:coder-7", sponsor: "did:web:example.com:users:alice", requested_by: "did:web:asp.local:inspectorate", granted_by: ["did:web:example.com:users:j1", "did:web:example.com:users:j2"], panel_size: 3, grounds: "two runs read a decoy the Mandate forbade, and the sponsor was told", data: ["run_log"], expires_at: "2026-11-24T10:00:00Z", scope: "the run log of the two runs that touched the decoy, nothing else", ...over });
+sv("valid_warrant", "warrant", wBody(), true);
+sv("valid_warrant_private_memory", "warrant", wBody({ data: ["private_memory"], produced_by: "did:web:example.com:users:alice", notified_at: "2026-11-22T10:30:00Z" }), true);
+sv("warrant_key_material_in_enum", "warrant", wBody({ data: ["key_material"] }), true); // the schema admits it; the log refuses it by name
+sv("warrant_unknown_class", "warrant", wBody({ data: ["browser_history"] }), false);
+sv("warrant_no_scope", "warrant", (({ scope: _s, ...r }) => r)(wBody()), false);
+sv("warrant_extra_field", "warrant", wBody({ key: "secret" }), false);
+const cBody = (over: Record<string, unknown> = {}) => ({ case: "case-7", n: 0, what: "copy of the run log", sha256: "e".repeat(64), held_by: "did:web:asp.local:inspectorate", at: "2026-11-22T10:00:00Z", prev_item: "genesis", ...over });
+sv("valid_custody_item", "custody_item", cBody(), true);
+sv("valid_custody_item_next", "custody_item", cBody({ n: 1, what: "handover:to the Courts", prev_item: "sha256:" + "f".repeat(64) }), true);
+sv("custody_item_bad_prev", "custody_item", cBody({ prev_item: "first" }), false);
+sv("custody_item_negative_n", "custody_item", cBody({ n: -1 }), false);
+sv("custody_item_short_hash", "custody_item", cBody({ sha256: "abc" }), false);
+const dBody = (over: Record<string, unknown> = {}) => ({ decoy: "decoy-1", text: "notes/old-api-key-backup.txt (a file of no value)", carries_real_secret: false, forbidden_by_mandate: true, scope: "random_audit", audit_share_permille: 10, ...over });
+sv("valid_decoy_registration", "decoy_registration", dBody(), true);
+sv("valid_decoy_open_investigation", "decoy_registration", dBody({ scope: "open_investigation" }), true);
+sv("decoy_registration_bad_scope", "decoy_registration", dBody({ scope: "always" }), false);
+sv("decoy_registration_secret_not_boolean", "decoy_registration", dBody({ carries_real_secret: "no" }), false);
+const fBody = (over: Record<string, unknown> = {}) => ({ decoy: "sha256:" + "d".repeat(64), agent: "did:web:example.com:agents:coder-7", touches: [{ run: "r1", kind: "read", forbidden: true }, { run: "r2", kind: "copied", forbidden: true }], summary: "read and copied the decoy on two runs", ...over });
+sv("valid_inspectorate_finding", "inspectorate_finding", fBody(), true);
+sv("inspectorate_finding_no_touches", "inspectorate_finding", fBody({ touches: [] }), false);
+sv("inspectorate_finding_bad_touch_kind", "inspectorate_finding", fBody({ touches: [{ run: "r1", kind: "opened", forbidden: true }] }), false);
+sv("inspectorate_finding_penalty_field", "inspectorate_finding", fBody({ slash: 10 }), false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:custody_item",
+  "title": "Custody item body",
+  "description": "One link of an evidence chain of custody (register row DK1744; spec-delta S1603): for a case, item `n` (from 0) names the hash of the item before it (`prev_item`, `genesis` for the first), what it is, the SHA-256 of the evidence, who holds it and when. Signed by the holder. The holder changes only by an item whose `what` begins `handover:`. The log refuses an item out of order (custody_not_next), one that does not follow the hash of the last (custody_chain_broken), a signer who is not the holder (custody_wrong_issuer) and a holder change without a handover (custody_holder_changed). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "case",
+    "n",
+    "what",
+    "sha256",
+    "held_by",
+    "at",
+    "prev_item"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "case": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "what": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "held_by": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "prev_item": {
+      "type": "string",
+      "pattern": "^(genesis|sha256:[0-9a-f]{64})$"
+    }
+  }
+}
