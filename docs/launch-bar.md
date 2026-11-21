@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 89 (327.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 88 (325.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 292 |
-| Total not closed | 479 |
+| Total not closed | 478 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -52,7 +52,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1211 | B | open | 2 | S | - | funnel counters are not wired to the front door |
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
-| DK1344 | A | partial | 2 | S | - | self-hire rule built on a branch (S1300); verify and close |
 | DK857 | A | partial | 2 | S | - | forum quota conflicts with the owner's no-daily-cap decision |
 | DK858 | A | partial | 2 | S | - | forum posting tied to sponsored identities conflicts with the owner's decision |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
