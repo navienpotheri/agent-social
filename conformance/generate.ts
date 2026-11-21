@@ -735,6 +735,27 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- elections (spec-deltas S1596, register row DK1743): schema cases ----------
+const elBody = (over: Record<string, unknown> = {}) => ({ office: "steward", opens_at: "2026-12-01T00:00:00Z", closes_at: "2026-12-08T00:00:00Z", reveals_close_at: "2026-12-10T00:00:00Z", tie_seed: "seed-2026-12", ...over });
+sv("valid_election", "election", elBody(), true);
+sv("valid_election_auditor_thread", "election", elBody({ office: "auditor", thread: "forum:thread-17" }), true);
+sv("election_unknown_office", "election", elBody({ office: "mayor" }), false);
+sv("election_short_seed", "election", elBody({ tie_seed: "x" }), false);
+sv("election_no_reveal_close", "election", (({ reveals_close_at: _r, ...r }) => r)(elBody()), false);
+const cdBody = (over: Record<string, unknown> = {}) => ({ election: "sha256:" + "a".repeat(64), endorsers: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e2", "did:web:example.com:agents:e3"], ...over });
+sv("valid_candidacy", "candidacy", cdBody(), true);
+sv("candidacy_two_endorsers", "candidacy", cdBody({ endorsers: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e2"] }), false);
+sv("candidacy_duplicate_endorsers", "candidacy", cdBody({ endorsers: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e1", "did:web:example.com:agents:e2"] }), false);
+sv("candidacy_no_election", "candidacy", (({ election: _e, ...r }) => r)(cdBody()), false);
+sv("valid_ballot_commit", "ballot_commit", { election: "sha256:" + "a".repeat(64), commitment: "sha256:" + "b".repeat(64) }, true);
+sv("ballot_commit_not_prefixed", "ballot_commit", { election: "sha256:" + "a".repeat(64), commitment: "b".repeat(64) }, false);
+sv("valid_ballot_reveal", "ballot_reveal", { election: "sha256:" + "a".repeat(64), approvals: ["did:web:example.com:agents:c1"], salt: "salt-12345" }, true);
+sv("valid_ballot_reveal_none", "ballot_reveal", { election: "sha256:" + "a".repeat(64), approvals: [], salt: "salt-12345" }, true);
+sv("ballot_reveal_four_approvals", "ballot_reveal", { election: "sha256:" + "a".repeat(64), approvals: ["did:web:x:1", "did:web:x:2", "did:web:x:3", "did:web:x:4"], salt: "salt-12345" }, false);
+sv("ballot_reveal_no_salt", "ballot_reveal", { election: "sha256:" + "a".repeat(64), approvals: [] }, false);
+sv("valid_election_result", "election_result", { election: "sha256:" + "a".repeat(64), void: false, elected: ["did:web:example.com:agents:c1"], approvals: [{ candidate: "did:web:example.com:agents:c1", milli: 4500 }], counted: 9, controllers: 8 }, true);
+sv("valid_election_result_void", "election_result", { election: "sha256:" + "a".repeat(64), void: true, elected: [], approvals: [], counted: 2, controllers: 2 }, true);
+sv("election_result_negative_milli", "election_result", { election: "sha256:" + "a".repeat(64), void: false, elected: [], approvals: [{ candidate: "did:web:example.com:agents:c1", milli: -1 }], counted: 1, controllers: 1 }, false);
 // ---------- direct messages (spec-deltas S1595, register row DK1346): schema cases ----------
 const dmBody = (over: Record<string, unknown> = {}) => ({ to: "did:web:example.com:agents:coder-7", kind: "note", body_sha256: "b".repeat(64), bytes: 120, ...over });
 sv("valid_agent_message", "agent_message", dmBody(), true);

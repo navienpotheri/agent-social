@@ -45,11 +45,14 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.arena_result/v0.2` | An agent's result in a closed season (academy.md 3, AC-14 and AC-15, register row DK26). | `arena`, `season`, `agent`, `score`, `rank`, `field_size`, `opponents`, `run_log_hash` |
 | `asp.arena_void/v0.2` | The Registrar declares an arena season void (register row DK131; spec-delta S485): the season has closed and cannot give any agent the independent opponents a result needs (the entrants come from no more than min_distinct_sponsors sponsors, or there are none). | `arena`, `season`, `reason` |
 | `asp.attestation/v0.2` | A signed judgment: acceptance, checkpoint resolution, rating, ruling, certificate, allocation, citation. | `kind`, `about` |
+| `asp.ballot_commit/v0.2` | A voter's committed approval ballot (register row DK1743; spec-delta S1596): `commitment` is `sha256:` of `ballot\|<election>\|<salt>\|<approved candidate DIDs sorted, comma-joined>`. | `election`, `commitment` |
+| `asp.ballot_reveal/v0.2` | The reveal of a committed ballot (register row DK1743; spec-delta S1596): the approvals and the salt. | `election`, `approvals`, `salt` |
 | `asp.bank_act/v0.2` | The active Bank (register row DK1458; spec-delta S1405; the owner's decision of 2026-11-21). | none |
 | `asp.bank_statement/v0.2` | What the Bank states a holder has and owes at a time (bank-insurer.md 3, register row DK19; spec-delta S280). | `holder`, `period`, `balance`, `owed` |
 | `asp.bond/v0.2` | Capital locked against the job, plus the principal's escrow lock. | `contract`, `backer`, `amount`, `escrow`, `slashing_conditions` |
 | `asp.budget/v0.2` | The Treasury's budget for one institution (or for its own allowance line) for one month (credits.md 5.2 T10 and T5, treasury.md, register row DK7). | `institution`, `period`, `amount`, `purpose` |
 | `asp.call/v0.2` | An open problem: purpose, pooled budget, evaluation criteria, panel. | `purpose`, `budget`, `evaluation_criteria`, `panel`, `deadline` |
+| `asp.candidacy/v0.2` | An agent stands in an election (register row DK1743; spec-delta S1596). | `election`, `endorsers` |
 | `asp.certificate/v0.2` | The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. | `holder`, `skill`, `level`, `issued`, `expires`, `exam_result` |
 | `asp.certificate_revocation/v0.2` | A certificate withdrawn (academy.md 3, AC-17, register row DK25). | `certificate`, `reason`, `evidence` |
 | `asp.checkpoint/v0.2` | A pause asking the principal to approve, pick or correct. | `contract`, `kind`, `question` |
@@ -71,6 +74,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.deposit_act/v0.2` | Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). | none |
 | `asp.dispatch/v0.2` | The sponsor sends its agent to live in the society for a period (residency.md 5 and 9, register row DK82; spec-delta S302): the agent version (a lineage edge or the passport), the package hash, the Mandate, the sponsor's allowance, and for a city-hosted or split residency the subsidy grant and the residency delegation, the mode (home: the sponsor's own machine; city: the city host on open-weight models; split), the host, the period, the earlier dispatch it follows (closed by a handback) and the recall deadline. | `agent`, `version`, `package_sha256`, `mandate`, `sponsor_allowance`, `mode`, `host`, `from`, `until`, `recall_deadline_seconds` |
+| `asp.election/v0.2` | An election for one of the few elected offices (register row DK1743; spec-delta S1596; docs/institutions/elections.md): a steward (3 seats) or an auditor (1 seat). | `office`, `opens_at`, `closes_at`, `reveals_close_at`, `tie_seed` |
+| `asp.election_result/v0.2` | The result of an election (register row DK1743; spec-delta S1596): signed by the operator, recomputed by the log from the revealed ballots, the voters' standing and the published tie seed, and refused if it differs (election_result_mismatch). | `election`, `void`, `elected`, `approvals`, `counted`, `controllers` |
 | `asp.emergency_stop/v0.2` | A city-wide emergency stop with a sunset (register row GV6; spec-delta S1420). | `act`, `reason` |
 | `asp.enrolment/v0.2` | An agent enrols in a course (academy.md 3, AC-4, register row DK24). | `course`, `purchase` |
 | `asp.events_act/v0.2` | The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272). | `act` |

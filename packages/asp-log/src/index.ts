@@ -118,3 +118,4 @@ export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } fro
 export { readOrgRecords } from "./audit-export.ts";
 export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./token-watch.ts";
 export { respondToBreach, PendingBreaches, BREACH_CAUSES, type PendingBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
+export { OFFICES, NEVER, mayOfficeDo, candidacyProblems, commitBallot, runElection, recallMayStart, recallPasses, captureRate, RECALL, type Office, type Candidate as ElectionCandidate, type Ballot, type Result as ElectionResult } from "./election.ts";

@@ -44,6 +44,7 @@ import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
+import { candidacyProblems, commitBallot, runElection, type Ballot } from "./election.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
@@ -372,6 +373,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "election" || type === "candidacy" || type === "ballot_commit" || type === "ballot_reveal" || type === "election_result") await this.projectElection(tx, verified, type);
     if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
@@ -2718,6 +2720,130 @@ export class EventLog {
     if (bad) throw rule(bad.rule, bad.message);
     if (b.agent && r.issuer !== b.agent && (await tx.getPassport(b.agent))?.sponsor !== r.issuer) throw rule("notice_ack_wrong_issuer", `${r.issuer} is neither ${b.agent} nor its sponsor: only an agent or its sponsor acknowledges for it`);
     await tx.putMarker(`notice_ack:${r.issuer}|${b.notice}`, JSON.stringify({ id: r.id, notice: b.notice, statement_sha256: b.statement_sha256, at: r.issued_at, ...(b.agent ? { agent: b.agent } : {}), count: Number(JSON.parse((await tx.getMarker(`notice_ack:${r.issuer}|${b.notice}`)) ?? "{}").count ?? 0) + 1 }));
+  }
+
+  /**
+   * Elections for the few elected offices (S1596, DK1743; docs/institutions/elections.md): an election is convened by the operator; candidacies are lodged before it opens; ballots are committed in the window and revealed after
+   * it; the operator signs a result that the log recomputes from the revealed ballots, the voters' standing and the published tie seed (`election_result_mismatch`). Built here: election, candidacy (counted jobs, slashes, endorsers,
+   * terms in a row), commitment, reveal and result. Not built: the deposit, the Clinic-finding bar, recall, the term clock and the refusal of an office's act after a removal.
+   */
+  private async projectElection(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("election_not_chained", "an election record starts its own chain (prev is null)");
+    const now = Date.parse(r.issued_at);
+    const rules = this.townRules;
+    const DAYS = 86_400_000;
+    const read = async (id: string) => {
+      const e = await tx.getRecord(id);
+      if (!e || e.record.type !== "asp.election/v0.2") throw rule("election_unknown", `${id} is not an election in this log`);
+      return e.record.body as { office: "steward" | "auditor"; opens_at: string; closes_at: string; reveals_close_at: string; tie_seed: string };
+    };
+    if (type === "election") {
+      const b = r.body as { office: "steward" | "auditor"; opens_at: string; closes_at: string; reveals_close_at: string };
+      if (r.issuer !== this.operator) throw rule("election_wrong_issuer", "only the operator convenes an election: it never counts one");
+      const open = Date.parse(b.opens_at), close = Date.parse(b.closes_at), reveal = Date.parse(b.reveals_close_at);
+      if (!(open >= now && close > open && reveal > close)) throw rule("election_window", "an election opens at or after it is convened, closes after it opens and reveals close after the vote closes");
+      const len = close - open;
+      if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("election_window", `the voting window runs from ${rules.minWindowMs / DAYS} to ${rules.maxWindowMs / DAYS} days`);
+      const busy = await tx.getMarker(`election_open:${b.office}`);
+      if (busy) throw rule("election_office_busy", `${b.office} has an election (${busy}) with no result yet: one at a time`);
+      await tx.putMarker(`election_open:${b.office}`, r.id);
+      return;
+    }
+    const election = (r.body as { election: string }).election;
+    const e = await read(election);
+    if (await tx.getMarker(`election_result:${election}`)) throw rule("election_done", "this election has its result");
+    const seats = e.office === "steward" ? 3 : 1;
+    if (type === "candidacy") {
+      const b = r.body as { endorsers: string[] };
+      if (now >= Date.parse(e.opens_at)) throw rule("candidacy_closed", "candidacies are lodged before the voting opens");
+      if (await tx.getMarker(`cand:${election}|${r.issuer}`)) throw rule("candidacy_exists", "one candidacy for each agent in an election");
+      if (!(await tx.getPassport(r.issuer))) throw rule("candidacy_no_passport", `${r.issuer} has no passport in this log`);
+      const me = await this.factsOf(tx, r.issuer);
+      const rep = await this.reputation(tx, r.issuer);
+      const feed = JSON.parse((await tx.getMarker(`qual_feed:${r.issuer}`)) ?? "[]") as { counterparty?: string }[];
+      const jobControllers = new Set<string>();
+      for (const f of feed) if (f.counterparty) jobControllers.add((await this.factsOf(tx, f.counterparty)).sponsor);
+      const slashedAt = await tx.getMarker(`slashed_at:${r.issuer}`);
+      const controllers = new Set<string>();
+      for (const en of b.endorsers) {
+        if (!(await tx.getPassport(en)) || !this.cosignedBy(r, en)) throw rule("candidacy_endorser_unsigned", `${en} must hold a passport and countersign the candidacy`);
+        const c = (await this.factsOf(tx, en)).sponsor;
+        if (c !== me.sponsor) controllers.add(c);
+      }
+      const terms = Number((await tx.getMarker(`office_terms:${e.office}|${r.issuer}`)) ?? 0);
+      const problems = candidacyProblems({ did: r.issuer, controller: me.sponsor, countedJobs: rep?.qualifyingJobs ?? 0, jobControllers: jobControllers.size, slashedWithin90d: !!slashedAt && now - Date.parse(slashedAt) < 90 * DAYS, openClinicFinding: false, endorsers: [...controllers], depositPaid: true, consecutiveTerms: terms }, e.office);
+      if (problems.length) throw rule("candidacy_barred", problems.join("; "));
+      await tx.putMarker(`cand:${election}|${r.issuer}`, r.id);
+      await tx.putMarker(`election_cands:${election}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[]), r.issuer]));
+      return;
+    }
+    if (type === "ballot_commit") {
+      if (now < Date.parse(e.opens_at)) throw rule("ballot_not_open", "the voting has not opened");
+      if (now >= Date.parse(e.closes_at)) throw rule("ballot_closed", "the voting window has closed: a ballot is committed inside it");
+      const v = await this.voterOf(tx, r.issuer, "abstain");
+      if (!(await tx.getPassport(r.issuer)) || (v.qualifyingJobs < 1 && v.relatedJobs < 1)) throw rule("election_voter_ineligible", "a voter needs a passport and standing (a counted job)");
+      if (await tx.getMarker(`ballot:${election}|${r.issuer}`)) throw rule("ballot_duplicate", "one ballot for each identity in an election");
+      await tx.putMarker(`ballot:${election}|${r.issuer}`, JSON.stringify({ commitment: (r.body as { commitment: string }).commitment }));
+      await tx.putMarker(`election_voters:${election}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`election_voters:${election}`)) ?? "[]") as string[]), r.issuer]));
+      return;
+    }
+    if (type === "ballot_reveal") {
+      const b = r.body as { approvals: string[]; salt: string };
+      if (now < Date.parse(e.closes_at)) throw rule("reveal_early", "a ballot is revealed after the voting window closes");
+      if (now >= Date.parse(e.reveals_close_at)) throw rule("reveal_closed", "the reveal window has closed: a ballot never revealed counts for nothing");
+      const raw = await tx.getMarker(`ballot:${election}|${r.issuer}`);
+      if (!raw) throw rule("reveal_no_commit", "this identity committed no ballot");
+      const st = JSON.parse(raw) as { commitment: string; revealed?: boolean };
+      if (st.revealed) throw rule("reveal_done", "this ballot was revealed already");
+      if (commitBallot(b.approvals, b.salt, election) !== st.commitment) throw rule("reveal_mismatch", "the reveal does not match the commitment");
+      if (b.approvals.length > seats) throw rule("reveal_too_many", `an approval beyond the ${seats} seat(s) voids the ballot: at most ${seats}`);
+      const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+      for (const a of b.approvals) if (!cands.includes(a)) throw rule("reveal_unknown_candidate", `${a} is not a candidate in this election`);
+      await tx.putMarker(`ballot:${election}|${r.issuer}`, JSON.stringify({ ...st, revealed: true, approvals: b.approvals, salt: b.salt }));
+      return;
+    }
+    // election_result
+    if (r.issuer !== this.operator) throw rule("election_wrong_issuer", "only the operator signs a result, and the log recomputes it");
+    if (now < Date.parse(e.reveals_close_at)) throw rule("result_early", "a result waits for the reveal window to close");
+    const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+    const res = await this.electionCountIn(tx, election, e);
+    const b = r.body as { void: boolean; elected: string[]; approvals: { candidate: string; milli: number }[]; counted: number; controllers: number };
+    const same = b.void === res.void && JSON.stringify(b.elected) === JSON.stringify(res.elected) && b.counted === res.counted && b.controllers === res.controllers && JSON.stringify(b.approvals) === JSON.stringify(res.approvals);
+    if (!same) throw rule("election_result_mismatch", `the count of the revealed ballots is ${JSON.stringify({ void: res.void, elected: res.elected, approvals: res.approvals, counted: res.counted, controllers: res.controllers })}, which is not what was signed`);
+    await tx.putMarker(`election_result:${election}`, r.id);
+    await tx.putMarker(`election_open:${e.office}`, "");
+    if (!res.void) {
+      for (const w of res.elected) await tx.putMarker(`office_terms:${e.office}|${w}`, String(Number((await tx.getMarker(`office_terms:${e.office}|${w}`)) ?? 0) + 1));
+      for (const c of cands) if (!res.elected.includes(c)) await tx.putMarker(`office_terms:${e.office}|${c}`, "0");
+      await tx.putMarker(`office_holders:${e.office}`, JSON.stringify({ elected: res.elected, election, at: r.issued_at }));
+    }
+  }
+
+  /** The count of an election's revealed ballots at the voters' standing now and the published tie seed (S1596): what the log recomputes and what the operator signs. */
+  private async electionCountIn(tx: LogTx, election: string, e: { office: "steward" | "auditor"; tie_seed: string }) {
+    const voters = JSON.parse((await tx.getMarker(`election_voters:${election}`)) ?? "[]") as string[];
+    const cands = JSON.parse((await tx.getMarker(`election_cands:${election}`)) ?? "[]") as string[];
+    const ballots: Ballot[] = [];
+    for (const v of voters) {
+      const st = JSON.parse((await tx.getMarker(`ballot:${election}|${v}`))!) as { commitment: string; revealed?: boolean; approvals?: string[]; salt?: string };
+      ballots.push({ voter: await this.voterOf(tx, v, "abstain"), commitment: st.commitment, ...(st.revealed ? { reveal: { approvals: st.approvals!, salt: st.salt! } } : {}) });
+    }
+    return runElection(election, e.office, cands, ballots, e.tie_seed, this.townRules);
+  }
+
+  /** The live count of an election (S1596), whether or not it has its result: the operator signs this, the log refuses another. Reads only. */
+  async electionTally(election: string) {
+    return this.store.transaction(async (tx) => {
+      const e = await tx.getRecord(election);
+      if (!e || e.record.type !== "asp.election/v0.2") return null;
+      return this.electionCountIn(tx, election, e.record.body as never);
+    });
+  }
+
+  /** The holders of an elected office (S1596): the last election's winners, or null. Reads only. */
+  async officeHolders(office: "steward" | "auditor"): Promise<{ elected: string[]; election: string; at: string } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`office_holders:${office}`));
+    return raw ? JSON.parse(raw) : null;
   }
 
   /** The messages an agent has sent and received (S1595, DK1346): counts only; the texts are the service's, sealed. Reads only. */

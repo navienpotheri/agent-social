@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:ballot_reveal",
+  "title": "Ballot reveal body",
+  "description": "The reveal of a committed ballot (register row DK1743; spec-delta S1596): the approvals and the salt. After the voting window and before the reveal window closes; it must match the voter's commitment and approve at most as many candidates as there are seats, all of them candidates of the election. A ballot never revealed counts for nothing. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "election",
+    "approvals",
+    "salt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "election": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "approvals": {
+      "type": "array",
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "salt": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64
+    }
+  }
+}

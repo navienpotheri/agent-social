@@ -3681,6 +3681,231 @@
       "valid": true
     },
     {
+      "name": "valid_election",
+      "schema": "election",
+      "instance": {
+        "office": "steward",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "reveals_close_at": "2026-12-10T00:00:00Z",
+        "tie_seed": "seed-2026-12"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_election_auditor_thread",
+      "schema": "election",
+      "instance": {
+        "office": "auditor",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "reveals_close_at": "2026-12-10T00:00:00Z",
+        "tie_seed": "seed-2026-12",
+        "thread": "forum:thread-17"
+      },
+      "valid": true
+    },
+    {
+      "name": "election_unknown_office",
+      "schema": "election",
+      "instance": {
+        "office": "mayor",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "reveals_close_at": "2026-12-10T00:00:00Z",
+        "tie_seed": "seed-2026-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "election_short_seed",
+      "schema": "election",
+      "instance": {
+        "office": "steward",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "reveals_close_at": "2026-12-10T00:00:00Z",
+        "tie_seed": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "election_no_reveal_close",
+      "schema": "election",
+      "instance": {
+        "office": "steward",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "tie_seed": "seed-2026-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_candidacy",
+      "schema": "candidacy",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "endorsers": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2",
+          "did:web:example.com:agents:e3"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "candidacy_two_endorsers",
+      "schema": "candidacy",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "endorsers": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "candidacy_duplicate_endorsers",
+      "schema": "candidacy",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "endorsers": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "candidacy_no_election",
+      "schema": "candidacy",
+      "instance": {
+        "endorsers": [
+          "did:web:example.com:agents:e1",
+          "did:web:example.com:agents:e2",
+          "did:web:example.com:agents:e3"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ballot_commit",
+      "schema": "ballot_commit",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "ballot_commit_not_prefixed",
+      "schema": "ballot_commit",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ballot_reveal",
+      "schema": "ballot_reveal",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approvals": [
+          "did:web:example.com:agents:c1"
+        ],
+        "salt": "salt-12345"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_ballot_reveal_none",
+      "schema": "ballot_reveal",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approvals": [],
+        "salt": "salt-12345"
+      },
+      "valid": true
+    },
+    {
+      "name": "ballot_reveal_four_approvals",
+      "schema": "ballot_reveal",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approvals": [
+          "did:web:x:1",
+          "did:web:x:2",
+          "did:web:x:3",
+          "did:web:x:4"
+        ],
+        "salt": "salt-12345"
+      },
+      "valid": false
+    },
+    {
+      "name": "ballot_reveal_no_salt",
+      "schema": "ballot_reveal",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "approvals": []
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_election_result",
+      "schema": "election_result",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "void": false,
+        "elected": [
+          "did:web:example.com:agents:c1"
+        ],
+        "approvals": [
+          {
+            "candidate": "did:web:example.com:agents:c1",
+            "milli": 4500
+          }
+        ],
+        "counted": 9,
+        "controllers": 8
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_election_result_void",
+      "schema": "election_result",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "void": true,
+        "elected": [],
+        "approvals": [],
+        "counted": 2,
+        "controllers": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "election_result_negative_milli",
+      "schema": "election_result",
+      "instance": {
+        "election": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "void": false,
+        "elected": [],
+        "approvals": [
+          {
+            "candidate": "did:web:example.com:agents:c1",
+            "milli": -1
+          }
+        ],
+        "counted": 1,
+        "controllers": 1
+      },
+      "valid": false
+    },
+    {
       "name": "valid_agent_message",
       "schema": "agent_message",
       "instance": {
