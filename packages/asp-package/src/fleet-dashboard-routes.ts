@@ -22,7 +22,7 @@ export interface FleetDashboardSource {
 }
 
 /** The dashboard's content: tables, charts and graphs (DK1601). Every chart and graph has its table next to it. `fragment` is the content alone, for the live page to swap in. */
-export function renderFleetDashboard(d: FleetDashboard, audit: { at: string; by: string; act: string; target?: string; detail?: string }[] = [], o: { fragment?: boolean } = {}): string {
+export function renderFleetDashboard(d: FleetDashboard, audit: { at: string; by: string; act: string; target?: string; detail?: string }[] = [], o: { fragment?: boolean; /** The data-sharing choice of the tenant that owns the fleet (DK1360). */ sharing?: "share" | "private" } = {}): string {
   const esc = uiEsc;
   const rows = d.members.map((m) => `<tr><td><a href="${esc(m.journey)}">${shortNameHtml(m.name)}</a>${m.frozen ? ` <span class="badge">frozen</span>` : ""}</td><td>${esc(m.node)}${m.persona ? ` <small>(${esc(m.persona)})</small>` : ""}</td><td class="num">${m.tier ?? "&ndash;"}</td><td class="num">${m.slashes}</td><td class="num">${m.drift === 0 ? "0" : m.drift === 1 ? "1 (warn)" : "2 (quarantine advised)"}</td><td class="num">${m.credits}${m.capCredits !== null ? ` / ${m.capCredits}` : ""}</td><td class="num">${m.tokens}${m.capTokens !== null ? ` / ${m.capTokens}` : ""}</td></tr>`).join("");
   const alerts = d.alerts.map((a) => `<li class="al-${a.level}"><b>${esc(a.level)}</b> ${esc(a.text)}</li>`).join("");
@@ -39,6 +39,7 @@ export function renderFleetDashboard(d: FleetDashboard, audit: { at: string; by:
   const content = hero({ kicker: "Fleet dashboard (private to its organisation)", title: d.fleet.name, badges: [d.controls.frozen ? "frozen" : "running", d.month], sub: d.fleet.purpose,
       tiles: [{ label: "members", value: d.totals.members }, { label: "credits spent this month", value: d.totals.credits }, { label: "tokens this month", value: d.totals.tokens }, { label: "frozen", value: d.totals.frozen }, { label: "slashes, 30 days", value: d.totals.slashes }, { label: "drifting", value: d.totals.drifting }] })
       + `<p>${fleetBadge({ id: d.fleet.id, name: d.fleet.name })} <a href="/society/fleets/${encodeURIComponent(d.fleet.id)}">The public page of this fleet</a> &middot; <a href="/fleet/${encodeURIComponent(d.fleet.id)}/export?format=csv">Export (CSV)</a></p>`
+      + `<h2>Data sharing</h2><div class="note"><p>${(o.sharing ?? "share") === "private" ? "Private: the service stores only hashes of what your agents send, never the text, and your agents are left out of studies." : "Shared (the default): text your agents send is stored apart from the signed log, never public, and may be used for the society\'s research as for every open agent."} Change it with <code>asp account data-sharing</code>; the terms are section 3 of the data-processing terms.</p></div>`
       + `<h2>First hour</h2><div class="card"><p class="mut">${d.firstHour.done} of ${d.firstHour.of} done.</p><ul class="plain">${d.firstHour.items.map((i) => `<li>${i.done ? "&#10003;" : "&#9744;"} ${esc(i.step)}${i.done ? "" : ` <span class="mut">&rarr; ${esc(i.next)}</span>`}</li>`).join("")}</ul></div>`
       + `<h2>Alerts</h2>${alerts ? `<div class="card"><ul class="plain">${alerts}</ul></div>` : emptyState("No alert", "Caps nearly reached, slashes, drift, a frozen member and concentrated work show here.")}`
       + `<h2>Over time</h2><p class="mut">The last ${sr.days.length} days. Each graph has the table of its numbers under it.</p>`
@@ -132,7 +133,7 @@ export function fleetDashboardRoutes(o: FleetDashboardSource) {
           return send(200, "text/csv; charset=utf-8", fleetCsv(stored, f.id, { month, now, controls })!);
         }
         const d = fleetDashboard(stored, f.id, { month, now, page: Number(url.searchParams.get("page") ?? 1), pageSize: Number(url.searchParams.get("size") ?? 100), controls })!;
-        return wantsJson ? send(200, "application/json", JSON.stringify({ ...d, audit: controls.audit.slice(-50) })) : send(200, "text/html; charset=utf-8", renderFleetDashboard(d, controls.audit, { fragment: url.searchParams.get("fragment") === "1" }));
+        return wantsJson ? send(200, "application/json", JSON.stringify({ ...d, audit: controls.audit.slice(-50) })) : send(200, "text/html; charset=utf-8", renderFleetDashboard(d, controls.audit, { fragment: url.searchParams.get("fragment") === "1", sharing: (ctx.tenant as { dataSharing?: { choice?: string } }).dataSharing?.choice === "private" ? "private" : "share" }));
       }
       if (req.method !== "POST") { res.writeHead(405, { allow: "POST" }); res.end(); return true; }
       let body: Record<string, unknown> = {};
