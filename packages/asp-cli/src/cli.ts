@@ -3856,11 +3856,19 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
     // At the end of the run (owner answer TM1, row DK652): the trajectory and the task go to the telemetry store when it is on, and the Action carries only their hashes.
-    const tmRefs = why === "exit" ? await captureTelemetry(io.env, [
-      ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
-      ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
-      ...cognition.drain().map((i) => ({ kind: i.kind, content: i.content, did: by })),
-    ]) : [];
+    // The cognition items (DK79: messages, plans, reasoning, actions and the like, scrubbed) go to the same store; the Action cites ONE manifest of their hashes, not each of them, so a long run does not make a huge record.
+    const tmRefs = why === "exit" ? await (async () => {
+      const base = await captureTelemetry(io.env, [
+        ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
+        ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
+      ]);
+      const items = cognition.drain();
+      if (!items.length) return base;
+      const stored = await captureTelemetry(io.env, items.map((i) => ({ kind: i.kind, content: i.content, did: by })));
+      if (!stored.length) return base;
+      const manifest = await captureTelemetry(io.env, [{ kind: "text", content: JSON.stringify({ v: 1, what: "cognition items of one run", items: stored.map((r) => ({ kind: r.uri.slice("asp://telemetry/".length), sha256: r.sha256 })) }), did: by }]);
+      return [...base, ...manifest];
+    })() : [];
     const d = gw.drain();
     // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
     const m = d.metrics;
