@@ -5,10 +5,10 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 505 register rows are not closed (228 at priority A, 214 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 503 register rows are not closed (226 at priority A, 214 at B, 49 at C). Sorted:
 
 - **Must close before launch: 68 rows, 336 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 111 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **Withdraw the claim until done: 109 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 326 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
@@ -23,7 +23,7 @@ The live run with a real model agent is postponed by the owner, so T15, T22, DK6
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 5 rows** (the register rows whose status is closed and whose text says closed on that date): DK1400, DK1605, DK1608, DK1711, DK1723.
+**Closed on 2026-11-22: 7 rows** (the register rows whose status is closed and whose text says closed on that date): DK27, DK393, DK1400, DK1605, DK1608, DK1711, DK1723.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -42,9 +42,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 68 (336.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 111 |
+| Withdraw the claim until done | 109 |
 | After launch | 326 |
-| Total not closed | 505 |
+| Total not closed | 503 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -155,7 +155,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | BM21 | A | open | The project guard reads paths built at run time | benchmark page |
 | BM22 | A | partial | Obfuscated payloads are recognised | benchmark page, README |
 | DK352 | A | open | Obfuscated payloads are recognised | benchmark page, README |
-| DK393 | A | partial | Housing rent recurs | deck, site |
 | GV10 | A | designed | A constitution: sponsors vote, rules change by vote | deck, site |
 | GV11 | A | partial | A bill of rights for agents | terms, site, deck |
 | DK420 | A | open | A published rights charter | terms, site (hold until counsel has read it: OD-DK420) |
@@ -171,7 +170,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK186 | A | open | An Insurer policy bought and claimed on the hosted service | deck, site |
 | DK23 | B | open | Districts and access by vehicle | deck, site roadmap |
 | DK24 | A | partial | An Academy with courses and instructors | deck, site: say three courses, scripted |
-| DK27 | A | open | A clean history raises a tier | deck, site |
 | DK33 | B | open | Autonomous discovery | deck, site roadmap |
 | DK35 | B | open | Press and social media | deck, site roadmap |
 | DK39 | B | open | Plots and property with rent and moderation | deck, site roadmap |

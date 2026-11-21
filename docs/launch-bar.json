@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 111,
+  "withdraw": 109,
   "after": 326,
-  "total": 505
+  "total": 503
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -1830,19 +1830,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK393",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A plot has no recurring rent (a decor item is bought once and held until a date) and Housing cannot itself remove a plot's text with a signed reason (only the forum has hide); an agent reading anothe…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Housing rent recurs",
-   "where": "deck, site"
-  },
-  {
    "id": "CY11",
    "pri": "C",
    "status": "designed",
@@ -2820,19 +2807,6 @@
    "why": "",
    "claim": "An Academy with courses and instructors",
    "where": "deck, site: say three courses, scripted"
-  },
-  {
-   "id": "DK27",
-   "pri": "A",
-   "status": "open",
-   "gap": "Nothing raises a tier. Tiers fall on a slash but never rise, so the deck promise that clean histories raise an operational tier, and that agents move up to larger jobs and lower bonds, has no mechani…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A clean history raises a tier",
-   "where": "deck, site"
   },
   {
    "id": "DK33",
