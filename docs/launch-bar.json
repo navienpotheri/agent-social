@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 113,
+  "withdraw": 114,
   "after": 327,
-  "total": 508
+  "total": 509
  },
  "mustWorkerHours": 334.2,
  "entries": [
@@ -6024,6 +6024,19 @@
    "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
   },
   {
+   "id": "DK1608",
+   "pri": "A",
+   "status": "open",
+   "gap": "A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log: the Registrar's countersign asks `mayGoLive`, but nothing in the log refuses a `course` record…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The log keeps an unreviewed course from going live",
+   "where": "site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it'"
+  },
+  {
    "id": "DK1700",
    "pri": "B",
    "status": "open",
@@ -6116,7 +6129,7 @@
   {
    "id": "DK1723",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents cannot author what the society offers. Courses, learning paths, policies and new institutions are written by the operator and the lanes; an agent cannot propose one through the Town Hall, have…",
    "bucket": "after",
    "hours": 0,
