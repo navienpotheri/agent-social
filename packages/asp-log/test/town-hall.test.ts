@@ -61,7 +61,7 @@ test("a reserved matter put to a vote is refused, and so is a proposal from some
   assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "rule_change", key: "town.reserved", value: [] }))), "town_reserved_matter", "a change to the reserved list is reserved");
   assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "setting", key: "safety.floor.max_spend", value: 1 }))), "town_reserved_matter", "a setting that touches a safety floor");
   assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "setting", key: "money.mint_rate", value: 1 }))), "town_reserved_matter", "money creation by another name");
-  await k.log.append(proposal(a[0], { kind: "learning_path", key: "academy.path.new", value: "x" }));
+  await k.log.append(proposal(a[0], { kind: "learning_path", key: "academy.path.new", value: { title: "A path", courses: ["a", "b"] } }));
 });
 
 test("the refusals around a vote: no standing, a second vote, outside the window, an early tally, a tally that differs from the votes, an enactment of a failed or different change", async () => {

@@ -1269,6 +1269,9 @@ export class EventLog {
     } else if (t === "asp.clinic_diagnosis/v0.2") {
       await tx.putMarker(`diagnosis_withdrawn:${info.subject}`, at);
       effects.diagnosis_withdrawn = true;
+    } else if (t === "asp.gateway_refusal/v0.2") {
+      await tx.putMarker(`refusal_reversed:${info.subject}`, contestId);
+      effects.refusal_recorded_as_wrong = true;
     } else if (t === "asp.quarantine/v0.2") {
       if (!(await tx.getMarker(`quarantine_released:${info.subject}|${info.agent}`))) { await tx.putMarker(`quarantine_released:${info.subject}|${info.agent}`, contestId); effects.quarantine_ended_for = info.agent; }
     }
@@ -2525,6 +2528,13 @@ export class EventLog {
         const id = pb.key.slice("academy.course.".length), cur = ((await tx.getMarker(`town_course:${id}`)) ?? "").split(",").filter(Boolean);
         await tx.putMarker(`town_course:${id}`, [...cur, r.id].join(","));
       }
+      // A learning path (DK1608, S1610): key `academy.path.<id>`, value { title, courses: [course ids in order] }; the shape is checked at the proposal and every course must be published when it is enacted.
+      if (/^academy\.path\./.test(pb.key)) {
+        if (b.kind !== "learning_path") throw rule("town_path_kind", "a key under academy.path. is a learning path: its kind is learning_path");
+        const v = (r.body as { value?: { title?: unknown; courses?: unknown } | null }).value;
+        const cs = v?.courses;
+        if (typeof v?.title !== "string" || !v.title.trim() || !Array.isArray(cs) || cs.length < 2 || cs.length > 12 || cs.some((c) => typeof c !== "string" || !c) || new Set(cs).size !== cs.length) throw rule("town_path_shape", "a learning path has a title and 2 to 12 different course ids in order (value.title, value.courses)");
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -2558,6 +2568,9 @@ export class EventLog {
     if (now < Date.parse(prop.closes_at) + rules.coolingOffMs) throw rule("town_cooling_off", `an enactment waits ${rules.coolingOffMs / 3_600_000} hours after the window closes`);
     if (await tx.getMarker(`town_enacted:${b.proposal}`)) throw rule("town_enacted", "this proposal was enacted already");
     if (b.key !== prop.key || JSON.stringify(b.value) !== JSON.stringify(prop.value)) throw rule("town_enactment_mismatch", "an enactment makes the change that was voted, no other");
+    if (/^academy\.path\./.test(prop.key)) {
+      for (const c of ((prop.value as { courses?: string[] } | null)?.courses ?? [])) if (!(await tx.getMarker(`course:${c}`))) throw rule("town_path_unknown_course", `the learning path names ${c}, which is not a published course: a path is enacted only over courses that exist`);
+    }
     await tx.putMarker(`town_enacted:${b.proposal}`, r.id);
     await tx.putMarker(`town_setting:${prop.key}`, JSON.stringify({ value: prop.value, proposal: b.proposal, enactment: r.id, at: r.issued_at }));
     const keys = ((await tx.getMarker("town_keys")) ?? "").split("\n").filter(Boolean);

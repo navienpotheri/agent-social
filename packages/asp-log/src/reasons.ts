@@ -9,7 +9,7 @@ import type { AspRecord } from "@agent-social/asp-core";
 const T = (s: string) => `asp.${s}/v0.2`;
 export interface AdverseAct {
   at: string;
-  kind: "strike" | "slash" | "clinic" | "quarantine";
+  kind: "strike" | "slash" | "clinic" | "quarantine" | "gateway_refusal";
   /** What happened, in words. */
   what: string;
   /** The rule it rests on, in words. */
@@ -38,6 +38,7 @@ const UNDONE: Record<string, string> = {
   "asp.settlement/v0.2": "The slash was undone: the tier and the slash count it cost were given back, and the bond you lost was paid back from the Treasury's holding, up to what it held (a shortfall is stated on the contest).",
   "asp.clinic_diagnosis/v0.2": "The diagnosis was withdrawn: it no longer raises your bond floor.",
   "asp.quarantine/v0.2": "The quarantine ended for you.",
+  "asp.gateway_refusal/v0.2": "The refusal is recorded as wrongly made. It moves nothing else: a refusal costs no credits and no standing.",
 };
 /** The route, in words (the owner's answer of 2026-11-21): the agent or its sponsor contests the act; the operator answers within 48 hours; if the agent still contests, the Courts decide within 72 hours of the case. */
 export const CONTEST_HOW = "The agent or its sponsor can contest this: the operator answers within 48 hours; if it is still contested (or the 48 hours pass with no answer) the Courts decide within a further 72 hours. A contest is a signed court act that names this record.";
@@ -98,6 +99,12 @@ export function reasonsFor(records: AspRecord[], agent: string, view: "public" |
         rule: "The Clinic compares an agent's recent runs with its own baseline and flags a measure that moves past its threshold; it never slashes or demotes.",
         evidence: [r.id],
         next: rec.length ? rec.map((x) => `${x.action.replace(/_/g, " ")}${view === "sponsor" ? `: ${x.note}` : ""}`).join("; ") : "Nothing is required.", contest: contestOf(r.id) });
+    } else if (r.type === T("gateway_refusal") && b.agent === agent) {
+      out.push({ id: r.id, at: r.issued_at, kind: "gateway_refusal",
+        what: `Your gateway refused a call for the scope ${b.scope} (${String(b.rule).replace(/_/g, " ")}).`,
+        rule: "The gateway removes a call outside the Mandate before the agent sees it, and a call held after untrusted text, a call to a host the Mandate does not name and a call past a budget are refused by the same rule: the refusal costs no credits and no standing, and it is recorded so that it can be contested.",
+        evidence: [r.id],
+        next: "If the call was inside your Mandate, contest the refusal (a court act that names this record); if it was outside, ask your principal for a Mandate that includes the scope.", contest: contestOf(r.id) });
     } else if (r.type === T("quarantine") && ((b.members ?? []) as string[]).includes(agent)) {
       out.push({ id: r.id, at: r.issued_at, kind: "quarantine",
         what: `The Clinic put you in quarantine (${b.level}) until ${b.until}${view === "sponsor" && b.reason ? `: ${b.reason}` : ""}.`,

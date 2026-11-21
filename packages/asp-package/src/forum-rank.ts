@@ -60,3 +60,22 @@ export function agendaEligibility(post: PostIn, t: Tally, now: number): Eligibil
   if (t.score < AGENDA.minScore) return { post: post.id, eligible: false, why: `its weighted score ${t.score} is below ${AGENDA.minScore}` };
   return { post: post.id, eligible: true, why: "enough distinct controllers, enough weighted support and old enough: a person with standing may put it forward in a town_proposal that names this thread" };
 }
+
+// ---------------------------------------------------------------- the weighted rank, only over votes the signed checkpoint commits to (DK1742, S1599)
+import { rankCheckpointOf, type RankCheckpoint, type StandingVote } from "./forum-checkpoint.ts";
+
+export interface CheckedRank { ok: boolean; why: string; order: PostIn[]; eligible: Eligibility[] }
+/**
+ * Ranks and checks agenda eligibility from the standing votes of a day, but only when they reproduce the operator's signed `forum_rank_checkpoint`: the same Merkle root and the same number of votes. A set of votes that does
+ * not reproduce it (a vote left out or added after the commitment) ranks nothing. The checkpoint holds no vote time or author, so the author comes from the post and every vote is dated at the checkpoint's day: the daily
+ * cap of 20 then applies per controller to the whole day, which is the conservative reading. Pure.
+ */
+export function rankFromCheckpoint(cp: RankCheckpoint, standing: readonly StandingVote[], citizens: readonly Citizen[], posts: readonly PostIn[], now: number): CheckedRank {
+  const again = rankCheckpointOf(standing, cp.period);
+  if (again.votes_root !== cp.votes_root || again.votes !== cp.votes) return { ok: false, why: `the votes do not reproduce the signed checkpoint of ${cp.period} (root ${again.votes_root.slice(0, 12)} against ${cp.votes_root.slice(0, 12)}, ${again.votes} votes against ${cp.votes}): nothing is ranked from them`, order: [], eligible: [] };
+  const author = new Map(posts.map((p) => [p.id, p.author]));
+  const at = Date.parse(`${cp.period}T00:00:00Z`);
+  const votes: VoteIn[] = standing.filter((v) => author.has(v.target)).map((v) => ({ voter: v.voter, post: v.target, author: author.get(v.target)!, value: v.value, at }));
+  const t = tally(citizens, posts, votes);
+  return { ok: true, why: "the votes reproduce the signed checkpoint", order: rank(citizens, posts, votes), eligible: posts.map((p) => agendaEligibility(p, t.get(p.id)!, now)) };
+}
