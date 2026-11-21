@@ -56,12 +56,29 @@ export interface FleetDashboard {
   series: FleetSeries;
   mix: FleetMix;
   alerts: Alert[];
+  /** The first hour of an organisation that brings a fleet in (DK1371): what is done and what to do next, read from the log. */
+  firstHour: { done: number; of: number; items: { step: string; done: boolean; next: string }[] };
   /** What the dashboard does not carry yet, and the rows that will add it. */
   not_yet: string[];
   note: string;
 }
 
 export const ROOT_NODE = "root";
+
+/** The first-hour checklist (DK1371) from the log: the fleet declared, a Mandate template signed, members joined, a tree, a spending cap, a first spend. */
+function firstHourOf(stored: StoredRec[], f: FleetView, members: number, treeRows: number, credits: number, cap: CapPair): FleetDashboard["firstHour"] {
+  const hasTemplate = stored.some((s) => s.record.type === "asp.mandate_template/v0.2" && (s.record.body as { fleet?: string }).fleet === f.id);
+  const items = [
+    { step: "the fleet is declared", done: true, next: "asp fleet apply --manifest <file> --out <dir>" },
+    { step: "a Mandate template is signed", done: hasTemplate, next: "asp fleet template set --did <fleet> --file <mandate.json> (apply signs one for each persona)" },
+    { step: "the first agent has joined", done: members >= 1, next: "give an agent its line of invitations.jsonl: asp fleet join --invitation <line> --service <url>" },
+    { step: f.maxMembers ? `every agent has joined (${members} of ${f.maxMembers})` : "the planned agents have joined", done: f.maxMembers ? members >= f.maxMembers : members >= 1, next: "asp fleet status --manifest <file> --out <dir>" },
+    { step: "departments or teams are declared", done: treeRows > 1, next: "asp fleet node set --did <fleet> --node <id> --kind department --name <text> --owner <did>" },
+    { step: "a monthly spending cap is set", done: cap.credits !== undefined, next: "POST /fleet/<fleet>/caps { credits: n } on this dashboard" },
+    { step: "the fleet has done its first job", done: credits > 0, next: "an agent posts or takes a job on the Market: asp market intent|offer" },
+  ];
+  return { done: items.filter((i) => i.done).length, of: items.length, items };
+}
 const NOT_YET = ["roles for the people of an organisation, single sign-on and provisioning: DK1359", "a token cap enforced at each model call by the gateway (the service refuses a run report past the cap; the gateway's own budget is US2; DK1471)"];
 
 export interface DashboardOptions { month: string; now: string; page?: number; pageSize?: number; /** Every member in one page (the export). */ all?: boolean; controls?: FleetControlState }
@@ -183,7 +200,7 @@ if (r.type === T("passport") && members.has(b.did) && b.kind === "agent") { if (
     tree,
     series: { days, members: sMembers, credits: sCredits, tokens: sTokens, slashes: sSlashes, drift: sDrift },
     mix: { persona: countBy(rows.map((r) => r.persona ?? "none")), node: countBy(rows.map((r) => r.node)), tier: byTier },
-    alerts, not_yet: NOT_YET,
+    alerts, firstHour: firstHourOf(stored, f, rows.length, tree.length, totalsCredits, capF), not_yet: NOT_YET,
     note: "From the log's records and this fleet's controls; credits are accounting entries, not money; this service is a beta.",
   };
 }
