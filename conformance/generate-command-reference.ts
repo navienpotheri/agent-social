@@ -99,6 +99,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   { group: "Run logs and evidence", rows: [
     ["asp run-log show [<log>]", "Print a session's run log as a timeline"],
     ["asp run-log verify [<log>] [--contract <id>]", "Check a run log's hash chain and what the Actions committed to"],
+    ["asp run-log retention [--days <n>|off]", "Keep a retention period for the run logs on this machine: every asp run and asp gateway then deletes the logs older than n days when it starts and says so in one line; with no argument it shows the period (ASP_RUN_LOG_DAYS overrides it). A sealed copy kept on the service is not touched, and an Action that committed to a deleted log keeps its hash"],
     ["asp run-log prune --days <n> [--yes]", "Delete run logs on this machine older than n days (a plan without --yes)"],
     ["asp run-log keep [<log>]", "Seal a copy on the service: encrypted to your keys, unreadable by the service"],
     ["asp run-log kept", "List your sealed run logs"],

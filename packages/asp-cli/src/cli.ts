@@ -3636,6 +3636,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
@@ -4536,6 +4537,30 @@ async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Valu
 }
 
 /**
+ * Run-log retention applied without a command (E6): `asp run-log retention --days <n>` keeps a period in <home>/run-log-retention.json (ASP_RUN_LOG_DAYS overrides it; `off` clears it), and every `asp run` and
+ * `asp gateway` deletes the run logs on this machine older than that period when it starts, saying so in one line. The Actions that committed to a deleted log keep its hash. A sealed copy kept on the service is not touched.
+ */
+function runLogRetentionDays(home: string, env: Record<string, string | undefined>): number | undefined {
+  const fromEnv = env.ASP_RUN_LOG_DAYS;
+  if (fromEnv !== undefined && fromEnv !== "") { const n = Number(fromEnv); return n >= 1 ? Math.trunc(n) : undefined; }
+  for (const h of [home, join(home, "..")]) { if (h !== home && !home.replace(/[\/]+$/, "").endsWith("local")) break; try { const n = Number((JSON.parse(readFileSync(join(h, "run-log-retention.json"), "utf8")) as { days?: number }).days); if (n >= 1) return Math.trunc(n); } catch { /* none here */ } }
+  return undefined;
+}
+function applyRunLogRetention(home: string, env: Record<string, string | undefined>, say: (l: string) => void): number {
+  const days = runLogRetentionDays(home, env);
+  if (!days) return 0;
+  const runs = join(home, "runs");
+  const cutoff = Date.now() - days * 86_400_000;
+  let gone = 0;
+  for (const d of existsSync(runs) ? readdirSync(runs) : []) {
+    const f = join(runs, d, "run-log.ndjson");
+    try { if (existsSync(f) && statSync(f).mtimeMs < cutoff) { rmSync(f); gone++; } } catch { /* in use or not allowed: it stays */ }
+  }
+  if (gone) say(`  retention  deleted ${gone} run log${gone === 1 ? "" : "s"} older than ${days} day${days === 1 ? "" : "s"} (asp run-log retention changes this)`);
+  return gone;
+}
+
+/**
  * asp run-log show|verify [<run-log file or gateway run folder>] [--contract <id>] [--json]: the redacted run log a gateway run kept (gap E2).
  * show prints it as a timeline; verify checks every line's hash chain and, with --contract, that each Action's run-log artifact matches the log.
  */
@@ -4543,6 +4568,17 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   if (sub === "keep" || sub === "kept" || sub === "fetch" || sub === "drop" || sub === "disclose" || sub === "open") return await runLogVaultCmd(home, sub, rest, v, io);
   // Retention (E6): the run logs on this machine older than --days days. Without --yes it lists what would go and changes nothing; with it the log file is deleted (the folder's other files stay). A sealed copy
   // kept on the service (asp run-log keep) is not touched, and the Actions that committed to a deleted log still name its hash: they can no longer be checked against it here.
+  if (sub === "retention") {
+    const file = join(home, "run-log-retention.json");
+    if (v.days === undefined) { const d = runLogRetentionDays(home, io.env); io.out(d ? `run logs on this machine are deleted after ${d} day${d === 1 ? "" : "s"}${io.env.ASP_RUN_LOG_DAYS ? " (set by ASP_RUN_LOG_DAYS)" : ""}; asp run-log retention --days <n>|off changes it` : "no retention period is set: run logs stay until asp run-log prune; asp run-log retention --days <n> sets one"); return 0; }
+    if (v.days === "off") { rmSync(file, { force: true }); io.out("retention is off: run logs stay until asp run-log prune"); return 0; }
+    const days = Number(v.days);
+    if (!(days >= 1) || !Number.isInteger(days)) throw new UsageError("usage: asp run-log retention --days <whole number, at least 1>|off");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(file, JSON.stringify({ days }, null, 2) + "\n");
+    io.out(`run logs on this machine will be deleted ${days} day${days === 1 ? "" : "s"} after they were last written, each time asp run or asp gateway starts (a sealed copy kept on the service is not touched)`);
+    return 0;
+  }
   if (sub === "prune") {
     const days = Number(v.days);
     if (!(days >= 0) || v.days === undefined) throw new UsageError("usage: asp run-log prune --days <n> [--yes]   (run logs on this machine older than n days)");
@@ -6952,6 +6988,7 @@ const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs
  * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io, localIds?: { me: string; agent: string; bank: string }): Promise<number> {
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
   const prof = SESSION_RUNTIMES[runtime];
   // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
   // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
