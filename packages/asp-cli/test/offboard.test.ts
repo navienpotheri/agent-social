@@ -2,17 +2,21 @@
 // Real commands on real local logs (the second is a fresh log standing for a fresh service). Fake keys; mock credits.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { b64urlDecode, verifyBytes } from "@agent-social/asp-core";
+import { spawn } from "node:child_process";
+import { hashToken } from "@agent-social/asp-log";
 import { main, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
 const ORG = "did:web:acme.example:org", OTHER = "did:web:other.example:org";
 const FLEET = `${ORG}:fleets:coders`;
-async function asp(f: Fixture, args: string[]) {
+async function asp(f: Fixture, args: string[], extraEnv: Record<string, string> = {}) {
   const out: string[] = [], err: string[] = [];
-  const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: f.aspHome }, cwd: f.root };
+  const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: f.aspHome, ...extraEnv }, cwd: f.root };
   const code = await main(args, io);
   return { code, out: out.join("\n"), err: err.join("\n") };
 }
@@ -99,4 +103,53 @@ test("close needs the organisation's own confirmation and a verified export, clo
   const other = join(f.root, "other");
   await ok(f, ["offboard", "export", "--org", OTHER, "--out", other]);
   assert.notEqual((await asp(f, ["offboard", "close", "--from", other, "--org", ORG, "--confirm", ORG])).code, 0);
+});
+
+test("DK1384: an agent's package goes in the export when it is named, a refused package stops the export, and another organisation's agent cannot be packed", async () => {
+  const f = await acme();
+  const A1 = "did:web:acme.example:agents:a1";
+  const out = join(f.root, "export");
+  const r = await ok(f, ["offboard", "export", "--org", ORG, "--out", out, "--pack", `${A1}=claude-code:${f.project}`]);
+  assert.match(r.out, /exported \d+ records/);
+  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
+  assert.equal(manifest.packages.length, 1);
+  assert.equal(manifest.packages[0].did, A1);
+  const folder = join(out, manifest.packages[0].folder);
+  assert.ok(readdirSync(folder).length > 0, "the package is in the export");
+  assert.match(readdirSync(folder).join(" "), /manifest|asp\.json|harness|memory/i);
+  assert.notEqual((await asp(f, ["offboard", "export", "--org", ORG, "--out", join(f.root, "x1"), "--pack", `did:web:other.example:agents:z=claude-code:${f.project}`])).code, 0, "only the organisation's own agents");
+  assert.notEqual((await asp(f, ["offboard", "export", "--org", ORG, "--out", join(f.root, "x2"), "--pack", "not-a-spec"])).code, 0);
+  assert.notEqual((await asp(f, ["offboard", "export", "--org", ORG, "--out", join(f.root, "x3"), "--pack", `${A1}=no-such-runtime:${f.project}`])).code, 0, "a package that cannot be made stops the export");
+});
+
+test("DK1384: the export replays over HTTP into a fresh service, which re-verifies every record, and the organisation's fleet and agents are there", async () => {
+  const f = await acme();
+  const out = join(f.root, "export");
+  await ok(f, ["offboard", "export", "--org", ORG, "--out", out]);
+  const dir = mkdtempSync(join(tmpdir(), "asp-offboard-http-"));
+  const tokens = join(dir, "tokens.json");
+  writeFileSync(tokens, JSON.stringify([{ name: "newhome", role: "tenant", tokenSha256: hashToken("tok-new") }]));
+  const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0"], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      let buf = "";
+      server.stdout.on("data", (d) => { buf += d; const m = /listening on (http:\/\/[^ ]+)/.exec(buf); if (m) resolve(m[1]); });
+      server.on("close", () => reject(new Error(`the service exited: ${buf}`)));
+      setTimeout(() => reject(new Error(`no start line: ${buf}`)), 20_000);
+    });
+    const home = makeFixture();
+    const env = { ASP_LOG_URL: url, ASP_LOG_TOKEN: "tok-new" };
+    const r = await asp(home, ["offboard", "import", "--from", out], env);
+    assert.equal(r.code, 0, r.err);
+    const n = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8")).records;
+    assert.match(r.out, new RegExp(`imported ${n} of ${n} records`));
+    assert.match((await asp(home, ["fleet", "show", FLEET], env)).out, /members 3/);
+    assert.match((await asp(home, ["log", "verify"], env)).out, /log ok/);
+    // a changed record is refused by the service even if the file's own check were skipped: the export itself is checked first
+    const lines = readFileSync(join(out, "records.ndjson"), "utf8").split("\n").filter(Boolean);
+    const bad = JSON.parse(lines[1]); bad.record.body = { ...bad.record.body, purpose: "changed" }; lines[1] = JSON.stringify(bad);
+    writeFileSync(join(out, "records.ndjson"), lines.join("\n") + "\n");
+    assert.notEqual((await asp(home, ["offboard", "import", "--from", out], env)).code, 0);
+  } finally { server.kill(); }
 });

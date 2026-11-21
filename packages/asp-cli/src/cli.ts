@@ -449,6 +449,7 @@ const OPTIONS = {
   format: { type: "string" },
   choice: { type: "string" },
   keys: { type: "boolean" },
+  pack: { type: "string", multiple: true },
   "private-log": { type: "string" },
   "keep-agents": { type: "boolean" },
   times: { type: "string" },
@@ -1086,7 +1087,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "offboard") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine`); return s; };
-      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
+      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, packAgent: (did, runtime, project, outDir) => main(["pack", "--runtime", runtime, "--agent", did, "--project", project, "--out", outDir], io), flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm, ...(v.pack ? { pack: v.pack } : {}) } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
@@ -1263,7 +1264,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "pack" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
