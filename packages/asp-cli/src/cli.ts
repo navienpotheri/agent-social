@@ -363,7 +363,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -748,6 +748,8 @@ const OPTIONS = {
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
   emergency: { type: "string" },
+  cause: { type: "string" },
+  detection: { type: "string" },
   seed: { type: "string" },
   effect: { type: "string" },
   value: { type: "string" },
@@ -1277,6 +1279,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
     if (cmd === "emergency") return await emergencyCommand(home, sub, v, io);
+    if (cmd === "breach") return await breachCommand(home, sub, v, io);
     if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
@@ -5218,6 +5221,28 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
  * asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did> (register row GV6, S1420): the city-wide emergency stop with a sunset. While it
  * stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase); work under way, appeals and essential services go on; it ends by itself within 72 hours.
  */
+/**
+ * asp breach respond --agent <did> --cause <exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual> --summary <text> --by <operator did> [--detection <record id>] [--fleet <did> --node <id>] [--remedy takedown|suspension|written_response] (register row DK1714, S1426):
+ * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
+ */
+async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub !== "respond") throw new UsageError("asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]");
+  const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
+  if (!v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(`asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  signerFor(CLINIC_DID); signerFor(v.by);
+  const started = now();
+  const res = await respondToBreach(local.log, { agent: v.agent, cause: v.cause as BreachCause, summary: v.summary, detectedAt: started, ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}), ...(v.remedy ? { remedy: v.remedy as "takedown" } : {}) }, {
+    sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+    alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+    now, operator: v.by,
+  });
+  io.out(`breach response done in ${res.seconds} s: ${res.steps.join(", ")}; incident ${res.incident}`);
+  return 0;
+}
+
 async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
