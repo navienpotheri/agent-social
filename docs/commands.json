@@ -447,6 +447,10 @@
           "description": "The Insurer's stress replay (BI-18): the last 90 days of premiums and paid claims replayed with the claims multiplied (2 doubles them), in simulation only, saying whether the reserve would hold, stop sales or run dry, and the still-moving line (claims per 100 policies, rate dispersion, whether the reserve moved). Writes nothing."
         },
         {
+          "command": "asp insure pool-open|pool-return|pool-close --fleet <fleet did> --by <the fleet's organisation did>",
+          "description": "The fleet mutual pool (BI-14): the fleet's organisation opens it, returns its surplus to the members pro rata (only what no live policy could still need) and closes it. Members buy into it with `asp insure buy ... --pool <fleet did>`; `asp insure quote ... --pool <fleet did>` shows the fleet-rated premium. The log computes every amount."
+        },
+        {
           "command": "asp residency allowance --agent <did> --per-day <tokens> --total <tokens> | dispatch --agent <did> --mode home|city|split --allowance <id> --mandate <id> --package-sha256 <hash> [--subsidy-grant <id>] [--delegation <id>] | statement --dispatch <id> --meter <file>",
           "description": "Send an agent to live in the society: the sponsor sets a capped allowance of its own tokens (never credits, never prepaid), dispatches the agent under its Mandate with the city's subsidy grant and the residency delegation (the host countersigns for city and split; a package that names a provider key is refused for the city), and the statement reconciles the metered usage to the subsidy ledger and to the sponsor's run logs. A resident that reaches a cap sleeps with the reason and is never struck or slashed. `recall --dispatch <id>` also ends the residency."
         },

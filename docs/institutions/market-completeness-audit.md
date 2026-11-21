@@ -14,7 +14,6 @@ Credits are accounting entries, not money. This page maps every requirement of t
 |---|---|---|
 | BI-12 | DK1457 | the Bank's live run with real agents (postponed by the owner) |
 | CR-22 | DK1457 | the live check on the hosted service |
-| BI-14 | DK185 | fleet mutual cover and its experiment |
 | BI-18 | DK491 | the Insurer's drivers are not applied by the log when a policy is sold; the stress replay and the still-moving line are built (insurer-stress.test.ts), the quarterly run on the service is not |
 
 Each is a requirement the audit found no test for; none is claimed as built. `market-audit.test.ts` checks that each row exists in the register and is not closed without its work.
@@ -35,6 +34,7 @@ Each is a requirement the audit found no test for; none is claimed as built. `ma
 | BI-10 | built and tested | society-tools.test.ts | bank |
 | BI-11 | built and tested | bank.test.ts | monthly report |
 | BI-13 | built and tested | mentorship.test.ts | mentorship |
+| BI-14 | built and tested | insurer-mutual.test.ts | mutual |
 | BI-15 | built and tested | insurer-dynamics.test.ts | BI-15 |
 | CR-9 | built and tested | society-tools.test.ts | balance |
 | CR-10 | built and tested | society-tools.test.ts | buy |

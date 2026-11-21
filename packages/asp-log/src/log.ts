@@ -15,7 +15,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { type InsurerDrivers, premiumFor, drivenPremium, COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { projectMutualAct, mutualPremium, mutualPoolDid, type InsurerDrivers, premiumFor, drivenPremium, COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -418,6 +418,7 @@ export class EventLog {
     if (type === "debt_payment") { await projectDebtPayment(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
+    if (type === "mutual_act") await projectMutualAct(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
     if (type === "sponsor_allowance") await projectSponsorAllowance(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "dispatch") await projectDispatch(tx, verified);
@@ -3953,7 +3954,7 @@ export class EventLog {
    * The premium a policy would be sold at now (S1567, DK491): the table's premium and, from the time the log's price drivers are on, the driven one the log will check a policy against. A quote and a sale agree because both
    * come from the same function. Reads only.
    */
-  async insurerQuote(o: { contract: string; cover: "bond_slash" | "failed_job"; holder: string; insured: number; at?: string }): Promise<{ premium: number; table: number; driven: boolean; why: string | null }> {
+  async insurerQuote(o: { contract: string; cover: "bond_slash" | "failed_job"; holder: string; insured: number; at?: string; mutual?: string }): Promise<{ premium: number; table: number; driven: boolean; why: string | null }> {
     const at = o.at ?? new Date().toISOString();
     return this.store.transaction(async (tx) => {
       const c = await tx.getRecord(o.contract);
@@ -3962,7 +3963,7 @@ export class EventLog {
       const rep = await this.reputation(tx, o.holder);
       const strikes = (rep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
       const table = premiumFor(o.cover, o.insured, price, rep?.qualifyingJobs ?? 0, strikes, await jobClassOfContract(tx, c.record));
-      const driven = await drivenPremium(tx, this.insurerEnv, { holder: o.holder, table, insured: o.insured, strikes, at });
+      const driven = o.mutual ? await mutualPremium(tx, this.insurerEnv, { fleet: o.mutual, table, at }) : await drivenPremium(tx, this.insurerEnv, { holder: o.holder, table, insured: o.insured, strikes, at });
       return { premium: driven?.premium ?? table, table, driven: !!driven, why: driven?.why ?? null };
     });
   }

@@ -10595,6 +10595,48 @@
       "valid": true
     },
     {
+      "name": "valid_policy_mutual",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "bond_slash",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z",
+        "mutual": "did:web:example.com:orgs:acme:fleets:coders"
+      },
+      "valid": true
+    },
+    {
+      "name": "policy_mutual_not_a_did",
+      "schema": "policy",
+      "instance": {
+        "holder": "did:web:example.com:agents:alice-coder",
+        "contract": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "cover": "bond_slash",
+        "insured_amount": {
+          "value": 20,
+          "unit": "credit"
+        },
+        "premium": {
+          "value": 2,
+          "unit": "credit"
+        },
+        "valid_from": "2026-11-12T00:00:00Z",
+        "valid_to": "2027-01-12T00:00:00Z",
+        "mutual": "the coders"
+      },
+      "valid": false
+    },
+    {
       "name": "policy_bad_cover",
       "schema": "policy",
       "instance": {
@@ -15935,6 +15977,64 @@
           "value": 120,
           "unit": "credit"
         }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mutual_open",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "open",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mutual_return",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "return",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "memo": "end of the quarter"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mutual_close",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "close",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders"
+      },
+      "valid": true
+    },
+    {
+      "name": "mutual_unknown_act",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "dissolve",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders"
+      },
+      "valid": false
+    },
+    {
+      "name": "mutual_carries_an_amount",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "return",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mutual_no_fleet",
+      "schema": "mutual_act",
+      "instance": {
+        "act": "open"
       },
       "valid": false
     },

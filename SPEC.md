@@ -99,6 +99,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.mentorship/v0.2` | An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392). | `mentor`, `protege` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
 | `asp.mint_adoption/v0.2` | A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). | `did`, `amount`, `reason` |
+| `asp.mutual_act/v0.2` | An act on a fleet's mutual pool (bank-insurer.md 13.2, register rows DK185 and BI-14; spec-delta S1568). | `act`, `fleet` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |
 | `asp.offer/v0.2` | A bid on an Intent: price, plan, ETA, bond offered. | `intent`, `price`, `plan`, `eta`, `bond_offered` |
 | `asp.package/v0.2` | A portable agent bundle (decision #45): manifest, signed identity, memory and experience-store reference, permissions, lineage head. | `agent`, `passport`, `memory`, `experience_store`, `permissions`, `lineage_head`, `source_runtime` |

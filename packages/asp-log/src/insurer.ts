@@ -3,6 +3,7 @@
  * Treasury and the burn, a claim decided by the policy's terms (never by discretion), and a reserve that is never negative and below whose floor no policy is sold. A claim may be paid down to nothing but
  * never beyond the reserve. Credits are accounting entries, not money; nothing here is insurance in a legal sense.
  */
+import { createHash } from "node:crypto";
 import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, institutionDid, splitParts } from "./economy.ts";
 import { effectiveClass, higherClass, type JobClass } from "./market.ts";
@@ -80,11 +81,107 @@ export async function jobClassOfContract(tx: Pick<LogTx, "getRecord" | "getMarke
   return effectiveClass(raised && declared ? higherClass(raised, declared) : raised ?? declared, cb.price?.value ?? 0);
 }
 
-interface Policy { holder: string; contract: string; cover: Cover; insured: number; validTo: string; claim?: string }
+interface Policy { holder: string; contract: string; cover: Cover; insured: number; validTo: string; claim?: string; mutual?: string }
 const readPolicy = async (tx: Pick<LogTx, "getMarker">, id: string): Promise<Policy | undefined> => { const raw = await tx.getMarker(`policy:${id}`); return raw ? (JSON.parse(raw) as Policy) : undefined; };
 const balanceOf = async (tx: Pick<LogTx, "getAccount">, did: string) => (await tx.getAccount(did))?.balance ?? 0;
 const readClaims = async (tx: Pick<LogTx, "getMarker">): Promise<{ at: string; amount: number }[]> => JSON.parse((await tx.getMarker("insurer_claims")) ?? "[]");
 const signedBy = (r: AspRecord, did: string) => r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
+
+// ---- the fleet mutual pool (bank-insurer.md 13.2; S1568, DK185 and BI-14) ----------------------------------------------------------------------------------------------------------------------------------
+
+/** The pool account of a fleet: owned by no one (no key exists for it), debited only by a claim decision on a pooled policy and by a return, never by a payment. */
+export const MUTUAL_POOL_PREFIX = "did:web:asp.local:pool:";
+export const mutualPoolDid = (fleet: string): string => `${MUTUAL_POOL_PREFIX}${createHash("sha256").update(fleet).digest("hex").slice(0, 24)}`;
+/** The most participants one pool rates (holders who bought into it): a fleet of thousands rates from the first 200 who joined, so a sale never reads an unbounded list. */
+export const MUTUAL_MAX_PARTICIPANTS = 200;
+/** The fleet factor in permille of the table premium (13.2): 1 percent off for each counted run its participants had in 90 days up to 40 percent off, 10 percent on for each strike in 30 days, 20 percent on for each paid claim on the pool in 90 days, never above 1.5 times. */
+export function fleetFactorPermille(r: { cleanRuns90: number; strikes30: number; claims90: number }): number {
+  return Math.max(600, Math.min(1500, 1000 - Math.min(400, r.cleanRuns90 * 10) + r.strikes30 * 100 + r.claims90 * 200));
+}
+
+interface MutualState { org: string; closed?: boolean; participants: string[]; policies: string[] }
+const readMutual = async (tx: Pick<LogTx, "getMarker">, fleet: string): Promise<MutualState | undefined> => { const raw = await tx.getMarker(`mutual:${fleet}`); return raw ? (JSON.parse(raw) as MutualState) : undefined; };
+
+/** The premium of a pooled policy and the factors behind it: the table's premium times the fleet factor from its participants' own record. */
+export async function mutualPremium(tx: LogTx, env: InsurerEnv, p: { fleet: string; table: number; at: string }): Promise<{ premium: number; why: string }> {
+  const st = await readMutual(tx, p.fleet);
+  const at = Date.parse(p.at);
+  let cleanRuns90 = 0, strikes30 = 0;
+  for (const who of st?.participants ?? []) {
+    const rep = await env.reputation(tx, who);
+    cleanRuns90 += (rep?.recentJobs ?? []).filter((j) => Date.parse(j.at) >= at - 90 * 86_400_000 && Date.parse(j.at) <= at).length;
+    strikes30 += (rep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= at - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
+  }
+  const claims90 = (JSON.parse((await tx.getMarker(`mutual_claims:${p.fleet}`)) ?? "[]") as string[]).filter((t) => Date.parse(t) >= at - 90 * 86_400_000).length;
+  const f = fleetFactorPermille({ cleanRuns90, strikes30, claims90 });
+  return { premium: Math.max(1, Math.ceil((p.table * f) / 1000)), why: `fleet factor ${f / 1000} (${cleanRuns90} counted run(s) and ${strikes30} strike(s) among ${st?.participants.length ?? 0} participant(s), ${claims90} claim(s) on the pool in 90 days)` };
+}
+
+/**
+ * A mutual pool act (S1568): `open` by the fleet's organisation makes the pool; `return` pays the surplus back and `close` winds it up. The surplus is what the pool holds above the most its live policies could still pay (the
+ * cover share of each insured amount, for a policy that has not ended and has no claim): the pool is never returned out from under a cover. The members get it pro rata to the premiums they paid into the pool since the last return.
+ */
+export async function projectMutualAct(tx: LogTx, r: AspRecord, env: InsurerEnv): Promise<void> {
+  const b = r.body as { act: "open" | "return" | "close"; fleet: string };
+  if (r.prev !== null) throw rule("mutual_not_chained", "a mutual pool act starts its own chain (prev is null)");
+  const fleet = await tx.getFleet(b.fleet);
+  if (!fleet) throw rule("mutual_unknown_fleet", `${b.fleet} is not a fleet in this log`);
+  if (r.issuer !== fleet.org) throw rule("mutual_wrong_issuer", `${r.issuer} is not the organisation of ${b.fleet} (${fleet.org}): only the fleet's organisation acts on its pool`);
+  const st = await readMutual(tx, b.fleet);
+  const pool = mutualPoolDid(b.fleet);
+  if (b.act === "open") {
+    if (st) throw rule("mutual_exists", `${b.fleet} already has a pool`);
+    await tx.putMarker(`mutual:${b.fleet}`, JSON.stringify({ org: fleet.org, participants: [], policies: [] } satisfies MutualState));
+    return;
+  }
+  if (!st) throw rule("mutual_not_open", `${b.fleet} has no pool: open one first`);
+  const now = Date.parse(r.issued_at);
+  let liveMax = 0;
+  for (const id of st.policies) {
+    const pol = await readPolicy(tx, id);
+    if (pol && !pol.claim && Date.parse(pol.validTo) > now) liveMax += Math.floor((pol.insured * COVER_SHARE_PERMILLE) / 1000);
+    if (pol?.claim && !(await tx.getMarker(`claim_decided:${pol.claim}`))) liveMax += Math.floor((pol.insured * COVER_SHARE_PERMILLE) / 1000);
+    if (pol?.claim && Number((await tx.getMarker(`claim_owed:${pol.claim}`)) ?? 0) > 0) liveMax += Number((await tx.getMarker(`claim_owed:${pol.claim}`)) ?? 0);
+  }
+  if (b.act === "close" && liveMax > 0) throw rule("mutual_live_policies", `the pool still stands behind policies that could pay ${liveMax} credits: it closes when none is live`);
+  if (st.closed) throw rule("mutual_closed", "the pool is closed");
+  const held = await balanceOf(tx, pool);
+  if (b.act === "close" && held === 0) { await tx.putMarker(`mutual:${b.fleet}`, JSON.stringify({ ...st, closed: true })); return; }
+  const surplus = b.act === "close" ? held : Math.max(0, held - liveMax);
+  if (surplus <= 0) throw rule("mutual_no_surplus", `the pool holds ${held} credits and its live policies could still pay ${liveMax}: there is no surplus to return`);
+  const paid = JSON.parse((await tx.getMarker(`mutual_paid:${b.fleet}`)) ?? "{}") as Record<string, number>;
+  const total = Object.values(paid).reduce((a, c) => a + c, 0);
+  if (total <= 0) throw rule("mutual_no_members", "no member paid a premium into the pool since the last return: there is nobody to return the surplus to");
+  // pro rata by premiums paid, whole credits, the remainder to the member who paid the most (so every credit leaves the pool)
+  const members = Object.keys(paid).sort();
+  const shares = members.map((m) => ({ m, n: Math.floor((surplus * paid[m]) / total) }));
+  const rest = surplus - shares.reduce((a, c) => a + c.n, 0);
+  const top = members.reduce((a, c) => (paid[c] > paid[a] ? c : a), members[0]);
+  shares.find((x) => x.m === top)!.n += rest;
+  for (const s of shares) if (s.n > 0) { await env.debit(tx, pool, s.n); await env.credit(tx, s.m, s.n); }
+  await tx.putMarker(`mutual_paid:${b.fleet}`, "{}");
+  if (b.act === "close") await tx.putMarker(`mutual:${b.fleet}`, JSON.stringify({ ...st, closed: true }));
+}
+
+/** What a pooled policy's claim can be paid from now: the pool, then the Insurer's reserve above its floor. */
+async function mutualAvailable(tx: LogTx, fleet: string, at: string): Promise<{ pool: number; above: number }> {
+  const reserve = await balanceOf(tx, INSURER_DID);
+  const largest = Number((await tx.getMarker("insurer_largest")) ?? 0);
+  const claims90 = (await readClaims(tx)).filter((c) => Date.parse(c.at) >= Date.parse(at) - 90 * 86_400_000).reduce((n, c) => n + c.amount, 0);
+  return { pool: await balanceOf(tx, mutualPoolDid(fleet)), above: Math.max(0, reserve - reserveFloor(largest, claims90)) };
+}
+async function payMutual(tx: LogTx, env: InsurerEnv, fleet: string, holder: string, amount: number, avail: { pool: number; above: number }): Promise<void> {
+  const fromPool = Math.min(amount, avail.pool);
+  if (fromPool > 0) await env.debit(tx, mutualPoolDid(fleet), fromPool);
+  if (amount - fromPool > 0) await env.debit(tx, INSURER_DID, amount - fromPool);
+  await env.credit(tx, holder, amount);
+}
+
+/** A claim paid on a pool (S1568): kept by time, for the fleet factor. */
+async function noteMutualClaim(tx: LogTx, fleet: string, at: string): Promise<void> {
+  const list = JSON.parse((await tx.getMarker(`mutual_claims:${fleet}`)) ?? "[]") as string[];
+  await tx.putMarker(`mutual_claims:${fleet}`, JSON.stringify([...list, at].slice(-200)));
+}
 
 /** The claims a holder has had paid, kept by time for the experience rating (the claims in the last 90 days raise its premium). */
 async function noteHolderClaim(tx: LogTx, holder: string, at: string): Promise<void> {
@@ -116,7 +213,7 @@ export async function drivenPremium(tx: LogTx, env: InsurerEnv, p: { holder: str
 
 /** A policy (bank-insurer.md 3, 5): sold by the Insurer, countersigned by the holder, before the first Action, at the premium the rules set, only if the reserve stays at or above its floor. */
 export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): Promise<void> {
-  const b = r.body as { holder: string; contract: string; cover: Cover; insured_amount: { value: number }; premium: { value: number }; valid_from: string; valid_to: string };
+  const b = r.body as { holder: string; contract: string; cover: Cover; insured_amount: { value: number }; premium: { value: number }; valid_from: string; valid_to: string; mutual?: string };
   if (r.prev !== null) throw rule("policy_not_chained", "a policy starts its own chain (prev is null)");
   // A sale is a rule, not a signature (DK387, S1011): the Insurer signs a policy and the holder countersigns it, or the holder signs the policy alone, which the log accepts only at the published premium, the reserve floor and every other rule below.
   if (r.issuer !== INSURER_DID && r.issuer !== b.holder) throw rule("policy_wrong_issuer", `${r.issuer} is neither the Insurer (${INSURER_DID}) nor the holder ${b.holder}: a policy is signed by the Insurer and countersigned by the holder, or signed by the holder alone`);
@@ -139,23 +236,42 @@ export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): P
   const strikes = (holderRep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(r.issued_at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
   const jobClass = await jobClassOfContract(tx, contract.record);
   const table = premiumFor(b.cover, b.insured_amount.value, price, holderRep?.qualifyingJobs ?? 0, strikes, jobClass);
-  const driven = await drivenPremium(tx, env, { holder: b.holder, table, insured: b.insured_amount.value, strikes, at: r.issued_at });
+  // A pooled policy (S1568): the holder is a member of the fleet whose pool is open, and the fleet factor re-rates the table by the fleet's own record; the holder's own drivers do not apply.
+  let mutual: { st: MutualState; why: string } | undefined;
+  let driven: { premium: number; why: string } | null = null;
+  if (b.mutual) {
+    const st = await readMutual(tx, b.mutual);
+    if (!st) throw rule("mutual_not_open", `${b.mutual} has no pool: its organisation opens one with a mutual_act`);
+    if (st.closed) throw rule("mutual_closed", "the pool is closed");
+    if ((await tx.getPassport(b.holder))?.fleet !== b.mutual) throw rule("mutual_not_member", `${b.holder} is not a member of ${b.mutual}: only a fleet's members buy into its pool`);
+    if (!st.participants.includes(b.holder) && st.participants.length >= MUTUAL_MAX_PARTICIPANTS) throw rule("mutual_full", `the pool rates at most ${MUTUAL_MAX_PARTICIPANTS} participants`);
+    const mp = await mutualPremium(tx, env, { fleet: b.mutual, table, at: r.issued_at });
+    driven = mp;
+    mutual = { st, why: mp.why };
+  } else driven = await drivenPremium(tx, env, { holder: b.holder, table, insured: b.insured_amount.value, strikes, at: r.issued_at });
   const premium = driven?.premium ?? table;
   if (b.premium.value !== premium) throw rule("premium_mismatch", `the premium for this cover is ${premium} credits (${strikes} recent strike(s) in it${b.cover === "failed_job" ? `, job class ${jobClass}` : ""}${driven ? `; the table's ${table} times the drivers: ${driven.why}` : ""}), not ${b.premium.value}`);
   const parts = splitParts(premium, PREMIUM_SPLIT);
-  const reserveAfter = (await balanceOf(tx, INSURER_DID)) + parts.payees[0].amount;
+  const reserveAfter = (await balanceOf(tx, INSURER_DID)) + (b.mutual ? 0 : parts.payees[0].amount);
   const largest = Math.max(Number((await tx.getMarker("insurer_largest")) ?? 0), b.insured_amount.value);
   const claims90 = (await readClaims(tx)).filter((c) => Date.parse(c.at) >= Date.parse(r.issued_at) - 90 * 86_400_000).reduce((n, c) => n + c.amount, 0);
   const floor = reserveFloor(largest, claims90);
   if (reserveAfter < floor) throw rule("reserve_below_floor", `after this sale the reserve would be ${reserveAfter}, below its floor of ${floor} (the larger of ${FLOOR_MIN}, 10 times the largest insured amount ${largest} and 1.5 times the expected 30-day claims): no new policy is sold until the reserve recovers`);
   await env.debit(tx, b.holder, premium);
-  await env.credit(tx, INSURER_DID, parts.payees[0].amount);
+  if (b.mutual) {
+    await env.credit(tx, mutualPoolDid(b.mutual), parts.payees[0].amount);
+    const paid = JSON.parse((await tx.getMarker(`mutual_paid:${b.mutual}`)) ?? "{}") as Record<string, number>;
+    paid[b.holder] = (paid[b.holder] ?? 0) + premium;
+    await tx.putMarker(`mutual_paid:${b.mutual}`, JSON.stringify(paid));
+    const st2 = mutual!.st;
+    await tx.putMarker(`mutual:${b.mutual}`, JSON.stringify({ ...st2, participants: st2.participants.includes(b.holder) ? st2.participants : [...st2.participants, b.holder], policies: [...st2.policies, r.id] } satisfies MutualState));
+  } else await env.credit(tx, INSURER_DID, parts.payees[0].amount);
   await env.credit(tx, TREASURY_DID, parts.treasury);
   await noteIncome(tx, parts.treasury, r.issued_at);
   await env.credit(tx, BURN_DID, parts.burn);
   await tx.putMarker("insurer_largest", String(largest));
   await tx.putMarker(`policy_for:${b.contract}|${b.cover}`, r.id);
-  await tx.putMarker(`policy:${r.id}`, JSON.stringify({ holder: b.holder, contract: b.contract, cover: b.cover, insured: b.insured_amount.value, validTo: b.valid_to } satisfies Policy));
+  await tx.putMarker(`policy:${r.id}`, JSON.stringify({ holder: b.holder, contract: b.contract, cover: b.cover, insured: b.insured_amount.value, validTo: b.valid_to, ...(b.mutual ? { mutual: b.mutual } : {}) } satisfies Policy));
 }
 
 /** A claim (bank-insurer.md 3): the holder, on the policy's own contract, citing its settlement, within 14 days of it, once per policy. */
@@ -189,16 +305,20 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     // A claim the reserve could not pay in full was `reduced`, and the rest is owed: the Insurer pays it as the reserve recovers, in later decisions, never beyond what is owed or what the reserve holds (DK183).
     if (owed <= 0) throw rule("decision_exists", "a claim is decided once (a reduced claim may be paid further while an amount is owed)");
     if (b.decision === "denied") throw rule("decision_wrongly_denied", `the claim was reduced and ${owed} credits are owed: a later decision pays the rest, it does not deny it`);
-    const reserveNow = await balanceOf(tx, INSURER_DID);
+    const policyNow = JSON.parse(raw) as { policy: string };
+    const polNow = (await readPolicy(tx, policyNow.policy))!;
+    // A pooled policy is paid from its pool first, then from the Insurer's reserve above its floor (S1568); any other from the reserve.
+    const availNow = polNow.mutual ? await mutualAvailable(tx, polNow.mutual, r.issued_at) : undefined;
+    const reserveNow = availNow ? availNow.pool + availNow.above : await balanceOf(tx, INSURER_DID);
     const dueNow = Math.min(owed, reserveNow);
     if (dueNow <= 0) throw rule("decision_reserve_empty", `${owed} credits are owed on this claim and the reserve holds ${reserveNow}: it is paid when the reserve recovers`);
     if (b.amount.value !== dueNow) throw rule("decision_amount_mismatch", `${owed} are owed and the reserve holds ${reserveNow}: the payment is ${dueNow}, not ${b.amount.value}`);
     if ((b.decision === "paid") !== (dueNow === owed)) throw rule("decision_kind_mismatch", dueNow === owed ? "the last of what is owed is `paid`" : "less than is owed, because the reserve is short, is `reduced` again");
-    const policyNow = JSON.parse(raw) as { policy: string };
-    await env.debit(tx, INSURER_DID, dueNow);
-    await env.credit(tx, (await readPolicy(tx, policyNow.policy))!.holder, dueNow);
+    if (availNow) await payMutual(tx, env, polNow.mutual!, polNow.holder, dueNow, availNow);
+    else { await env.debit(tx, INSURER_DID, dueNow); await env.credit(tx, polNow.holder, dueNow); }
     await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: dueNow }]));
-    await noteHolderClaim(tx, (await readPolicy(tx, policyNow.policy))!.holder, r.issued_at);
+    await noteHolderClaim(tx, polNow.holder, r.issued_at);
+    if (polNow.mutual) await noteMutualClaim(tx, polNow.mutual, r.issued_at);
     await tx.putMarker(`claim_owed:${b.claim}`, String(owed - dueNow));
     return;
   }
@@ -214,7 +334,8 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     fault = (await effectiveFault(tx, sb.cites))?.[contract.performer] ?? fault; // the corrected map after an appeal (S1400)
   }
   const terms = payoutFor(policy.cover, policy.insured, contract.price.value, slashed, fault);
-  const reserve = await balanceOf(tx, INSURER_DID);
+  const availFirst = policy.mutual ? await mutualAvailable(tx, policy.mutual, r.issued_at) : undefined;
+  const reserve = availFirst ? availFirst.pool + availFirst.above : await balanceOf(tx, INSURER_DID);
   const due = Math.min(terms.amount, reserve);
   if (b.decision === "denied") {
     if (terms.amount > 0) throw rule("decision_wrongly_denied", `the terms pay ${terms.amount} on this settlement: a covered event is not denied`);
@@ -224,10 +345,11 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
     if (terms.amount === 0) throw rule("decision_not_covered", `the terms pay nothing on this settlement (${terms.reason}): the decision is a denial`);
     if (b.amount.value !== due) throw rule("decision_amount_mismatch", `the terms and the reserve give ${due} (terms ${terms.amount}, reserve ${reserve}), not ${b.amount.value}`);
     if ((b.decision === "paid") !== (due === terms.amount)) throw rule("decision_kind_mismatch", due === terms.amount ? "the full amount is `paid`" : "less than the terms give, because the reserve is short, is `reduced`");
-    await env.debit(tx, INSURER_DID, due);
-    await env.credit(tx, policy.holder, due);
+    if (availFirst) await payMutual(tx, env, policy.mutual!, policy.holder, due, availFirst);
+    else { await env.debit(tx, INSURER_DID, due); await env.credit(tx, policy.holder, due); }
     await tx.putMarker("insurer_claims", JSON.stringify([...(await readClaims(tx)), { at: r.issued_at, amount: due }]));
     await noteHolderClaim(tx, policy.holder, r.issued_at);
+    if (policy.mutual) await noteMutualClaim(tx, policy.mutual, r.issued_at);
     if (due < terms.amount) await tx.putMarker(`claim_owed:${b.claim}`, String(terms.amount - due));
   }
   await tx.putMarker(`claim_decided:${b.claim}`, r.id);

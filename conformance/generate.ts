@@ -1165,6 +1165,8 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   const polBase = { holder: "did:web:example.com:agents:alice-coder", contract: "sha256:" + "d".repeat(64), cover: "bond_slash", insured_amount: { value: 20, unit: "credit" }, premium: { value: 2, unit: "credit" }, valid_from: "2026-11-12T00:00:00Z", valid_to: "2027-01-12T00:00:00Z" };
   sv("valid_policy", "policy", polBase, true);
   sv("valid_policy_failed_job", "policy", { ...polBase, cover: "failed_job" }, true);
+  sv("valid_policy_mutual", "policy", { ...polBase, mutual: "did:web:example.com:orgs:acme:fleets:coders" }, true);
+  sv("policy_mutual_not_a_did", "policy", { ...polBase, mutual: "the coders" }, false);
   sv("policy_bad_cover", "policy", { ...polBase, cover: "everything" }, false);
   sv("policy_no_premium", "policy", { ...polBase, premium: undefined }, false);
   sv("policy_extra_field", "policy", { ...polBase, exclusions: [] }, false);
@@ -1563,6 +1565,14 @@ const worldRules = [
   sv("treasury_return_no_amount", "treasury_return", (({ amount: _a, ...r }) => r)(retBody()), false);
   sv("treasury_return_extra_field", "treasury_return", retBody({ to: "did:web:asp.local:treasury" }), false);
   sv("treasury_return_no_institution", "treasury_return", (({ institution: _i, ...r }) => r)(retBody()), false);
+  // ---------- the fleet mutual pool (spec-deltas S1568): schema cases ----------
+  const muBody = (over: Record<string, unknown> = {}) => ({ act: "open", fleet: "did:web:example.com:orgs:acme:fleets:coders", ...over });
+  sv("valid_mutual_open", "mutual_act", muBody(), true);
+  sv("valid_mutual_return", "mutual_act", muBody({ act: "return", memo: "end of the quarter" }), true);
+  sv("valid_mutual_close", "mutual_act", muBody({ act: "close" }), true);
+  sv("mutual_unknown_act", "mutual_act", muBody({ act: "dissolve" }), false);
+  sv("mutual_carries_an_amount", "mutual_act", muBody({ act: "return", amount: { value: 5, unit: "credit" } }), false);
+  sv("mutual_no_fleet", "mutual_act", (({ fleet: _f, ...r }) => r)(muBody()), false);
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
