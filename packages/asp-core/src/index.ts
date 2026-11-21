@@ -12,6 +12,7 @@ export {
   type AspRecord, type KeyResolver, type RecordDraft, type Signature, type Signer,
 } from "./record.ts";
 export { Job, LIFECYCLE, type JobOptions, type JobSnapshot, type JobState } from "./lifecycle.ts";
+export { merkleLeaf, merkleRoot, merkleProof, merkleVerify, EMPTY_ROOT, type MerkleStep } from "./merkle.ts";
 export { KNOWN_NOTICES, noticeAckProblem } from "./notice-ack.ts";
 export { JOB_DATA_TERM, KNOWN_JOB_DATA_TERMS, MAX_RETAIN_DAYS, readDataHandling, dataHandlingProblem, type DataHandling, type DataHandlingReading } from "./data-handling.ts";
 export { deriveMandate, mandateViolations, scopeCovered, privateScopesProblem, PRIVATE_SCOPE_NAME, MAX_PRIVATE_SCOPES, type MandateLike } from "./mandate-template.ts";

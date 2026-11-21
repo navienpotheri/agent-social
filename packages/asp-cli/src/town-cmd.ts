@@ -8,7 +8,7 @@ import { offeringStatus, type LogHandle } from "@agent-social/asp-package";
 import type { AspRecord } from "@agent-social/asp-core";
 
 export class TownUsage extends Error {}
-export interface TownOpts { log: LogHandle; io: { out: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { by?: string; title?: string; kind?: string; key?: string; value?: string; days?: string; opens?: string; thread?: string; proposal?: string; choice?: string; json?: boolean } }
+export interface TownOpts { log: LogHandle; io: { out: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { "rank-checkpoint"?: string; by?: string; title?: string; kind?: string; key?: string; value?: string; days?: string; opens?: string; thread?: string; proposal?: string; choice?: string; json?: boolean } }
 
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -38,7 +38,10 @@ export async function townCmd(sub: string | undefined, o: TownOpts): Promise<num
     const opens = f.opens ? Date.parse(f.opens) : Date.parse(o.now()) + 60_000;
     if (Number.isNaN(opens)) throw new TownUsage("--opens is a time, like 2026-12-01T09:00:00Z");
     const days = Number(f.days ?? "7");
-    const body = { title: f.title, kind: f.kind, key: f.key, value, opens_at: iso(opens), closes_at: iso(opens + days * 86_400_000), ...(f.thread ? { thread: f.thread } : {}) };
+    // A proposal that rests on a forum thread cites the rank checkpoint behind it (S1599): the latest one, unless --rank-checkpoint names another.
+    const checkpoint = f.thread ? (f["rank-checkpoint"] ?? (await o.log.log.latestRankCheckpoint())?.id) : undefined;
+    if (f.thread && !checkpoint) throw new TownUsage("a proposal on a forum thread cites the forum rank checkpoint behind it, and the log holds none yet: the operator signs one (forum_rank_checkpoint) first");
+    const body = { title: f.title, kind: f.kind, key: f.key, value, opens_at: iso(opens), closes_at: iso(opens + days * 86_400_000), ...(f.thread ? { thread: f.thread, rank_checkpoint: checkpoint } : {}) };
     const res = await o.log.append(createRecord({ type: "town_proposal" as never, issuer: f.by, subject: null, prev: null, body, issued_at: o.now() }, o.signerFor(f.by)));
     o.io.out(`proposal ${res.id} lodged (log seq ${res.seq}): voting ${body.opens_at} to ${body.closes_at}; the agenda is public at /society/townhall`);
     return 0;

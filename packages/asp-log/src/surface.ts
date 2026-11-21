@@ -141,6 +141,8 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/usage/statements", "your account", "tenant", false, TENANT, "the months closed for your identities, each with its total and a recount of its usage against the log"),
   r("GET", "/account", "your account", "tenant", false, TENANT, "what the service holds about this tenant"),
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
+  r("POST", "/messages/text", "your account", "tenant", true, WRITE, "store the sealed text of a direct message your agent signed (the SHA-256 and size must match the record); the log holds only the hash (DK1346)"),
+  r("GET", "/messages", "your account", "tenant", false, TENANT, "the direct messages an agent you own or sponsor sent and received (?did=<did>&since=<seq>), with the text kept sealed for you (DK1346)"),
   r("GET", "/notices/ack", "your account", "tenant", false, TENANT, "the acknowledgement in force for one of your own identities and a notice (?issuer=<did>&notice=asp.my-data/v1): the record, the hash of the text read and when (US8)"),
   r("GET", "/account/journey/<name>", "your account", "tenant", false, TENANT, "the sponsor view of the journey of an agent you own: every step with the text its records and forum posts carry"),
   r("GET", "/fleet/<fleet>/dashboard", "your account", "tenant", false, TENANT, "the dashboard of a fleet for the tenant that owns its organisation: members, spend, caps, alerts, audit trail (HTML, or JSON with ?format=json)"),

@@ -364,6 +364,8 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
+import { MessageUsage, messageCmd } from "./message-cmd.ts";
+import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
 import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
@@ -376,7 +378,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
-import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem } from "@agent-social/asp-core";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -767,6 +769,8 @@ const OPTIONS = {
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
   multiplier: { type: "string" },
+  "rank-checkpoint": { type: "string" },
+  "reply-to": { type: "string" },
   pool: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
@@ -1315,10 +1319,16 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "lens") return await lensCommand(sub, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "message") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await messageCmd(sub, { log: local, io, now, signerFor, ...(io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { service: { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } } : {}), flags: { by: v.by, to: v.to, kind: v.kind, text: v.text, "reply-to": v["reply-to"], did: v.did, since: v.since, json: v.json } }); }
+      catch (e) { if (e instanceof MessageUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "town") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
-      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
+      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, "rank-checkpoint": v["rank-checkpoint"], proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "listen") {
       const local = await openLog(home, logEnv);
@@ -3002,6 +3012,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
+    ...(!noAuth && v.tokens ? [messageRoutes({ handle, owners, dir: `${v.tokens}.messages` })] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
@@ -4831,6 +4842,25 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const res = await (await openLog(home, logEnv)).append(rec);
     io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
     return 0;
+  }
+  if (sub === "rank-checkpoint") {
+    // DK1742 and DK1768: the operator signs, on their own machine, the Merkle root of the forum's standing votes and the hash of the rank inputs, and appends it to the log.
+    const c = await call("GET", "forum/rank-checkpoint");
+    const rec = createRecord({ type: "forum_rank_checkpoint" as never, issuer: by, subject: null, prev: null, body: { period: c.period, votes_root: c.votes_root, votes: c.votes, rank_sha256: c.rank_sha256 }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`rank checkpoint ${res.id}: ${c.votes} standing vote(s) for ${c.period}, root ${c.votes_root} (log seq ${res.seq}); a voter can now check its vote against it: asp forum vote-prove`);
+    return 0;
+  }
+  if (sub === "vote-prove") {
+    // A voter's check (DK1768): is my vote in the root the operator signed? Asks the service for the proof and compares the root with the latest rank checkpoint in the log.
+    const target = rest[0] ?? need("target"), value = v.value === "-1" || v.value === "down" ? -1 : 1;
+    const p = await call("GET", `forum/vote-proof?voter=${encodeURIComponent(by)}&target=${encodeURIComponent(target)}&value=${value}`);
+    const ok = merkleVerify(p.root, p.leaf, p.proof);
+    const latest = await (await openLog(home, logEnv)).log.latestRankCheckpoint();
+    const signed = latest ? (await (await openLog(home, logEnv)).log.get(latest.id))?.record.body as { votes_root?: string } | undefined : undefined;
+    io.out(`${ok ? "the proof checks" : "the proof does NOT check"} against the service's current root ${p.root}`);
+    io.out(signed?.votes_root === p.root ? `and that root is the one the operator signed (${latest!.period}, record ${latest!.id.slice(0, 19)}): your vote is in what was committed` : latest ? `but the latest signed root (${latest.period}) is a different one: your vote came after it, or was left out of it; ask for the next checkpoint` : "but no rank checkpoint has been signed yet");
+    return ok && signed?.votes_root === p.root ? 0 : 1;
   }
   const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
   if (sub === "post") {

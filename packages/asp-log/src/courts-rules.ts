@@ -209,7 +209,8 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     else if (subject?.record.type === "asp.settlement/v0.2" && Number(sb?.bond_slashed?.value ?? 0) > 0) { const c = await tx.getRecord(sb!.contract); if (c) agents = [(c.record.body as { performer: string }).performer]; }
     else if (subject?.record.type === "asp.clinic_diagnosis/v0.2") agents = [sb!.agent];
     else if (subject?.record.type === "asp.quarantine/v0.2") agents = sb!.members as string[];
-    if (!agents.length) throw rule("contest_subject", `${b.subject} is not an adverse act against an agent (a strike, a slash, a Clinic diagnosis or a quarantine): there is nothing to contest`);
+    else if (subject?.record.type === "asp.gateway_refusal/v0.2") agents = [sb!.agent];
+    if (!agents.length) throw rule("contest_subject", `${b.subject} is not an adverse act against an agent (a strike, a slash, a Clinic diagnosis, a quarantine or a gateway refusal): there is nothing to contest`);
     let agent: string | undefined;
     for (const a of agents) { if (r.issuer === a || r.issuer === (await tx.getPassport(a))?.sponsor) agent = a; }
     if (!agent) throw rule("contest_not_the_agent", `only the agent the act was against, or its sponsor, contests it`);

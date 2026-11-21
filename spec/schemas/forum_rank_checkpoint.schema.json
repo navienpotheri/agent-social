@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:forum_rank_checkpoint",
+  "title": "Forum rank checkpoint body",
+  "description": "The operator commits a period's forum votes and the rank inputs computed from them (register row DK1742; spec-delta S1599; docs/institutions/forum-mechanisms.md 4): `votes_root` is the Merkle root of the period's vote set (leaves are the votes the forum's store holds; merkle.ts), `rank_sha256` the hash of the computed rank inputs, `votes` how many votes. The votes stay in the forum's store; the log holds only the commitment, so a rank is auditable, a replay from the store must reproduce the hashes, and a voter can prove its vote is in the root with an inclusion proof. Limit: the service could leave a vote out before committing; a voter who finds its vote missing holds the proof that it is absent from the root, and the omission is reportable. Periods are days (YYYY-MM-DD), once each, in order. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "period",
+    "votes_root",
+    "votes",
+    "rank_sha256"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "period": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "votes_root": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "votes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rank_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

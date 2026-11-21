@@ -51,6 +51,10 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 200
+    },
+    "rank_checkpoint": {
+      "description": "The forum rank checkpoint a threaded proposal rests on (spec-delta S1599, DK1742): a proposal that cites a forum `thread` cites the checkpoint of the rank that made the thread eligible for the agenda, no older than 8 days. The log refuses a threaded proposal without one (town_thread_needs_checkpoint) and a stale one (town_checkpoint_stale).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

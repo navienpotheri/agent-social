@@ -189,3 +189,24 @@ def test_private_scopes(case):
     from asp_core.mandate_template import private_scopes_problem  # noqa: PLC0415
 
     assert private_scopes_problem(case["input"]) == case["problem"]
+
+
+# ---- the forum rank checkpoint's Merkle root (docs/spec-deltas.md S1599, register row DK1742) ----
+from asp_core.merkle import EMPTY_ROOT, merkle_leaf, merkle_proof, merkle_root, merkle_verify  # noqa: E402
+
+MK = load("vectors/merkle.json")
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MK["cases"]])
+def test_merkle(case):
+    assert merkle_root(case["leaves"]) == case["root"]
+    assert [merkle_leaf(t) for t in sorted(set(case["leaves"]))] == case["leaf_hashes"]
+    for p in case["proofs"]:
+        assert merkle_proof(case["leaves"], p["leaf"]) == p["proof"]
+        assert merkle_verify(case["root"], p["leaf"], p["proof"]) is True
+        assert merkle_verify(case["root"], p["leaf"] + "x", p["proof"]) is False
+
+
+def test_merkle_empty_and_missing():
+    assert merkle_root([]) == EMPTY_ROOT
+    assert merkle_proof(["a", "b"], "z") is None

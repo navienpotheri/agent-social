@@ -16,6 +16,7 @@ import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurpri
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
 import { KNOWN_NOTICES } from "../packages/asp-core/src/notice-ack.ts";
+import { merkleLeaf, merkleProof, merkleRoot } from "../packages/asp-core/src/merkle.ts";
 import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
@@ -735,6 +736,56 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- recall (spec-deltas S1600, register row DK1743): schema cases ----------
+const rpBody = (over: Record<string, unknown> = {}) => ({ election_result: "sha256:" + "a".repeat(64), officer: "did:web:example.com:agents:steward-1", reason: "it put a thread on the agenda that nobody asked for", ...over });
+sv("valid_recall_petition", "recall_petition", rpBody(), true);
+sv("valid_recall_petition_joining", "recall_petition", rpBody({ recall: "sha256:" + "b".repeat(64) }), true);
+sv("recall_petition_no_reason", "recall_petition", rpBody({ reason: "" }), false);
+sv("recall_petition_officer_not_a_did", "recall_petition", rpBody({ officer: "steward-1" }), false);
+sv("valid_recall_vote", "recall_vote", { recall: "sha256:" + "b".repeat(64), choice: "remove" }, true);
+sv("recall_vote_abstain", "recall_vote", { recall: "sha256:" + "b".repeat(64), choice: "abstain" }, false);
+sv("valid_recall_result", "recall_result", { recall: "sha256:" + "b".repeat(64), removed: true, remove_milli: 5000, keep_milli: 2000, controllers: 8 }, true);
+sv("recall_result_negative", "recall_result", { recall: "sha256:" + "b".repeat(64), removed: false, remove_milli: -1, keep_milli: 0, controllers: 0 }, false);
+// ---------- the forum rank checkpoint (spec-deltas S1599, register row DK1742): schema cases and the shared Merkle vectors ----------
+const rcBody = (over: Record<string, unknown> = {}) => ({ period: "2026-11-22", votes_root: "a".repeat(64), votes: 120, rank_sha256: "b".repeat(64), ...over });
+sv("valid_forum_rank_checkpoint", "forum_rank_checkpoint", rcBody(), true);
+sv("valid_forum_rank_checkpoint_no_votes", "forum_rank_checkpoint", rcBody({ votes: 0 }), true);
+sv("forum_rank_checkpoint_bad_period", "forum_rank_checkpoint", rcBody({ period: "2026-W47" }), false);
+sv("forum_rank_checkpoint_short_root", "forum_rank_checkpoint", rcBody({ votes_root: "abc" }), false);
+sv("forum_rank_checkpoint_no_rank_hash", "forum_rank_checkpoint", (({ rank_sha256: _r, ...r }) => r)(rcBody()), false);
+sv("forum_rank_checkpoint_negative_votes", "forum_rank_checkpoint", rcBody({ votes: -1 }), false);
+{
+  const sets: { name: string; leaves: string[] }[] = [
+    { name: "none", leaves: [] }, { name: "one", leaves: ["vote:a:post-1:up"] }, { name: "two", leaves: ["vote:a:post-1:up", "vote:b:post-1:down"] },
+    { name: "three (an odd node is carried up)", leaves: ["v3", "v1", "v2"] }, { name: "five, listed out of order and with a duplicate", leaves: ["e", "b", "d", "a", "c", "a"] },
+    { name: "eight", leaves: Array.from({ length: 8 }, (_, i) => `vote-${i}`) },
+  ];
+  (globalThis as unknown as { __merkleVectors: unknown }).__merkleVectors = {
+    cases: sets.map((s) => ({ name: s.name, leaves: s.leaves, root: merkleRoot(s.leaves), leaf_hashes: [...new Set(s.leaves)].sort().map(merkleLeaf), proofs: [...new Set(s.leaves)].sort().map((t) => ({ leaf: t, proof: merkleProof(s.leaves, t) })) })),
+  };
+}
+// ---------- the gateway refusal (spec-deltas S1601, register row DK1607) ----------
+const grBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", scope: "fs.write", rule: "outside_mandate", call_sha256: "c".repeat(64), at: "2026-11-22T10:00:00Z", ...over });
+sv("valid_gateway_refusal", "gateway_refusal", grBody(), true);
+sv("valid_gateway_refusal_contract", "gateway_refusal", grBody({ contract: "sha256:" + "9".repeat(64) }), true);
+sv("gateway_refusal_no_scope", "gateway_refusal", (({ scope: _s, ...r }) => r)(grBody()), false);
+sv("gateway_refusal_bad_hash", "gateway_refusal", grBody({ call_sha256: "abc" }), false);
+sv("gateway_refusal_agent_not_a_did", "gateway_refusal", grBody({ agent: "coder-7" }), false);
+sv("gateway_refusal_call_text", "gateway_refusal", grBody({ call: "rm -rf /" }), false);
+// ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
+const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
+sv("valid_ladder_season", "ladder_season", lsBody(), true);
+sv("ladder_season_no_seed", "ladder_season", (({ draw_seed: _s, ...r }) => r)(lsBody()), false);
+sv("ladder_season_zero_rounds", "ladder_season", lsBody({ rounds: 0 }), false);
+sv("ladder_season_short_seed", "ladder_season", lsBody({ draw_seed: "x" }), false);
+sv("valid_ladder_entry", "ladder_entry", { season: "sha256:" + "a".repeat(64) }, true);
+sv("ladder_entry_no_season", "ladder_entry", {}, false);
+const lmBody = (over: Record<string, unknown> = {}) => ({ season: "sha256:" + "a".repeat(64), round: 0, a: "did:web:example.com:agents:p1", b: "did:web:example.com:agents:p2", score_permille: 1000, transcript_sha256: "sha256:" + "f".repeat(64), ...over });
+sv("valid_ladder_match", "ladder_match", lmBody(), true);
+sv("valid_ladder_match_draw", "ladder_match", lmBody({ score_permille: 500 }), true);
+sv("ladder_match_score_not_allowed", "ladder_match", lmBody({ score_permille: 700 }), false);
+sv("ladder_match_no_transcript", "ladder_match", (({ transcript_sha256: _t, ...r }) => r)(lmBody()), false);
+sv("ladder_match_round_out_of_range", "ladder_match", lmBody({ round: 60 }), false);
 // ---------- expeditions (spec-deltas S1597, register row DK1740): schema cases ----------
 const exBody = (over: Record<string, unknown> = {}) => ({ world: "river-1", model: { name: "open-world-model", weights_sha256: "sha256:" + "c".repeat(64), licence_checked: true }, max_steps: 200, cost_cap_millicredits: 50000, gpu_millicredits_per_second: 50, group: ["did:web:example.com:agents:e1", "did:web:example.com:agents:e2"], goal: "reach", ...over });
 sv("valid_expedition", "expedition", exBody(), true);
@@ -1707,6 +1758,7 @@ const worldRules = [
   const tpBody = (over: Record<string, unknown> = {}) => ({ title: "Add a study hour to the Academy", kind: "policy", key: "academy.study_hours", value: 2, opens_at: "2026-12-01T00:00:00Z", closes_at: "2026-12-08T00:00:00Z", ...over });
   sv("valid_town_proposal", "town_proposal", tpBody(), true);
   sv("valid_town_proposal_thread", "town_proposal", tpBody({ thread: "thread-42", value: { hours: 2 } }), true);
+  sv("valid_town_proposal_rank_checkpoint", "town_proposal", tpBody({ thread: "thread-42", rank_checkpoint: "sha256:" + "9".repeat(64), value: { hours: 2 } }), true);
   sv("town_proposal_no_value", "town_proposal", (({ value: _v, ...r }) => r)(tpBody()), false);
   sv("town_proposal_unknown_kind", "town_proposal", tpBody({ kind: "coup" }), false);
   sv("town_proposal_bad_time", "town_proposal", tpBody({ closes_at: "soon" }), false);
@@ -1870,6 +1922,7 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("merkle.json", (globalThis as unknown as { __merkleVectors: unknown }).__merkleVectors);
 write("notice-ack.json", (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors);
 write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });

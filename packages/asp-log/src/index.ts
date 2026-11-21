@@ -1,5 +1,6 @@
 export { PLATFORM_DID } from "./economy.ts";
 export { DEFAULT_TOWN_RULES, DEFAULT_RESERVED, VOTABLE_KINDS, countVotes, voterWeightMilli, type TownRules, type Voter, type Tally } from "./town-hall.ts";
+export { ladderDraw, isDrawn } from "./ladder-draw.ts";
 export { mutualArmOf, judgeMutualExperiment, measures as mutualMeasures, MUTUAL_EXPERIMENT, type ArmFacts, type ExperimentVerdict } from "./mutual-experiment.ts";
 export { MESSAGES_PER_DAY, MESSAGES_PER_PAIR_PER_DAY, MESSAGE_MAX_BYTES } from "./messages.ts";
 export { stressReplay, dynamicsLine, type StressResult, type StressEvent, type DynamicsLine } from "./insurer-stress.ts";
