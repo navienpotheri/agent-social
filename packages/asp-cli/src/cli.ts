@@ -3724,12 +3724,17 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(gate ? { gate } : {}),
     // Private memory (DK272, D12): the scopes this run may use, sealed to the principal and this agent; the key is opened here, in the gateway, for the length of the run and never reaches the agent or the log.
     mcp: { asp: { memoryDir: memDir, ...(() => {
-      if (!v["private-scopes"]) return {};
+      // The Mandate names the scopes (learning.private_scopes, S1593); --private-scopes may only narrow that list, and names scopes alone when the Mandate has none (the flag of the first build).
+      const fromMandate = ((mandate0 as { learning?: { private_scopes?: string[] } } | undefined)?.learning?.private_scopes) ?? [];
+      const flagged = v["private-scopes"] ? v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      const wanted = flagged.length ? (fromMandate.length ? flagged.filter((x) => fromMandate.includes(x)) : flagged) : fromMandate;
+      if (flagged.length && fromMandate.length && wanted.length < flagged.length) io.err(`  memory   a private scope the Mandate does not list was left out: ${flagged.filter((x) => !fromMandate.includes(x)).join(", ")}`);
+      if (!wanted.length) return {};
       if (!pkgDir) throw new UsageError("--private-scopes needs the agent's package (--package <dir>): the sealed scopes live in it");
       const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string } }; } catch { return undefined; } })();
       const principal = v.principal ?? cfg?.identities?.me;
       if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
-      const scopes = v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean);
+      const scopes = wanted;
       const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
       ensureAgentMemoryKey(pkgDir, pk.publicKey);
       const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
