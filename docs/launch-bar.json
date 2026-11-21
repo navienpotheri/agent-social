@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 72,
+  "must": 73,
   "withdraw": 108,
   "after": 322,
-  "total": 502
+  "total": 503
  },
- "mustWorkerHours": 331.2,
+ "mustWorkerHours": 343.2,
  "entries": [
   {
    "id": "D3",
@@ -5780,6 +5780,17 @@
    "why": "",
    "claim": "A real model agent has sat a course live",
    "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
+  },
+  {
+   "id": "DK1601",
+   "pri": "A",
+   "status": "open",
+   "gap": "The three pages the owner approved on 2026-11-21 (society pages DK1348, fleet dashboard DK1361, fleet marks DK1367) were approved for now, not as finished: the owner said they need more work before l…",
+   "bucket": "must",
+   "hours": 12,
+   "size": "L",
+   "flags": "D",
+   "why": "the three approved pages (DK1348, DK1361, DK1367) were approved for now; a second design pass after the owner lists what is missing"
   },
   {
    "id": "DK1359",
