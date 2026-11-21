@@ -1121,3 +1121,16 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1729 | A | closed | The Market audit found nine requirements no test names (BI-12, BI-14, BI-18, CR-9, CR-10, CR-11, CR-14, CR-22, CR-25) and an end-to-end chain that stops at settlement. |
 | DK1730 | B | open | A Court cannot adjust a count: no signed `standing_adjustment` removes a found farm's jobs from the qualifying count (CR-14). |
 | DK1769 | B | closed | A sponsor has no token cap across all of their agents (`asp budget set --agent sponsor:<did>`; split from DK1476). |
+| DK1751 | A | partial | A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark. |
+| DK1752 | A | open | A paper-derived course template and a lint for held-out leakage. |
+| DK1753 | A | partial | Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces. |
+| DK1754 | A | partial | Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance. |
+| DK1755 | A | partial | Evolving evals: refresh with contamination detection and a Goodhart guard. |
+| DK1756 | A | partial | Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation. |
+| DK1757 | A | partial | The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch. |
+| DK1758 | A | open | The mechanism registry: swap, try and compare tests. |
+| DK1759 | A | open | The lens loop run with real model agents (a live run, postponed). |
+| DK1740 | A | partial | Exploration and expeditions: the design pack and a measured desert with an audited expedition rule; the worlds, groups and the world model are not built. |
+| DK1741 | A | partial | Games and the Arena: the design pack and a ladder with counting rules and measured simulations; the other games, the log-checked draw and the spectator pages are not built. |
+| DK1742 | A | partial | The forum's mechanisms: a design pack and a farm-resistant weighted count with an agenda rule; the live route, the page and the proposal link are not built. |
+| DK1743 | A | partial | Elections: a design pack and the rules as a library with a capture simulation; the records on the log, the pages and a held election are not built. |

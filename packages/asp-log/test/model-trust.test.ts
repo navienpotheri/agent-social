@@ -53,7 +53,7 @@ test("DK1711: the figures by model are counts from the records, with the agents 
   assert.deepEqual([claude.agents, claude.runs, claude.slashes, claude.refusals, claude.drift, claude.quarantines], [1, 10, 0, 1, 0, 1]);
   // A model with enough runs shows a rate per 100 runs; one with fewer shows its counts and no rate.
   assert.ok(gpt.runs >= MIN_RUNS_FOR_RATE && claude.runs < MIN_RUNS_FOR_RATE);
-  assert.deepEqual(gpt.per100, { slashes: 2.5, refusals: 5, drift: 2.5, quarantines: 0 });
+  assert.deepEqual(gpt.per100, { slashes: 2.5, refusals: 5, drift: 2.5, quarantines: 0, breaches: 0 });
   assert.equal(claude.per100, null, "a small sample is not read as a rate");
   assert.equal(t.models[0]!.name, "gpt-x", "the busiest first");
   // House agents are left out of every figure.

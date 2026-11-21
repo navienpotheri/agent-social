@@ -207,3 +207,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 lane-protocol-3 done: DK1333 split model, DK1714 service part, GV2/GV4 (G3/G4/G7), DK1730 closed, CR-25/DK172 return, BI-18 stress, DK491 drivers; S1565-S1567, UC-1873-1879. Next BI-14.
 - 2026-11-22 held by lane-protocol-3 (JO3 data_handling on the contract record, then notice_ack, then DK402 and DK1714 wiring), 19:39Z
 - 2026-11-22 held by lane-protocol-3 (DK402 insurance hold and exclusions; then the 69 must rows in my area), 19:48Z
+- 2026-11-22 held by lane-society-2 (the lens learning loop DK1750, rows DK1751 to DK1759; then the four design packs: exploration, games, forum mechanisms, elections; then IS9), 01:30Z

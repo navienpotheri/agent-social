@@ -11,7 +11,7 @@ import type { AspRecord } from "@agent-social/asp-core";
 export const MIN_RUNS_FOR_RATE = 30;
 const T = (s: string) => `asp.${s}/v0.2`;
 
-export interface ModelRow { model: string; provider: string | null; name: string; digest: string | null; agents: number; runs: number; slashes: number; refusals: number; drift: number; quarantines: number; per100: { slashes: number; refusals: number; drift: number; quarantines: number } | null }
+export interface ModelRow { model: string; provider: string | null; name: string; digest: string | null; agents: number; runs: number; slashes: number; refusals: number; drift: number; quarantines: number; breaches: number; per100: { slashes: number; refusals: number; drift: number; quarantines: number; breaches: number } | null }
 export interface ModelSwap { agent: string; at: string; action: string; from: string; to: string }
 export interface ModelHold { agent: string; since: string; from: string; to: string; reexam: "pending" | "passed"; passedAt?: string }
 export interface ModelTrust { models: ModelRow[]; swaps: ModelSwap[]; holds: ModelHold[]; minRunsForRate: number; note: string }
@@ -23,7 +23,7 @@ const body = (r: AspRecord) => r.body as Record<string, any>;
 export function modelTrust(records: AspRecord[], o: { houseAgents?: ReadonlySet<string> } = {}): ModelTrust {
   const rows = new Map<string, ModelRow & { agentSet: Set<string> }>();
   const row = (key: string) => {
-    if (!rows.has(key)) { const [provider, name, digest] = key.split("|"); rows.set(key, { model: key, provider: provider === "?" ? null : provider!, name: name!, digest: digest === "no digest" ? null : digest!, agents: 0, runs: 0, slashes: 0, refusals: 0, drift: 0, quarantines: 0, per100: null, agentSet: new Set() }); }
+    if (!rows.has(key)) { const [provider, name, digest] = key.split("|"); rows.set(key, { model: key, provider: provider === "?" ? null : provider!, name: name!, digest: digest === "no digest" ? null : digest!, agents: 0, runs: 0, slashes: 0, refusals: 0, drift: 0, quarantines: 0, breaches: 0, per100: null, agentSet: new Set() }); }
     return rows.get(key)!;
   };
   const current = new Map<string, string>(); // agent -> the model it ran last
@@ -57,12 +57,13 @@ export function modelTrust(records: AspRecord[], o: { houseAgents?: ReadonlySet<
     else if (r.type === T("settlement")) { const p = contracts.get(b.contract); if (p && (b.bond_slashed?.value ?? 0) > 0) count(p, (m) => m.slashes++); }
     else if (r.type === T("refusal")) count(r.issuer, (m) => m.refusals++);
     else if (r.type === T("clinic_diagnosis")) count(b.agent, (m) => m.drift++);
+    else if (r.type === T("incident")) count(b.agent, (m) => m.breaches++);
     else if (r.type === T("quarantine")) for (const a of (b.members ?? []) as string[]) count(a, (m) => m.quarantines++);
     else if (r.type === T("exam_result") && b.passed === true) exams.push({ holder: b.holder, at: r.issued_at });
   }
   const models = [...rows.values()].map(({ agentSet, ...m }) => {
     const enough = m.runs >= MIN_RUNS_FOR_RATE, per = (n: number) => Math.round((n / m.runs) * 1000) / 10;
-    return { ...m, agents: agentSet.size, per100: enough ? { slashes: per(m.slashes), refusals: per(m.refusals), drift: per(m.drift), quarantines: per(m.quarantines) } : null };
+    return { ...m, agents: agentSet.size, per100: enough ? { slashes: per(m.slashes), refusals: per(m.refusals), drift: per(m.drift), quarantines: per(m.quarantines), breaches: per(m.breaches) } : null };
   }).sort((a, b) => b.runs - a.runs || (a.model < b.model ? -1 : 1));
   // A hold begins at the latest swap of an agent and ends at the first passed exam of its own after it.
   const latest = new Map<string, ModelSwap>(); for (const s of swaps) latest.set(s.agent, s);

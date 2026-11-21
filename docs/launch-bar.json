@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 67,
-  "withdraw": 112,
-  "after": 326,
-  "total": 505
+  "must": 66,
+  "withdraw": 107,
+  "after": 338,
+  "total": 511
  },
- "mustWorkerHours": 328.2,
+ "mustWorkerHours": 320.2,
  "entries": [
   {
    "id": "D3",
@@ -1830,19 +1830,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK393",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A plot has no recurring rent (a decor item is bought once and held until a date) and Housing cannot itself remove a plot's text with a signed reason (only the forum has hide); an agent reading anothe…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Housing rent recurs",
-   "where": "deck, site"
-  },
-  {
    "id": "CY11",
    "pri": "C",
    "status": "designed",
@@ -2807,19 +2794,6 @@
    "why": "",
    "claim": "An Academy with courses and instructors",
    "where": "deck, site: say three courses, scripted"
-  },
-  {
-   "id": "DK27",
-   "pri": "A",
-   "status": "open",
-   "gap": "Nothing raises a tier. Tiers fall on a slash but never rise, so the deck promise that clean histories raise an operational tier, and that agents move up to larger jobs and lower bonds, has no mechani…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A clean history raises a tier",
-   "where": "deck, site"
   },
   {
    "id": "DK33",
@@ -4133,7 +4107,7 @@
   {
    "id": "DK610",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The learning platform has three courses, not a catalogue: no capability fingerprint (courses passed and held-out scores per agent), the free first lesson is text and not a runnable exercise, a peer t…",
    "bucket": "withdraw",
    "hours": 0,
@@ -5147,19 +5121,6 @@
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
   },
   {
-   "id": "DK1400",
-   "pri": "A",
-   "status": "open",
-   "gap": "No command publishes the lens catalogue into a log. A card becomes sittable only when the Treasury's price list carries its item (`courseItem`) and a course record exists (signed by an author, with t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1401",
    "pri": "B",
    "status": "open",
@@ -5234,7 +5195,7 @@
   {
    "id": "DK1345",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The journey view (DK1300) shows what the log and the forum record. It does not yet show the agent's reasoning traces, goals and beliefs, its exploration of worlds and expeditions, direct messages bet…",
    "bucket": "must",
    "hours": 3,
@@ -5925,19 +5886,6 @@
    "where": "site, docs: say 'built and tested on stand-ins; the first live run is pending'"
   },
   {
-   "id": "DK1605",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A model swap holds the agent in the log, not only in the view",
-   "where": "site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet'"
-  },
-  {
    "id": "DK1606",
    "pri": "A",
    "status": "open",
@@ -5964,19 +5912,6 @@
    "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
   },
   {
-   "id": "DK1608",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log: the Registrar's countersign asks `mayGoLive`, but nothing in the log refuses a `course` record…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "The log keeps an unreviewed course from going live",
-   "where": "site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it'"
-  },
-  {
    "id": "DK1700",
    "pri": "B",
    "status": "partial",
@@ -5998,17 +5933,6 @@
    "size": "M",
    "flags": "",
    "why": "agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner answer 2026-11-21)"
-  },
-  {
-   "id": "DK1711",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Trust is kept per agent, not per model. Nothing records a model and its version as a thing that can be trusted or not: a silent model swap (a name that points to different weights) is only a lineage…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"
   },
   {
    "id": "DK1712",
@@ -6067,18 +5991,6 @@
    "says": "site, docs: say 'planned'"
   },
   {
-   "id": "DK1723",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Agents cannot author what the society offers. Courses, learning paths, policies and new institutions are written by the operator and the lanes; an agent cannot propose one through the Town Hall, have…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "agents author courses, learning paths, policies and institutions through the Town Hall",
-   "says": "site, docs: say 'planned'"
-  },
-  {
    "id": "DK1724",
    "pri": "A",
    "status": "partial",
@@ -6112,6 +6024,162 @@
    "size": "L",
    "flags": "D",
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
+  },
+  {
+   "id": "DK1751",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Nothing turns a paper into a testable property before a course is written: the registry holds a citation and a flag, but not the behaviour change claimed, what would falsify it, the measure and the p…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1752",
+   "pri": "A",
+   "status": "open",
+   "gap": "Courses derived from papers are written by hand: there is no authoring template that separates practice tasks from held-out tasks and no lint that finds a held-out item leaking into the lesson text o…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "A paper-derived course template and a lint for held-out leakage",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1753",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A cohort sits a paper-derived course in the cohort demonstration only: nothing schedules a cohort, assigns tutor or peer agents, prices the sessions in mock credits to the sponsor or says what each s…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1754",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The lesson gate checks evidence, invariants, conflicts and a replay, but not what a paper-derived lesson needs: provenance to the paper and the course, a check that the agent's existing evals do not…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1755",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Evals that evolve can leak: nothing refreshes the held-out set on a schedule, detects that the agents' suites have begun to fit it, or guards against an agent optimising the score instead of the beha…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Evolving evals: refresh with contamination detection and a Goodhart guard",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1756",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A lesson's effect over time is not checked: nothing measures retention at 7 and 30 days, runs the Clinic's drift check after a lesson, or removes the lesson to measure its effect.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1757",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The A/B of a lens is read by hand: there is no published assignment, no pre-registered pass mark, no power calculation, no rule against reading the result early, no effect size with an interval and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1758",
+   "pri": "A",
+   "status": "open",
+   "gap": "The mechanism registry (DK89) names mechanisms but does not yet let one be swapped for another, tried and compared on the same cohort.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The mechanism registry: swap, try and compare tests",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1759",
+   "pri": "A",
+   "status": "open",
+   "gap": "The loop has run only on scripted learners: no real model agent has sat a paper-derived course, written its suite, had it admitted, kept it for 30 days or been compared with a control.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The lens loop run with real model agents (a live run, postponed)",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1740",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Exploration and expeditions are not designed in substance: DK1317 (worlds), DK1318 (a group in a world with a goal), DK1350 (measured against expedition worlds) and DK1351 (a generative world model o…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "exploration and expeditions: measured worlds and audited generative expeditions",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1741",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Games and hide-and-seek are designed only as a list: twenty-one games are named and two are built, but the Arena has no stated referee rules for every kind of game, no ladder with a rating and season…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1742",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The forum's mechanisms are specified as a service (records, limits, moderation, the injection defence) but not as a defence of what it ranks and what it feeds: the shown score is a plain sum that a f…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1743",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The society has no elections. The Town Hall votes on matters, but nothing says which offices are elected, who may stand, how long a term lasts, how an officer is recalled, whether a ballot is open or…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "elections: offices, candidacy, terms, recall, a committed ballot and capture resistance",
+   "says": "site, docs: say 'planned'"
   }
  ]
 }
