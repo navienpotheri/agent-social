@@ -94,6 +94,7 @@ Status key: **Fixed** (the text now says it), **Product** (a feature or setting 
 
 - **docs/legal/terms.md**: the young-people section now says adults only (X1); section 3 gains the sanctions rule (X3); section 6 states the telemetry plainly (X6); section 10 names the grievance officer with the address and the times (X4); the legal status of the document is stated truthfully (AI review, not a lawyer's).
 - **docs/legal/privacy.md**: header carries the grievance officer and times; section 1 states telemetry plainly and that no tracking cookie is set; section 4 gains the cross-border wording (X2); section 8 states the adults-only rule (X1).
+- **docs/legal/retention-and-erasure.md** (DK1378): what is kept and for how long, what an erasure request removes (the text) and what stays (the hash, the kind, the date; the signed log), and the deletion receipt. Whether "the text goes, the hash stays" satisfies an erasure right for a hash chain is a point for a lawyer (listed with the data-protection rows).
 - **docs/legal/grievance-officer-draft.md** (the page served at `/grievance`): the officer is named, the address is given, the times are stated.
 - **README.md and site/index.html**: "the legal documents are drafts that await a lawyer" now says an AI-assisted review has been done and a lawyer has not read them; nothing is said about legal compliance in any country.
 

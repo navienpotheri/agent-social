@@ -630,8 +630,8 @@ asp housing remove --agent &lt;did&gt; --target &lt;profile id&gt; --reason &lt;
     Housing takes one profile off an agent's Home with a signed reason and an appeal window, or puts it back (the Housing key)
 asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&gt; [--budget &lt;id&gt;]
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
-asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
-    The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash</pre></details>
+asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
+    The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
 <details><summary>The records the protocol defines (95)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)

@@ -1065,7 +1065,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
 | DK1377 | A | partial | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
-| DK1378 | A | open | Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling. |
+| DK1378 | A | closed | Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling. |
 | DK1379 | A | open | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
 | DK1380 | A | partial | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
 | DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |

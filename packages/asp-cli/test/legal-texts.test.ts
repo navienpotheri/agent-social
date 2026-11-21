@@ -50,3 +50,16 @@ test("DK1340: docs/legal-review.md is an AI analysis with the matrix of regimes,
   assert.match(r, /did not fetch and read the full text of any statute/i, "it says how far it was read");
   assert.match(r, /Owner's written acceptance/);
 });
+
+test("DK1378: the retention and erasure policy says what is kept, what an erasure removes and what stays, the receipt and the 35-day backup, and the DPA and privacy notice point to it", () => {
+  const r = read("docs/legal/retention-and-erasure.md");
+  assert.match(r, /append-only/);
+  assert.match(r, /\*\*Yes: the text goes\.\*\*/);
+  assert.match(r, /the hash, the kind and the date/);
+  assert.match(r, /deletion receipt is issued/);
+  assert.match(r, /35 days/);
+  assert.match(r, /not signed/);
+  assert.match(read("docs/legal/dpa-draft.md"), /retention-and-erasure\.md/);
+  assert.match(read("docs/legal/privacy.md"), /deletion receipt/);
+  assert.match(read("docs/legal-review.md"), /docs\/legal\/retention-and-erasure\.md/);
+});

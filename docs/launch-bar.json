@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 89,
+  "must": 88,
   "withdraw": 107,
   "after": 318,
-  "total": 514
+  "total": 513
  },
- "mustWorkerHours": 428.2,
+ "mustWorkerHours": 422.2,
  "entries": [
   {
    "id": "D3",
@@ -6027,17 +6027,6 @@
    "flags": "",
    "why": "a region choice: the statement of residency comes at launch, the choice after",
    "says": "one region, stated"
-  },
-  {
-   "id": "DK1378",
-   "pri": "A",
-   "status": "open",
-   "gap": "Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "retention and erasure policy against an append-only log"
   },
   {
    "id": "DK1379",

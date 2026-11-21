@@ -74,7 +74,6 @@ export const MUST: Record<string, Must> = {
   DK1372: [10, "", "fleet subdivisions with narrowing Mandates"],
   DK1373: [6, "", "just-in-time provisioning and deprovisioning from single sign-on"],
   DK1374: [6, "", "audit export for an organisation as a signed file and an API"],
-  DK1378: [6, "", "retention and erasure policy against an append-only log"],
   DK1379: [12, "", "metering, plan prices and invoicing"],
   DK1380: [4, "", "enterprise service terms and support, matching what can be delivered"],
   DK1382: [8, "", "the sandbox tenant"],
