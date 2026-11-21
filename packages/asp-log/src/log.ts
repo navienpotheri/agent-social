@@ -61,7 +61,7 @@ import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
 import { cityIndicators, type CityIndicators } from "./society-indicators.ts";
-import { projectSupport, supportStatus, type SupportStatus } from "./support.ts";
+import { listeningStatus, projectSupport, supportStatus, type ListeningStatus, type SupportStatus } from "./support.ts";
 import { ringReport, type RingFacts, type RingReport } from "./arena-runner.ts";
 import { buildAgentRecord, type AgentRecord } from "./agent-record.ts";
 import { buildPage, namesAt, isLive, isVisible, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
@@ -4114,6 +4114,11 @@ export class EventLog {
   /** The help desk's status (register row GV15): tickets open, the time to a first reply against the published target, and the satisfaction of those who rated; from the support records alone. */
   async supportStatus(at?: string): Promise<SupportStatus> {
     return supportStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
+  }
+
+  /** What the society heard from its agents (suggestions and complaints), the signed public response and what was done (DK1722). */
+  async listening(at?: string): Promise<ListeningStatus> {
+    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
   }
 
   /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */

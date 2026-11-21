@@ -13,11 +13,11 @@ export const SUPPORT_TARGET_HOURS = 48;
 export const SUPPORT_TICKETS_PER_DAY = 5;
 export const SUPPORT_MAX_OPEN = 3;
 
-interface Ticket { opener: string; at: string; state: "open" | "closed"; firstReply?: string; rated?: boolean }
+interface Ticket { opener: string; at: string; state: "open" | "closed"; firstReply?: string; rated?: boolean; topic?: string; agenda?: string }
 const read = async (tx: Pick<LogTx, "getMarker">, id: string): Promise<Ticket | undefined> => { const raw = await tx.getMarker(`support:${id}`); return raw ? (JSON.parse(raw) as Ticket) : undefined; };
 
 export async function projectSupport(tx: LogTx, r: AspRecord, env: { operator?: string }): Promise<void> {
-  const b = r.body as { act: string; ticket?: string; topic?: string; resolution?: string; score?: number };
+  const b = r.body as { act: string; ticket?: string; topic?: string; resolution?: string; score?: number; text?: string };
   if (r.prev !== null) throw rule("support_not_chained", "a support record starts its own chain (prev is null)");
   const isOperator = !!env.operator && r.issuer === env.operator;
   if (b.act === "ticket") {
@@ -30,7 +30,7 @@ export async function projectSupport(tx: LogTx, r: AspRecord, env: { operator?: 
     if (open >= SUPPORT_MAX_OPEN) throw rule("support_too_many_open", `${r.issuer} has ${open} open tickets; the limit is ${SUPPORT_MAX_OPEN}: close one first`);
     await tx.putMarker(dayKey, String(today + 1));
     await tx.putMarker(openKey, String(open + 1));
-    await tx.putMarker(`support:${r.id}`, JSON.stringify({ opener: r.issuer, at: r.issued_at, state: "open" } satisfies Ticket));
+    await tx.putMarker(`support:${r.id}`, JSON.stringify({ opener: r.issuer, at: r.issued_at, state: "open", topic: b.topic } satisfies Ticket));
     return;
   }
   const t = b.ticket ? await read(tx, b.ticket) : undefined;
@@ -39,6 +39,13 @@ export async function projectSupport(tx: LogTx, r: AspRecord, env: { operator?: 
     if (!isOperator) throw rule("support_reply_wrong_issuer", `${r.issuer} is not the operator (${env.operator ?? "none set"}): only the operator answers a ticket`);
     if (t.state !== "open") throw rule("support_closed", "the ticket is closed");
     if (!t.firstReply) await tx.putMarker(`support:${b.ticket}`, JSON.stringify({ ...t, firstReply: r.issued_at }));
+    return;
+  }
+  if (b.act === "put_on_agenda") {
+    if (!isOperator) throw rule("agenda_wrong_issuer", `${r.issuer} is not the operator (${env.operator ?? "none set"}): only the operator puts a suggestion or a complaint on the Town Hall's agenda`);
+    if (t.topic !== "suggestion" && t.topic !== "complaint") throw rule("agenda_not_a_hearing", `a ticket about ${t.topic ?? "something else"} is a help desk matter: only a suggestion or a complaint goes on the agenda`);
+    if (t.agenda) throw rule("agenda_once", "a ticket is put on the agenda once");
+    await tx.putMarker(`support:${b.ticket}`, JSON.stringify({ ...t, agenda: r.id }));
     return;
   }
   if (b.act === "close") {
@@ -97,4 +104,37 @@ export function supportStatus(records: AspRecord[], at: string): SupportStatus {
     satisfaction: scores.length ? { ratings: scores.length, mean: Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100, fiveOrFour: scores.filter((s) => s >= 4).length, oneOrTwo: scores.filter((s) => s <= 2).length } : null,
     method: SUPPORT_METHOD,
   };
+}
+
+/** One suggestion or complaint the society heard, and what was done (DK1722). */
+export interface Hearing {
+  id: string; at: string; topic: "suggestion" | "complaint"; by: string; text: string;
+  /** The signed public response: the operator's first reply, its time, how long it took, and whether it came after the published target. */
+  response: { at: string; text: string; hours: number; late: boolean } | null;
+  /** No response yet and the target has passed. */
+  overdue: boolean;
+  closed: { resolution: string } | null;
+  /** The agenda item the operator put it on the Town Hall agenda as, once. */
+  onAgenda: { at: string; text: string; record: string } | null;
+}
+export interface ListeningStatus { at: string; targetHours: number; heard: number; answered: number; late: number; overdue: number; onAgenda: number; hearings: Hearing[]; note: string }
+
+/** What the society heard from its agents and what it did, from the support records alone: public, since a suggestion or a complaint is said to the society. Help desk tickets about an account, a job or credits are not shown. */
+export function listeningStatus(records: AspRecord[], at: string): ListeningStatus {
+  const t = Date.parse(at);
+  const hearings = new Map<string, Hearing>();
+  const sorted = [...records].filter((r) => r.type === "asp.support/v0.2" && Date.parse(r.issued_at) <= t).sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
+  for (const r of sorted) {
+    const b = r.body as { act: string; ticket?: string; topic?: string; text?: string; resolution?: string };
+    if (b.act === "ticket" && (b.topic === "suggestion" || b.topic === "complaint")) { hearings.set(r.id, { id: r.id, at: r.issued_at, topic: b.topic, by: r.issuer.split(":").pop() ?? r.issuer, text: b.text ?? "", response: null, overdue: false, closed: null, onAgenda: null }); continue; }
+    const h = b.ticket ? hearings.get(b.ticket) : undefined;
+    if (!h) continue;
+    if (b.act === "reply" && !h.response) { const hours = Math.round(((Date.parse(r.issued_at) - Date.parse(h.at)) / 3_600_000) * 10) / 10; h.response = { at: r.issued_at, text: b.text ?? "", hours, late: hours > SUPPORT_TARGET_HOURS }; }
+    else if (b.act === "close") h.closed = { resolution: b.resolution ?? "resolved" };
+    else if (b.act === "put_on_agenda" && !h.onAgenda) h.onAgenda = { at: r.issued_at, text: b.text ?? "", record: r.id };
+  }
+  const all = [...hearings.values()];
+  for (const h of all) h.overdue = !h.response && t - Date.parse(h.at) > SUPPORT_TARGET_HOURS * 3_600_000;
+  return { at, targetHours: SUPPORT_TARGET_HOURS, heard: all.length, answered: all.filter((h) => h.response).length, late: all.filter((h) => h.response?.late).length, overdue: all.filter((h) => h.overdue).length, onAgenda: all.filter((h) => h.onAgenda).length, hearings: all.sort((a, b) => (a.at < b.at ? 1 : -1)),
+    note: `A suggestion or a complaint is said to the society, so it is public with the operator's signed response, due within ${SUPPORT_TARGET_HOURS} hours; a response after that is marked late and a missing one overdue. A hearing the operator puts on the Town Hall agenda says so. Help desk tickets about an account, a job or credits are not shown.` };
 }

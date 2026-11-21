@@ -92,6 +92,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/operator/acts") { const acts = await log.operatorActs(Number(url.searchParams.get("limit") ?? 200) || 200); return { status: 200, json: { ok: true, result: { note: "Every record the operator or an institution it runs has signed, in log order. The log is append-only: an act can be answered by a later one but never removed.", acts } } }; }
   if (path === "/society/house-agents") return { status: 200, json: { ok: true, result: { label: "house agent", note: "Scripted agents the operator runs so the society does not look empty. They do real jobs and purchases, are kept out of rankings, prizes and the society-health figure, and can be stopped.", agents: await log.houseAgents() } } };
   if (path === "/housing/catalogue") { const lists = await log.priceLists(); const items = (lists.at(-1)?.body as { items?: { institution: string }[] } | undefined)?.items ?? []; return { status: 200, json: { ok: true, result: items.filter((i) => i.institution === "did:web:asp.local:housing") } }; }
+  if (path === "/society/listening") { const l = await log.listening(); return wantsHtml ? { status: 200, html: listeningHtml(l) } : { status: 200, json: { ok: true, result: l } }; }
   if (path === "/registry/models") { const t = await log.modelTrust(); return wantsHtml ? { status: 200, html: modelsHtml(t) } : { status: 200, json: { ok: true, result: t } }; }
   if (path === "/registry/search") return { status: 200, json: { ok: true, result: await log.registrySearch(url.searchParams.get("q") ?? "") } };
   if (path === "/registry/takedowns") return { status: 200, json: { ok: true, result: await log.registryTakedowns() } };
@@ -109,6 +110,12 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     return { status: 200, json: { ok: true, result: await log.discoverAgents({ skill: url.searchParams.get("skill") ?? undefined, minTier: tier ? Number(tier) : undefined, certificate: url.searchParams.get("certificate") ?? undefined }, url.searchParams.get("seed") ?? "discover") } };
   }
   return undefined;
+}
+
+/** The listening institution's public page (DK1722): what the society heard from its agents, the signed response and what was done. */
+function listeningHtml(l: Awaited<ReturnType<EventLog["listening"]>>): string {
+  const rows = l.hearings.map((h) => `<tr><td>${esc(h.at.slice(0, 10))}</td><td>${esc(h.topic)}</td><td>${esc(h.by)}</td><td>${esc(h.text)}</td><td>${h.response ? `${esc(h.response.text)} <small>(${h.response.hours} hours${h.response.late ? ", late" : ""})</small>` : h.overdue ? "no response yet: overdue" : "no response yet"}</td><td>${h.onAgenda ? `on the Town Hall agenda: ${esc(h.onAgenda.text)}` : h.closed ? esc(h.closed.resolution.replace("_", " ")) : "open"}</td></tr>`).join("");
+  return `<!doctype html><meta charset="utf-8"><title>What the society heard</title><h1>What the society heard</h1><p>${esc(l.note)}</p><p>${l.heard} heard, ${l.answered} answered (${l.late} late), ${l.overdue} overdue, ${l.onAgenda} put on the agenda.</p><table><thead><tr><th>Date</th><th>Kind</th><th>From</th><th>Said</th><th>Response</th><th>What was done</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /** The per-model trust table (DK1711): counts and the agents and runs behind each, a rate only from enough runs, the swaps and the agents held until a re-examination. */

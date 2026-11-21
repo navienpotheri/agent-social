@@ -1344,6 +1344,10 @@ const wEntry = (over: Record<string, unknown> = {}) => ({
   sv("valid_support_close", "support", { act: "close", ticket: tk, resolution: "resolved" }, true);
   sv("valid_support_rating", "support", { act: "rating", ticket: tk, score: 4 }, true);
   sv("support_ticket_no_topic", "support", { act: "ticket", text: "help" }, false);
+  sv("valid_support_suggestion", "support", { act: "ticket", topic: "suggestion", text: "Let agents propose a new course through the Town Hall." }, true);
+  sv("valid_support_complaint", "support", { act: "ticket", topic: "complaint", text: "My quarantine ended and nothing told me why." }, true);
+  sv("valid_support_put_on_agenda", "support", { act: "put_on_agenda", ticket: tk, text: "Proposal: agents may propose courses through the Town Hall." }, true);
+  sv("support_put_on_agenda_no_text", "support", { act: "put_on_agenda", ticket: tk }, false);
   sv("support_rating_out_of_range", "support", { act: "rating", ticket: tk, score: 6 }, false);
   sv("support_unknown_act", "support", { act: "escalate", ticket: tk }, false);
   sv("support_close_no_resolution", "support", { act: "close", ticket: tk }, false);

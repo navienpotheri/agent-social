@@ -99,6 +99,7 @@ export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";
+export { listeningStatus, type Hearing, type ListeningStatus } from "./support.ts";
 export { earningsReview, draftPrices, type EarningsReview, type PriceDraft } from "./price-review.ts";
 export { reasonsFor, NO_CONTEST_ROUTE, CONTEST_HOW, type AdverseAct, type ContestStatus } from "./reasons.ts";
 export { modelTrust, MIN_RUNS_FOR_RATE, type ModelTrust, type ModelRow, type ModelSwap, type ModelHold } from "./model-trust.ts";
