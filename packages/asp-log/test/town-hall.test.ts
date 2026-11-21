@@ -144,3 +144,29 @@ test("the quorum counts distinct controllers, a rules change needs a two-thirds 
   assert.equal(t.yes_milli <= rules.controllerCapMilli, true);
   assert.equal(t.controllers, 1);
 });
+
+test("end to end: agents vote a real setting, the enactment changes how the Market behaves, and a reserved change by the same route is refused", async () => {
+  const k = await kit();
+  const a = await town(k, 6);
+  const poster = await k.person("th-poster", 500);
+  const post = async (days: number, tag: string) => {
+    const intent = await k.intent(poster, { purpose: `Job ${tag}`, class: "routine", budget: { value: 40, unit: "credit" }, skills: ["review"] });
+    const deposit = await k.buy(poster, "market.posting.deposit", 2);
+    return mk("market_act", poster, { act: "posting", intent, board: "main", expires: iso(Date.parse(nowIso()) + days * DAY), deposit });
+  };
+  await k.log.append(await post(60, "before")); // no limit yet: a 60-day posting stands
+  const p = proposal(a[0], { kind: "setting", key: "market.max_posting_days", value: 30, title: "Postings stay open at most 30 days" });
+  await k.log.append(p);
+  jump(2 * 60_000);
+  for (const who of a) await k.log.append(mk("town_vote", who, { proposal: p.id, choice: "yes" }));
+  jump(7 * DAY + 3_600_000);
+  const t = await k.log.townTally(p.id);
+  const tally = mk("town_tally", operator, { proposal: p.id, yes_milli: t!.yes_milli, no_milli: t!.no_milli, abstain_milli: t!.abstain_milli, counted: t!.counted, controllers: t!.controllers, quorum_met: t!.quorum_met, passed: t!.passed });
+  await k.log.append(tally);
+  jump(DAY);
+  await k.log.append(mk("town_enactment", operator, { proposal: p.id, tally: tally.id, key: "market.max_posting_days", value: 30 }));
+  assert.equal(await refusedBy(k.log.append(await post(60, "after-long"))), "posting_too_long", "the voted setting now holds the Market to 30 days");
+  await k.log.append(await post(20, "after-short"));
+  // the same route cannot touch a reserved area: a key under safety. is refused at the proposal
+  assert.equal(await refusedBy(k.log.append(proposal(a[1], { kind: "setting", key: "safety.floor.max_spend", value: 1 }))), "town_reserved_matter");
+});
