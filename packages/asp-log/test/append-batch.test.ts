@@ -11,12 +11,12 @@ const listen = async (s: Server) => { await new Promise<void>((r) => s.listen(0,
 
 const passports = (n: number, tag: string) => Array.from({ length: n }, (_, i) => { const p = party(`did:web:example.com:users:${tag}-${i}`); return mk("passport", p, { did: p.did, kind: "human", keys: keysOf(p) }, null, { subject: p.did }); });
 
-async function setup(tenants: Tenant[], o: { plans?: never; write?: number; records?: number } = {}) {
+async function setup(tenants: Tenant[], o: { plans?: Record<string, object>; write?: number; records?: number } = {}) {
   const log = new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver });
   const handle = { log, append: (r: never) => log.append(r), mint: async () => 0 } as never;
   const usage = new UsageStore();
   const limits = new Limits({ appendPerMinute: o.write ?? 0, tenantPerMinute: 0 } as never);
-  const server = createLogServer({ handle, tenants, noAuth: false, usage, limits, ...(o.records ? { defaultRecordQuota: o.records } : {}), ...((o as { plans?: object }).plans ? { plans: (o as { plans: object }).plans as never } : {}) });
+  const server = createLogServer({ handle, tenants, noAuth: false, usage, limits, ...(o.records ? { defaultRecordQuota: o.records } : {}), ...(o.plans ? { plans: o.plans as never } : {}) });
   const url = await listen(server);
   const batch = (tok: string, records: unknown[], extra: Record<string, unknown> = {}) => fetch(`${url}/append-batch`, { method: "POST", headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, body: JSON.stringify({ records, ...extra }) });
   return { log, usage, batch, url };
