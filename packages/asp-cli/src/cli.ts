@@ -76,7 +76,7 @@
  *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--print-schedule] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
@@ -220,7 +220,7 @@
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
  *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
- *   asp town list [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] [--thread <t>] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>   the Town Hall: lodge a proposal, vote, read the agenda and the live count (the log decides who may and what is reserved)
+ *   asp town list [--json] | offerings [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] [--thread <t>] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>   the Town Hall: lodge a proposal, vote, read the agenda and the live count (the log decides who may and what is reserved)
  *   asp listen "<text>" --by <agent> [--complaint] | status [--json]   say a suggestion or a complaint to the society (a signed record, open to any agent with a passport); read what it heard, the signed response within 48 hours, and what was done
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> | review [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
@@ -363,7 +363,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -371,7 +371,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
@@ -749,6 +749,8 @@ const OPTIONS = {
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
   emergency: { type: "string" },
+  cause: { type: "string" },
+  detection: { type: "string" },
   seed: { type: "string" },
   effect: { type: "string" },
   value: { type: "string" },
@@ -796,6 +798,7 @@ const OPTIONS = {
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
+  "print-schedule": { type: "boolean" },
   interval: { type: "string" },
   "run-log": { type: "string" },
   html: { type: "boolean" },
@@ -1278,6 +1281,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
     if (cmd === "emergency") return await emergencyCommand(home, sub, v, io);
+    if (cmd === "breach") return await breachCommand(home, sub, v, io);
     if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
@@ -4012,7 +4016,7 @@ function findRunLog(home: string, contract: string): string | undefined {
 
 /** asp mail preview|queue|pending|watch|address: see the header. */
 async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--print-schedule] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
   if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
   const addressPath = join(home, "mail-addresses.json");
@@ -4077,6 +4081,21 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
     return { finals, alerts };
   };
 
+  if (sub === "watch" && v["print-schedule"]) {
+    // DK1700: print the entry that runs `asp mail watch --once` on a timer for this system; nothing is installed.
+    const mins = v.interval ? Math.max(1, Math.trunc(Number(v.interval) / 60)) : 5;
+    const entries = scheduleEntries({ node: process.execPath, cli: fileURLToPath(import.meta.url), ...(io.env.ASP_HOME ? { home: io.env.ASP_HOME } : {}), everyMinutes: mins, args: [...(v.send ? ["--send"] : []), ...(v["mail-from"] ? ["--mail-from", v["mail-from"]] : []), ...(v.to ? ["--to", v.to] : [])] });
+    io.out(`# Windows (PowerShell or cmd; Task Scheduler, every ${mins} minute(s); remove with: schtasks /Delete /TN AgentSocialMailWatch /F)
+${entries.windows}
+
+# Linux or macOS (crontab -e)
+${entries.cron}
+
+# macOS launchd (~/Library/LaunchAgents/com.agentsocial.mailwatch.plist, then launchctl load it)
+${entries.launchd}`);
+    io.err("  nothing was installed: copy the entry for your system. Each run is `asp mail watch --once`: it queues what is due and exits.");
+    return 0;
+  }
   if (sub === "pending" || sub === "watch") {
     const pass = async (): Promise<number> => {
       const { finals, alerts } = await due();
@@ -5220,6 +5239,28 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
  * asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did> (register row GV6, S1420): the city-wide emergency stop with a sunset. While it
  * stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase); work under way, appeals and essential services go on; it ends by itself within 72 hours.
  */
+/**
+ * asp breach respond --agent <did> --cause <exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual> --summary <text> --by <operator did> [--detection <record id>] [--fleet <did> --node <id>] [--remedy takedown|suspension|written_response] (register row DK1714, S1426):
+ * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
+ */
+async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub !== "respond") throw new UsageError("asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]");
+  const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
+  if (!v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(`asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  signerFor(CLINIC_DID); signerFor(v.by);
+  const started = now();
+  const res = await respondToBreach(local.log, { agent: v.agent, cause: v.cause as BreachCause, summary: v.summary, detectedAt: started, ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}), ...(v.remedy ? { remedy: v.remedy as "takedown" } : {}) }, {
+    sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+    alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+    now, operator: v.by,
+  });
+  io.out(`breach response done in ${res.seconds} s: ${res.steps.join(", ")}; incident ${res.incident}`);
+  return 0;
+}
+
 async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };

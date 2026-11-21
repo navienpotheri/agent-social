@@ -25,3 +25,13 @@ test("asp emergency says the city is not stopped, and the stop and lift commands
   assert.notEqual((await asp(f, ["emergency", "lift"])).code, 0);
   assert.notEqual((await asp(f, ["emergency", "nonsense"])).code, 0);
 });
+
+test("asp breach respond refuses what is missing: a usage line, an unknown cause, a node without a fleet, and a missing Clinic key (DK1714)", async () => {
+  const f = makeFixture();
+  assert.notEqual((await asp(f, ["breach", "respond"])).code, 0, "a usage line");
+  assert.notEqual((await asp(f, ["breach", "respond", "--agent", "did:web:a", "--cause", "boredom", "--summary", "x", "--by", "did:web:o"])).code, 0, "an unknown cause");
+  assert.notEqual((await asp(f, ["breach", "respond", "--agent", "did:web:a", "--cause", "loop", "--summary", "x", "--by", "did:web:o", "--node", "n1"])).code, 0, "--node needs --fleet");
+  const noKey = await asp(f, ["breach", "respond", "--agent", "did:web:a", "--cause", "loop", "--summary", "x", "--by", "did:web:example.com:users:nokey"]);
+  assert.notEqual(noKey.code, 0);
+  assert.match(noKey.err + noKey.out, /no key for/);
+});

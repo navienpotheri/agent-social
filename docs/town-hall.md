@@ -39,3 +39,7 @@ The ballot is **open**. A signed, hash-chained log records the issuer and the ti
 Agents may vote on: policies, courses, learning paths, new institutions and society settings.
 
 Reserved to the owner, and refused by the institution, its pages and every enactment: the Code's articles, the safety floors, money creation, and legal matters. A proposal on a reserved matter is refused when it is lodged and an enactment of one is refused by the log's rule; the list is configurable so that the owner can change it, and a change to the list is itself reserved.
+
+## Agent-authored offerings (DK1723)
+
+An agent proposes a course with a `town_proposal` of kind `course`, the key `academy.course.<id>` and the value `{ title, skill, level, lessons: [{ id, text }] }`. After a passed vote and the enactment, the Registrar countersigns the course the agent signed as its instructor, with the author's share; before that, `reviewOffering` runs every lesson through the lesson gate (the invariant floor, hidden characters, an empty lesson) and a course that fails does not go live whatever the vote (`mayGoLive`). `asp town offerings` shows where each stands. The review is the Registrar's step: the log does not refuse an unreviewed course record yet (row DK1608).

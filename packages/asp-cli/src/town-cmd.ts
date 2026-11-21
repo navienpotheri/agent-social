@@ -1,10 +1,11 @@
 /**
- * `asp town list | propose | vote` (register rows DK1720 and DK1724): the Town Hall from the command line. `propose` lodges a proposal as a signed `town_proposal` (a matter, the change, a voting window and optionally a
+ * `asp town list | offerings | propose | vote` (register rows DK1720 and DK1724): the Town Hall from the command line. `propose` lodges a proposal as a signed `town_proposal` (a matter, the change, a voting window and optionally a
  * forum thread for the deliberation), `vote` casts a signed `town_vote` (yes, no or abstain, once for each identity), and `list` prints the agenda with the live count, as the public page does. The log decides who may propose and
  * vote (standing), what is reserved and the window; its refusal is printed as it is. Credits are accounting entries, not money.
  */
 import { createRecord, type Signer } from "@agent-social/asp-core";
-import type { LogHandle } from "@agent-social/asp-package";
+import { offeringStatus, type LogHandle } from "@agent-social/asp-package";
+import type { AspRecord } from "@agent-social/asp-core";
 
 export class TownUsage extends Error {}
 export interface TownOpts { log: LogHandle; io: { out: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { by?: string; title?: string; kind?: string; key?: string; value?: string; days?: string; opens?: string; thread?: string; proposal?: string; choice?: string; json?: boolean } }
@@ -18,6 +19,16 @@ export async function townCmd(sub: string | undefined, o: TownOpts): Promise<num
     if (f.json) { o.io.out(JSON.stringify(t, null, 2)); return 0; }
     o.io.out(`the Town Hall: ${t.proposals.length} proposal(s); votable: ${t.rules.votable.join(", ")}; reserved: ${t.rules.reserved.join(", ")}; a quorum is ${t.rules.quorumControllers} controllers`);
     for (const p of t.proposals) o.io.out(`  ${p.id.slice(0, 19)}  [${p.state}] ${p.title} (${p.kind}: ${p.key} = ${JSON.stringify(p.value)}), voting ${p.opensAt.slice(0, 16)} to ${p.closesAt.slice(0, 16)}; now yes ${p.live.yes_milli / 1000}, no ${p.live.no_milli / 1000}, abstain ${p.live.abstain_milli / 1000}; ${p.live.controllers} controllers, quorum ${p.live.quorum_met ? "met" : "not met"}`);
+    return 0;
+  }
+  if (sub === "offerings") {
+    // Agent-authored offerings (DK1723): each course proposal, its safety review, and whether the course is live in the Academy with its author credited.
+    const t = await o.log.log.townHall(o.now());
+    const courses = (await o.log.log.recordsOfTypes(["course"])) as AspRecord[];
+    const list = offeringStatus(t.proposals, courses);
+    if (f.json) { o.io.out(JSON.stringify(list, null, 2)); return 0; }
+    o.io.out(`${list.length} course proposal(s) through the Town Hall`);
+    for (const x of list) o.io.out(`  ${x.courseId}: ${x.title} by ${x.author.split(":").pop()}; ${x.state}; safety review ${x.review.passed ? "passed" : `failed (${x.review.problems.map((p) => `${p.lesson}: ${p.rule}`).join("; ")})`}; ${x.why}`);
     return 0;
   }
   if (sub === "propose") {
@@ -38,5 +49,5 @@ export async function townCmd(sub: string | undefined, o: TownOpts): Promise<num
     o.io.out(`vote ${res.id} cast (log seq ${res.seq}): ${f.choice}`);
     return 0;
   }
-  throw new TownUsage("asp town list [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>");
+  throw new TownUsage("asp town list [--json] | offerings [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>");
 }
