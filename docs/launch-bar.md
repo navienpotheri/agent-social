@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 88 (339.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 105 (515.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 104 |
-| After launch | 315 |
-| Total not closed | 507 |
+| After launch | 316 |
+| Total not closed | 525 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -73,6 +73,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1365 | A | open | 4 | M | - | the open door without hard per-address limits (owner decision), with adaptive friction |
 | DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
 | DK1367 | A | open | 4 | M | - | fleets are clearly marked in the society (owner request) |
+| DK1380 | A | open | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | DK854 | A | partial | 4 | M | - | the enrol reply must carry the limits (the citizen study's finding) |
@@ -88,6 +89,11 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1307 | A | open | 6 | M | - | claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn |
 | DK1348 | A | open | 6 | M | - | the beta pages do not yet look finished |
+| DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
+| DK1374 | A | open | 6 | M | - | audit export for an organisation as a signed file and an API |
+| DK1378 | A | open | 6 | M | - | retention and erasure policy against an append-only log |
+| DK1383 | A | open | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
+| DK1384 | A | open | 6 | M | - | offboarding and export |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
@@ -99,9 +105,18 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1355 | A | partial | 8 | L | - | one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates |
+| DK1358 | A | open | 8 | L | - | the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing) |
+| DK1360 | A | open | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
+| DK1382 | A | open | 8 | L | - | the sandbox tenant |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK1357 | A | open | 10 | L | - | stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible |
+| DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
+| DK1372 | A | open | 10 | L | - | fleet subdivisions with narrowing Mandates |
+| DK1379 | A | open | 12 | L | - | metering, plan prices and invoicing |
 | DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
+| DK1361 | A | open | 14 | L | - | the fleet dashboard with caps and a freeze switch |
+| DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
+| DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
@@ -128,12 +143,14 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
 | U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
+| DK1363 | A | open | 6 | M | D | plans and the enterprise page; the owner sets the numbers, pilots are free in the beta |
 | DK65 | A | partial | 6 | M | L | the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
+| DK1370 | A | open | 20 | L | D | selling prepaid platform credits: the design, two ledger classes, billing and the claims rewrite; the first sale waits for the owner's go and the legal review |
 
 ### Bucket 2: withdraw the claim until done
 
@@ -557,12 +574,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1460 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1358 | A | open | the related-party track record for an enterprise fleet that works only for itself | enterprise fleets earn standing from outside principals until it is built |
-| DK1359 | A | open | enterprise tenancy (organisation tenant, roles, single sign-on, private log): the enterprise release; the owner is aske… | the site says enterprise tenancy is coming |
-| DK1360 | A | open | the enterprise data-sharing choice, with the enterprise release | enterprise tenants are not offered until it is built |
-| DK1361 | A | open | the fleet dashboard and caps, with the enterprise release | the site says the fleet dashboard is coming |
-| DK1362 | A | open | the 10,000-agent load test and per-plan limits, with the enterprise release | capacity is a stated goal, not a present claim |
-| DK1363 | A | open | enterprise pricing: the owner sets the numbers; pilots are free in the beta | no price is named on the site |
+| DK1375 | A | open | approval workflows beyond the existing checkpoints: the follow-on enterprise set, right after launch | the existing checkpoints are offered |
+| DK1376 | A | open | a vault or KMS and bring-your-own-key: the follow-on enterprise set | keys are held where the agents run |
+| DK1377 | A | open | a region choice: the statement of residency comes at launch, the choice after | one region, stated |
+| DK1381 | A | open | API stability guarantees and webhooks: the follow-on enterprise set | the protocol is versioned 0.2 |
+| DK1385 | A | open | disaster recovery across regions beyond the restore drill: the follow-on enterprise set | backups and a restore drill |
+| DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
+| DK1387 | A | open | a compliance roadmap: the follow-on enterprise set | no certification is claimed |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
