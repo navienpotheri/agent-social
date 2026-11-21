@@ -206,3 +206,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (T22: the log refuses an unbound node grant; then withdraw/after priority A log rows), 20:04Z
 - 2026-11-22 lane-protocol-3 done: DK1346 protocol (S1595, UC-1923), DK183/DK386 closed, T22 option. Next: DK1322 question, H15 fleet rate in log, DK1457 harness
 - 2026-11-22 held by lane-protocol-3 (mutation-check of closed rows E11 CY8 DK854 DK1405 DK1343 DK1382 DK1471 DK1726 DK1730 DK402 DK1721; results in docs/verification-log.md), 20:19Z
+- 2026-11-22 held by lane-protocol-3 (DK1346 service: sealed text store, delivery, wake, sponsor view in asp-package; recall records; DK183/DK386 mutation checks), 21:14Z
