@@ -182,6 +182,9 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp world calendar [--from <time>] [--days <n>] [--json]", "The events and calendar entries in a stretch of days, with their windows and effects"],
     ["asp world replay <date> [--json]", "Run a day again from its logged seed and compare with the record: matches the log, or DOES NOT MATCH (exit 1); shows every draw, fired or not"],
     ["asp world tick [--day <date>] [--days <n>] [--seed <s>]", "Record the day(s) the seeded generator produced, signed by the world authority (a local mock key); a day that has not begun is not announced"],
+    ["asp world halt --by <operator did> --reason <text>", "The kill-switch: the operator's own key stops every generated event and every shock, drill or experiment at once (scheduled and season entries run on); a public record; the daily tick refuses to write while halted"],
+    ["asp world resume --by <operator did> --reason <text> [--halt <id>] [--cosign-by <owner did>]", "End the halt in force; a resume 24 hours or more after the halt needs the owner's co-signature"],
+    ["asp world invariants [--json]", "What must hold after every event: price multipliers inside their bounds, every day record reproducible from its seed, the credit supply rule; exit 1 when one fails (the daily tick runs it after each day it writes)"],
     ["asp world schedule --title <t> --from <time> --to <time> --effect <type> --target <name> [--value <n>] [--kind <k>]", "Add a calendar entry; the log checks 72 hours notice, a seed commitment for a shock, and a price multiplier inside 50% to 200%"],
   ] },
   { group: "Job board and discovery", rows: [

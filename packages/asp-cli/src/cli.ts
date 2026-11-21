@@ -221,6 +221,7 @@
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
+ *   asp world halt --by <operator> --reason <text> | resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>] | invariants [--json]   the kill-switch (S1402) and what must hold after every event
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
  *   asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
@@ -866,6 +867,7 @@ const OPTIONS = {
   "fee-paid": { type: "string" },
   "min-qualifying": { type: "string" },
   month: { type: "string" },
+  halt: { type: "string" },
   "claim-id": { type: "string" },
   suspension: { type: "string" },
   until: { type: "string" },
@@ -4758,7 +4760,7 @@ async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string):
 async function worldCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   try {
-    return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
+    return await worldCmd(sub, rest, { home, log: local, io, now, signerFor: (did) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}`); return s; }, flags: { by: v.by, reason: v.reason, halt: v.halt, "cosign-by": v["cosign-by"]?.[0], day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
   } catch (e) {
     if (e instanceof WorldUsage) throw new UsageError(e.message);
     throw e;

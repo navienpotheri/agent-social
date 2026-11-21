@@ -51,7 +51,8 @@ import { buildAgentRecord, type AgentRecord } from "./agent-record.ts";
 import { buildPage, namesAt, isLive, isVisible, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
-import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
+import { PRICE_MULTIPLIER_MAX, PRICE_MULTIPLIER_MIN, RESUME_OWNER_AFTER_HOURS, checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
+const SEEDED_ENTRY_KINDS = new Set(["shock", "drill", "experiment"]);
 import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -435,7 +436,7 @@ export class EventLog {
     }
     if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
     if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
-    if (type === "world") checkWorldRecord(verified);
+    if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
@@ -2863,6 +2864,57 @@ export class EventLog {
    */
   async qualifyingFeed(did: string): Promise<{ contract: string | null; at: string; class: JobClass; weight: number; price: number; counterparty: string; verifier: string; outcome: "accepted" }[]> {
     return this.store.transaction(async (tx) => JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]"));
+  }
+
+  /**
+   * The world's kill-switch (leisure-events.md 14; DK76; spec-delta S1402). A `halt` is the operator's and stops every generated event and every shock, drill or experiment at once; it is public and stays in the log.
+   * A `resume` names the halt it ends; one made 24 hours or more after the halt needs the owner's co-signature. While halted the log refuses a day record and a calendar entry of a seeded kind (the generator and the
+   * shocks cannot be re-armed behind the switch); scheduled, season, funding and review entries are not touched.
+   */
+  private async projectWorldHalt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { kind: string; halt?: string; day?: string; event_kind?: string };
+    const open = await tx.getMarker("world_halt:open");
+    if (b.kind === "halt") {
+      if (r.prev !== null) throw rule("halt_not_chained", "a halt record starts its own chain (prev is null)");
+      if (!this.operator || r.issuer !== this.operator) throw rule("halt_unauthorised", `${r.issuer} is not the operator${this.operator ? "" : " (this log has none configured)"}: only the operator halts the world`);
+      if (open) throw rule("world_already_halted", `the world is already halted (${open}): resume it before halting again`);
+      await tx.putMarker("world_halt:open", r.id);
+      await tx.putMarker(`world_halt:${r.id}`, r.issued_at);
+      return;
+    }
+    if (b.kind === "resume") {
+      if (r.prev !== null) throw rule("resume_not_chained", "a resume record starts its own chain (prev is null)");
+      if (!this.operator || r.issuer !== this.operator) throw rule("resume_unauthorised", `${r.issuer} is not the operator: only the operator resumes the world`);
+      const since = b.halt ? await tx.getMarker(`world_halt:${b.halt}`) : undefined;
+      if (!since) throw rule("resume_unknown_halt", `${b.halt} is not a halt in this log`);
+      if (open !== b.halt) throw rule("resume_not_open", `the halt ${b.halt} is not the one in force${open ? ` (${open} is)` : " (none is)"}`);
+      if (Date.parse(r.issued_at) - Date.parse(since) >= RESUME_OWNER_AFTER_HOURS * 3_600_000 && !this.cosignedBy(r, this.owner)) throw rule("resume_needs_owner", `a resume ${RESUME_OWNER_AFTER_HOURS} hours or more after the halt needs the owner's co-signature`);
+      await tx.putMarker("world_halt:open", "");
+      return;
+    }
+    // A day record or a seeded entry while the world is halted.
+    if (open && (b.kind === "day" || SEEDED_ENTRY_KINDS.has(b.event_kind ?? ""))) throw rule("world_halted", `the world is halted (${open}): no day record and no shock, drill or experiment is accepted until the operator resumes it`);
+  }
+
+  /**
+   * The world's invariants (DK76, S1402; leisure-events.md 14 "bounds"): what must hold after every event. Every price multiplier in force is inside its published bounds; every day record is exactly what the generator gives
+   * for its seed and day; no effect names a tier, a rank or a standing (the schema is closed, so this reads the records again); and the credit supply rule holds (no event moves credits). `ok` is false with the failures named.
+   */
+  async worldInvariants(at?: string): Promise<{ ok: boolean; failures: string[]; checked: { days: number; entries: number } }> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.worldRecords();
+    const failures: string[] = [];
+    let days = 0, entries = 0;
+    for (const r of records) {
+      const b = r.body as unknown as { kind: string; day?: string; seed?: string; generator?: string; events?: unknown[]; effect?: { type: string; value: number } };
+      if (b.kind === "day") { days++; try { checkWorldRecord(r); } catch (e) { failures.push(`day ${b.day}: ${(e as Error).message}`); } }
+      else if (b.kind === "calendar_entry") { entries++; if (b.effect?.type === "price_multiplier" && (b.effect.value < PRICE_MULTIPLIER_MIN || b.effect.value > PRICE_MULTIPLIER_MAX)) failures.push(`an entry's price multiplier ${b.effect.value} is outside ${PRICE_MULTIPLIER_MIN} to ${PRICE_MULTIPLIER_MAX}`); }
+    }
+    const st = worldStateAt(records, when);
+    for (const [cls, m] of Object.entries(st.priceMultiplier)) if (m < PRICE_MULTIPLIER_MIN || m > PRICE_MULTIPLIER_MAX) failures.push(`the price multiplier of ${cls} is ${m}, outside ${PRICE_MULTIPLIER_MIN} to ${PRICE_MULTIPLIER_MAX}`);
+    const audit = await this.creditAudit();
+    if (audit.verdict !== "balanced") failures.push(`the credit supply rule is broken: ${audit.problems.join("; ")}`);
+    return { ok: failures.length === 0, failures, checked: { days, entries } };
   }
 
   /**

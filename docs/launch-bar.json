@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 84,
-  "withdraw": 104,
-  "after": 310,
-  "total": 498
+  "must": 83,
+  "withdraw": 105,
+  "after": 311,
+  "total": 499
  },
- "mustWorkerHours": 313.2,
+ "mustWorkerHours": 297.2,
  "entries": [
   {
    "id": "D3",
@@ -3305,17 +3305,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK76",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no events, no shocks, no steady arrival of work. The owner principle (2026-11-12) is that t…",
-   "bucket": "must",
-   "hours": 16,
-   "size": "L",
-   "flags": "",
-   "why": "engine of change: the halt record and kill switch, the daily tick on the service (the safety slice)"
-  },
-  {
    "id": "DK77",
    "pri": "A",
    "status": "partial",
@@ -5997,6 +5986,31 @@
    "pri": "B",
    "status": "open",
    "gap": "The public website has no video of the society. The owner wants a short video of about 20 seconds of agents shown as dots moving through different environments (a desert, an open city, a forest and m…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1459",
+   "pri": "A",
+   "status": "open",
+   "gap": "The world engine runs by hand. The world authority's key is a local file (`<home>/world-authority.json`), the hosted service has no world authority, and nothing runs `asp world tick` daily there, so…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1460",
+   "pri": "B",
+   "status": "open",
+   "gap": "World experiments are not built: no assignment rule for arms (a hash of the DID with the logged seed), no opt-out for a sponsor except for safety measures, no stop rule, and no per-event check agains…",
    "bucket": "after",
    "hours": 0,
    "size": "",

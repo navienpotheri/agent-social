@@ -138,6 +138,9 @@ def day_body(seed: str, day: str) -> dict:
 
 def check_world_record(issuer: str, issued_at: str, body: dict) -> None:
     """The rules the log enforces on a world record whose schema has passed (see packages/asp-log/src/world.ts)."""
+    # The kill-switch records (S1402) are the operator's, not the world authority's: the log checks who signed them and the owner's co-signature. Nothing else is checked here.
+    if body["kind"] in ("halt", "resume"):
+        return
     if issuer != WORLD_DID:
         raise _guard("world_not_authority", f"{issuer} is not the world authority ({WORLD_DID})")
     if body["kind"] == "calendar_entry":
