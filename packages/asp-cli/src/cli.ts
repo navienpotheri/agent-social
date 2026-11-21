@@ -418,7 +418,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, resolveOutbound, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -603,6 +603,7 @@ const OPTIONS = {
   "no-auth": { type: "boolean" },
   "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
+  "outbound-kinds": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
   "agent-runtime": { type: "string" },
   "no-society-map": { type: "boolean" },
@@ -3466,7 +3467,7 @@ function parseFleetRate(text: string | undefined): { total_per_minute: number; p
 
 /** The runtime a gateway command line starts, from the name of its program; any other program is `generic`. */
 function runtimeNameOf(command: string[]): string {
-  const base = (command[0] ?? "").split(/[\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
+  const base = (command[0] ?? "").split(/[\\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
   return ({ claude: "claude-code", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes" } as Record<string, string>)[base] ?? "generic";
 }
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
@@ -3644,7 +3645,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     confineTo: resolve(io.cwd, v.project ?? "."),
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
-    ...(v["outbound-scan"] ? { outbound: { mode: (v["outbound-scan"] === "redact" ? "redact" : "block") as "block" | "redact" } } : {}),
+    // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
+    ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
     // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
     ...(() => {

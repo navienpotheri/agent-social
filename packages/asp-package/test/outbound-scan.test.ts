@@ -52,3 +52,39 @@ test("kinds can be chosen: with only secrets, a card and an email pass", () => {
   assert.equal(scanText(`${CARD} jane.doe@acme-corp.com`, ["secret"]).length, 0);
   assert.equal(scanText(`${CARD} jane.doe@acme-corp.com`, ["card number"]).length, 1);
 });
+
+// DK1716 finishing: personal-data detectors (international phone number, national id, IBAN) and the policy the gateway applies by default.
+import { ALL_OUTBOUND_KINDS, DEFAULT_OUTBOUND, resolveOutbound } from "../src/gateway/outbound-scan.ts";
+const SSN = "123-45-" + "6789", AADHAAR = "2345 6789 0124", IBAN = "GB82 WEST 1234 5698 7654 32", PHONE = "+44 20 7946 0958";
+const PERSONAL_HARMLESS = ["version 1.2.3 build 20261121", "timestamp 1700000000000", "order 123-45-678", "ssn-like 000-12-3456 and 666-12-3456 and 923-45-6789", "aadhaar-shaped 2345 6789 0125", "iban-shaped GB82 WEST 1234 5698 7654 33", "call 020 7946 0958", "+000000000000", "SHA ABCD1234EFGH5678IJKL", "1234-5678-9012", "tel: 98765 43210", "pid 4242 1337 0001"];
+
+test("DK1716: a phone number, a national id and an IBAN are found, by kind, and only when asked for", () => {
+  for (const [t, k] of [[PHONE, "phone number"], [SSN, "national id"], [AADHAAR, "national id"], [IBAN, "iban"]] as const) {
+    assert.ok(scanText(`see ${t} here`, ALL_OUTBOUND_KINDS).some((h) => h.kind === k), `${k}: ${t}`);
+    assert.equal(scanText(`see ${t} here`).length, 0, "not in the default kinds of scanText");
+  }
+});
+
+test("DK1716: harmless strings of the same shape are not hits (0 of the corpus)", () => {
+  const wrong = PERSONAL_HARMLESS.filter((t) => scanText(t, ALL_OUTBOUND_KINDS).length > 0);
+  assert.deepEqual(wrong, []);
+});
+
+test("DK1716: the personal data is masked and the record holds a hash, never the value", () => {
+  const r = redactDeep({ m: `${PHONE}, ${SSN}, ${IBAN}, ${AADHAAR}` }, ALL_OUTBOUND_KINDS);
+  const text = JSON.stringify(r.value);
+  for (const v of [PHONE, SSN, IBAN, AADHAAR]) assert.ok(!text.includes(v));
+  assert.equal(r.hits.length, 4);
+  for (const h of r.hits) assert.ok(!JSON.stringify(h).includes("7946") && /^sha256:/.test(h.hash));
+});
+
+test("DK1716: the default policy, the Mandate's choice and the flags", () => {
+  assert.deepEqual(resolveOutbound({}), DEFAULT_OUTBOUND);
+  assert.equal(resolveOutbound({ flagMode: "off" }), undefined);
+  assert.deepEqual(resolveOutbound({ flagMode: "block" }), { mode: "block", kinds: ["secret", "card number"] });
+  // a Mandate that asks for a scan cannot be switched off by a flag, and a flag cannot weaken it
+  assert.deepEqual(resolveOutbound({ flagMode: "off", mandate: { mode: "block", kinds: ["secret", "email address"] } }), { mode: "block", kinds: ["secret", "email address"] });
+  assert.equal(resolveOutbound({ flagMode: "redact", mandate: { mode: "block" } })!.mode, "block");
+  assert.deepEqual(resolveOutbound({ flagKinds: "iban,phone number", mandate: { mode: "redact", kinds: ["secret"] } }), { mode: "redact", kinds: ["secret", "iban", "phone number"] });
+  assert.throws(() => resolveOutbound({ flagKinds: "passport" }), /unknown outbound kind/);
+});

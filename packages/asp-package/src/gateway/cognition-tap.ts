@@ -5,7 +5,7 @@
  * them in the telemetry store (apart from the log, listable and deletable by the sponsor, never public) and the log may carry only their hashes. Credits are accounting entries, not money.
  */
 import { createHash } from "node:crypto";
-import { redactDeep } from "./outbound-scan.ts";
+import { redactDeep, ALL_OUTBOUND_KINDS } from "./outbound-scan.ts";
 import { categoryById, categoriesFor, COGNITION_CATEGORIES } from "@agent-social/asp-log";
 
 export interface CognitionItem { category: string; kind: string; content: string }
@@ -50,7 +50,7 @@ export class CognitionTap {
   private add(category: string, body: Record<string, unknown>): void {
     if (!this.on || !this.allowed.has(category) || this.items.length >= this.maxItems) return;
     const cat = categoryById(category)!;
-    const scrubbed = redactDeep({ category, step: this.step, ...body });
+    const scrubbed = redactDeep({ category, step: this.step, ...body }, ALL_OUTBOUND_KINDS);
     for (const h of scrubbed.hits) this.redactions[h.kind] = (this.redactions[h.kind] ?? 0) + 1;
     let content = JSON.stringify(scrubbed.value);
     if (content.length > this.maxChars) content = JSON.stringify({ ...(scrubbed.value as object), truncated: true, ...Object.fromEntries(Object.entries(scrubbed.value as Record<string, unknown>).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, Math.floor(this.maxChars / 2)) : v])) }).slice(0, this.maxChars);

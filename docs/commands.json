@@ -583,8 +583,8 @@
           "description": "Treat what a tool brought in from outside the project (a web page, a search, another server's tool) as untrusted by where it came from: the next outward calls are held whether or not the detector finds orders in it; a legitimate push right after a web read waits (off by default; DK1713)"
         },
         {
-          "command": "asp gateway ... --outbound-scan block|redact",
-          "description": "Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)"
+          "command": "asp gateway ... --outbound-scan block|redact|off [--outbound-kinds <kinds>]",
+          "description": "Look at the content of every tool call and model request for what should not leave: by default a key or token and a card number (Luhn-checked; published test cards are not one), and by choice an email address, an international phone number, a national id (a US social security number, an Aadhaar number with its check digit) and an IBAN (checked). block refuses it, redact masks it in a model request (a tool call that carries one is always refused); the default is redact. The Mandate's outbound_scan field is the sponsor's standing choice and a flag only adds to it (block wins, kinds are joined); off works only when the Mandate states no choice. Each hit is a run-log record of the kind and a hash, never the value (DK1716)"
         },
         {
           "command": "asp gateway ... --wake-allow <did>[,<did>...]",

@@ -257,8 +257,6 @@ JOBS AND CREDITS (THE MARKET)
       Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it
   asp gateway ... --untrusted-by-type
       Treat what a tool brought in from outside the project (a web page, a search, another server's tool) as untrusted by where it came from: the next outward calls are held whether or not the detector finds orders in it; a legitimate push right after a web read waits (off by default; DK1713)
-  asp gateway ... --outbound-scan block|redact
-      Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)
   asp gateway ... --wake-allow &lt;did&gt;[,&lt;did&gt;...]
       Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes)
   asp wakes [--agent &lt;did&gt;]
