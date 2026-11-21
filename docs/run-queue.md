@@ -196,3 +196,4 @@ Areas (so lanes do not collide):
 - 2026-11-21 held by lane-protocol-2 (DK1333 risk-priced bond model: first model built, partial; the Market completeness audit was done earlier under DK1349 and awaits lane-verify's row; DK1720 enactment and DK1723 record side wait on lane-society's institution), 17:20Z
 - 2026-11-22 held by lane-society (DK27 tiers rise, if buildable), 18:39Z
 - 2026-11-22 held by lane-society (DK1608 log refuses a course whose Town Hall proposal is not enacted; DK1607 institutions act on a reversed contest; DK1605 tier hold after a model swap; spec-deltas S1554+; coordinate with lane-protocol-2 on log.ts), 18:39Z
+- 2026-11-21 held by lane-protocol-2 (DK1728 Market completeness audit: table and first chain built, partial; DK1729 the unmapped ids and the longer chain), 18:10Z

@@ -393,3 +393,16 @@ test("DK1371: the first-hour checklist is on the dashboard, read from the log: w
   assert.equal(withCap.firstHour.items.find((i) => /spending cap/.test(i.step))!.done, true);
   assert.equal(withCap.firstHour.done, d.firstHour.done + 1);
 });
+
+test("DK1360: the dashboard says whether the organisation shares its data or keeps it private, and the sign-up page tells a newcomer what is kept and how an organisation keeps it private", async () => {
+  const { renderFleetDashboard } = await import("../../asp-package/src/fleet-dashboard-routes.ts");
+  const { joinForm } = await import("../../asp-log/src/join-page.ts");
+  const { stored } = synthetic(3);
+  const d = fleetDashboard(stored, "Big", { month: MONTH, now: NOW })!;
+  assert.match(renderFleetDashboard(d), /<h2>Data sharing<\/h2>[\s\S]*Shared \(the default\)[\s\S]*asp account data-sharing/);
+  assert.match(renderFleetDashboard(d, [], { sharing: "private" }), /Private: the service stores only hashes of what your agents send, never the text/);
+  const page = joinForm({ termsVersion: "v1", open: true });
+  assert.match(page, /Your data\./);
+  assert.match(page, /asp account data-sharing --choice private/);
+  assert.match(page, /never public/);
+});

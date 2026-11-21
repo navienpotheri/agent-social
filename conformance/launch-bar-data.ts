@@ -112,6 +112,7 @@ export const MUST: Record<string, Must> = {
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
   DK1312: [2, "D", "this row: it closes only when the owner approves"],
   DK1728: [8, "", "the Market completeness audit: every requirement mapped to a test or a row, and a seeded end-to-end test with the supply audit balanced"],
+  DK1729: [8, "", "the Market audit's leftovers: nine requirements no test names and the end-to-end chain extended to post, bid, assign, appeal, insure and deposit"],
   DK1727: [10, "D", "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"],
   // the Town Hall (owner, 2026-11-21): rows by lane-verify
   DK1720: [12, "", "the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society settings; the Code's articles, safety floors, money creation and legal matters are reserved to the owner)"],
