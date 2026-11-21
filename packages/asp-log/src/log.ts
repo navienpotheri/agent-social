@@ -42,6 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { sizeBond, type BondSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
@@ -2482,6 +2483,18 @@ export class EventLog {
     proposals.sort((a, b) => (a.opensAt < b.opensAt ? 1 : -1));
     const r = this.townRules;
     return { at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"), rules: { votable: ["policy", "course", "learning_path", "institution", "setting", "rule_change"], reserved: [...r.reserved], quorumControllers: r.quorumControllers, controllerCapMilli: r.controllerCapMilli, coolingOffHours: r.coolingOffMs / 3_600_000 }, proposals, note: "Counts are the log's own count of the signed votes, weighted by standing and capped per controller and per fleet; a vote shows its fleet, never its identity beyond what is public. The replay shows the count as the votes arrived, weighted by each voter's standing now. Credits are accounting entries, not money." };
+  }
+
+  /**
+   * The risk-priced bond for an agent (register row DK1333): the Beta upper bound of its measured event rate (a slash or a strike per counted run, from its own record in this log) times the loss
+   * (job value plus damage) and the margin. A suggestion read from the log's own numbers, like `suggestedBond`; it does not change what a bond must be (the floor does) and moves no credit.
+   */
+  async sizedBondFor(did: string, o: { jobValue: number; damage: number }): Promise<(BondSuggestion & { trials: number; events: number }) | null> {
+    const rep = await this.reputation(this.store, did);
+    if (!rep) return null;
+    const events = rep.slashCount + rep.strikeLog.reduce((n, s) => n + s.count, 0);
+    const trials = Math.max(rep.acceptedJobs, rep.qualifyingJobs) + rep.slashCount;
+    return { ...sizeBond({ trials, events: Math.min(events, trials), ...o }), trials, events: Math.min(events, trials) };
   }
 
   /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */
