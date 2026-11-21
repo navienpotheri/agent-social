@@ -51,3 +51,20 @@ test("a call that could pass the cap is refused before it is made (the worst cas
   assert.equal((await none.ask()).status, 200);
   assert.equal(none.g.summary().usdCap, undefined);
 });
+
+test("prompt-cache tokens are billed apart from input_tokens and counted in the estimate (Claude Code leans on the cache), streamed or not", async () => {
+  const { anthropicEvents } = await import("../src/index.ts");
+  const reply = { id: "m", type: "message", role: "assistant", model: "claude-haiku-5-5", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_input_tokens: 1_000_000, cache_creation_input_tokens: 100_000 }, content: [{ type: "text", text: "ok" }] };
+  for (const stream of [false, true]) {
+    const up = createServer((req, res) => { req.resume(); req.on("end", () => { if (stream) { res.writeHead(200, { "content-type": "text/event-stream" }); for (const e of anthropicEvents(reply as any)) res.write(e); res.end(); } else { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify(reply)); } }); });
+    await new Promise<void>((r) => up.listen(0, "127.0.0.1", r)); servers.push(up);
+    const g = createGateway({ anthropicUpstream: `http://127.0.0.1:${(up.address() as { port: number }).port}`, scopes: ["repo.read"], usdCap: 5 });
+    gateways.push(g);
+    const port = await g.listen();
+    const r = await fetch(`http://127.0.0.1:${port}/v1/messages`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 50, stream, messages: [{ role: "user", content: "hi" }] }) });
+    await r.text();
+    // haiku: 1.5 dollars in and 7.5 out per million. 1M cache reads = 0.1 x 1.5 = 0.15; 100k cache writes = 1.25 x 0.1 x 1.5 = 0.1875; 10 in and 10 out are negligible.
+    const spend = g.summary().spendUsd;
+    assert.ok(Math.abs(spend - 0.3375) < 0.001, `stream ${stream}: spend ${spend}`);
+  }
+});

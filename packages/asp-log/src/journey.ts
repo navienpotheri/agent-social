@@ -208,7 +208,7 @@ const textOf = (body: Record<string, unknown>): string | undefined => {
 };
 const firstAmount = (body: Record<string, unknown>): number | undefined => { for (const k of AMOUNT_KEYS) { const n = num(body[k]); if (n !== undefined) return n; } return undefined; };
 
-export interface JourneyContract { principal: string; performer: string; price: number | undefined }
+export interface JourneyContract { principal: string; performer: string; price: number | undefined; /** The job-data term (JO3): `delete_at_settlement` (the default) or `retain_days`, and the chain head an Action cited, if any. */ jobData?: { retention: string; chain?: string } }
 export interface JourneyCtx { contracts: Map<string, JourneyContract> ; /** Sponsor and fleet of each identity, from the passports (DK1405). */ facts?: Map<string, PartyFacts> }
 
 /** The institution of a record: a purchase belongs to the institution it bought from. */
@@ -292,12 +292,15 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
     case "settlement": {
       const c = ctx.contracts.get(String(b.contract));
       const released = num(b.escrow_released) ?? 0, fees = num(b.fees) ?? 0, slashed = num(b.bond_slashed) ?? 0, returned = num(b.bond_returned) ?? 0;
+      // The job-data term (JO3): what the log reads of the performer's deletion, in the sponsor view only. Confirmed means the performer said it deleted and bound the statement to a chain; the service cannot check the files.
+      const jd = c?.jobData ? (c.jobData.chain ? `job data: confirmed (chain head ${c.jobData.chain})` : c.jobData.retention === "delete_at_settlement" ? "job data: unconfirmed (the performer has not cited its deletion chain)" : "job data: not applicable (the contract allows retention)") : undefined;
+      const jdExtra: Partial<JourneyStep> = view === "sponsor" && jd ? { detail: [textOf(body), jd].filter(Boolean).join(" | ") } : {};
       if (c && c.performer === did) {
         const earned = Math.max(0, released - fees);
-        if (slashed > 0) return mk("was_slashed", `${me}'s job was settled by ${String(b.basis)}: ${earned > 0 ? `paid ${earned}, ` : ""}bond slashed by ${slashed}`, { flow: { dir: "out", credits: slashed, why: "slash" }, amount: slashed });
-        return mk("was_paid", `${me} was paid ${earned} credits for a job (settled ${String(b.basis)}${returned ? `, bond of ${returned} returned` : ""})`, { flow: { dir: "in", credits: earned, why: "job" }, amount: earned });
+        if (slashed > 0) return mk("was_slashed", `${me}'s job was settled by ${String(b.basis)}: ${earned > 0 ? `paid ${earned}, ` : ""}bond slashed by ${slashed}`, { flow: { dir: "out", credits: slashed, why: "slash" }, amount: slashed, ...jdExtra });
+        return mk("was_paid", `${me} was paid ${earned} credits for a job (settled ${String(b.basis)}${returned ? `, bond of ${returned} returned` : ""})`, { flow: { dir: "in", credits: earned, why: "job" }, amount: earned, ...jdExtra });
       }
-      if (c && c.principal === did) return mk("paid", `${me} paid ${released} credits for a job (settled ${String(b.basis)})`, { flow: { dir: "out", credits: released, why: "job" }, amount: released });
+      if (c && c.principal === did) return mk("paid", `${me} paid ${released} credits for a job (settled ${String(b.basis)})`, { flow: { dir: "out", credits: released, why: "job" }, amount: released, ...jdExtra });
       return mk("settled", `${me} was party to a settlement (${String(b.basis)})`);
     }
     case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}${typeof b.job_data_chain === "string" ? ", citing the hash of its job-data deletion chain, so the deletion lines in its run log are bound to this signed record" : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
@@ -360,7 +363,8 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   if (!agent) return undefined;
   const did = agent.did;
   const contracts = new Map<string, JourneyContract>();
-  for (const s of inp.stored) if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string; price?: unknown }; contracts.set(s.id, { principal: b.principal, performer: b.performer, price: num(b.price) }); }
+  for (const s of inp.stored) if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string; price?: unknown; data_handling?: { retention?: string } }; contracts.set(s.id, { principal: b.principal, performer: b.performer, price: num(b.price), jobData: { retention: b.data_handling?.retention ?? "delete_at_settlement" } }); }
+  for (const s of inp.stored) if (s.record.type === T("action")) { const b = s.record.body as { contract?: string; job_data_chain?: string }; const c = b.contract ? contracts.get(b.contract) : undefined; if (c?.jobData && typeof b.job_data_chain === "string") c.jobData.chain = b.job_data_chain; }
   const ctx: JourneyCtx = { contracts, facts: partyFactsOf(inp.stored) };
   const steps: JourneyStep[] = [];
   for (const s of inp.stored) { const st = stepOf(s, did, ctx, view); if (st) steps.push(st); }

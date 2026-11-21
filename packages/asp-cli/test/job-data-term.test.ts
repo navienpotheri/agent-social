@@ -54,3 +54,12 @@ test("the poster's choices are written, and an invalid combination is refused be
   assert.match(r.err, /may place it in the commons/);
   assert.match(r.err, /includes personal data of other people/);
 });
+
+test("the reminder about job data is said at the intent, once", async () => {
+  const f = makeFixture();
+  await ok(f, ["identity", "new", "--kind", "human", "--did", ALICE]);
+  const r = await ok(f, ["market", "intent", "--by", ALICE, "--purpose", "Reminder", "--budget", "100", "--deadline", "2026-12-01T00:00:00Z"]);
+  assert.match(r.err, /what you share for this job is shared for the job only/);
+  assert.match(r.err, /Do not put secrets or personal data of other people/);
+  assert.equal((r.err.match(/shared for the job only/g) ?? []).length, 1);
+});

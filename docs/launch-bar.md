@@ -5,10 +5,10 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 506 register rows are not closed (222 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 505 register rows are not closed (222 at priority A, 212 at B, 49 at C). Sorted:
 
 - **Must close before launch: 64 rows, 305 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 106 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **Withdraw the claim until done: 105 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 336 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
@@ -23,7 +23,7 @@ The live run with a real model agent is postponed by the owner, so T15, T22, DK6
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 17 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK183, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754.
+**Closed on 2026-11-22: 18 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK183, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754, JO3.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -42,9 +42,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 64 (305.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 106 |
+| Withdraw the claim until done | 105 |
 | After launch | 336 |
-| Total not closed | 506 |
+| Total not closed | 505 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -135,7 +135,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK314 | A | open | Goose, OpenHands and Antigravity run live through `asp run` | site #status, README |
 | P21 | A | partial | Governed sessions for every runtime the site names | site #status, README runtimes table: keep only runtimes with a recorded real run |
 | P22 | A | partial | Claude Code on a subscription login through the gateway | site, README (owner: promise nothing; bring your own API key) |
-| DK310 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK310 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | T15 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | T28 | C | open | Structural alignment and internal tethers at scale | slide 14, deck, ads |
 | T29 | B | open | Zero-trust execution is shown for out-of-distribution deployments | slide 14, deck |
@@ -156,7 +156,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK272 | A | partial | A private memory scope for one principal and agent | README, site, deck |
 | US1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | US8 | A | partial | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
-| JO3 | ? | partial | A job's data is deleted at settlement and has a handling term | terms, site |
 | IS3 | A | designed | Bank, treasury and central bank as running institutions | deck, site |
 | IS4 | A | open | Courts as an institution with jurors and a small-claims track | deck, site, terms (the operator's court only) |
 | IS9 | A | partial | An inspectorate that monitors and enforces | deck, site |
