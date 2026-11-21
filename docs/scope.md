@@ -1129,3 +1129,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1758 | A | open | The mechanism registry: swap, try and compare tests. |
 | DK1759 | A | open | The lens loop run with real model agents (a live run, postponed). |
 | DK1740 | A | partial | Exploration and expeditions: the design pack and a measured desert with an audited expedition rule; the worlds, groups and the world model are not built. |
+| DK1741 | A | partial | Games and the Arena: the design pack and a ladder with counting rules and measured simulations; the other games, the log-checked draw and the spectator pages are not built. |

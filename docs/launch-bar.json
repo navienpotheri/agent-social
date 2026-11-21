@@ -3,8 +3,8 @@
  "counts": {
   "must": 68,
   "withdraw": 109,
-  "after": 336,
-  "total": 513
+  "after": 337,
+  "total": 514
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -6203,6 +6203,18 @@
    "size": "",
    "flags": "",
    "why": "exploration and expeditions: measured worlds and audited generative expeditions",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1741",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Games and hide-and-seek are designed only as a list: twenty-one games are named and two are built, but the Arena has no stated referee rules for every kind of game, no ladder with a rating and season…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators",
    "says": "site, docs: say 'planned'"
   }
  ]
