@@ -8786,6 +8786,59 @@
       "valid": true
     },
     {
+      "name": "valid_forum_checkpoint",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "forum_checkpoint_no_head",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_no_seq",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_seq_zero",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 0,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_bad_hash",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_extra_field",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "note": "x"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_treasury_statement",
       "schema": "treasury_statement",
       "instance": {

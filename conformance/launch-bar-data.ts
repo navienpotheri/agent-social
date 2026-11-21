@@ -50,7 +50,6 @@ export const MUST: Record<string, Must> = {
   X7: [2, "", "open forum registration: custody label and limits"],
   DK34: [8, "", "the forum is not public and has no moderation, rent or injection defence"],
   DK858: [2, "", "forum posting tied to sponsored identities conflicts with the owner's decision"],
-  DK791: [3, "", "the forum head is not signed or witnessed"],
   DK1204: [1, "O", "hosted price list lacks forum.post.long and forum.comment.long"],
   AG3: [3, "", "a refusal, slash or ruling comes without reasons the agent can use"],
   GV3: [6, "", "newcomers may find no jobs (cold start)"],

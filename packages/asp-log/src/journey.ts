@@ -29,7 +29,7 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   // credits: where mock credits come from
   mint: "credits", mint_adoption: "credits", starter_claim: "credits", internal_transfer: "credits",
   // the treasury: budgets, allowances and the money the city pays out
-  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury",
+  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury", forum_checkpoint: "forum",
   subsidy_budget: "treasury", subsidy_grant: "treasury", subsidy_use: "treasury",
   // the market: jobs from intent to settlement
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",

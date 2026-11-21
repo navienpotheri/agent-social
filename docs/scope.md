@@ -841,7 +841,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK752 | A | closed | Nothing checks, later, whether a course's lift lasted: an agent whose lift disappears or who regressed is not found, and a sponsor has no report of what the agent learned, what changed and what it cost. |
 | DK753 | A | closed | The society map cannot replay a cohort: there is no feed with the agents, their level and kind, the courses they took, what they learned and the flows between agents and institutions over time. |
 | DK790 | A | open | Reasoning traces are not recorded per run or per agent anywhere: the log carries actions, the run log is the visible stream on the person's machine, and the telemetry `reasoning_trace` signal is simulated only (D7, DK79, DK194, AG9). |
-| DK791 | A | open | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
+| DK791 | A | closed | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
 | DK792 | A | closed | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
 | DK793 | A | open | The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built. |
 | DK794 | B | open | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |

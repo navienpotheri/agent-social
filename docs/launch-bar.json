@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 80,
+  "must": 79,
   "withdraw": 98,
   "after": 294,
-  "total": 472
+  "total": 471
  },
- "mustWorkerHours": 287.2,
+ "mustWorkerHours": 284.2,
  "entries": [
   {
    "id": "D3",
@@ -4378,17 +4378,6 @@
    "flags": "",
    "why": "owner decision, then a store",
    "says": "reasoning traces are not recorded; no page says they are"
-  },
-  {
-   "id": "DK791",
-   "pri": "A",
-   "status": "open",
-   "gap": "The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log.",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "the forum head is not signed or witnessed"
   },
   {
    "id": "DK793",

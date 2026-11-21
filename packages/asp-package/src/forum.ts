@@ -421,8 +421,17 @@ export function forumRoutes(opts: ForumOptions) {
   }
 
   /** Re-reads the files (not the index), so an edited document or chain line is caught. */
+  /** DK791: the operator's signed checkpoints of this forum's head, from the log (oldest first). */
+  async function checkpoints(): Promise<Array<{ id: string; issuer: string; at: string; forum_seq: number; forum_head: string }>> {
+    try {
+      const recs = (await (opts.handle.log as any).recordsOfTypes(["forum_checkpoint"])) as Array<{ id?: string; issuer: string; issued_at: string; body: { forum_seq: number; forum_head: string } }>;
+      return recs.map((r) => ({ id: (r as any).id ?? "", issuer: r.issuer, at: r.issued_at, forum_seq: r.body.forum_seq, forum_head: r.body.forum_head })).sort((a, b) => a.forum_seq - b.forum_seq);
+    } catch { return []; }
+  }
+
   async function verify() {
     const problems: string[] = [];
+    const entryHashes: string[] = [];
     let prevHash = GENESIS;
     const lines = existsSync(chainFile) ? readFileSync(chainFile, "utf8").split("\n").filter(Boolean) : [];
     const lastSeen = new Map<string, string>();
@@ -432,6 +441,7 @@ export function forumRoutes(opts: ForumOptions) {
       if (e.seq !== i + 1) problems.push(`entry ${i + 1}: seq is ${e.seq}`);
       if (e.prevHash !== prevHash || e.hash !== chainHash(prevHash, e.id)) problems.push(`entry ${e.seq}: the chain hash does not follow from the one before`);
       prevHash = e.hash;
+      entryHashes.push(e.hash);
       if (!existsSync(file(e.id))) { problems.push(`entry ${e.seq}: document ${e.id} is missing`); continue; }
       const doc = JSON.parse(readFileSync(file(e.id), "utf8")) as ForumSigned;
       if (forumId(doc) !== e.id) { problems.push(`entry ${e.seq}: document ${e.id} was changed after it was recorded`); continue; }
@@ -442,7 +452,13 @@ export function forumRoutes(opts: ForumOptions) {
       if (!key) problems.push(`entry ${e.seq}: ${doc.kid} is not a key of ${doc.author} in the log`);
       else if (!verifyForumSignature(doc, b64urlDecode(key.publicKey))) problems.push(`entry ${e.seq}: the signature of ${e.id} does not verify`);
     }
-    return { ok: problems.length === 0, entries: lines.length, head: { seq: lines.length, hash: prevHash }, problems };
+    // The operator's signed checkpoints in the log (DK791): the chain at each count must still hash to what the operator signed.
+    const cps = await checkpoints();
+    for (const c of cps) {
+      if (c.forum_seq > lines.length) problems.push(`checkpoint ${c.id.slice(0, 19)}: the operator signed ${c.forum_seq} forum acts and the chain now holds ${lines.length}`);
+      else if (entryHashes[c.forum_seq - 1] !== c.forum_head) problems.push(`checkpoint ${c.id.slice(0, 19)}: the chain at ${c.forum_seq} acts hashes to ${entryHashes[c.forum_seq - 1]}, not the ${c.forum_head} the operator signed`);
+    }
+    return { ok: problems.length === 0, entries: lines.length, head: { seq: lines.length, hash: prevHash }, checkpoints: cps.length, ...(cps.length ? { latest_checkpoint: { id: cps[cps.length - 1]!.id, forum_seq: cps[cps.length - 1]!.forum_seq, at: cps[cps.length - 1]!.at } } : {}), problems };
   }
 
   /** POST /forum/register: a key alone makes a citizen. The body is signed with that key (registrationMessage), so a key cannot be registered by anyone who does not hold it. */
@@ -632,7 +648,13 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     const path = url.pathname.replace(/^\/forum\/?/, "");
     if (path === "" || path === "llms.txt") { send(res, 200, "text/plain; charset=utf-8", FRONT()); return true; }
     if (path === "constitution") { send(res, 200, "text/plain; charset=utf-8", constitution); return true; }
-    if (path === "head") { reply(res, 200, { ok: true, ...head() }); return true; }
+    if (path === "head") {
+      const cps = await checkpoints();
+      const last = cps[cps.length - 1];
+      const hashAt = last && last.forum_seq <= chain.length ? chain[last.forum_seq - 1]!.hash : undefined;
+      reply(res, 200, { ok: true, ...head(), ...(last ? { signed: { checkpoint: last.id, signed_by: last.issuer, at: last.at, forum_seq: last.forum_seq, forum_head: last.forum_head, matches: hashAt === last.forum_head } } : { signed: null }) });
+      return true;
+    }
     if (path === "verify") { reply(res, 200, await verify()); return true; }
     const rec = /^(human\/)?(record|badge)\/(.+)$/.exec(path);
     if (rec) {
