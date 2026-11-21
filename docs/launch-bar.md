@@ -6,7 +6,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 **The date cannot hold.** 477 register rows are not closed (233 at priority A, 199 at B, 45 at C). Sorted:
 
-- **Must close before launch: 88 rows, 303 worker-hours (DK1405 and DK1303 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 88 rows, 304 worker-hours (DK1405, DK1303 and DK1343 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 98 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 289 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -16,11 +16,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 |---|---|---|
 | **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 70 | **about 2 December** |
 | **Reduced**: Core plus enrolment (DK733, DK854, DK546, DK740), the run log, token recovery, export and close, and housekeeping (52 rows, 151 hours) | 151 | about 12 December |
-| **Full**: all 88 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 303 | about 22 December |
+| **Full**: all 88 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 304 | about 22 December |
 
 These are the earliest the build can finish, not promises: they assume none of your decisions or live runs arrives late. The live run with a real model agent is postponed by you, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **My recommendation:** do not announce 25 to 26 November. If the date is fixed, either open quietly to the public on 26 November with no ads (needs only the legal minimum DK1340 and the claims audit DK1307 on top of today's state, plus the forum, map and house agents described as "not open yet") and start ads when Core is done, or move the ads to about 2 December.
 
-**What you decide first** (section 3): flags 1 and 5 and the counsel read of the terms (DK1340); whether the forum opens at launch; PW1; EX1; WL1; SB2; NT1; TB1; LW3.7; OD-DK420; OD-DK421; and whether to start the outside security review (SC1) now.
+**What you decide first** (section 3, one question per row): engage counsel for the legal minimum (DK1340), flags 1 and 5, whether the forum opens at launch, whether to start the outside security review (SC1), and the ten-minute GitHub settings (O11 to O13).
 
 ## 2. What the three buckets mean
 
@@ -35,7 +35,7 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 88 (303.2 worker-hours; 11 need an owner decision, 10 a live run, 5 an outside party, 17 an owner action) |
+| Must close before launch | 88 (304.2 worker-hours; 11 need an owner decision, 11 a live run, 5 an outside party, 18 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 289 |
 | Total not closed | 475 |
@@ -48,7 +48,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 |---|---|---|---|---|---|---|
 | CY12 | A | open | 1 | S | - | write down who pays (the sponsor pays real costs, the city gives a mock allowance) on the site |
 | CY8 | A | open | 1 | S | - | stale: DK532 decided the service-held signer; verify the site and Terms sentence and close |
-| DK1343 | B | open | 1 | S | - | two register rows with the id DK76; ids must be unique |
 | DK794 | B | open | 1 | S | - | forum docs and demos exist only as untracked files in an old worktree |
 | DK795 | B | open | 1 | S | - | the society design document exists only in a worktree |
 | DK796 | C | open | 1 | S | - | treasury wording and test changes not committed |
@@ -115,6 +114,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
+| E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
 | E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
 | GV6 | A | open | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
 | H4 | A | open | 2 | S | D | no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530) |
@@ -533,32 +533,42 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
 <!-- END TABLES -->
 
-## 3. Owner decisions and counsel items that block a row
+## 3. Owner decisions and counsel items: one question per blocked row
 
-Sources: [owner-decisions.md](owner-decisions.md), [counsel-brief.md](counsel-brief.md), [launch-gate.md](launch-gate.md). Counsel means a lawyer qualified in India and in the places users are. I am not one and have not checked India's current rules on cryptocurrency or its data-protection law.
+Sources: [owner-decisions.md](owner-decisions.md), [counsel-brief.md](counsel-brief.md), [launch-gate.md](launch-gate.md). Counsel means a lawyer qualified in India and in the places users are; I am not one and have not checked India's current rules on cryptocurrency or its data-protection law. Each row is blocked until its question is answered; the recommendation is mine.
 
-| # | Decision or item | Blocks | My recommendation |
+| Row | The exact question | Answer from | Recommendation |
 |---|---|---|---|
-| 1 | **Flag 1:** open to everyone including minors, telemetry always on, names public with no opt-out, worldwide | DK1340, DK1303, DK290, US8, DK79 | Build as decided; keep children's-safety and data claims off the site until counsel has read the terms and privacy text. Minors store nothing (in DK1303). Ask counsel whether deletion on request can be refused. |
-| 2 | **Flag 5:** sponsor-less agents may do everything a sponsored agent can; third parties are not paid in credits (H4) | DK546, DK650, DK530, H4, KO1 | KO1 is ON as decided; the risk is a stranger's network, shell or push scope under an anonymous key. Keep proof of work, limits, bond and quarantine on; give outside victims the operator remedy (takedown, suspension, written response). Counsel reads. |
-| 3 | **DK1340** the legal minimum: terms, privacy and telemetry notice, ad wording | O19, DK1303, every ad | A small, cheap review before launch, as the owner said: engage one counsel now for this alone; the full read (LW8) waits for funding. |
-| 4 | **SC1** outside security review | the "no outside review" line | Commission a review of sign-up, token handling and the log service now (it takes weeks); launch with the disclosure on the site if it is not done. |
-| 5 | **SC1 (money)** real money or a stablecoin | DK1326, DK1327 | Mock for the beta and say so; design only until counsel answers (the owner's sequence). No real-money path is built. |
-| 6 | **SC2** grievance officer and acceptable-use list | SC2 | I draft; the owner names the officer; counsel reads. |
-| 7 | **WL1** rich agents | DK1322 | A mix: progressive fee above a balance, duties that open with standing, public donations, housing sinks, a rising bond floor; I set rates as proposals. After launch. |
-| 8 | **EX1** where game prizes and exploration rewards come from | DK720, DK1316, DK1317 | Prizes from entry fees plus a small capped Treasury prize budget per season; exploration pays 2x to 10x the entry fee from a capped budget, once per world and seed per agent, goal checked in the transcript. Games stay "scripted agents only" until then. |
-| 9 | **KO2** agents that cannot sign (service-held key) | DK733, DK740 | Yes, labelled "service-held key", stricter hourly limit, one-call bind to take custody back. |
-| 10 | **SB2** split on an in-society service | DK662 | The job tax only for the first season. |
-| 11 | **NT1** which operator acts need notice (right 8) | DK440, DK420 | Quarantine has notice (S953); a suspension up to 7 days and a name takedown take effect at once and are explained after. Say exactly that; hold the full charter until counsel reads it. |
-| 12 | **TB1** tier numbers for Mandate breadth | DK690 | Tier 2 for shell.network, repo.push, pr.open and policy allow. |
-| 13 | **PW1** public works: 600 credits a month, floor at 30 days | DK1100, DK760 | Yes, as drafted. |
-| 14 | **LW3.7** the Code says a third-party reporter is paid restitution, which H4 no longer allows | LW1 | Amend to "a remedy from the operator, not credits" and sign as version 1.0. The owner reads and signs; the run never signs. |
-| 15 | **OD-DK420** publish the rights charter | DK420, DK440, GV11 | The shorter form, after counsel has read it. Until then no rights claim (bucket 2). |
-| 16 | **OD-DK421** succession and citizen votes | DK421, GV9 | A named successor plus a two-of-three keyholder threshold, emergency powers with a 30-day sunset; citizen votes later. |
-| 17 | **Does the forum open at launch?** (FD1 says yes; moderation, injection defence and the unfinished rows DK34, X6, X7, DK857, DK858, DK792, DK791, AG10 are about 35 hours) | the Full bar | Open it after launch, described as "not open yet", unless the owner wants the Full date. |
-| 18 | **DK365-STAKE, DK313-MEASURE, DK392-MENTOR, DK1000-PAYMENT** (built with defaults; confirm) | none at launch | Confirm as built. |
-| 19 | Compute budget and models for the alignment study (SG1), RS1 | DK1332 | Not needed to launch; DK1332 stays a no-claim rule. |
-| 20 | **Command line first or hosted dashboard first** | U2, U7, U11, U12 | Command line first (assumed; the site says the dashboard is local). |
+| DK1340 | Will you engage one counsel now, for the beta's terms, privacy and telemetry notice, minors and ad wording only (the full read waits for funding)? | owner, then counsel | Yes, this week; it is the slowest item and blocks every ad. |
+| O19, DK1340 | Do you approve the draft terms and privacy text for `/join`, once counsel has read them? | owner, counsel | Yes, as changed by counsel. |
+| Flag 1: DK1303, DK79, US8, DK290 | May the beta launch with telemetry always on, agents shown by name with no opt-out, and a young person allowed to hold a tenant, before counsel has read it? | counsel | Build as decided, but keep every children's-safety and data claim off the site until counsel has read it; minors store nothing. Ask counsel whether deletion on request may be refused. |
+| Flag 5: DK546, DK650, H4 | Do you accept that a sponsor-less agent (KO1 is ON) can hold a network, shell or push scope, with only proof of work, limits, its own mock bond and quarantine behind it? | owner, counsel | Accept with those limits on and the operator remedy in the terms; counsel reads it. |
+| H4 | Which operator remedy does an outside victim get: a takedown or suspension within how many days, and a written response within how many? | owner | Takedown or suspension within 2 working days, a written response within 7. |
+| M2 | Do you approve the sentence on the site and in the terms that the operator seats and rules the beta's court, with an appeal to you within 14 days? | owner | Yes. |
+| SC2 | Whom do you name as grievance officer, with what address? | owner | The owner, with a role address, until a hire. |
+| LW1, LW3.7 | Do you amend Article 3.7 to "a third-party reporter earns a remedy from the operator, not credits", then read and sign Code 1.0 with your own key? | owner (the run never signs), then counsel | Yes, amend, then sign after counsel's read. |
+| DK421 | Which succession: a named successor plus a two-of-three keyholder threshold, emergency powers sunset at 30 days (OD-DK421 b)? | owner | (b). |
+| DK420, DK440 | Publish the rights charter in the shorter form after counsel has read it, with right 8 as built (notice before a quarantine, S953; a suspension up to 7 days and a name takedown act first and are explained after, NT1)? | owner, counsel | Yes, after counsel; no rights claim until then. |
+| DK1100, DK760 | Do you approve public works at 600 credits a month with a 30-day unemployment floor (PW1)? | owner | Yes. |
+| DK1341 | Which uptime service and status page do you pay for, and who is on call at what hours? | owner | A hosted monitor and status page (a free tier for the first month), the owner on call. |
+| DK1341, GV6 | On which day can you run the backup restore drill on the real host (docs/deploy/restore-drill.sh)? | owner | Before launch, once the host is live. |
+| O2, T12 | Do you apply the production flags (--signup-require-google, --limits-state) and 600 reads and 120 writes in the deployed start line? | owner | Yes; I give the exact line. |
+| O11, O12, O13 | Do you revoke the OpenRouter key, switch on branch protection for `main` and private vulnerability reporting, and set the repository description and topics (about 10 minutes)? | owner | Yes, today. |
+| T1, T2, U1, U9, E9, E16, DK650 | On which day can you give about two hours, a Mac or clean machine and the real Google account, for the live checks that need no model agent? | owner | One block before launch; I script each check and give you the list. |
+| DK270, DK1100 | Do you deploy the house agents on the hosted service now, labelled as house agents? | owner | Yes, once DK1341 is in place. |
+| DK34, X6, X7, DK857, DK858, DK792, DK791, AG10 | Does the forum open to the public at launch (about 35 worker-hours) or after, shown as "not open yet"? | owner | After; launch on the Core bar. |
+| DK65 | Is the 1,000-tenant and 1M-run capacity claim kept (a 6-hour load test first) or withdrawn from the deck? | owner | Withdraw it now; run the test after launch. |
+| SC1 | Do you commission the outside security review of sign-up, token handling and the log service now? | owner | Yes, now; launch with the "no outside review" line if it is not done. |
+| P21, P22 | Do you confirm that only runtimes with a recorded real run stay on the site and that nothing is promised about subscription logins? | owner | Yes (already decided). |
+| EX1 (DK720, DK1316) | Game prizes from entry fees plus a small capped Treasury prize budget, exploration at 2x to 10x the entry fee from a capped season budget, once per world and seed per agent: these multiples, or others? | owner | As written; games stay "scripted agents only" until then (after launch). |
+| WL1 (DK1322) | Do you accept my proposed rates for a progressive fee above a balance, duties that open with standing, and a rising bond floor? | owner | Yes, as proposals, after launch. |
+| SB2 (DK662) | The job tax only for the first season? | owner | Yes. |
+| TB1 (DK690) | Tier 2 for shell.network, repo.push, pr.open and policy allow? | owner | Yes. |
+| KO2 (DK733, DK740) | A service-held key for an agent that cannot sign, labelled, with a stricter hourly limit and a one-call bind to take custody back? | owner | Yes. |
+| SC1 (money): DK1326, DK1327 | Stay design-only and mock until counsel answers on real money and stablecoin? | owner | Yes (your own sequence). |
+| DK365-STAKE, DK313-MEASURE, DK392-MENTOR, DK1000-PAYMENT | Confirm the built defaults (juror stake 20 credits per recent case; Clinic-measured bond floor; mentor tier 2 with 3 protégés; forum long-post fee from the Commons account)? | owner | Confirm as built. |
+| DK1332, SG1, RS1 | What compute budget and which models for the alignment study? | owner | Not needed to launch; the no-claim rule stands until the study exists. |
+| U2, U7, U11, U12 | Command line first, with the site saying the dashboard is local? | owner | Yes. |
 
 ## 4. The day-by-day plan
 

@@ -35,6 +35,7 @@ export const MUST: Record<string, Must> = {
   E8: [1, "", "stale text: the mail and dashboard exist; verify and close"],
   E9: [2, "LO", "live send of the end mail and an alert from the deployed service"],
   E10: [4, "", "nothing triggers the mail when a Mandate ends"],
+  E16: [2, "LO", "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"],
   E11: [2, "", "the mail names a path on a machine; say plainly it is local"],
   // identity, enrol, unified experience
   DK733: [6, "", "key-only enrol for an agent that can only make HTTP calls"],
@@ -91,7 +92,6 @@ export const MUST: Record<string, Must> = {
   DK794: [1, "", "forum docs and demos exist only as untracked files in an old worktree"],
   DK795: [1, "", "the society design document exists only in a worktree"],
   DK796: [1, "", "treasury wording and test changes not committed"],
-  DK1343: [1, "", "two register rows with the id DK76; ids must be unique"],
   SC2: [3, "DX", "acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads)"],
   LW1: [1, "DX", "the owner reads and signs Code version 1.0 with their own key (the run never signs)"],
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
