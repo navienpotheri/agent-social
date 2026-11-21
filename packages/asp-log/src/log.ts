@@ -1114,6 +1114,7 @@ export class EventLog {
       else if (!was && m.digest) known[id] = m.digest;
     }
     await tx.putMarker(key, JSON.stringify(known));
+    if (changed) await tx.putMarker(`model_hold:${r.issuer}`, r.issued_at); // DK1605, S1556: held until a passed exam of its own after this time
     if (changed) {
       const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
       const current = await tx.getProbation(r.issuer);
@@ -3086,6 +3087,7 @@ export class EventLog {
     await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
+    if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
   }
 
   /**
@@ -3310,6 +3312,12 @@ export class EventLog {
     if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
     if (await tx.getMarker(`house:${b.holder}`)) throw rule("house_agent_no_rank", `${b.holder} is a house agent: it is not promoted by the Academy`);
     if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
+    // A model swap holds the agent (DK1605, S1556): its tier does not rise until it passes an exam of its own after the swap.
+    const heldSince = await tx.getMarker(`model_hold:${b.holder}`);
+    if (heldSince) {
+      const passedAt = await tx.getMarker(`exam_pass_at:${b.holder}`);
+      if (!passedAt || Date.parse(passedAt) <= Date.parse(heldSince)) throw rule("agent_model_hold", `${b.holder} changed the model behind it on ${heldSince}: it is held, and its tier does not rise until it passes an exam after that`);
+    }
     const rep = await this.reputation(tx, b.holder);
     if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
     if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);

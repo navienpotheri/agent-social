@@ -5965,7 +5965,7 @@
   {
    "id": "DK1605",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
    "bucket": "withdraw",
    "hours": 0,
