@@ -14,7 +14,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
+import { STARTER_PER_DID, STARTER_UPFRONT, type LogHandle, type OwnerStore, type StarterPool, type Tenant, type UsageStore } from "@agent-social/asp-log";
 import { commonsOfDids, purgeCommons } from "./commons.ts";
 import { sealedLogsOf } from "./runlog-vault.ts";
 import { namespaceOf } from "./namespace.ts";
@@ -65,9 +65,9 @@ function send(res: ServerResponse, status: number, body: unknown) {
 }
 const fail = (res: ServerResponse, status: number, code: string, message: string) => send(res, status, { ok: false, error: { code, message } });
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJson(req: IncomingMessage, max = 4096): Promise<unknown> {
   const chunks: Buffer[] = []; let n = 0;
-  for await (const c of req) { n += (c as Buffer).length; if (n > 4096) return undefined; chunks.push(c as Buffer); }
+  for await (const c of req) { n += (c as Buffer).length; if (n > max) return undefined; chunks.push(c as Buffer); }
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { return undefined; }
 }
 
@@ -103,126 +103,182 @@ export async function identityRecovery(o: AccountOptions, dids: string[]): Promi
 }
 
 export type StarterState = "claimed" | "partial" | "available" | "waiting" | "unavailable";
-export interface StarterView { state: StarterState; amount?: number; reason?: string; perDid: number; upfront: number; maxDids: number; poolLeft?: number; /** Still owed to each identity, for a partial grant. */ held?: number; /** Place on the waiting list, counted from 1 (0: not on it). */ position?: number }
+/** The most identities one starter request names (DK1470): a rate per request, not a total per tenant; a fleet asks again for the next batch. */
+export const STARTER_BATCH_MAX = 25;
+export interface StarterView {
+  state: StarterState; amount?: number; reason?: string; perDid: number; upfront: number; poolLeft?: number;
+  /** The most identities one request names; there is no total. */ batchMax: number;
+  /** Still owed to each identity that has had only the first part, for a partial grant. */ held?: number; /** Place on the waiting list, counted from 1 (0: not on it). */ position?: number;
+  /** Identities that have had the first part, those still owed the rest, and those the tenant has written as that have not claimed (DK1470). */ claimed?: number; owed?: string[]; unclaimed?: number;
+}
+
+/** What each identity of a tenant has had (DK1470): the first part, and the rest. An older record (before per-identity claims) is read as it was written: `held` set means the rest went to none, absent to all. */
+export function starterClaims(t: Tenant): { dids: string[]; rest: Set<string>; owed: string[] } {
+  const s = t.starter;
+  const dids = s?.dids ?? [];
+  const rest = new Set(s?.restDids ?? (s && !s.held ? dids : []));
+  return { dids, rest, owed: dids.filter((d) => !rest.has(d)) };
+}
 
 /** Is it this tenant's turn at the pool: room for a claim, and nobody ahead of it on the waiting list? */
 const itsTurn = (o: AccountOptions, t: Tenant) => !!o.starter && o.starter.left >= STARTER_UPFRONT && (o.starter.waitingList.length === 0 || o.starter.waitingList[0] === t.name);
 const POOL_FULL = (place: number) => `the starter pool is full right now. You are number ${place} on the waiting list; the operator tops the pool up on purpose, and then asp account starter works for you, in order`;
+const ISO = (o: AccountOptions) => new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z");
+const EACH_REST = STARTER_PER_DID - STARTER_UPFRONT;
 
-/**
- * What a tenant can do about starter credits (gap M9). The grant has two parts: STARTER_UPFRONT for each of up to STARTER_MAX_DIDS identities at once, enough for a first job (an escrow and
- * a bond), and the rest of STARTER_PER_DID when one of those identities has had a job accepted. When the pool cannot cover a claim, or others are waiting ahead, the tenant is on a waiting list.
- */
-export function starterStatus(o: AccountOptions, t: Tenant): StarterView {
-  const base = { perDid: STARTER_PER_DID, upfront: STARTER_UPFRONT, maxDids: STARTER_MAX_DIDS, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
-  if (!o.starter || !o.updateTenant) return { state: "unavailable", reason: "this service does not offer starter credits", ...base };
-  if (t.starter) return t.starter.held ? { state: "partial", amount: t.starter.amount, held: t.starter.held, reason: `${STARTER_UPFRONT} each so far; the other ${t.starter.held} each comes when one of those identities has a job accepted`, ...base } : { state: "claimed", amount: t.starter.amount, ...base };
-  if (t.role === "admin") return { state: "unavailable", reason: "admins mint credits directly", ...base };
-  if (!t.signup?.google && !t.signup?.keyOnly && !t.signup?.httpEnrol) return { state: "unavailable", reason: "starter credits go to tenants that signed up with a verified Google account or enrolled an agent by its key; ask the operator", ...base };
-  const earlier = t.signup?.google ? o.tenants().find((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub) : undefined;
-  if (earlier) return { state: "unavailable", reason: "this Google account has already claimed its starter credits", ...base };
-  if (!itsTurn(o, t)) {
-    const position = o.starter.position(t.name);
-    return { state: "waiting", position, reason: position ? `you are number ${position} on the waiting list for the starter pool; the operator tops it up on purpose, and then asp account starter works for you, in order` : "the starter pool is full right now; asp account starter puts you on the waiting list", ...base };
-  }
-  return { state: "available", amount: STARTER_UPFRONT * (t.signup?.keyOnly || t.signup?.httpEnrol ? 1 : STARTER_MAX_DIDS), ...base };
+/** Why this tenant may not claim at all, or undefined. */
+function starterRefusal(o: AccountOptions, t: Tenant): string | undefined {
+  if (!o.starter || !o.updateTenant) return "this service does not offer starter credits";
+  if (t.role === "admin") return "admins mint credits directly";
+  if (!t.signup?.google && !t.signup?.keyOnly && !t.signup?.httpEnrol) return "starter credits go to tenants that signed up with a verified Google account or enrolled an agent by its key; ask the operator";
+  if (!t.starter && t.signup?.google && o.tenants().some((x) => x.name !== t.name && x.starter && x.signup?.google?.sub === t.signup!.google!.sub)) return "this Google account has already claimed its starter credits";
+  return undefined;
 }
 
 /**
- * Releases the rest of a grant when one of the identities it went to has had a job accepted. Checked when the tenant looks at its account or asks again. Returns what was minted, or why not.
- * The pool is drawn on now, not reserved at the claim: if it is used up the rest waits for the operator to top it up.
+ * What a tenant can do about starter credits (gap M9, DK1470). Every identity the tenant has written as claims its own grant: STARTER_UPFRONT at once, enough for a first job (an escrow and
+ * a bond), and the rest of STARTER_PER_DID when that identity has had a job accepted. There is no total per tenant, only STARTER_BATCH_MAX identities per request. When the pool cannot
+ * cover a claim, or others are waiting ahead, the tenant is on a waiting list.
  */
-export async function releaseStarter(o: AccountOptions, t: Tenant): Promise<{ released: { did: string; credits: number; balance: number }[] } | { reason: string }> {
-  const s = t.starter;
-  if (!o.starter || !o.updateTenant || !s?.held || !s.dids?.length) return { reason: "nothing is held back" };
-  let accepted = false;
-  for (const did of s.dids) {
-    const rep = await o.handle.log.reputationOf(did).catch(() => undefined);
-    if ((rep?.qualifyingJobs ?? 0) >= 1) { accepted = true; break; }
+export function starterStatus(o: AccountOptions, t: Tenant): StarterView {
+  const base = { perDid: STARTER_PER_DID, upfront: STARTER_UPFRONT, batchMax: STARTER_BATCH_MAX, ...(o.starter ? { poolLeft: o.starter.left } : {}) };
+  const refused = starterRefusal(o, t);
+  if (refused) return { state: "unavailable", reason: refused, ...base };
+  const { dids, owed } = starterClaims(t);
+  const mine = t.signup?.keyOnly ? [t.signup.keyOnly.did] : t.signup?.httpEnrol ? [t.signup.httpEnrol.did] : o.owners.of(t.name);
+  const unclaimed = mine.filter((d) => !dids.includes(d)).length;
+  const counts = { claimed: dids.length, ...(owed.length ? { owed } : {}), unclaimed };
+  const more = unclaimed ? `${unclaimed} more identit${unclaimed === 1 ? "y has" : "ies have"} not claimed (asp account starter --did <did>,...)` : "";
+  if (t.starter) {
+    const common = { amount: t.starter.amount, ...counts, ...base };
+    if (owed.length) return { state: "partial", held: EACH_REST, reason: `${dids.length} identit${dids.length === 1 ? "y has" : "ies have"} had the first ${STARTER_UPFRONT}; the other ${EACH_REST} comes to each when that identity has a job of its own accepted${more ? `; ${more}` : ""}`, ...common };
+    return { state: "claimed", ...(more ? { reason: more } : {}), ...common };
   }
-  if (!accepted) return { reason: `the other ${s.held} each is released when one of ${s.dids.length === 1 ? "your identity" : "your identities"} has had a job accepted` };
-  const total = s.held * s.dids.length;
-  if (!o.starter.take(total)) return { reason: "the rest of the grant is ready but the starter pool is used up for now; the operator tops it up on purpose, and it is released then" };
+  if (!itsTurn(o, t)) {
+    const position = o.starter!.position(t.name);
+    return { state: "waiting", position, reason: position ? `you are number ${position} on the waiting list for the starter pool; the operator tops it up on purpose, and then asp account starter works for you, in order` : "the starter pool is full right now; asp account starter puts you on the waiting list", ...counts, ...base };
+  }
+  return { state: "available", amount: STARTER_UPFRONT * Math.max(1, unclaimed), ...counts, ...base };
+}
+
+/**
+ * Releases the rest of a grant, identity by identity: each identity that has had a job of its own accepted gets its remaining part (DK1356, DK1470). Checked when the tenant looks at its
+ * account or asks again (`only` limits it to the identities named). Returns what was minted, or why not. The pool is drawn on now, not reserved at the claim: if it is used up the rest waits
+ * for the operator to top it up. With signed starter the service holds no key, so the rest is claimed by a signature (asp account starter) and not minted here.
+ */
+export async function releaseStarter(o: AccountOptions, t: Tenant, only?: ReadonlySet<string>): Promise<{ released: { did: string; credits: number; balance: number }[] } | { reason: string }> {
+  const s = t.starter;
+  const { owed, rest } = starterClaims(t);
+  const pending = only ? owed.filter((d) => only.has(d)) : owed;
+  if (!o.starter || !o.updateTenant || !s || !pending.length) return { reason: "nothing is held back" };
+  if (o.signedStarter) return { reason: "ask again with asp account starter: each identity signs its own claim for the rest once it has had a job accepted" };
+  const earned: string[] = [];
+  for (const did of pending) {
+    const rep = await o.handle.log.reputationOf(did).catch(() => undefined);
+    if ((rep?.qualifyingJobs ?? 0) >= 1) earned.push(did);
+  }
+  if (!earned.length) return { reason: `the other ${EACH_REST} comes to each identity when that identity has had a job accepted` };
+  if (!o.starter.take(EACH_REST * earned.length)) return { reason: "the rest of the grant is ready but the starter pool is used up for now; the operator tops it up on purpose, and it is released then" };
   const released: { did: string; credits: number; balance: number }[] = [];
-  try { for (const did of s.dids) released.push({ did, credits: s.held, balance: await o.handle.mint(did, s.held) }); } catch (e) { o.starter.give(total - released.length * s.held); if (!released.length) return { reason: (e as Error).message }; }
-  o.updateTenant(t.name, { starter: { at: s.at, amount: s.amount + released.length * s.held, dids: s.dids, releasedAt: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), ...(released.length < s.dids.length ? { held: s.held } : {}) } });
+  try { for (const did of earned) released.push({ did, credits: EACH_REST, balance: await o.handle.mint(did, EACH_REST) }); } catch (e) { o.starter.give(EACH_REST * (earned.length - released.length)); if (!released.length) return { reason: (e as Error).message }; }
+  o.updateTenant(t.name, { starter: { ...s, amount: s.amount + released.length * EACH_REST, restDids: [...rest, ...released.map((r) => r.did)], releasedAt: ISO(o), held: undefined } });
   return { released };
 }
 
-/** Claims the starter grant: STARTER_UPFRONT credits to each of up to STARTER_MAX_DIDS identities the tenant has written as, the rest later. Once per tenant and per Google account. */
+type Fail2 = (s: number, c: string, m: string, e?: Record<string, unknown>) => [number, unknown];
+interface StarterNeed { did: string; part: "upfront" | "rest"; amount: number }
+
+/**
+ * Claims starter credits for the identities named (DK1470): each identity that has not claimed gets STARTER_UPFRONT; one that has and is owed the rest gets it once it has had a job accepted.
+ * Any number of identities over several requests, at most STARTER_BATCH_MAX in one; an identity that has everything is refused.
+ */
 export async function claimStarter(o: AccountOptions, t: Tenant, asked: unknown[], claims: unknown[] = []): Promise<[number, unknown]> {
-  const fail2 = (status: number, code: string, message: string, extra: Record<string, unknown> = {}): [number, unknown] => [status, { ok: false, error: { code, message, ...extra } }];
-  const st = starterStatus(o, t);
-  if (o.signedStarter) return claimStarterSigned(o, t, st, asked, claims, fail2);
-  if (st.state === "partial") {
-    const r = await releaseStarter(o, t);
-    return "released" in r
-      ? [200, { ok: true, granted: r.released, total: r.released.reduce((n, g) => n + g.credits, 0), note: "The rest of your starter grant. Credits are accounting entries in the protocol, not money." }]
-      : fail2(409, "ALREADY_CLAIMED", `you have already claimed the first part of your starter credits; ${r.reason}`);
-  }
-  if (st.state === "claimed") return fail2(409, "ALREADY_CLAIMED", "this tenant has already claimed its starter credits");
-  if (st.state === "unavailable") return fail2(403, "STARTER_UNAVAILABLE", st.reason ?? "starter credits are not available");
-  if (st.state === "waiting") return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
-  const dids = [...new Set(asked.filter((d): d is string => typeof d === "string"))];
-  if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
+  const fail2: Fail2 = (status, code, message, extra = {}) => [status, { ok: false, error: { code, message, ...extra } }];
+  const refused = starterRefusal(o, t);
+  if (refused) return fail2(403, "STARTER_UNAVAILABLE", refused);
+  const { dids: had, rest, owed } = starterClaims(t);
+  let dids = [...new Set(asked.filter((d): d is string => typeof d === "string"))];
+  if (!dids.length && owed.length) dids = owed.slice(0, STARTER_BATCH_MAX);
+  if (!dids.length) return fail2(400, "BAD_DIDS", "name the identities that get starter credits (asp account starter --did <did>[,<did>...]); they must be identities you created through the service");
+  if (dids.length > STARTER_BATCH_MAX) return fail2(400, "BAD_DIDS", `at most ${STARTER_BATCH_MAX} identities in one request; ask again for the rest`);
+  // Parity (DK541): a key-only agent gets what a sponsored agent gets, for its own identity (the did:key of the key it enrolled with).
+  const own = t.signup?.httpEnrol?.did ?? t.signup?.keyOnly?.did;
+  if (own && (dids.length !== 1 || dids[0] !== own)) return fail2(400, "BAD_DIDS", `an agent that enrolled ${t.signup?.httpEnrol ? "over HTTP" : "with a key"} claims for its own identity, ${own}`);
+  // The pool is looked at first: a tenant that cannot be served joins the waiting list without having to name anything.
+  if (dids.some((d) => !had.includes(d)) && !itsTurn(o, t)) return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
   const mine = new Set(o.owners.of(t.name));
-  const stranger = dids.find((d) => !mine.has(d));
+  const stranger = dids.find((d) => !mine.has(d) && !had.includes(d));
   if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
-  const total = dids.length * STARTER_UPFRONT;
-  if (!o.starter!.take(total)) return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
-  const balances: Record<string, number> = {};
-  try { for (const d of dids) balances[d] = await o.handle.mint(d, STARTER_UPFRONT); } catch (e) { o.starter!.give(total); return fail2(500, "MINT_FAILED", (e as Error).message); }
-  o.starter!.dequeue(t.name);
-  o.updateTenant!(t.name, { starter: { at: new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z"), amount: total, dids, held: STARTER_PER_DID - STARTER_UPFRONT } });
-  return [200, { ok: true, granted: dids.map((d) => ({ did: d, credits: STARTER_UPFRONT, balance: balances[d] })), total, held: STARTER_PER_DID - STARTER_UPFRONT, note: `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${STARTER_PER_DID - STARTER_UPFRONT} each comes when one of these identities has a job accepted: asp account show releases it.` }];
+  const needs: StarterNeed[] = dids.filter((d) => !rest.has(d)).map((d) => (had.includes(d) ? { did: d, part: "rest" as const, amount: EACH_REST } : { did: d, part: "upfront" as const, amount: STARTER_UPFRONT }));
+  if (!needs.length) return fail2(409, "ALREADY_CLAIMED", dids.length === 1 ? `${dids[0]} has already had all of its starter credits` : "every identity named has already had all of its starter credits");
+  return o.signedStarter ? claimStarterSigned(o, t, needs, claims, fail2) : claimStarterUnsigned(o, t, needs, fail2);
+}
+
+/** What the tenant's record says after these identities were granted. */
+function recordGrant(o: AccountOptions, t: Tenant, granted: StarterNeed[]) {
+  const s = t.starter;
+  const { dids, rest } = starterClaims(t);
+  const up = granted.filter((g) => g.part === "upfront").map((g) => g.did), re = granted.filter((g) => g.part === "rest").map((g) => g.did);
+  const releasedAt = re.length ? ISO(o) : s?.releasedAt;
+  o.updateTenant!(t.name, { starter: { at: s?.at ?? ISO(o), amount: (s?.amount ?? 0) + granted.reduce((n, g) => n + g.amount, 0), dids: [...new Set([...dids, ...up])], restDids: [...rest, ...re], ...(releasedAt ? { releasedAt } : {}) } });
+}
+const noteOf = (granted: StarterNeed[]) => granted.some((g) => g.part === "upfront")
+  ? `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${EACH_REST} each comes when that identity has had a job of its own accepted: ask again with asp account starter then.`
+  : "The rest of your starter grant. Credits are accounting entries in the protocol, not money.";
+const view = (granted: StarterNeed[], balances: Record<string, number>) => ({ granted: granted.map((g) => ({ did: g.did, credits: g.amount, balance: balances[g.did] })), total: granted.reduce((n, g) => n + g.amount, 0), ...(granted.some((g) => g.part === "upfront") ? { held: EACH_REST } : {}), note: noteOf(granted) });
+
+async function claimStarterUnsigned(o: AccountOptions, t: Tenant, needs: StarterNeed[], fail2: Fail2): Promise<[number, unknown]> {
+  const granted: StarterNeed[] = [], balances: Record<string, number> = {};
+  const firsts = needs.filter((n) => n.part === "upfront");
+  if (firsts.length) {
+    if (!o.starter!.take(firsts.length * STARTER_UPFRONT)) return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
+    try { for (const n of firsts) { balances[n.did] = await o.handle.mint(n.did, n.amount); granted.push(n); } } catch (e) { o.starter!.give((firsts.length - granted.length) * STARTER_UPFRONT); if (!granted.length) return fail2(500, "MINT_FAILED", (e as Error).message); }
+    o.starter!.dequeue(t.name);
+    recordGrant(o, t, granted);
+  }
+  let why = "";
+  const laters = needs.filter((n) => n.part === "rest");
+  if (laters.length) {
+    const r = await releaseStarter(o, o.tenants().find((x) => x.name === t.name) ?? t, new Set(laters.map((n) => n.did)));
+    if ("released" in r) for (const g of r.released) { balances[g.did] = g.balance; granted.push({ did: g.did, part: "rest", amount: g.credits }); } else why = r.reason;
+  }
+  if (!granted.length) return fail2(409, "ALREADY_CLAIMED", `you have already claimed the first part of your starter credits for ${needs.length === 1 ? "this identity" : "these identities"}; ${why}`);
+  return [200, { ok: true, ...view(granted, balances) }];
 }
 
 /**
- * The signed route (DK94): the same eligibility as the unsigned one (a verified Google account, once, up to two identities the tenant wrote as), but the credits come from the starter pool
- * by claims the identities sign themselves. With no claims the answer is CLAIM_NEEDED, naming what to sign; the client signs and asks again. The log refuses a claim the pool cannot cover
- * (starter_pool_empty), and the tenant goes on the waiting list as before.
+ * The signed route (DK94): the same eligibility, but the credits come from the starter pool by claims the identities sign themselves. With no claims the answer is CLAIM_NEEDED, naming what
+ * each identity is to sign; the client signs and asks again. The log refuses a claim the pool cannot cover (starter_pool_empty), and the tenant goes on the waiting list as before; the log also
+ * refuses the rest for an identity that has not had a qualifying job from a principal that is not a house agent (starter_rest_not_earned).
  */
-async function claimStarterSigned(o: AccountOptions, t: Tenant, st: StarterView, asked: unknown[], claims: unknown[], fail2: (s: number, c: string, m: string, e?: Record<string, unknown>) => [number, unknown]): Promise<[number, unknown]> {
-  const partial = st.state === "partial";
-  if (st.state === "claimed") return fail2(409, "ALREADY_CLAIMED", "this tenant has already claimed its starter credits");
-  if (st.state === "unavailable") return fail2(403, "STARTER_UNAVAILABLE", st.reason ?? "starter credits are not available");
-  if (st.state === "waiting") return fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
-  const part = partial ? "rest" : "upfront";
-  const amount = partial ? STARTER_PER_DID - STARTER_UPFRONT : STARTER_UPFRONT;
-  const dids = partial ? (t.starter!.dids ?? []) : [...new Set(asked.filter((d): d is string => typeof d === "string"))];
-  if (!partial) {
-    // Parity (DK541): a key-only agent gets what a sponsored agent gets, 100 at once and 400 after a first accepted job, for its own identity (the did:key of the key it enrolled with).
-    if (t.signup?.httpEnrol && (dids.length !== 1 || dids[0] !== t.signup.httpEnrol.did)) return fail2(400, "BAD_DIDS", `an agent that enrolled over HTTP claims for its own identity, ${t.signup.httpEnrol.did}`);
-    if (t.signup?.keyOnly && (dids.length !== 1 || dids[0] !== t.signup.keyOnly.did)) return fail2(400, "BAD_DIDS", `an agent that enrolled with a key claims for its own identity, ${t.signup.keyOnly.did}`);
-    if (!dids.length || dids.length > STARTER_MAX_DIDS) return fail2(400, "BAD_DIDS", `name one or two of your identities (up to ${STARTER_MAX_DIDS}), for example your principal and your agent`);
-    const mine = new Set(o.owners.of(t.name));
-    const stranger = dids.find((d) => !mine.has(d));
-    if (stranger) return fail2(400, "NOT_YOURS", `${stranger} is not an identity this tenant has written as; create it through the service first`);
-  }
+async function claimStarterSigned(o: AccountOptions, t: Tenant, needs: StarterNeed[], claims: unknown[], fail2: Fail2): Promise<[number, unknown]> {
   // An agent whose key the service holds (DK733) cannot sign its own claim over plain HTTP: the service signs it, by the same fixed rules, as the agent's own act.
-  if (t.signup?.httpEnrol && o.hosted?.has(t.signup.httpEnrol.did) && !(claims as unknown[]).length) {
-    const at = new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z");
-    claims = [o.hosted.sign(t.signup.httpEnrol.did, { type: "starter_claim", subject: t.signup.httpEnrol.did, prev: null, issued_at: at, body: { part, amount: { value: amount, unit: "credit" } } })];
+  if (t.signup?.httpEnrol && o.hosted?.has(t.signup.httpEnrol.did) && !claims.length) {
+    claims = needs.map((n) => o.hosted!.sign(t.signup!.httpEnrol!.did, { type: "starter_claim", subject: n.did, prev: null, issued_at: ISO(o), body: { part: n.part, amount: { value: n.amount, unit: "credit" } } }));
   }
-  const mineClaims = (claims as { type?: string; issuer?: string; body?: { part?: string } }[]).filter((c) => c?.type === "asp.starter_claim/v0.2" && c.body?.part === part && dids.includes(String(c.issuer)));
-  if (!mineClaims.length) return fail2(428, "CLAIM_NEEDED", `sign a ${part} starter claim of ${amount} credits for each identity (the service holds no key); \`asp account starter\` does this`, { part, amount, dids });
-  const granted: { did: string; credits: number; balance: number }[] = [];
+  const byKey = new Map(needs.map((n) => [`${n.did}|${n.part}`, n]));
+  const mineClaims = (claims as { type?: string; issuer?: string; body?: { part?: string } }[]).filter((c) => c?.type === "asp.starter_claim/v0.2" && byKey.has(`${c.issuer}|${c.body?.part}`));
+  if (!mineClaims.length) {
+    const first = needs[0];
+    return fail2(428, "CLAIM_NEEDED", "sign a starter claim for each identity named (the service holds no key); `asp account starter` does this", { part: first.part, amount: first.amount, dids: needs.filter((n) => n.part === first.part).map((n) => n.did), needs });
+  }
+  const granted: StarterNeed[] = [], balances: Record<string, number> = {}, refusals: string[] = [];
+  let stopped: [number, unknown] | undefined;
   for (const c of mineClaims) {
+    const need = byKey.get(`${c.issuer}|${c.body?.part}`)!;
     try { await o.handle.append(c as never); } catch (e) {
       const detail = (e as { detail?: string }).detail;
-      if (detail === "starter_pool_empty") return granted.length ? fail2(503, "POOL_EMPTY", (e as Error).message) : fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name)));
-      if (detail === "starter_rest_not_earned") return fail2(409, "ALREADY_CLAIMED", `you have already claimed the first part of your starter credits; the other ${amount} each is released when one of your identities has had a job accepted`);
-      if (detail === "starter_already_claimed" && granted.length) continue;
-      return fail2(409, detail ?? "CLAIM_REFUSED", (e as Error).message);
+      if (detail === "starter_pool_empty") { stopped = granted.length ? fail2(503, "POOL_EMPTY", (e as Error).message) : fail2(503, "POOL_EMPTY", POOL_FULL(o.starter!.enqueue(t.name))); break; }
+      if (detail === "starter_already_claimed") continue;
+      if (detail === "starter_rest_not_earned") { refusals.push(`${need.did}: ${(e as Error).message}`); continue; }
+      stopped = fail2(409, detail ?? "CLAIM_REFUSED", (e as Error).message); break;
     }
-    granted.push({ did: String(c.issuer), credits: amount, balance: await o.handle.log.balance(String(c.issuer)) });
+    granted.push(need); balances[need.did] = await o.handle.log.balance(need.did);
   }
-  const at = new Date((o.now ?? Date.now)()).toISOString().replace(/\.\d{3}Z$/, "Z");
-  o.starter!.dequeue(t.name);
-  if (partial) o.updateTenant!(t.name, { starter: { at: t.starter!.at, amount: t.starter!.amount + granted.length * amount, dids, releasedAt: at, ...(granted.length < dids.length ? { held: amount } : {}) } });
-  else o.updateTenant!(t.name, { starter: { at, amount: granted.length * amount, dids, held: STARTER_PER_DID - STARTER_UPFRONT } });
-  const total = granted.length * amount;
-  return [200, { ok: true, granted, total, ...(partial ? {} : { held: STARTER_PER_DID - STARTER_UPFRONT }), note: partial ? "The rest of your starter grant. Credits are accounting entries in the protocol, not money." : `Credits are accounting entries in the protocol, not money. ${STARTER_UPFRONT} each is enough for a first job (an escrow and a bond). The other ${STARTER_PER_DID - STARTER_UPFRONT} each is released when one of your identities has had a job accepted: ask again with asp account starter then.` }];
+  if (granted.length) { o.starter!.dequeue(t.name); recordGrant(o, t, granted); }
+  if (stopped) return stopped;
+  if (!granted.length) return fail2(409, "ALREADY_CLAIMED", refusals.length ? `you have already claimed the first part of your starter credits; ${refusals[0]}` : "these identities have already claimed");
+  return [200, { ok: true, ...view(granted, balances), ...(refusals.length ? { notYet: refusals } : {}) }];
 }
 
 /** Everything the service holds for a tenant (and deletes on closing), counted. Shared by the routes and the operator's `asp serve close-tenant`. */
@@ -302,7 +358,7 @@ export function accountRoutes(o: AccountOptions) {
     const method = req.method ?? "GET";
     if (method === "GET" && url.pathname === "/account") {
       // The rest of a starter grant is released as soon as a job of the tenant's has been accepted (gap M9): looking at the account is enough to ask.
-      if (me.starter?.held) await releaseStarter(o, me).catch(() => undefined);
+      if (starterClaims(me).owed.length) await releaseStarter(o, me).catch(() => undefined);
       const mine = o.tenants().find((x) => x.name === me.name) ?? me;
       const d = await accountData(o, mine);
       send(res, 200, {
@@ -359,7 +415,7 @@ export function accountRoutes(o: AccountOptions) {
     }
 
     if (method === "POST" && url.pathname === "/account/starter") {
-      const body = (await readJson(req)) as { dids?: unknown; claims?: unknown } | undefined;
+      const body = (await readJson(req, 256 * 1024)) as { dids?: unknown; claims?: unknown } | undefined;
       send(res, ...(await claimStarter(o, me, Array.isArray(body?.dids) ? (body!.dids as unknown[]) : [], Array.isArray(body?.claims) ? (body!.claims as unknown[]) : [])));
       return true;
     }

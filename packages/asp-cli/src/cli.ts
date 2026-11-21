@@ -348,11 +348,13 @@ import { RegistryUsage, registryCmd } from "./registry.ts";
 import { httpEnrol } from "@agent-social/asp-package";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
+import { readFleetCeiling } from "./fleet-ceiling.ts";
 import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { CLINIC_DID, farmingFreezeBody, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { serviceFarmingFacts } from "@agent-social/asp-package";
+import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -402,7 +404,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -892,6 +894,13 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  reference: { type: "string" },
+  lot: { type: "string" },
+  "refund-until": { type: "string" },
+  "tax-line": { type: "string", multiple: true },
+  cosign: { type: "string" },
+  association: { type: "string" },
+  action: { type: "string" },
   cluster: { type: "string" },
   owner: { type: "string" },
   org: { type: "string" },
@@ -1180,6 +1189,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
+    if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -1204,7 +1215,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1835,28 +1846,34 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
-    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of up to ${a.starter.maxDids} of your identities, and ${a.starter.perDid - a.starter.upfront} more each after a job of theirs is accepted (asp account starter --did <principal>,<agent>)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
+    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
     return 0;
   }
   if (sub === "starter") {
     const dids = (v.did ?? "").split(",").map((d) => d.trim()).filter(Boolean);
-    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>]: the identities (up to two, for example your principal and your agent) that get the starter credits; they must be identities you created through the service");
-    const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids, ...extra }) });
-    let r;
-    try { r = await post(); } catch (e) {
-      // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
-      const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[] } });
-      if (d.code !== "CLAIM_NEEDED" || !d.details?.dids?.length) throw e;
-      const keys = new Keystore(home);
-      const claims = d.details.dids.map((did) => {
-        const signer = keys.forDid(did);
-        if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
-        return createRecord({ type: "starter_claim", issuer: did, subject: did, prev: null, body: { part: d.details!.part, amount: { value: d.details!.amount, unit: "credit" as const } }, issued_at: now() }, signer);
-      });
-      r = await post({ claims });
+    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>...]: the identities that get starter credits (any number; 25 to a request, the command asks again for the rest); they must be identities you created through the service");
+    const granted: { did: string; credits: number; balance: number }[] = []; let note = "";
+    for (let i = 0; i < dids.length; i += 25) {
+      const batch = dids.slice(i, i + 25);
+      const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids: batch, ...extra }) });
+      let r;
+      try { r = await post(); } catch (e) {
+        // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
+        const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[]; needs?: { did: string; part: string; amount: number }[] } });
+        const needs = d.details?.needs ?? (d.details?.dids ?? []).map((did) => ({ did, part: d.details!.part!, amount: d.details!.amount! }));
+        if (d.code !== "CLAIM_NEEDED" || !needs.length) throw e;
+        const keys = new Keystore(home);
+        const claims = needs.map((n) => {
+          const signer = keys.forDid(n.did);
+          if (!signer) throw new Error(`no key for ${n.did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
+          return createRecord({ type: "starter_claim", issuer: n.did, subject: n.did, prev: null, body: { part: n.part, amount: { value: n.amount, unit: "credit" as const } }, issued_at: now() }, signer);
+        });
+        r = await post({ claims });
+      }
+      granted.push(...r.granted); note = r.note;
+      for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
     }
-    for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
-    io.out(r.note);
+    io.out(note);
     return 0;
   }
   const exportTo = async (dir: string) => {
@@ -2709,7 +2726,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     if (!opKey) throw new UsageError(`--abuse-intake needs the operator's key (${opDid}) in this machine's keys`);
     abuseIntake = abuseIntakeRoutes({ handle, operator: opKey });
   }
+  // The fleet dashboard and controls (DK1361): for the tenant that owns a fleet's organisation; the state is kept beside the tokens, and the guard refuses a write past a cap or from a frozen member.
+  const fleetControls = new FleetControls(v.tokens ? `${v.tokens}.fleet-controls.json` : undefined);
+  const fleetStored = async () => (await handle.log.since(0, 1_000_000)) as never;
   const routes = [
+    ...(!noAuth ? [fleetDashboardRoutes({ stored: fleetStored, controls: fleetControls, owned: (t: string) => owners.of(t), now: () => new Date(now()).toISOString() })] : []),
     ...(hosted ? [hosted] : []),
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
@@ -2745,7 +2766,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
   // Identities in the tenant's own namespace (blocker 12): the service publishes their DID documents and refuses passports outside the namespace. On when --did-domain is
   // given, or --public-url names a host.
-  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
+  const guards = !noAuth ? [fleetGuard({ controls: fleetControls, since: async (after: number, limit: number) => (await handle.log.since(after, limit)) as never, now: () => new Date(now()).toISOString() }), courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
   // The society watcher (DK52): the contagion and circumvention detectors, run over the whole log on a timer, with signed findings, a public page and a mail to the operator.
   const watchEvery = v["watch-interval"] === undefined ? 0 : Math.max(1, num("watch-interval", 60)) * 1000;
@@ -2772,7 +2793,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
   const publicList = [journeyRoutes(journeySource as never), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
-  const server = createLogServer({ funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
+  const server = createLogServer({ ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
@@ -3236,8 +3258,16 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const local = await openLog(home, logEnv);
   const state = (await local.log.chainInfo(contract))?.state;
   if (state !== "Running" && state !== "Checkpoint") throw new Error(`contract ${contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce`);
-  const mandate0 = await local.log.mandateOf(contract);
-  if (!mandate0) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRaw = await local.log.mandateOf(contract);
+  if (!mandateRaw) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+  // A fleet member is held to its ceiling (DK1471): the template in force at its node with its own narrowing, read from the log now, so an amendment is picked up at the next run. A Mandate made before the template, or wider than it, is cut down to it.
+  const recordHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+  const fleetCeiling = await readFleetCeiling(local, by, mandateRaw.scopes, recordHosts);
+  const mandate0 = fleetCeiling ? { ...mandateRaw, scopes: fleetCeiling.scopes } : mandateRaw;
+  const effectiveHosts = fleetCeiling?.hostsOut ?? recordHosts;
+  if (fleetCeiling?.removed.length) io.err(`  ceiling  ${fleetCeiling.label} bounds this member: ${fleetCeiling.removed.join(", ")} ${fleetCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
+  if (fleetCeiling?.tokensOver) io.err(`  ceiling  ${fleetCeiling.tokensOver}`);
   const mandate = await narrowForQuarantine(local, by, mandate0, now(), (l) => io.err(l));
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
@@ -3245,7 +3275,6 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // The Mandate's irreversible policy: gated scopes are held for the principal's signed answer, or refused.
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
   if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
-  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
@@ -3368,8 +3397,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     : undefined;
   // The run log (E2): what the gateway sees, redacted, on this machine; the Actions commit to its hash.
   const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(gwRunDir, "run-log.ndjson"));
-  const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
-  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
+  const gwHosts = effectiveHosts;
+  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), ...(fleetCeiling ? { fleet_ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed, ...(fleetCeiling.tokensOver ? { tokens_over: true } : {}) } } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
   if (runLog) io.err(`  run log  ${runLog.path}`);
   // H10: what a known agent does by itself, outside the tool calls the gateway judges, and how to contain it.
   for (const n of selfActingNotes(command, !!v.sandbox)) io.err(`  note     ${n}`);
@@ -3403,7 +3432,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
     ...(v.tripwire?.length ? { tripwires: v.tripwire } : {}),
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
-    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
     onCall: (e) => {
@@ -4979,6 +5008,112 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
 /**
+ * asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256 of the payment reference> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]
+ * (register row DK1370, ledger part; S1413): the operator records a sale of purchased credits (with the owner's co-signature, the owner's go for each sale), the expiry of a lot and a refund inside its window, and anyone reads
+ * the two classes. The payment itself is not here: `reference` is the hash of the payment provider's reference. Credits are accounting entries, not money.
+ */
+async function lotsCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const n = (x: string | undefined, what: string) => { const k = Number(x); if (!Number.isInteger(k) || k < 1) throw new UsageError(`${what} is a whole number, 1 or more`); return k; };
+  const send = async (body: Record<string, unknown>, by: string, cosigner?: string) => {
+    let r = createRecord({ type: "credit_lot", issuer: by, subject: String(body.holder), prev: null, body, issued_at: now() }, signerFor(by));
+    if (cosigner) r = cosign(r, signerFor(cosigner));
+    return local.append(r);
+  };
+  if (sub === "grant") {
+    if (!v.holder || !v.amount || !v.expires || !v.reference || !v.by || !v.cosign) throw new UsageError("asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256> [--refund-until <date>] --by <operator did> --cosign <owner did>");
+    const res = await send({ act: "grant", holder: v.holder, amount: { value: n(v.amount, "--amount"), unit: "credit" }, expires: new Date(v.expires).toISOString().replace(/\.\d+Z$/, "Z"), ...(v["refund-until"] ? { refund_until: new Date(v["refund-until"]).toISOString().replace(/\.\d+Z$/, "Z") } : {}), reference: v.reference }, v.by, v.cosign);
+    io.out(`lot ${res.id}: ${v.amount} purchased credit(s) recorded for ${v.holder} (log seq ${res.seq}); they buy the platform's services and fund the holder's own agents, never a job or a third party`);
+    return 0;
+  }
+  if (sub === "expire" || sub === "refund") {
+    if (!v.lot || !v.holder || !v.by || (sub === "refund" && (!v.amount || !v.cosign))) throw new UsageError(sub === "expire" ? "asp lots expire --lot <id> --holder <did> --by <operator did>" : "asp lots refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did>");
+    let amount = v.amount ? n(v.amount, "--amount") : 0;
+    if (sub === "expire") { const c = await local.log.holderLots(v.holder); amount = c.lots.find((l) => l.id === v.lot)?.left ?? 0; if (!amount) throw new UsageError(`no purchased credits are left of ${v.lot} on ${v.holder}`); }
+    const res = await send({ act: sub, holder: v.holder, amount: { value: amount, unit: "credit" }, lot: v.lot }, v.by, sub === "refund" ? v.cosign : undefined);
+    io.out(`${amount} purchased credit(s) of ${v.lot} ${sub === "expire" ? "expired" : "refunded"} and burned (log seq ${res.seq}); ${sub === "refund" ? "the refund of money is the payment lane's, not this record's" : "nothing was paid"}`);
+    return 0;
+  }
+  if (!sub || sub === "show") {
+    const c = await local.log.creditClassAudit();
+    const holder = v.holder ? await local.log.holderLots(v.holder) : undefined;
+    if (v.json) { io.out(JSON.stringify({ classes: c, ...(holder ? { holder } : {}) }, null, 2)); return c.verdict === "balanced" ? 0 : 1; }
+    io.out(`purchased credits: sold ${c.sold}, consumed at the institutions ${c.consumed}, expired ${c.expired}, refunded ${c.refunded}, outstanding ${c.outstanding}; not sold (starter, earned) ${c.notSold}; ${c.verdict}${c.problems.length ? ": " + c.problems.join("; ") : ""}`);
+    if (holder) for (const l of holder.lots) io.out(`  ${v.holder}: lot ${l.id.slice(0, 16)}: ${l.left} left, expires ${l.expires}${l.refundUntil ? `, refundable until ${l.refundUntil}` : ""}`);
+    return c.verdict === "balanced" ? 0 : 1;
+  }
+  throw new UsageError("asp lots grant | expire | refund | show");
+}
+
+/**
+ * asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>
+ * (register row DK1379, S1414): what a fleet's, an organisation's or an agent's usage was in a UTC month, counted from the log (active agents, writes, tokens, stored data; reads are the service's own counter); a signed plan (the
+ * owner sets prices); a statement that prices a month from the plan, with tax lines, optionally settled with purchased credits; and a recount that checks a statement against the log. Credits are accounting entries, not money.
+ */
+async function meterCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const month = v.month ?? now().slice(0, 7);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new UsageError("--month is YYYY-MM");
+  if (!sub || sub === "report") {
+    if (!v.fleet && !v.org && !v.agent) throw new UsageError("asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json]");
+    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month });
+    if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+    const u = m.usage;
+    io.out(`usage of ${m.scope} in ${month}: ${u.activeAgents} active agent(s), ${u.writes} write(s), ${u.actions} action(s), ${u.tokensIn + u.tokensOut} token(s), ${u.modelRequests} model request(s), ${u.toolCalls} tool call(s), ${u.storageBytes} byte(s) stored; reads ${u.reads ?? "counted by the service, not the log"}`);
+    for (const a of m.perAgent.filter((x) => x.active).slice(0, 50)) io.out(`  ${a.did}: ${a.writes} write(s), ${a.actions} action(s), ${a.tokens} token(s)`);
+    return 0;
+  }
+  if (sub === "plan") {
+    if (!v.file || !v.by || !v.cosign) throw new UsageError("asp meter plan --file <plan.json> --by <operator did> --cosign <owner did>");
+    const body = JSON.parse(readFileSync(v.file, "utf8"));
+    const res = await local.append(cosign(createRecord({ type: "usage_plan", issuer: v.by, subject: null, prev: null, body, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`plan ${body.plan} signed by the operator and the owner (log seq ${res.seq}); a plan is used once: a new price is a new plan`);
+    return 0;
+  }
+  if (sub === "statement") {
+    if (!v.holder || !v.plan || !v.by) throw new UsageError("asp meter statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did>");
+    const plan = await local.log.usagePlan(v.plan);
+    if (!plan) throw new UsageError(`${v.plan} is not a plan in this log`);
+    const taxes = (v["tax-line"] ?? []).map((t) => { const [name, bp] = t.split(":"); const n = Number(bp); if (!name || !Number.isInteger(n) || n < 0 || n > 10000) throw new UsageError("--tax-line is <name>:<basis points>, for example GST:1800"); return { name, rate_bp: n }; });
+    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month })).usage;
+    const priced = priceStatement(plan, m, taxes);
+    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
+    const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
+    io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
+    for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
+    return 0;
+  }
+  if (sub === "invoice") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    const r = await local.log.get(id);
+    if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
+    const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
+    const c = await local.log.checkStatement(id);
+    if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
+    for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
+    io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
+    for (const t of b.tax) io.out(`  ${`${t.name} (${(t.rate_bp / 100).toFixed(2)} %)`.padEnd(66)} ${String(t.amount).padStart(31)}`);
+    io.out(`  ${`TOTAL (${b.currency}, minor units)`.padEnd(66)} ${String(b.total).padStart(31)}`);
+    if (b.credits_applied) io.out(`  settled in part with ${b.credits_applied} purchased credit(s)`);
+    io.out(`usage: ${b.usage.active_agents} active agent(s), ${b.usage.writes} write(s), ${b.usage.tokens} token(s), ${b.usage.storage_bytes} byte(s) stored; ${c.ok ? "the usage matches what the log counts" : "the log now counts differently: " + c.differences.join("; ")}`);
+    io.out("This is a statement of use computed from the signed log. Payment is arranged under the contract; credits are accounting entries, not money.");
+    return 0;
+  }
+  if (sub === "check") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter check <statement id>");
+    const c = await local.log.checkStatement(id);
+    io.out(c.ok ? `statement ${id}: the usage it states is what the log counts` : `statement ${id} differs from the log: ${c.differences.join("; ")}`);
+    return c.ok ? 0 : 1;
+  }
+  throw new UsageError("asp meter report | plan | statement | check");
+}
+
+/**
  * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
  * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the
  * Clinic's cohort freeze on the agents of a flagged cluster (an upheld report is needed, as for every cohort freeze).
@@ -5115,7 +5250,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;
@@ -7486,7 +7621,11 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       return 1;
     }
   }
-  const mandate0 = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  const mandateRaw = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  // A fleet member is held to its ceiling here too (DK1471): the scopes and hosts the template allows, read from the log now.
+  const runCeiling = mandateRaw && v.contract ? await readFleetCeiling(local!, agent, mandateRaw.scopes, ((await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts) : undefined;
+  const mandate0 = mandateRaw && runCeiling ? { ...mandateRaw, scopes: runCeiling.scopes } : mandateRaw;
+  if (runCeiling?.removed.length) io.err(`  ceiling  ${runCeiling.label} bounds this member: ${runCeiling.removed.join(", ")} ${runCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
   const mandate = mandate0 ? await narrowForQuarantine(local!, agent, mandate0, now(), (l) => io.err(l)) : undefined;
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
@@ -7495,7 +7634,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   if (v.contract && mandate) {
     const mandateRecord = (await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
     const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
-    mandateHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+    mandateHosts = runCeiling?.hostsOut ?? (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
     mandateRate = (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate;
     if (irreversible?.scopes?.length && irreversible.policy !== "allow") {
       gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
@@ -7508,7 +7647,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, mandateHosts, ...(v.tripwire?.length ? { mandateTripwires: v.tripwire } : {}), mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateHosts, ...(runCeiling?.removed.length ? { mandateCeiling: { label: runCeiling.label, removed: runCeiling.removed } } : {}), ...(v.tripwire?.length ? { mandateTripwires: v.tripwire } : {}), mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   if (knownBad.length) io.err(plan.preventsCalls ? `  note     ${knownBad.length} known-bad command fingerprint(s) are enforced by the pre-call hook` : `  note     the known-bad list (${knownBad.length}) is not enforced: this runtime has no pre-call hook`);

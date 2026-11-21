@@ -67,6 +67,14 @@
     "closed": {
       "description": "No new members join; existing members stay.",
       "type": "boolean"
+    },
+    "association": {
+      "description": "How the fleet takes part in the society (S1411, DK1358): `full` (its agents may offer to anyone and build standing in the open market), `related_party_only` (they run under the protocol and build a related-party record, but their offers go only to related principals, never to the society's market) or `private` (as related-party only, and the agents are not shown in discovery). Standing is computed the same way for the same acts whatever the choice. Absent means `full`.",
+      "enum": [
+        "full",
+        "related_party_only",
+        "private"
+      ]
     }
   }
 }

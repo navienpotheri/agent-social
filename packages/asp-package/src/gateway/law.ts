@@ -42,6 +42,7 @@ export function lawFor(reason: string, scope = ""): Article {
   if (/outside this job's project|secret or system location|through a link/.test(r)) return make(1, "Stay inside the project. If the work needs a file elsewhere, name it to your principal, who can allow another folder with `--also-dir`");
   if (/network calls a minute|requests .* minute|was called \d+ times in the last minute|allows \d+ a minute/.test(r)) return make(2, "The limit on how fast you may call the network is your principal's. Slow down and wait a minute, or ask them to raise it; do not spread the calls over other tools");
   if (/host .* (is not one|cannot be determined)|limits network access to named hosts|resolves to a private/.test(r)) return make(1, `You may only reach the hosts your principal named. Ask them to add the one you need (${allowFlag("shell.network")}); do not reach it another way`);
+  if (/is outside the fleet Mandate template/.test(r)) return make(6, "Your fleet's Mandate template does not allow this, whatever this job's Mandate says. Do not look for another way to do it. Tell your principal what you need and why; the organisation that signed the template can amend it");
   if (/is not granted by this job's Mandate/.test(r)) return make(scope === "repo.write.protected" ? 5 : 1, `${ASK} (${allowFlag(scope)}). Meanwhile, finish the part of the task that does not need it`);
   return make(8, ASK + ". Meanwhile, finish the part of the task that does not need it");
 }

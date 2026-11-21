@@ -17,8 +17,8 @@ export const FARMING_WINDOW_MS = 90 * DAY;
 export const MAX_RING = 5;
 
 /** Facts the hosted service holds about sponsors and the log does not: a value shared by two sponsors links them. Values are opaque (a hash the service made), never the instrument, domain or address itself. */
-export interface ExternalFacts { payment?: Record<string, string>; domain?: Record<string, string>; address?: Record<string, string> }
-export type ControlBasis = "key_lineage" | "payment" | "domain" | "address";
+export interface ExternalFacts { payment?: Record<string, string>; domain?: Record<string, string>; address?: Record<string, string>; /** A verified account the service holds (a Google account): two sponsors behind one are one controller. */ account?: Record<string, string> }
+export type ControlBasis = "key_lineage" | "payment" | "domain" | "address" | "account";
 export interface Cluster { id: string; sponsors: string[]; basis: ControlBasis[] }
 
 export type FindingKind = "common_control" | "ring" | "closed_circle" | "wash" | "fan_in" | "fleet_concentration";
@@ -66,7 +66,7 @@ export function commonControl(records: Rec[], external: ExternalFacts = {}): { c
   const note = (a: string, b: string, why: ControlBasis) => { if (a === b) return; dsu.union(a, b); for (const x of [a, b]) { const s = basis.get(x) ?? new Set(); s.add(why); basis.set(x, s); } };
   for (const owners of keyOwners.values()) { const cs = [...new Set([...owners].map(ctl))]; for (let i = 1; i < cs.length; i++) note(cs[0], cs[i], "key_lineage"); }
   for (const [child, parent] of lineage) note(ctl(child), ctl(parent), "key_lineage");
-  for (const [why, table] of [["payment", external.payment], ["domain", external.domain], ["address", external.address]] as const) {
+  for (const [why, table] of [["payment", external.payment], ["domain", external.domain], ["address", external.address], ["account", external.account]] as const) {
     if (!table) continue;
     const byValue = new Map<string, string[]>();
     for (const [s, v] of Object.entries(table)) byValue.set(v, [...(byValue.get(v) ?? []), ctl(s)]);
@@ -153,7 +153,8 @@ export function analyseFarming(records: Rec[], opts: { at?: string; seed?: strin
           if (path.length >= 3 && !flaggedSets.has(key)) {
             let minEdge = Infinity;
             for (let i = 0; i < path.length; i++) minEdge = Math.min(minEdge, pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)?.length ?? 0);
-            const lv = levelOf((minEdge - t.ringEdge) / t.ringEdge, { ...t, likelyMargin: 0, strongMargin: 0.5 });
+            const need = path.length >= 4 ? Math.max(2, t.ringEdge - 1) : t.ringEdge; // a longer ring is rarer by chance, so a shorter repeat is enough
+            const lv = levelOf((minEdge - need) / need, { ...t, likelyMargin: 0, strongMargin: 0.5 });
             if (lv && lv !== "watch") { flaggedSets.add(key); findings.push({ kind: "ring", level: lv, sponsors: [...set].sort(), jobs: path.flatMap((_, i) => pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)!.map((j) => j.id)).slice(0, 50), why: `a ring of ${set.size} controllers in which each hires the next at least ${minEdge} times, whatever else they do` }); }
           }
         }

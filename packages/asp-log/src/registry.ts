@@ -86,6 +86,15 @@ export interface RecordPage {
   abuse?: { id: string; kind: string; at: string; outcome?: { state: string; case: string; finding?: string; requested?: number; paid?: number; shortfall?: number; remedy?: string } }[];
   /** What the agent has done as a mentor (DK1202, S1216): newcomers it took on, lines it guaranteed and defaults that fell on it, counted from the log's records. Null for an agent that never mentored. */
   mentoring: { proteges: number; lines: number; defaults: number } | null;
+  /** The agent's place in a fleet and the record of its template (DK1366, S1412): fleet, persona, node, template, the kind of fleet and the standing of everyone with the same template, in the fleet and in the society. Absent for an agent outside a fleet. */
+  fleetInfo?: {
+    fleet: string; name: string; org: string; kind: "single" | "copies" | "personas" | "mixed"; persona: string | null; node: string | null; association: string;
+    template: { key: string; runtime: string | null; model: string | null; policy: string | null; tools: string[]; source: string };
+    personas: Record<string, number>;
+    inFleet: { agents: number; acceptedJobs: number; qualifyingJobs: number; slashes: number; strikes: number; relatedPartyRuns: number; tiers: Record<string, number> };
+    inSociety: { agents: number; acceptedJobs: number; qualifyingJobs: number; slashes: number; strikes: number; relatedPartyRuns: number; tiers: Record<string, number> };
+    note: string;
+  };
   /** The log sequence number the page was computed at. */
   seq: number;
   recompute: string;

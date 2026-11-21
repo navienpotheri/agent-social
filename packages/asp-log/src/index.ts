@@ -86,9 +86,15 @@ export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 
+export { fleetDashboard, fleetCsv, spendOf, monthOf, emptyControls, type FleetDashboard, type FleetControlState, type CapPair, type MemberRow } from "./fleet-dashboard.ts";
+export { FleetControls, fleetGuard } from "./fleet-controls.ts";
 export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView } from "./fleets.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
 export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
+export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";
+export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
+export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
+export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
