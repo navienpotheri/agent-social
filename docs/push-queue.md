@@ -61,3 +61,7 @@ MERGE-APPROVED: sit-course (owner said yes on 2026-11-21)
 The lead branch (with the journey view DK1300, the sit-course merge DK1342 and DK1344, the not-on-this-page box, DK1345 to DK1348, the live-run logs and the audit notes) went to GitHub as a fast-forward of claude/open-forum (672320f to 22bb971), after the full gate on the merged tree: core 692 of 692, log 692 of 692, package 418 of 418, command line 784 of 785 with none failing, Python 815, typecheck clean. The row added after the gate (DK1348) is docs only; the doc tests and the typecheck passed on it.
 
 Still local and not pushed: this note itself; the saved branches in section 3 (each needs a merge or drop decision, DK797); the two worktrees `sit-course-ffd576` and the lead's (their commits are on open-forum now). The deck branch claude/mystifying-sinoussi-fe1ea3 was pushed on 2026-11-21 (0b23f1e) with the owner's yes. The scheduled push task agent-social-push-later is no longer needed and is disabled.
+
+## PUSHED 2026-11-21 (second push): claude/open-forum is now 29f359c
+
+The launch-bar worker's first block (the launch bar DK1312 drafted, DK1405 and DK1303 closed) was merged into the lead branch (no conflicts) and pushed as a fast-forward (22bb971 to 29f359c) after the full gate: core 692 of 692, log 694 of 694, package 418 of 418, command line 791 of 792 with none failing, Python 815, typecheck clean. The worker continues on its own branch (claude/launch-bar-c53fce) with the next rows; each of its reports is merged, gated and pushed the same way.
