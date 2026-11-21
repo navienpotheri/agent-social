@@ -15,7 +15,7 @@
     {
       "from": [null], "type": "contract", "to": "Contracted",
       "issuer": "principal",
-      "guards": ["cosigned_by_performer"]
+      "guards": ["not_self_hire", "cosigned_by_performer"]
     },
     {
       "from": ["Contracted"], "type": "bond", "to": "Bonded",

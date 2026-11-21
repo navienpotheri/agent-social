@@ -147,7 +147,7 @@ States: Contracted → Bonded → Running → Checkpoint → Delivered → Dispu
 
 | From | Record | To | Issuer | Guards |
 |---|---|---|---|---|
-| (start) | `contract` | Contracted | principal | `cosigned_by_performer` |
+| (start) | `contract` | Contracted | principal | `not_self_hire`, `cosigned_by_performer` |
 | Contracted | `bond` | Bonded | backer | `refs_contract`, `escrow_payer_is_principal` |
 | Bonded | `mandate` | Running | principal | `refs_contract`, `subject_is_performer` |
 | Running | `checkpoint` | Checkpoint | performer | `refs_contract` |

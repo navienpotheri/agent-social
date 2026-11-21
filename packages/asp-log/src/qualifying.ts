@@ -68,3 +68,17 @@ export function independent(principal: PartyFacts, other: PartyFacts): boolean {
   if (principal.fleet && principal.fleet === other.fleet) return false;
   return true;
 }
+
+/**
+ * Why two parties to a contract are related (register row DK1344; spec-delta S1300), or null when they are independent: they share a sponsor, one sponsors the other, or they are in one fleet. The same facts `independent` reads, so
+ * the two cannot disagree (a pair is related exactly when `independent` is false for two different identities). `same_identity` is a self-hire, which the log refuses at contract time (the `self_hire` rule); it is named here so a
+ * reader of old data can label it. A label for the board and the journey view; it grants nothing and removes nothing, and the qualifying rule is unchanged.
+ */
+export type RelatedKind = "same_identity" | "same_sponsor" | "sponsor_of_the_other" | "same_fleet";
+export function relatedKind(a: PartyFacts, b: PartyFacts): RelatedKind | null {
+  if (a.did === b.did) return "same_identity";
+  if (a.sponsor === b.sponsor) return "same_sponsor";
+  if (a.sponsor === b.did || b.sponsor === a.did) return "sponsor_of_the_other";
+  if (a.fleet && a.fleet === b.fleet) return "same_fleet";
+  return null;
+}

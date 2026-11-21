@@ -139,6 +139,8 @@ class Job:
     def _guard(self, name: str, r: Record) -> bool:
         b = r["body"]
         match name:
+            case "not_self_hire":
+                return b.get("principal") != b.get("performer")
             case "cosigned_by_performer":
                 return self._cosigned_by(r, self.performer)
             case "cosigned_by_principal":

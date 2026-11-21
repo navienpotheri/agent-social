@@ -23,7 +23,7 @@ import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
 import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
-import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, type PartyFacts, type RecentJob } from "./qualifying.ts";
+import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
 import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
@@ -172,7 +172,7 @@ export interface BoardEntry {
   /** The poster's standing, shown beside the job (JB1): what an agent weighing it can see about who is asking. */
   posterStanding?: { kind: "agent" | "person"; tier: number | null; qualifyingJobs: number; acceptedJobs: number; slashes: number; strikes: number; jobsPosted: number };
   /** Present when the board was read for one agent. */
-  forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number };
+  forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number; /** Set when the agent and the poster are related parties (one sponsor, a sponsor and its agent, or one fleet): a job between them is labelled related-party (DK1344). */ relatedParty?: RelatedKind };
   /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
   posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
@@ -314,6 +314,7 @@ export class EventLog {
     const kind = chain?.kind ?? type!;
 
     let snapshot: JobSnapshot | null = null;
+    if (type === "contract") this.checkSelfHire(verified);
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
       job.step(verified);
@@ -413,6 +414,7 @@ export class EventLog {
     if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
+    if (type === "contract") await this.noteRelatedParty(tx, verified);
     if (type === "contract") await this.checkTutorial(tx, verified);
     if (type === "registry_act") await projectRegistryAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did) });
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
@@ -2452,6 +2454,28 @@ export class EventLog {
    * The tutorial job (DK1203, S1217; owner decision DK392-MENTOR): a contract whose purpose begins with `[tutorial]` is a tutorial job. Its principal is a house agent (the public-works budget pays for it), its performer
    * is in its first week (the passport is at most TUTORIAL_DAYS days old at the contract) and has had no tutorial job before: one for each newcomer.
    */
+  /** The `self_hire` rule (register row DK1344; spec-delta S1300): a contract whose principal and performer are the same identity is refused when it is appended, not only denied standing later. */
+  private checkSelfHire(r: AspRecord): void {
+    const b = r.body as { principal?: string; performer?: string };
+    if (b.principal && b.principal === b.performer) throw rule("self_hire", `${b.principal} would hire itself: a contract's principal and performer are different identities`);
+  }
+
+  /** Labels a contract between related parties (one sponsor, a sponsor and its agent, or one fleet) as related-party, in a marker the board and the journey view read; it changes no rule and no standing. */
+  private async noteRelatedParty(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { principal?: string; performer?: string };
+    if (!b.principal || !b.performer) return;
+    const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const kind = relatedKind(await facts(b.principal), await facts(b.performer));
+    if (kind) await tx.putMarker(`related_party:${r.id}`, kind);
+  }
+
+  /** The related-party label of a contract (why its principal and performer are related), or null when they are independent. */
+  async relatedParty(contract: string): Promise<RelatedKind | null> {
+    let kind: RelatedKind | null = null;
+    await this.store.transaction(async (tx) => { kind = ((await tx.getMarker(`related_party:${contract}`)) as RelatedKind | undefined) ?? null; });
+    return kind;
+  }
+
   private async checkTutorial(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { principal: string; performer: string; purpose?: string };
     if (!b.purpose?.startsWith(TUTORIAL_LABEL)) return;
@@ -2895,6 +2919,8 @@ export class EventLog {
       if (facts) {
         const e = eligibility(facts, needs);
         entry.forAgent = { eligible: e.eligible, missing: e.missing, counts: countsFor(await partyFacts(facts.did), await partyFacts(p.issuer), needs.class, needs.budget) };
+        const related = relatedKind(await partyFacts(facts.did), await partyFacts(p.issuer));
+        if (related) entry.forAgent.relatedParty = related;
         // How many more jobs from this poster would count for the agent under the counterparty cap (market.md 5): the next one past the cap settles and does not count.
         if (entry.forAgent.counts.counts) entry.forAgent.moreCounting = moreUnderCap((await this.reputation(this.store, facts.did))?.recentJobs ?? [], (await partyFacts(p.issuer)).sponsor, when);
       }
