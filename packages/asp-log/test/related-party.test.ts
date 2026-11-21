@@ -117,6 +117,17 @@ describe("the record counts, and counts as itself", () => {
     assert.equal((await w.log.creditAudit()).verdict, "balanced");
   });
 
+  test("a run issued in the same instant as the breach does not count after it (the boundary is inclusive)", async () => {
+    const w = await world();
+    const a = await w.join("rp-edge");
+    const contract = await w.running(w.org, a);
+    const at = new Date(Date.now() + 5_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const issue = async (over: Record<string, unknown>) => { const r = mk("action", a, { contract, scopes_used: [], summary: "edge", assurance: "gateway_observed", ...over }, null, { subject: contract, at }); await w.log.append(r); return r.id; };
+    const same = await issue({});
+    await issue({ summary: "edge breach", blocked_attempts: [{ scope: "shell.exec", count: 1 }] });
+    assert.equal(await refusedBy(w.log.append(w.attest(w.org, a, same))), "rp_attestation_before_breach", "the same second as the breach is not after it");
+  });
+
   test("a blocked attempt or a Clinic freeze resets the record, and a run from before the breach cannot be attested afterwards", async () => {
     const w = await world();
     const a = await w.join("rp-breach");
