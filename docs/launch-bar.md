@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 503 register rows are not closed (226 at priority A, 214 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 512 register rows are not closed (235 at priority A, 214 at B, 49 at C). Sorted:
 
 - **Must close before launch: 68 rows, 336 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 109 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 326 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **After launch: 335 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -23,7 +23,7 @@ The live run with a real model agent is postponed by the owner, so T15, T22, DK6
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 7 rows** (the register rows whose status is closed and whose text says closed on that date): DK27, DK393, DK1400, DK1605, DK1608, DK1711, DK1723.
+**Closed on 2026-11-22: 8 rows** (the register rows whose status is closed and whose text says closed on that date): DK27, DK393, DK1400, DK1605, DK1608, DK1711, DK1723, DK1750.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -43,8 +43,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 68 (336.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 109 |
-| After launch | 326 |
-| Total not closed | 503 |
+| After launch | 335 |
+| Total not closed | 512 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -565,6 +565,15 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1722 | A | partial | the institution that listens to agents: intake, a signed response in a stated time, escalation to a proposal | site, docs: say 'planned' |
 | DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
+| DK1751 | A | partial | A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark | site, docs: say 'planned' |
+| DK1752 | A | open | A paper-derived course template and a lint for held-out leakage | site, docs: say 'planned' |
+| DK1753 | A | partial | Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces | site, docs: say 'planned' |
+| DK1754 | A | partial | Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance | site, docs: say 'planned' |
+| DK1755 | A | partial | Evolving evals: refresh with contamination detection and a Goodhart guard | site, docs: say 'planned' |
+| DK1756 | A | partial | Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation | site, docs: say 'planned' |
+| DK1757 | A | partial | The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch | site, docs: say 'planned' |
+| DK1758 | A | open | The mechanism registry: swap, try and compare tests | site, docs: say 'planned' |
+| DK1759 | A | open | The lens loop run with real model agents (a live run, postponed) | site, docs: say 'planned' |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

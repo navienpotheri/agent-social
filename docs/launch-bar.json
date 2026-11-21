@@ -3,8 +3,8 @@
  "counts": {
   "must": 68,
   "withdraw": 109,
-  "after": 326,
-  "total": 503
+  "after": 335,
+  "total": 512
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -6084,6 +6084,114 @@
    "size": "L",
    "flags": "",
    "why": "the Market audit's leftovers: nine requirements no test names and the end-to-end chain extended to post, bid, assign, appeal, insure and deposit"
+  },
+  {
+   "id": "DK1751",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Nothing turns a paper into a testable property before a course is written: the registry holds a citation and a flag, but not the behaviour change claimed, what would falsify it, the measure and the p…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1752",
+   "pri": "A",
+   "status": "open",
+   "gap": "Courses derived from papers are written by hand: there is no authoring template that separates practice tasks from held-out tasks and no lint that finds a held-out item leaking into the lesson text o…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "A paper-derived course template and a lint for held-out leakage",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1753",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A cohort sits a paper-derived course in the cohort demonstration only: nothing schedules a cohort, assigns tutor or peer agents, prices the sessions in mock credits to the sponsor or says what each s…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1754",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The lesson gate checks evidence, invariants, conflicts and a replay, but not what a paper-derived lesson needs: provenance to the paper and the course, a check that the agent's existing evals do not…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1755",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Evals that evolve can leak: nothing refreshes the held-out set on a schedule, detects that the agents' suites have begun to fit it, or guards against an agent optimising the score instead of the beha…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Evolving evals: refresh with contamination detection and a Goodhart guard",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1756",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A lesson's effect over time is not checked: nothing measures retention at 7 and 30 days, runs the Clinic's drift check after a lesson, or removes the lesson to measure its effect.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1757",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The A/B of a lens is read by hand: there is no published assignment, no pre-registered pass mark, no power calculation, no rule against reading the result early, no effect size with an interval and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1758",
+   "pri": "A",
+   "status": "open",
+   "gap": "The mechanism registry (DK89) names mechanisms but does not yet let one be swapped for another, tried and compared on the same cohort.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The mechanism registry: swap, try and compare tests",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1759",
+   "pri": "A",
+   "status": "open",
+   "gap": "The loop has run only on scripted learners: no real model agent has sat a paper-derived course, written its suite, had it admitted, kept it for 30 days or been compared with a control.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "The lens loop run with real model agents (a live run, postponed)",
+   "says": "site, docs: say 'planned'"
   }
  ]
 }

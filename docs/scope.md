@@ -1119,3 +1119,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1727 | A | partial | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
 | DK1728 | A | partial | No audit maps every Market, Bank and Insurer requirement to a test or a row, and no seeded end-to-end test runs the whole flow with the supply audit balanced. |
 | DK1729 | A | open | The Market audit found nine requirements no test names (BI-12, BI-14, BI-18, CR-9, CR-10, CR-11, CR-14, CR-22, CR-25) and an end-to-end chain that stops at settlement. |
+| DK1751 | A | partial | A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark. |
+| DK1752 | A | open | A paper-derived course template and a lint for held-out leakage. |
+| DK1753 | A | partial | Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces. |
+| DK1754 | A | partial | Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance. |
+| DK1755 | A | partial | Evolving evals: refresh with contamination detection and a Goodhart guard. |
+| DK1756 | A | partial | Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation. |
+| DK1757 | A | partial | The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch. |
+| DK1758 | A | open | The mechanism registry: swap, try and compare tests. |
+| DK1759 | A | open | The lens loop run with real model agents (a live run, postponed). |

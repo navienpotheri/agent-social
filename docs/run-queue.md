@@ -198,3 +198,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society (DK1608 log refuses a course whose Town Hall proposal is not enacted; DK1607 institutions act on a reversed contest; DK1605 tier hold after a model swap; spec-deltas S1554+; coordinate with lane-protocol-2 on log.ts), 18:39Z
 - 2026-11-21 held by lane-protocol-2 (DK1728 Market completeness audit: table and first chain built, partial; DK1729 the unmapped ids and the longer chain), 18:10Z
 - 2026-11-22 held by lane-cli-3 (DK79 collection taps: registry, tap, disclosure; then DK1716 finishing, OpenClaw and Hermes adapters, DK1713 follow-up), 00:30Z
+- 2026-11-22 held by lane-society-2 (the lens learning loop DK1750, rows DK1751 to DK1759; then the four design packs: exploration, games, forum mechanisms, elections; then IS9), 01:30Z

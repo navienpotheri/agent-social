@@ -753,6 +753,7 @@ const OPTIONS = {
   cause: { type: "string" },
   detection: { type: "string" },
   seed: { type: "string" },
+  null: { type: "boolean" },
   effect: { type: "string" },
   value: { type: "string" },
   provider: { type: "string" },
@@ -1262,6 +1263,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete", "receipts"].includes(sub))) return await contentStoreCmd(sub, v, io);
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
+    if (cmd === "lens") return await lensCommand(sub, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
     if (cmd === "town") {
@@ -5611,6 +5613,17 @@ async function registryCommand(home: string, sub: string | undefined, rest: stri
     if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;
   }
+}
+
+/** `asp lens run [--seed n] [--agents n] [--null] [--json]`: the lens learning loop end to end on simulated learners, and the readout (register row DK1750). */
+async function lensCommand(sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub !== "run") throw new UsageError("asp lens run [--seed <n>] [--agents <n>] [--null] [--json]");
+  const { runLoop, formatReadout } = await import("./lens-loop.ts");
+  const seed = v.seed === undefined ? 1 : Number(v.seed), agents = v.agents === undefined ? undefined : Number(v.agents);
+  if (!Number.isInteger(seed) || (agents !== undefined && (!Number.isInteger(agents) || agents < 8))) throw new UsageError("--seed is a whole number and --agents a whole number of at least 8");
+  const r = await runLoop({ seed, ...(agents !== undefined ? { agents } : {}), nullRun: v.null === true });
+  io.out(v.json === true ? JSON.stringify(r, null, 2) : formatReadout(r));
+  return 0;
 }
 
 async function academyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {

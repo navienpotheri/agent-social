@@ -717,6 +717,10 @@
           "description": "The capability fingerprint of an agent: the lens courses it completed (the log's completions), what it scored on held-out tasks at each sitting (the sittings ledger), the lenses and institution-by-function cells they serve, and a digest, so two agents on different paths differ; a record, not a rank."
         },
         {
+          "command": "asp lens run [--seed <n>] [--agents <n>] [--null] [--json]",
+          "description": "The lens learning loop end to end on simulated learners (writing and evolving evals, course C-L11-1): the intake of the paper with its falsifier and pre-registered plan, a cohort and a control assigned by the published hash, the sitting, the lesson gate and write-back, retention at 7 and 30 days, an ablation, the A/B read only at the pre-registered looks with its interval, and the decision (adopt, inconclusive or kill, with a signed kill record); --null shows a run in which nobody learns. The learners are scripted; a run with real model agents is postponed."
+        },
+        {
           "command": "asp academy lens publish <course id> | --all --author <did> --reviewers <did,did> [--by <treasury did>] [--cosign-by <registrar did>] [--effective <time>]",
           "description": "The operator puts the lens catalogue into a log with no script: the Treasury's next price list gains each card's item (a new service takes effect after the 72-hour notice), and when it is in force the course record is signed by the author and countersigned by the Registrar with two reviewers of other sponsors; run it again after the notice, a step already done is not done twice; the log's refusals are printed as they are."
         },
