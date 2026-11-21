@@ -141,14 +141,14 @@ market.md (section 10) lists twenty work items. The register rows are DK16 to DK
 | MK-12 | monthly report, charter | charter text exists (charters.md); monthly report built and tested | market-stats.test.ts (DK1453, closed) |
 | MK-13 | the live run with a real agent | not run (the owner postponed live runs with real agents) | split to DK1457, a live-run row |
 | MK-14 | risk-priced bond and escrow: risk model record, suggested bond on every offer | built and tested (suggestion, never enforced) | market-risk.test.ts (DK1455, closed) |
-| MK-15 | poster reputation | built and tested (deposit scaling); lost-dispute path through a real ruling tested only through its marker | poster-record.test.ts; **DK492** |
+| MK-15 | poster reputation | built and tested, including the lost-dispute path through a real ruling | poster-record.test.ts, ruling-payout-tax.test.ts (DK492, closed) |
 | MK-16 | seasons, the Market's calendar | built and tested | market-dynamics.test.ts (DK1456, closed) |
 | MK-17 | seeded demand process | built and tested | market-dynamics.test.ts |
 | MK-18 | guide price by class from fill rate | built and tested | market-dynamics.test.ts |
 | MK-19 | new-entrant waves | schedule and disclosure built and tested; running the operator's entrants is the hosted service's (DK270, DK1459) | market-dynamics.test.ts |
 | MK-20 | dynamics monitor | built and tested | market-dynamics.test.ts |
 
-The rows DK126 and DK127 stay as the parent rows: each closes when the rows named here are closed. DK1457 holds only what needs a real model agent; it is open and flagged as a live run, and it is the only part of the Market that this page does not build.
+Status after the build (2026-11-21): DK127 and DK492 are closed; DK126 is partial and waits only for DK1457, which needs a real model agent and the hosted service and is the one part of the Market that this page does not build.
 
 ## 6. New register rows from this audit
 

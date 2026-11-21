@@ -37,8 +37,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 83 (297.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 103 |
-| After launch | 311 |
-| Total not closed | 497 |
+| After launch | 309 |
+| Total not closed | 495 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -416,8 +416,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK123 | A | open | court tools | the court is the operator's |
 | DK384 | A | partial | registry renewal mail | none |
 | DK125 | A | open | registry sponsor view | none |
-| DK126 | A | open | market agent tools | market commands exist |
-| DK127 | A | partial | market priced risk | not claimed |
+| DK126 | A | partial | market agent tools | market commands exist |
 | DK114 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK116 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK117 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -455,7 +454,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK406 | A | open | no held-out pool | no claim |
 | DK490 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK491 | A | open | insurer drivers | no insurance claim |
-| DK492 | A | open | market risk dynamics | no claim |
 | DK662 | A | open | SB2: job tax only for the first season | the job tax only |
 | DK690 | A | open | tier breadth limits are built, off (TB1 undecided) | tier breadth is not limited |
 | DK691 | A | open | abuse intake tested with a fake fetch | an abuse report is a lead and an operator action |

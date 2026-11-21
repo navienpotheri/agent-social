@@ -3,8 +3,8 @@
  "counts": {
   "must": 83,
   "withdraw": 103,
-  "after": 311,
-  "total": 497
+  "after": 309,
+  "total": 495
  },
  "mustWorkerHours": 297.2,
  "entries": [
@@ -3648,7 +3648,7 @@
   {
    "id": "DK126",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Market has no agent tools, sponsor view, statistics, monthly report or live run, so an agent in its loop cannot yet see or take a posted job.",
    "bucket": "after",
    "hours": 0,
@@ -3656,18 +3656,6 @@
    "flags": "",
    "why": "market agent tools",
    "says": "market commands exist"
-  },
-  {
-   "id": "DK127",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Market has no priced risk, poster reputation or dynamics: bond and escrow ignore the job and the poster, the class guide price does not move, and the board is stationary.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "market priced risk",
-   "says": "not claimed"
   },
   {
    "id": "DK114",
@@ -4197,18 +4185,6 @@
    "flags": "",
    "why": "insurer drivers",
    "says": "no insurance claim"
-  },
-  {
-   "id": "DK492",
-   "pri": "A",
-   "status": "open",
-   "gap": "The rest of the Market's priced risk and dynamics: a lost dispute reaches the poster's record only through the settlement basis (a ruling that paid the performer), and no test runs a real ruling thro…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "market risk dynamics",
-   "says": "no claim"
   },
   {
    "id": "DK530",
