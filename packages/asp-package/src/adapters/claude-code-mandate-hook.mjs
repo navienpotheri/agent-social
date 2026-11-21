@@ -475,6 +475,7 @@ async function main() {
   const sessionFile = join(pluginRoot, "guard-session.json");
   const ctx = mandate.confine && guard ? { confine: mandate.confine, session: guard.loadSession(sessionFile) } : mandate.confine ? { confine: mandate.confine } : undefined;
   const d = decide(event, mandate.scopes, mandate.gate, typeof mandate.memoryDir === "string" ? mandate.memoryDir : undefined, Array.isArray(mandate.knownBad) ? mandate.knownBad : undefined, Array.isArray(mandate.hosts) && mandate.hosts.length ? mandate.hosts : undefined, Array.isArray(mandate.tripwires) && mandate.tripwires.length ? { ...(ctx ?? {}), tripwires: mandate.tripwires } : ctx);
+  if (d && !d.allow && mandate.ceiling && Array.isArray(mandate.ceiling.removed) && mandate.ceiling.removed.includes(d.scope) && /not granted by this job's Mandate/.test(String(d.reason))) d.reason = `ASP Mandate: the scope ${d.scope} is outside the ${mandate.ceiling.label}, which bounds this member whatever its Mandate record says, so this call was blocked before it ran`;
   if (ctx?.session && d.allow) { try { ctx.session.save(sessionFile); } catch { /* the record is a help, not a condition */ } }
   if (d.allow && !d.ask) {
     const slow = rateCheck(event, d, mandate, pluginRoot);

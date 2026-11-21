@@ -242,6 +242,8 @@ async function materialize(opts: {
   mandateGate?: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number };
   mandateKnownBad?: { fingerprint: string; report: string }[];
   mandateHosts?: string[];
+  /** A fleet member's ceiling (DK1471): a call on a removed scope is refused naming the template. */
+  mandateCeiling?: { label: string; removed: string[] };
   /** Tripwires (LW2): targets no job is given; the pre-call hook refuses a call that touches one. */
   mandateTripwires?: string[];
   mandateRate?: { per_host_per_minute?: number; total_per_minute?: number };
@@ -308,6 +310,7 @@ async function materialize(opts: {
       memoryDir: join(runDir, "memory"),
       ...(opts.mandateKnownBad?.length ? { knownBad: opts.mandateKnownBad } : {}),
       ...(opts.mandateHosts?.length ? { hosts: opts.mandateHosts } : {}),
+      ...(opts.mandateCeiling?.removed.length ? { ceiling: opts.mandateCeiling } : {}),
       ...(opts.mandateTripwires?.length ? { tripwires: opts.mandateTripwires } : {}),
       ...(opts.mandateRate ? { rate: opts.mandateRate } : {}),
       confine: { root: project },

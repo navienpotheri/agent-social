@@ -348,6 +348,7 @@ import { RegistryUsage, registryCmd } from "./registry.ts";
 import { httpEnrol } from "@agent-social/asp-package";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
+import { readFleetCeiling } from "./fleet-ceiling.ts";
 import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
@@ -3195,8 +3196,16 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const local = await openLog(home, logEnv);
   const state = (await local.log.chainInfo(contract))?.state;
   if (state !== "Running" && state !== "Checkpoint") throw new Error(`contract ${contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce`);
-  const mandate0 = await local.log.mandateOf(contract);
-  if (!mandate0) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRaw = await local.log.mandateOf(contract);
+  if (!mandateRaw) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+  // A fleet member is held to its ceiling (DK1471): the template in force at its node with its own narrowing, read from the log now, so an amendment is picked up at the next run. A Mandate made before the template, or wider than it, is cut down to it.
+  const recordHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+  const fleetCeiling = await readFleetCeiling(local, by, mandateRaw.scopes, recordHosts);
+  const mandate0 = fleetCeiling ? { ...mandateRaw, scopes: fleetCeiling.scopes } : mandateRaw;
+  const effectiveHosts = fleetCeiling?.hostsOut ?? recordHosts;
+  if (fleetCeiling?.removed.length) io.err(`  ceiling  ${fleetCeiling.label} bounds this member: ${fleetCeiling.removed.join(", ")} ${fleetCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
+  if (fleetCeiling?.tokensOver) io.err(`  ceiling  ${fleetCeiling.tokensOver}`);
   const mandate = await narrowForQuarantine(local, by, mandate0, now(), (l) => io.err(l));
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
@@ -3204,7 +3213,6 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // The Mandate's irreversible policy: gated scopes are held for the principal's signed answer, or refused.
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
   if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
-  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
@@ -3315,8 +3323,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     : undefined;
   // The run log (E2): what the gateway sees, redacted, on this machine; the Actions commit to its hash.
   const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(gwRunDir, "run-log.ndjson"));
-  const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
-  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
+  const gwHosts = effectiveHosts;
+  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), ...(fleetCeiling ? { fleet_ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed, ...(fleetCeiling.tokensOver ? { tokens_over: true } : {}) } } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
   if (runLog) io.err(`  run log  ${runLog.path}`);
   // H10: what a known agent does by itself, outside the tool calls the gateway judges, and how to contain it.
   for (const n of selfActingNotes(command, !!v.sandbox)) io.err(`  note     ${n}`);
@@ -3350,7 +3358,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
     ...(v.tripwire?.length ? { tripwires: v.tripwire } : {}),
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
-    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
     onCall: (e) => {
@@ -7382,7 +7390,11 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       return 1;
     }
   }
-  const mandate0 = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  const mandateRaw = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  // A fleet member is held to its ceiling here too (DK1471): the scopes and hosts the template allows, read from the log now.
+  const runCeiling = mandateRaw && v.contract ? await readFleetCeiling(local!, agent, mandateRaw.scopes, ((await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts) : undefined;
+  const mandate0 = mandateRaw && runCeiling ? { ...mandateRaw, scopes: runCeiling.scopes } : mandateRaw;
+  if (runCeiling?.removed.length) io.err(`  ceiling  ${runCeiling.label} bounds this member: ${runCeiling.removed.join(", ")} ${runCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
   const mandate = mandate0 ? await narrowForQuarantine(local!, agent, mandate0, now(), (l) => io.err(l)) : undefined;
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
@@ -7391,7 +7403,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   if (v.contract && mandate) {
     const mandateRecord = (await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
     const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
-    mandateHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+    mandateHosts = runCeiling?.hostsOut ?? (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
     mandateRate = (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate;
     if (irreversible?.scopes?.length && irreversible.policy !== "allow") {
       gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
@@ -7404,7 +7416,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, mandateHosts, ...(v.tripwire?.length ? { mandateTripwires: v.tripwire } : {}), mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateHosts, ...(runCeiling?.removed.length ? { mandateCeiling: { label: runCeiling.label, removed: runCeiling.removed } } : {}), ...(v.tripwire?.length ? { mandateTripwires: v.tripwire } : {}), mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   if (knownBad.length) io.err(plan.preventsCalls ? `  note     ${knownBad.length} known-bad command fingerprint(s) are enforced by the pre-call hook` : `  note     the known-bad list (${knownBad.length}) is not enforced: this runtime has no pre-call hook`);

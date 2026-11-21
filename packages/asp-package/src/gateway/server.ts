@@ -47,6 +47,10 @@ export interface GatewayOptions {
   lawContext?: string;
   /** The live Mandate's scopes. */
   scopes: string[];
+  /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
+  ceiling?: { label: string; removed: string[] };
+  /** Set when a node on the member's path is over its token budget (DK1471): every model request is refused with this text, and the refusal is in the run log. */
+  modelBlock?: string;
   /** The hosts the Mandate's network scopes may reach (`network.hosts`); absent means no host limit. */
   hosts?: string[];
   /** The project directory the agent is confined to (gap BM6): a file or shell call naming a path outside it, or a secret location, is refused. Absent means no path check. */
@@ -312,6 +316,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined, opts.tripwires);
     let allow = j.allow;
     let reason = j.reason;
+    if (!allow && opts.ceiling?.removed.includes(j.scope) && /is not granted by this job's Mandate/.test(reason ?? "")) reason = `the scope ${j.scope} is outside the ${opts.ceiling.label}, which bounds this member whatever its Mandate record says`;
     if (allow) { const why = mcpDestinationProblem(call, opts.hosts, opts.mcpDestinations); if (why) { allow = false; reason = why; } }
     let strike = true;
     // The second check (DK531): only on a call the rules allowed, only stricter, never a strike (it is advisory); an error, "unsure" or a spent budget leaves the rules' answer.
@@ -653,6 +658,12 @@ export function createGateway(opts: GatewayOptions): Gateway {
       lastActivity = Date.now();
       const rawBody = await readBody(req);
       if (path.startsWith("/mcp/")) return await mcpRoute(req, res, path.slice("/mcp/".length), rawBody);
+      if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
+        const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;
+        rec?.event("model_refused", { reason, why: "token_budget" });
+        opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
+        return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
+      }
       if (req.method === "POST" && /\/chat\/completions$/.test(path) && opts.openaiUpstream) return await openaiChat(req, res, rawBody);
       if (req.method === "POST" && /\/responses$/.test(path) && opts.openaiUpstream) return await openaiResponses(req, res, rawBody);
       if (req.method === "POST" && /\/v1\/messages$/.test(path) && opts.anthropicUpstream) return await anthropicMessages(req, res, rawBody);
