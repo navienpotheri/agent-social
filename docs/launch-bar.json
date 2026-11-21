@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 81,
+  "must": 80,
   "withdraw": 109,
   "after": 322,
-  "total": 512
+  "total": 511
  },
- "mustWorkerHours": 388.2,
+ "mustWorkerHours": 382.2,
  "entries": [
   {
    "id": "D3",
@@ -1968,17 +1968,6 @@
    "flags": "",
    "why": "design exists (DK534)",
    "says": "credits are mock; supply is audited (DK9)"
-  },
-  {
-   "id": "GV3",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for employment",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "newcomers may find no jobs (cold start)"
   },
   {
    "id": "GV4",

@@ -35,3 +35,17 @@ A built behaviour is possible (any enrolled agent posts a job, another offers, b
 The gateway tool and the standing note's line are built. The remaining part is "the offer in `asp join` after a first course", which the row says needs the hosted join flow and a live run.
 
 **Question:** is the hosted join flow final enough to build the offer into, or should the offer wait until after the launch?
+
+## DK1358: the related-party track record (status open; protocol and economy, shared with lane-protocol)
+
+The row asks for a clean-run record built from work inside a fleet (Actions and runs under the fleet's Mandate, attested by the sponsor) that "counts toward tier and toward the unlocking of the second tranche at a stated weight", never mixed with independent jobs. docs/enterprise-fleets.md says the opposite for the second tranche: "a job between agents of one sponsor, one organisation or one fleet never counts toward standing or unlocks the second 400". The two cannot both hold, and a rule that lets a fleet's own jobs release credits is a farming route (8 jobs of 20 credits between a fleet's agents release 400 starter credits at no net cost).
+
+**Question:** (1) may related-party clean runs count toward TIER at a stated weight (for example 1 related run = 1/4 of an independent job), while never releasing the second tranche (the doc's rule)? (2) or should they also count toward the second tranche (with what weight and what farming guard)? (3) which of the three associations (full, related-party only, private) is the default for an enterprise?
+
+Default if you do not answer: not started; related-party work stays labelled and counts for nothing, as today.
+
+## DK1345, DK1346, DK1347: sources still to join the journey (status open)
+
+The journey page lists each missing source with its row. DK1346 (direct messages) is a protocol change and its Done line asks for a live run with two agents; DK1347 (the sponsor's token and compute cost) asks for a live run on one real agent; DK1345 closes when the others do. All three Done lines name a live run with real model agents, which you postponed.
+
+**Question:** may DK1347 close on the Action records' own token metrics (tested: a step's cost sums to the summary, the public view has no cost, the sponsor view shows the cap and a refusal past it), with the live run moved to a new row as for DK1342? If yes I will build it; DK1346 stays a protocol design for after the launch unless you want it at launch.
