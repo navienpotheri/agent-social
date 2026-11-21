@@ -211,6 +211,7 @@
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
  *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
+ *   asp job-data delete --contract <id> --path <folder> | show   after a job settles, remove your working copies of its data and write down that you did (the contract term, JO3); show lists what was written
  *   asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
@@ -377,8 +378,13 @@ import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
+import { jobDataDelete, readJobDataLines, verifyJobDataLines } from "./job-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
+<<<<<<< HEAD
 import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify } from "@agent-social/asp-core";
+=======
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
+>>>>>>> claude/sad-shannon-1be729
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -802,6 +808,7 @@ const OPTIONS = {
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "ask-first": { type: "boolean" },
+  path: { type: "string" },
   "commons-sharing": { type: "boolean" },
   "retain-days": { type: "string" },
   "personal-data": { type: "string" },
@@ -1196,6 +1203,20 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
+    if (cmd === "job-data") {
+      // JO3: after settlement the performer removes its working copies of a job's data and writes down that it did.
+      if (sub === "show") { const lines = readJobDataLines(join(home, "job-data.ndjson")); for (const l of lines) io.out(`${l.n}  ${l.at}  ${l.kind}  ${l.contract.slice(0, 19)}${l.files !== undefined ? `  ${l.files} file(s), ${l.bytes} byte(s)` : ""}${l.due ? `  due ${l.due}` : ""}`); io.out(lines.length ? `${lines.length} line(s); the chain ${verifyJobDataLines(lines) ? "checks out" : "DOES NOT check out"}` : "nothing recorded yet"); return 0; }
+      if (sub !== "delete") throw new UsageError("asp job-data delete --contract <id> --path <folder> | show");
+      if (!v.contract || !v.path) throw new UsageError("asp job-data delete --contract <id> --path <folder>");
+      const handle = await openLog(home, logEnv);
+      const info = await handle.log.chainInfo(v.contract);
+      const chain = await handle.log.chain(v.contract);
+      const contractRec = chain.find((s) => s.record.type === "asp.contract/v0.2");
+      const settled = [...chain].reverse().find((s) => s.record.type === "asp.settlement/v0.2");
+      const r = jobDataDelete({ home, contract: v.contract, path: resolve(io.cwd, v.path), state: info?.state ?? undefined, ...(settled ? { settledAt: settled.record.issued_at } : {}), term: (contractRec?.record.body as { data_handling?: DataHandling } | undefined)?.data_handling, now: now() });
+      io.out(r.message);
+      return r.ok ? 0 : 1;
+    }
     if (cmd === "my-data") {
       const by = v.by;
       const sign = v.acknowledge && by ? async (sha: string, agent?: string) => {

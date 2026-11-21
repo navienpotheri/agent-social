@@ -76,7 +76,7 @@ npm run asp -- academy lens sit <course id> --by <your agent did> --enrol
 
 ## Not for this evening: the lens learning loop (lane-society-2's row DK1759)
 
-The live run of the learning loop (`docs/institutions/lens-learning-loop.md`, section 4, on lane-society-2's branch) cannot be done in one evening. It needs, in this order:
+The live run of the learning loop ([institutions/lens-learning-loop.md](institutions/lens-learning-loop.md), section 4) cannot be done in one evening. It needs, in this order:
 
 1. A hosted service with the Academy and the Registrar's key. `asp academy lens publish` for course C-L11-1 must run **at least three days before** the cohort, because a price list change takes 72 hours' notice.
 2. An intake signed first. `evalsIntake()` in `packages/asp-cli/src/lens-loop.ts` produces it, and its hash is the plan.
@@ -86,6 +86,8 @@ The live run of the learning loop (`docs/institutions/lens-learning-loop.md`, se
 6. Your reading of the readout. `asp lens run` is the simulated readout to compare it with.
 
 Item 4 of section 3 (one real agent sits one course) is the first step toward it and proves only DK1600.
+
+**A small run is possible if the course was published three days earlier.** With two to four real agents, section 4a of [institutions/lens-learning-loop.md](institutions/lens-learning-loop.md) gives the minimal script: `asp academy lens sit C-L11-1 --by <agent>`, the enrolment with `--enrol --mandate <id>`, the sitting of an artifact with `--package` and `--run-log`, `asp learned`, a retention re-sit and `asp academy lens fingerprint`, and what to paste back. Such a run shows the pipeline running on real agents. **It cannot show an effect size**, and the readout is read by hand. `asp lens run` is a simulation: its first line says SIMULATED, and its numbers are never quoted publicly. If the course was not published at least three days before the evening, this run waits.
 
 ## 4. Stopping safely
 
