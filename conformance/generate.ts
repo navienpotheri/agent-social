@@ -14,6 +14,7 @@ import {
 import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
+import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
@@ -1351,6 +1352,54 @@ const worldRules = [
   rule("resume_ok", "did:web:example.com:operator", "2026-11-20T06:00:00Z", { kind: "resume", halt: haltId, reason: "fixed" }, "ok"),
 ];
 
+// ---------- the Mandate template (spec-deltas S1408): schema cases and the derivation, identical in both SDKs ----------
+{
+  const tmplMandate = (over: Record<string, unknown> = {}) => ({
+    purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
+    irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
+    overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], ...over,
+  });
+  const fl = "did:web:example.com:orgs:acme:fleets:coders";
+  sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
+  sv("valid_mandate_template_persona", "mandate_template", { fleet: fl, persona: "project-manager", version: 2, mandate: tmplMandate() }, true);
+  sv("mandate_template_no_version", "mandate_template", { fleet: fl, mandate: tmplMandate() }, false);
+  sv("mandate_template_version_zero", "mandate_template", { fleet: fl, version: 0, mandate: tmplMandate() }, false);
+  sv("mandate_template_no_fleet", "mandate_template", { version: 1, mandate: tmplMandate() }, false);
+  sv("mandate_template_names_a_contract", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ contract: "sha256:" + "1".repeat(64) }) }, false);
+  sv("mandate_template_bad_persona", "mandate_template", { fleet: fl, persona: "Project Manager", version: 1, mandate: tmplMandate() }, false);
+  sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
+  sv("valid_mandate_narrowing", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit" } } }, true);
+  sv("mandate_narrowing_no_member", "mandate_narrowing", { fleet: fl, narrow: { scopes: ["repo.read"] } }, false);
+  sv("mandate_narrowing_unknown_field", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { privileges: ["root"] } }, false);
+  sv("mandate_narrowing_bad_scope", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["Repo Read"] } }, false);
+  sv("valid_passport_persona", "passport", { did: "did:web:example.com:agents:coder-7", kind: "agent", sponsor: "did:web:example.com:orgs:acme", persona: "coder", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-7#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  const T = tmplMandate();
+  const cases: { name: string; ceiling: Record<string, unknown>; candidate: Record<string, unknown> }[] = [
+    ["the_same_mandate_is_within", {}], ["fewer_scopes", { scopes: ["repo.read"] }], ["a_scope_under_a_wildcard", { scopes: ["pr.open", "pr.merge"] }], ["a_scope_outside", { scopes: ["repo.read", "shell.exec"] }],
+    ["a_lower_cap", { spend: { cap: 50, unit: "credit", per_action_max: 10 } }], ["a_higher_cap", { spend: { cap: 101, unit: "credit", per_action_max: 20 } }], ["a_higher_per_action_max", { spend: { cap: 100, unit: "credit", per_action_max: 21 } }],
+    ["a_missing_per_action_max", { spend: { cap: 100, unit: "credit" } }], ["a_forbidden_means_dropped", { forbidden_means: [] }], ["more_forbidden_means", { forbidden_means: ["rm -rf", "curl | sh"] }],
+    ["a_stricter_irreversible_policy", { irreversible: { policy: "forbid" } }], ["a_looser_irreversible_policy", { irreversible: { policy: "allow" } }], ["a_smaller_subcontract_depth", { subcontract: { allowed: true, max_depth: 1 } }],
+    ["a_deeper_subcontract", { subcontract: { allowed: true, max_depth: 3 } }], ["subcontract_forbidden", { subcontract: { allowed: false } }], ["more_parallel_nodes", { nodes: { max_parallel: 5 } }], ["fewer_parallel_nodes", { nodes: { max_parallel: 2 } }],
+    ["learning_not_shared", { learning: { scope: "memory", share_to_commons: false } }], ["a_deeper_learning_scope", { learning: { scope: "harness", share_to_commons: true } }], ["a_stricter_self_modification", { self_modification: "forbidden" }],
+    ["a_looser_self_modification", { self_modification: "automatic_audited" }], ["more_checkpoints", { checkpoints: ["plan", "delivery"] }], ["fewer_checkpoints", { checkpoints: [] }], ["an_earlier_expiry", { expires: "2027-01-01T00:00:00Z" }],
+    ["a_later_expiry", { expires: "2027-06-01T00:00:01Z" }], ["a_host_within", { network: { hosts: ["api.example.com"] } }], ["a_host_outside", { network: { hosts: ["evil.example.net"] } }], ["no_hosts", { network: { hosts: [] } }],
+    ["a_smaller_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 30, unit: "credit" }, period: "month" }] }], ["a_larger_institution_cap", { institution_spend: [{ institution: "academy", cap: { value: 61, unit: "credit" }, period: "month" }] }],
+    ["another_institution", { institution_spend: [{ institution: "shops", cap: { value: 10, unit: "credit" }, period: "month" }] }], ["a_longer_institution_period", { institution_spend: [{ institution: "academy", cap: { value: 10, unit: "credit" }, period: "week" }] }],
+    ["no_institution_spend", { institution_spend: [] }],
+  ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  const mt = {
+    version: "asp.conformance/v0.2",
+    violations: cases.map((c) => ({ ...c, expected: mandateViolations(c.ceiling, c.candidate) })),
+    derive: [
+      { name: "no_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: null },
+      { name: "a_valid_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit", per_action_max: 5 } } },
+      { name: "a_widening_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["shell.exec"], spend: { cap: 400, unit: "credit", per_action_max: 5 } } },
+      { name: "an_empty_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: {} },
+    ].map((c) => ({ ...c, expected: deriveMandate(c.template, c.contract, c.narrowing) })),
+  };
+  (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors = mt;
+}
 // ---------- the active Bank (spec-deltas S1405): schema cases ----------
 {
   const h = "did:web:example.com:users:bank-holder";
@@ -1439,5 +1488,6 @@ write("records.json", { version: "asp.conformance/v0.2", cases: records });
 write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
+write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

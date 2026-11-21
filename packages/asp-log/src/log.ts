@@ -33,6 +33,7 @@ import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX,
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
+import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
 import { JOB_CLASSES } from "./market.ts";
@@ -388,6 +389,8 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
+    if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "refusal") await projectRefusal(tx, verified);
@@ -446,7 +449,7 @@ export class EventLog {
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
-    if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
+    if (type === "mandate") { await this.checkMandateTemplate(tx, verified); await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
     if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
     if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
@@ -662,6 +665,82 @@ export class EventLog {
     if (diffs.length && d.strict) throw rule("fleet_template_mismatch", `fleet ${fleetDid} is strict: its template names ${diffs.map((k) => `${k} ${t[k as "runtime" | "model"]}`).join(" and ")}, and ${did} declares a different ${diffs.join(" and ")}`);
     const undeclared = (["runtime", "model"] as const).filter((k) => t[k] && !passport?.fingerprint?.[k]);
     await tx.putMarker(`fleet_label:${did}`, diffs.length ? `differs: ${diffs.join(", ")}` : undeclared.length ? `undeclared: ${undeclared.join(", ")}` : "matches");
+  }
+
+  /** The Mandate template that applies to a member (S1408): the one for its persona, else the fleet's own; undefined when it has none. */
+  private async templateFor(tx: LogTx, member: string): Promise<{ key: string; version: number; record: string; mandate: Record<string, unknown>; fleet: string } | undefined> {
+    const pass = await tx.getPassport(member);
+    if (!pass?.fleet) return undefined;
+    const persona = ((await tx.getRecord(pass.head))?.record.body as { persona?: string } | undefined)?.persona;
+    for (const key of persona ? [`${pass.fleet}|${persona}`, `${pass.fleet}|`] : [`${pass.fleet}|`]) {
+      const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
+      if (head) { const t = JSON.parse((await tx.getMarker(`mtemplate:${key}|${head}`))!) as { record: string; mandate: Record<string, unknown> }; return { key, version: head, record: t.record, mandate: t.mandate, fleet: pass.fleet }; }
+    }
+    return undefined;
+  }
+
+  /** A Mandate template (S1408, DK1355): the fleet's organisation signs it, versions run 1, 2, 3 (an amendment is the next version), and it is the ceiling every member's Mandate must stay within. */
+  private async projectMandateTemplate(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; persona?: string; version: number; mandate: Record<string, unknown> };
+    if (r.prev !== null) throw rule("mandate_template_not_chained", "a Mandate template starts its own chain (prev is null)");
+    const fleet = await tx.getFleet(b.fleet);
+    if (!fleet) throw rule("mandate_template_fleet_unknown", `fleet ${b.fleet} is not declared`);
+    if (r.issuer !== fleet.org) throw rule("mandate_template_wrong_issuer", `only the fleet's organisation (${fleet.org}) signs its Mandate template`);
+    const key = `${b.fleet}|${b.persona ?? ""}`;
+    const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
+    if (b.version !== head + 1) throw rule("mandate_template_version", `the next version of this template is ${head + 1}, not ${b.version}`);
+    await tx.putMarker(`mtemplate:${key}|${b.version}`, JSON.stringify({ record: r.id, mandate: b.mandate }));
+    await tx.putMarker(`mtemplate_head:${key}`, String(b.version));
+  }
+
+  /** A member's own narrowing (S1408): by the member or its sponsor, within the template in force. It replaces the member's earlier narrowing; one that goes beyond the template is refused naming the fields. */
+  private async projectMandateNarrowing(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; member: string; narrow: Record<string, unknown> };
+    if (r.prev !== null) throw rule("narrowing_not_chained", "a narrowing starts its own chain (prev is null)");
+    const pass = await tx.getPassport(b.member);
+    if (!pass || pass.fleet !== b.fleet) throw rule("narrowing_not_a_member", `${b.member} is not a member of ${b.fleet}`);
+    if (r.issuer !== b.member && r.issuer !== pass.sponsor) throw rule("narrowing_wrong_issuer", `only the member or its sponsor narrows its Mandate`);
+    const t = await this.templateFor(tx, b.member);
+    if (!t) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
+    const widens = mandateViolations(t.mandate, { ...t.mandate, ...b.narrow });
+    if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template: ${widens.join(", ")} go beyond it`);
+    await tx.putMarker(`mnarrow:${b.member}`, JSON.stringify(b.narrow));
+  }
+
+  /** A Mandate for a member of a fleet with a template stays within it and the member's own narrowing (S1408): the log refuses one that goes beyond it, naming the fields, whoever signs it. */
+  private async checkMandateTemplate(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string } & Record<string, unknown>;
+    const contract = await tx.getRecord(b.contract);
+    const performer = (contract?.record.body as { performer?: string } | undefined)?.performer;
+    if (!performer) return;
+    const t = await this.templateFor(tx, performer);
+    if (!t) return;
+    const n = JSON.parse((await tx.getMarker(`mnarrow:${performer}`)) ?? "null") as Record<string, unknown> | null;
+    const d = deriveMandate(t.mandate, b.contract, n);
+    const ceiling = "mandate" in d ? d.mandate : t.mandate;
+    const { contract: _c, ...candidate } = b;
+    const over = mandateViolations(ceiling, candidate);
+    if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+  }
+
+  /** The newest version of the Mandate template of a fleet (and persona), or 0 when there is none (S1408). */
+  async templateVersion(fleet: string, persona?: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`mtemplate_head:${fleet}|${persona ?? ""}`)) ?? 0)); }
+
+  /** The Mandate ceiling of a member now (S1408): the template in force with the member's own narrowing laid over it, or undefined when its fleet has no template. */
+  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown> } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const t = await this.templateFor(tx, member);
+      if (!t) return undefined;
+      const n = JSON.parse((await tx.getMarker(`mnarrow:${member}`)) ?? "null") as Record<string, unknown> | null;
+      const d = deriveMandate(t.mandate, "", n);
+      return { template: t.record, version: t.version, narrowing: n, mandate: "mandate" in d ? d.mandate : t.mandate };
+    });
+  }
+
+  /** The Mandate a member holds for a contract, derived from its fleet's template and its own narrowing (S1408): cheap, so a fleet of 10,000 needs no 10,000 hand-made Mandates. */
+  async deriveMemberMandate(member: string, contract: string): Promise<Record<string, unknown> | undefined> {
+    const c = await this.mandateCeiling(member);
+    return c ? { ...c.mandate, contract } : undefined;
   }
 
   /** One declaration chain per fleet, issued by its org, which never changes. An update restates the declaration (S1407): the cap may not fall below the members, and the co-sponsors may be changed without unseating a member. */

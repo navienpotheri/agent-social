@@ -3,6 +3,7 @@
  * (runtime, model, harness, skills), names the individual sponsors it authorises, and may make the template binding. The organisation's own key signs every record; each member keeps its own key.
  * A member joins by naming the fleet on its passport (`asp identity new --kind agent --sponsor <org or co-sponsor> --fleet <fleet> [--runtime r --model m]`). Credits are accounting entries, not money.
  */
+import { readFileSync } from "node:fs";
 import { createRecord, type Signer } from "@agent-social/asp-core";
 import type { LogHandle } from "@agent-social/asp-package";
 
@@ -12,7 +13,7 @@ export interface FleetOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
+  flags: { file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "fleet";
@@ -119,5 +120,48 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(`fleet ${fleet} ${sub === "close" ? "closed to new members; its members stay" : "updated"} (log seq ${res.seq})`);
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list");
+  // The Mandate template (S1408, DK1355): `asp fleet template set --fleet <did> --file <mandate.json> [--persona <p>] --by <org>`, `template show --fleet <did> [--member <did>]`, `narrow --member <did> --file <narrowing.json>`, `mandate --member <did> --contract <id>`.
+  if (sub === "template" || sub === "narrow" || sub === "mandate") {
+    const action = sub === "template" ? rest[0] ?? "show" : sub;
+    const fleet = f.did ?? rest[sub === "template" ? 1 : 0];
+    const readJson = (): Record<string, unknown> => { if (!f.file) throw new FleetUsage("--file <json file> is needed"); return JSON.parse(readFileSync(f.file, "utf8")); };
+    if (action === "set") {
+      if (!fleet) throw new FleetUsage("asp fleet template set --did <fleet did> --file <mandate.json> [--persona <p>] [--by <organisation did>]");
+      const d = await declaration(o, fleet);
+      const by = f.by ?? d.org;
+      const persona = f.persona;
+      const next = (await o.log.log.templateVersion(fleet, persona)) + 1;
+      const res = await o.log.append(createRecord({ type: "mandate_template", issuer: by, subject: fleet, prev: null, body: { fleet, ...(persona ? { persona } : {}), version: next, mandate: readJson() }, issued_at: o.now() }, o.signerFor(by)));
+      o.io.out(`Mandate template version ${next} of ${fleet}${persona ? ` for persona ${persona}` : ""} signed (log seq ${res.seq}): every member's Mandate now derives from it`);
+      return 0;
+    }
+    if (action === "narrow") {
+      if (!f.member) throw new FleetUsage("asp fleet narrow --member <did> --file <narrowing.json> [--by <member or its sponsor>]");
+      const pass = await o.log.log.passport(f.member);
+      const fleetDid = fleet ?? (pass as { fleet?: string } | undefined)?.fleet;
+      if (!fleetDid) throw new FleetUsage(`${f.member} is not in a fleet`);
+      const by = f.by ?? f.member;
+      const res = await o.log.append(createRecord({ type: "mandate_narrowing", issuer: by, subject: f.member, prev: null, body: { fleet: fleetDid, member: f.member, narrow: readJson() }, issued_at: o.now() }, o.signerFor(by)));
+      o.io.out(`${f.member} narrowed its Mandate (log seq ${res.seq}); a change that goes beyond the template is refused`);
+      return 0;
+    }
+    if (action === "mandate") {
+      if (!f.member || !f.contract) throw new FleetUsage("asp fleet mandate --member <did> --contract <id> [--json]");
+      const m = await o.log.log.deriveMemberMandate(f.member, f.contract);
+      if (!m) { o.io.out(`${f.member} has no Mandate template: it is not in a fleet that has one`); return 1; }
+      o.io.out(JSON.stringify(m, null, 2));
+      return 0;
+    }
+    // show
+    if (f.member) {
+      const c = await o.log.log.mandateCeiling(f.member);
+      o.io.out(c ? JSON.stringify(c, null, 2) : `${f.member} has no Mandate template`);
+      return c ? 0 : 1;
+    }
+    if (!fleet) throw new FleetUsage("asp fleet template show <fleet did> | --member <did>");
+    const v = await o.log.log.templateVersion(fleet, f.persona);
+    o.io.out(v ? `${fleet}${f.persona ? ` persona ${f.persona}` : ""}: Mandate template version ${v}` : `${fleet}${f.persona ? ` persona ${f.persona}` : ""} has no Mandate template`);
+    return 0;
+  }
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate");
 }

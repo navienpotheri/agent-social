@@ -134,3 +134,19 @@ def test_risk_suggest(case):
 @pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["onlyRemoves"]])
 def test_risk_only_removes_rule(case):
     assert only_removes_rule(case["prev"], case["next"]) == case["expected"]
+
+
+# ---- the Mandate template (docs/spec-deltas.md S1408) ----
+from asp_core.mandate_template import derive_mandate, mandate_violations  # noqa: E402
+
+MT = load("vectors/mandate-template.json")
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["violations"]])
+def test_mandate_violations(case):
+    assert mandate_violations(case["ceiling"], case["candidate"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["derive"]])
+def test_derive_mandate(case):
+    assert derive_mandate(case["template"], case["contract"], case["narrowing"]) == case["expected"]

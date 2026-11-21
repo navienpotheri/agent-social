@@ -35,7 +35,7 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",
   market_act: "market", proposal: "market", call: "market", standing_order: "market",
   // the bank and the insurer
-  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank",
+  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", mandate_template: "registry", mandate_narrowing: "registry",
   policy: "insurer", claim: "insurer", claim_decision: "insurer",
   // the academy: courses, exams, certificates, tiers
   course: "academy", enrolment: "academy", completion: "academy", exam: "academy", exam_result: "academy", certificate: "academy", certificate_revocation: "academy", tier_promotion: "academy",

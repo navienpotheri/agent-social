@@ -12423,6 +12423,585 @@
       "valid": false
     },
     {
+      "name": "valid_mandate_template",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mandate_template_persona",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "persona": "project-manager",
+        "version": 2,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_template_no_version",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_version_zero",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 0,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_no_fleet",
+      "schema": "mandate_template",
+      "instance": {
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_names_a_contract",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "contract": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_bad_persona",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "persona": "Project Manager",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_missing_field",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mandate_narrowing",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "scopes": [
+            "repo.read"
+          ],
+          "spend": {
+            "cap": 40,
+            "unit": "credit"
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_narrowing_no_member",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "narrow": {
+          "scopes": [
+            "repo.read"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_narrowing_unknown_field",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "privileges": [
+            "root"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_narrowing_bad_scope",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "scopes": [
+            "Repo Read"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_passport_persona",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "persona": "coder",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-7#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
       "name": "valid_bank_deposit",
       "schema": "bank_act",
       "instance": {

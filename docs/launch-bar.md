@@ -35,8 +35,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 87 (335.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 103 |
+| Must close before launch | 86 (327.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 104 |
 | After launch | 315 |
 | Total not closed | 505 |
 
@@ -97,7 +97,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
-| DK1355 | A | open | 8 | L | - | one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK1357 | A | open | 10 | L | - | stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible |
 | DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
@@ -241,6 +240,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1470 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1471 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 

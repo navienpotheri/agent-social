@@ -427,6 +427,14 @@
           "description": "Read a fleet (members, co-sponsors, template, how many members match it), list an organisation's fleets, update the declaration (the cap cannot fall below the members), or close it to new members (members stay)"
         },
         {
+          "command": "asp fleet template set --did <fleet did> --file <mandate.json> [--persona <p>] [--by <organisation did>] | show <fleet did> [--persona <p>] | show --member <did>",
+          "description": "The Mandate template of a fleet or a persona: the organisation signs one Mandate (the fields of a Mandate without its contract) and every member's Mandate derives from it; a new version is an amendment that applies to every member; the log refuses a Mandate for a member that goes beyond it"
+        },
+        {
+          "command": "asp fleet narrow --member <did> --file <narrowing.json> [--by <member or its sponsor>] | mandate --member <did> --contract <id>",
+          "description": "A member (or its sponsor) narrows its fleet's template (fewer scopes, a lower cap, more forbidden means, an earlier expiry; widening is refused naming the field); `mandate` prints the Mandate a member holds for a contract, derived from the template and its narrowing"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },

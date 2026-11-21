@@ -1,6 +1,8 @@
 // asp fleet declare|show|update|members|close|list (DK1353, S1407) through the real commands on a real local log: the organisation's key signs, a co-sponsor and a template, members join by `asp identity new --fleet`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { main, setClock, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
@@ -47,5 +49,43 @@ test("an organisation declares a fleet with a template and a co-sponsor, agents 
     assert.match((await asp(f, ["fleet", "show", FLEET])).out, /\[closed to new members\]/);
     assert.notEqual((await asp(f, ["fleet", "show", "did:web:example.com:nothing"])).code, 0);
     assert.notEqual((await asp(f, ["fleet", "nonsense"])).code, 0);
+  } finally { setClock(undefined); }
+});
+
+test("asp fleet template, narrow and mandate (DK1355, S1408): the organisation signs one Mandate, a member's Mandate derives from it, a persona has its own, a member may only narrow, an amendment applies to every member", async () => {
+  setClock(() => new Date("2026-11-21T10:00:00Z"));
+  try {
+    const f = makeFixture();
+    for (const d of [ORG, DEV]) assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", d])).code, 0);
+    assert.equal((await asp(f, ["fleet", "declare", "--org", ORG, "--name", "Coders", "--purpose", "ship code"])).code, 0);
+    const FLEET = `${ORG}:fleets:coders`;
+    const A1 = "did:web:example.com:agents:t1", A2 = "did:web:example.com:agents:t2", R1 = "did:web:example.com:agents:reviewer-1";
+    for (const [d, extra] of [[A1, []], [A2, []], [R1, ["--persona", "reviewer"]]] as [string, string[]][]) assert.equal((await asp(f, ["identity", "new", "--kind", "agent", "--did", d, "--sponsor", ORG, "--fleet", FLEET, ...extra])).code, 0);
+    const mandate = { purpose: "Work", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write"], forbidden_means: [], spend: { cap: 100, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 2 }, learning: { scope: "memory", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true };
+    const file = join(f.root, "template.json");
+    writeFileSync(file, JSON.stringify(mandate));
+    assert.equal((await asp(f, ["fleet", "template", "show", FLEET])).out.includes("has no Mandate template"), true);
+    const set = await asp(f, ["fleet", "template", "set", "--did", FLEET, "--file", file]);
+    assert.equal(set.code, 0, set.err || set.out);
+    assert.match(set.out, /version 1/);
+    writeFileSync(file, JSON.stringify({ ...mandate, scopes: ["repo.read"] }));
+    assert.equal((await asp(f, ["fleet", "template", "set", "--did", FLEET, "--file", file, "--persona", "reviewer"])).code, 0);
+    const C = "sha256:" + "6".repeat(64);
+    const m1 = JSON.parse((await asp(f, ["fleet", "mandate", "--member", A1, "--contract", C])).out);
+    assert.deepEqual([m1.contract, m1.scopes], [C, ["repo.read", "repo.write"]]);
+    assert.deepEqual(JSON.parse((await asp(f, ["fleet", "mandate", "--member", R1, "--contract", C])).out).scopes, ["repo.read"], "the persona's own template");
+    writeFileSync(file, JSON.stringify({ scopes: ["repo.read"], spend: { cap: 40, unit: "credit" } }));
+    assert.equal((await asp(f, ["fleet", "narrow", "--member", A1, "--file", file])).code, 0);
+    assert.equal(JSON.parse((await asp(f, ["fleet", "mandate", "--member", A1, "--contract", C])).out).spend.cap, 40);
+    writeFileSync(file, JSON.stringify({ scopes: ["shell.exec"] }));
+    const wide = await asp(f, ["fleet", "narrow", "--member", A2, "--file", file]);
+    assert.notEqual(wide.code, 0);
+    assert.match(wide.err, /may only narrow the template: scopes/);
+    // an amendment (version 2): every member follows it
+    writeFileSync(file, JSON.stringify({ ...mandate, spend: { cap: 20, unit: "credit" } }));
+    assert.equal((await asp(f, ["fleet", "template", "set", "--did", FLEET, "--file", file])).code, 0);
+    assert.equal(JSON.parse((await asp(f, ["fleet", "mandate", "--member", A2, "--contract", C])).out).spend.cap, 20);
+    assert.equal(JSON.parse((await asp(f, ["fleet", "mandate", "--member", A1, "--contract", C])).out).spend.cap, 20, "a's narrowing (cap 40) would now widen the template (20): the template wins");
+    assert.notEqual((await asp(f, ["fleet", "template", "set", "--did", FLEET, "--file", file, "--by", DEV])).code, 0, "only the organisation signs");
   } finally { setClock(undefined); }
 });
