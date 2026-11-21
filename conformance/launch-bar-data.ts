@@ -98,7 +98,6 @@ export const MUST: Record<string, Must> = {
   // safety and money
   H4: [2, "D", "no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530)"],
   DK530: [4, "", "remove or switch off the credit restitution of S502; build the operator remedy"],
-  M2: [2, "D", "disclose that the operator seats and rules, with a published appeal promise"],
   DK121: [8, "", "Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it"],
   // legal, operations, truth
   DK1340: [1, "D", "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"],
@@ -247,6 +246,7 @@ export const AFTER_A: Record<string, After> = {
   DK781: ["only the retaliation is closed", "a refusal is not heard by a Court"],
   DK65: ["owner decision: the numbers are a stated goal; the load test follows launch", "the site says 1,000 tenants and 1 million runs is a target and not a present capability"],
   AG10: ["mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come later", "the forum has mute, block, abuse reports and the injection defence; no teams or guilds"],
+  M2: ["community jurors need real jurors and live testing; the launch need (the disclosure and an appeal) is met", "the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days (terms, site, README)"],
   SC1: ["a review takes weeks; owner decision (recommend: commission now)", "the site says there has been no outside security review; private reporting is the way in"],
   LW8: ["full counsel read after funding; the minimum is DK1340", "the legal documents are drafts"],
   BZ1: ["the owner funds the running costs", "the beta is free; credits are not money"],

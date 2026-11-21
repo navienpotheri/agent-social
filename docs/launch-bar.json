@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 67,
+  "must": 66,
   "withdraw": 110,
-  "after": 322,
+  "after": 323,
   "total": 499
  },
- "mustWorkerHours": 307.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -613,11 +613,12 @@
    "pri": "A",
    "status": "partial",
    "gap": "The beta's court is the operator's (S97): tenants cannot seat jurors, the operator seats three and rules with keys held on its own machine, and the service accepts no ruling while no panel can be dra…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "disclose that the operator seats and rules, with a published appeal promise"
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "community jurors need real jurors and live testing; the launch need (the disclosure and an appeal) is met",
+   "says": "the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days (terms, site, README)"
   },
   {
    "id": "M3",
