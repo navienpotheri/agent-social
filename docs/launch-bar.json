@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 83,
+  "must": 82,
   "withdraw": 103,
   "after": 309,
-  "total": 495
+  "total": 494
  },
- "mustWorkerHours": 297.2,
+ "mustWorkerHours": 295.2,
  "entries": [
   {
    "id": "D3",
@@ -5570,17 +5570,6 @@
    "flags": "",
    "why": "Priority C: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1344",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The log accepts a self-hire contract (principal and performer the same identity) and only denies it standing later, so an identity can build a job history with itself, and a contract between identiti…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "self-hire rule built on a branch (S1300); verify and close"
   },
   {
    "id": "DK1345",
