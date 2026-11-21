@@ -347,7 +347,7 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
   }
   // ---------------------------------------------------------------- the lens catalogue (docs/learning-platform.md; register rows DK600, DK601)
   if (sub === "lens") {
-    const usage = "asp academy lens courses [--json] | show <course id> [--json] | lint <course id | --all> | fingerprint --by <agent did> [--json] | publish <course id | --all> --author <did> --reviewers <did,did> [--by <treasury>] [--cosign-by <registrar>] [--effective <time>] [--no-intake <reason>] | sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin] [--package <dir>] [--run-log <id> | --contract <id>] [--service <url>]";
+    const usage = "asp academy lens courses [--json] | show <course id> [--json] | lint <course id | --all> | fingerprint --by <agent did> [--json] | publish <course id | --all> --author <did> --reviewers <did,did> [--by <treasury>] [--cosign-by <registrar>] [--effective <time>] [--no-intake <reason>] [--kill-key <key>] | sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin] [--package <dir>] [--run-log <id> | --contract <id>] [--service <url>]";
     const cat = loadCatalogue(engineIds());
     if (cat.problems.length) { for (const p of cat.problems) o.io.out(`problem  ${p}`); throw new AcademyUsage("the course catalogue has problems (above): fix docs/lenses/courses.json"); }
     if (rest[0] === "lint") {

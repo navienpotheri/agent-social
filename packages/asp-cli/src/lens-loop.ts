@@ -87,6 +87,9 @@ export function intakeProblems(i: Intake, courses: readonly Pick<CourseCard, "id
 /** The intakes the registry holds (docs/lenses/intakes.json), by id. */
 export const INTAKES_FILE = fileURLToPath(new URL("../../../docs/lenses/intakes.json", import.meta.url));
 export function loadIntakes(file = INTAKES_FILE): Intake[] { return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { intakes: Intake[] }).intakes : []; }
+/** The signed kill records the registry holds (docs/lenses/kills.json). */
+export const KILLS_FILE = fileURLToPath(new URL("../../../docs/lenses/kills.json", import.meta.url));
+export function loadKills(file = KILLS_FILE): (KillRecord & { sig: string })[] { return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as { kills: (KillRecord & { sig: string })[] }).kills : []; }
 /** What bars a course card on its intake (DK1751): a card that names an intake names one the registry holds, with the hash of the plan as it stands, and for the course the intake names. A card with no intake is not refused here: `lens publish` refuses it unless the operator states why (a course written before the rule). */
 export function cardIntakeProblems(card: Pick<CourseCard, "id" | "intake">, intakes: readonly Intake[]): string[] {
   if (!card.intake) return [];
@@ -179,7 +182,10 @@ export interface Readout {
   retention: { day0: number; day7: number; day30: number; share_kept_permille: number; floor_permille: number; flagged: number };
   ablation: { n: number; with_lesson: number; without_lesson: number; effect: number };
   regressions: number;
+  /** The signed kill record, present only when a key was given to sign it (the owner's; the command never signs with a key of its own). */
   kill: (KillRecord & { sig: string }) | null;
+  /** What a kill would say, unsigned: a recommendation until the owner signs it. */
+  kill_recommended: KillRecord | null;
   limits: string[];
 }
 
@@ -298,14 +304,14 @@ export async function runLoop(o: LoopOptions = {}): Promise<Readout> {
   const day30 = r1(days("cohort", (r) => r.day30 ?? 0) - days("control", (r) => r.day30 ?? 0));
   const ab = cohortRows.filter((r) => r.ablated !== null);
   const abl = { n: ab.length, with_lesson: Math.round(mean(ab.map((r) => r.after))), without_lesson: Math.round(mean(ab.map((r) => r.after - (r.ablated ?? 0)))), effect: Math.round(mean(ab.map((r) => r.ablated ?? 0))) };
-  const killSeed = o.killSeed ?? new Uint8Array(32).fill(7);
-  const kill = decision === "kill" ? signKill({ intake: ihash, lens: intake.lens, reason, at: "end of the readout", seed_key: b64urlEncode(publicKeyFromSeed(killSeed)) }, killSeed) : null;
+  const rec: KillRecord | null = decision === "kill" ? { intake: ihash, lens: intake.lens, reason, at: "end of the readout", seed_key: o.killSeed ? b64urlEncode(publicKeyFromSeed(o.killSeed)) : "unsigned" } : null;
+  const kill = rec && o.killSeed ? signKill(rec, o.killSeed) : null;
   return {
     scope: LOOP_SCOPE, seed, null_run: !!o.nullRun, intake, intake_sha256: ihash, planned_n_per_arm: perArm, sample_size_from_power: sampleSizePerArm(p), z_crit: r1(zc), learners: rows,
     cohort: { n: cohortRows.length, sat: cohortRows.filter((r) => r.sat).length, passed: cohortRows.filter((r) => r.passed).length, admitted: cohortRows.filter((r) => r.admitted).length },
     looks, decision, reason,
     retention: { day0, day7, day30, share_kept_permille: day0 > 0 ? Math.round((day30 / day0) * 1000) : 0, floor_permille: p.retention_floor_permille, flagged: cohortRows.filter((r) => r.flag !== "ok").length },
-    ablation: abl, regressions: regressionPermille, kill,
+    ablation: abl, regressions: regressionPermille, kill, kill_recommended: rec && !kill ? rec : null,
     limits: [
       ...(perArm < sampleSizePerArm(p) ? [`underpowered: ${perArm} agents per arm is below the ${sampleSizePerArm(p)} the pre-registered power asks for, so a failure to find an effect here says little and a found effect is read with that in mind`] : []),
       "the learners are scripted and the world is a toy: a decision here says the loop works from intake to decision, never that the paper's claim holds for a real model agent",
@@ -368,6 +374,7 @@ export function formatReadout(r: Readout): string {
   L.push(`  regressions: ${r.regressions / 10}% of held-out good answers newly flagged (kill rule: above ${r.intake.prereg.kill.regression_max_permille / 10}%)`);
   L.push(`  DECISION: ${r.decision}. ${r.reason}`);
   if (r.kill) L.push(`  kill record signed (${r.kill.sig.slice(0, 16)}...): the lens is switched off for this intake`);
+  else if (r.kill_recommended) L.push("  kill recommended and NOT signed: the owner's key signs a kill record; until then the lens stays on and this is a recommendation");
   for (const l of r.limits) L.push(`  limit: ${l}`);
   return L.join("\n");
 }

@@ -107,11 +107,16 @@ test("DK1750 stage 8: a lesson that regresses what the agent already did well is
   // a suite that passes the course's gate but also flags every reply to one customer name (about 6 % of the good replies): it breaks some answers that were fine
   const over: EvalSuite = { grader: { kind: "code" }, graders: [...honestSuite().graders, { id: "name", kind: "absent", pattern: "Hello Asha," }] };
   const intake = evalsIntake({ kill: { regression_max_permille: 20, lift_below_permille: 0 } });
-  const r = await runLoop({ seed: 3, agents: 60, intake, writes: over });
+  const seedKey = new Uint8Array(32).fill(7), pub = publicKeyFromSeed(seedKey);
+  const unsigned = await runLoop({ seed: 3, agents: 60, intake, writes: over });
+  assert.equal(unsigned.decision, "kill");
+  assert.equal(unsigned.kill, null, "the command signs nothing with a key of its own");
+  assert.match(unsigned.kill_recommended!.reason, /regress/);
+  assert.match(formatReadout(unsigned), /kill recommended and NOT signed/);
+  const r = await runLoop({ seed: 3, agents: 60, intake, writes: over, killSeed: seedKey });
   assert.ok(r.regressions > 20, `regressions ${r.regressions}`);
   assert.equal(r.decision, "kill");
   assert.ok(r.kill && /regress/.test(r.kill.reason));
-  const seedKey = new Uint8Array(32).fill(7), pub = publicKeyFromSeed(seedKey);
   assert.equal(verifyKill(r.kill!, pub), true);
   assert.equal(lensIsLive(r.intake, [r.kill!], pub).live, false);
   assert.equal(lensIsLive(r.intake, [], pub).live, true);
