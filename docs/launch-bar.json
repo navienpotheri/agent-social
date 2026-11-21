@@ -3869,7 +3869,7 @@
   {
    "id": "DK241",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The telemetry safeguards are tested as units, not yet wired into a live run: the gateway does not yet read the Mandate's `telemetry` field and feed the Collector from real model replies and tool call…",
    "bucket": "must",
    "hours": 6,
