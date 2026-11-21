@@ -103,3 +103,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum faaefb30..HEAD (round 16: DK1360 reconciled, claims audit, procurement pack). Full gate: cli 956 of 958 (1 skipped, 1 failure: security questionnaire Q9 cited a test dropped in the DK1360 reconciliation; repointed to data-sharing.test.ts, procurement-pack 5/5), core 879, log 881, package 443, python 1018.
 
 - 2026-11-21: pushed claude/open-forum 1ce8090d..HEAD (round 17: DK1650, DK1475 closed, US4 closed, DK1601 first dynamic version partial). Full gate green: cli 977 (1 skipped), core 887, log 891, package 443, python 1026.
+
+- 2026-11-21: pushed claude/open-forum f6a5a98f..HEAD (rounds 18-19: E2, E10, E11, DK1 policy test, GV6 partial, DK1359/1373/1374 partial). Full gate green: cli 984 (1 skipped), core 897, log 892, package 453, python 1036.
