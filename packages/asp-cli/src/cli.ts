@@ -1253,11 +1253,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "pause" || cmd === "resume") {
       // US1: hold every running session instead of ending it. The gateways poll this file; asp resume removes it.
       const file = join(home, "paused");
-      if (cmd === "resume") { const was = existsSync(file); rmSync(file, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
+      // A --local run keeps everything under <ASP_HOME>/local, and its gateway polls that folder: pause and resume cover both, so a person is never told "paused" while a local session runs on.
+      const localFile = join(home, "local", "paused");
+      const hasLocal = existsSync(join(home, "local", "runs.ndjson"));
+      if (cmd === "resume") { const was = existsSync(file) || (hasLocal && existsSync(localFile)); rmSync(file, { force: true }); if (hasLocal) rmSync(localFile, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
       if (sub === "status") { io.out(existsSync(file) ? `paused since ${readFileSync(file, "utf8").trim()}: every running session holds its next call (asp resume continues them)` : "not paused"); return 0; }
       mkdirSync(home, { recursive: true });
       writeFileSync(file, `${now()}
 `);
+      if (hasLocal) writeFileSync(localFile, `${now()}\n`);
       io.out("paused: every running session on this machine holds its next call and continues on asp resume; asp stop --all ends them instead");
       return 0;
     }
@@ -7718,13 +7722,14 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string; agent?: string; bank?: string }; service?: string }; } catch { return undefined; } })();
     return await livePreflight({
       home, env: io.env, out: (l) => io.out(l),
-      flags: { ...(v.port ? { port: v.port } : {}), ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
+      flags: { ...(v.local ? { local: true } : {}), ...(v.port ? { port: v.port } : {}), ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
       stopAll: async (h) => await stopCmd(h, undefined, { all: true } as Values, { ...io, out: () => undefined, err: () => undefined }),
       mandateOf: async (contract) => { const chain = (await (await openLog(home, logEnv)).log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2"); const b = chain.at(-1)?.record.body as { scopes?: string[] } | undefined; return b ? { scopes: b.scopes ?? [] } : undefined; },
       identities: () => cfg?.identities,
     });
   }
   if (sub === "report") {
+    if (!sessionsOf(home).length && existsSync(join(home, "local", "runs.ndjson"))) return await liveCommand(join(home, "local"), sub, v, io);
     const all = sessionsOf(home);
     const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
     if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
@@ -7747,7 +7752,9 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
 async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  const running = sessionsOf(home).filter((s) => !s.end);
+  let running = sessionsOf(home).filter((s) => !s.end);
+  // `asp run --local` keeps its sessions under <ASP_HOME>/local: when none run here, stop those (the stop file goes where that gateway looks).
+  if (!running.length && !home.replace(/[\\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) { const local = sessionsOf(join(home, "local")).filter((s) => !s.end); if (local.length) return await stopCmd(join(home, "local"), id, v, io); }
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
   // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.

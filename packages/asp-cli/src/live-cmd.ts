@@ -19,7 +19,7 @@ export interface LiveCtx {
   home: string;
   env: Record<string, string | undefined>;
   out: (l: string) => void;
-  flags: { port?: string; runtime?: string; keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
+  flags: { local?: boolean; port?: string; runtime?: string; keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
   /** Runs a read-only command and returns its text (powercfg on Windows); injectable for tests. */
   query?: (cmd: string, args: string[]) => string | undefined;
   /** Runs `asp stop --all` against a home (the real command, so the check is of the real code). */
@@ -101,7 +101,8 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
 
   // The log service.
   const service = c.flags.service ?? c.env.ASP_LOG_URL;
-  if (!service) add("the log service", "warn", "no service is configured (ASP_LOG_URL): the run uses the local log only");
+  if (c.flags.local) add("the log service", "ok", "--local: no service is used");
+  else if (!service) add("the log service", "warn", "no service is configured (ASP_LOG_URL): the run uses the local log only");
   else {
     try {
       const base = service.endsWith("/") ? service : service + "/";
@@ -112,7 +113,8 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
 
   // The Mandate and the identities.
   const ids = c.identities();
-  add("identities", ids?.agent && ids.me ? "ok" : "fail", ids?.agent && ids.me ? `you ${ids.me}; agent ${ids.agent}` : "no saved identities: run asp join (or asp enrol) first");
+  if (c.flags.local) add("identities", "ok", "--local: asp run makes its own identities on this machine, with no account and no service");
+  else add("identities", ids?.agent && ids.me ? "ok" : "fail", ids?.agent && ids.me ? `you ${ids.me}; agent ${ids.agent}` : "no saved identities: run asp join (or asp enrol) first, then this check again (or pass --local to run with no account)");
   if (!c.flags.contract) add("the Mandate", "warn", "no --contract given: asp run makes a standing job with a Mandate sized to the task; pass --contract <id> to check one now");
   else {
     const m = await c.mandateOf(c.flags.contract).catch(() => undefined);
