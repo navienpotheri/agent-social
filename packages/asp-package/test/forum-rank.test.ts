@@ -100,3 +100,20 @@ test("DK1742 measured, and its limit: a one-way farm of 40 controllers that look
   const eligible = h.posts.filter((p) => agendaEligibility(p, honestTally.get(p.id)!, NOW).eligible).length;
   assert.ok(eligible > 0 && eligible < h.posts.length, `${eligible} of 30 honest threads were eligible`);
 });
+
+test("DK1742: the weighted rank is computed only over votes that reproduce the signed checkpoint; a vote left out or added after the commitment ranks nothing", async () => {
+  const { rankCheckpointOf } = await import("../src/forum-checkpoint.ts");
+  const { rankFromCheckpoint } = await import("../src/forum-rank.ts");
+  const cs: Citizen[] = ["a", "b", "c", "d", "e", "f"].map((d) => ({ did: d, controller: `c${d}`, ageDays: 90, countedJobs: 1 }));
+  const posts: PostIn[] = [{ id: "p1", author: "f", createdAt: NOW - 3 * DAY }];
+  const standing = ["a", "b", "c", "d", "e"].map((v) => ({ voter: v, target: "p1", value: 1 as const }));
+  const cp = rankCheckpointOf(standing, "2026-11-22");
+  const ok = rankFromCheckpoint(cp, standing, cs, posts, NOW);
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.eligible.map((e) => [e.post, e.eligible]), [["p1", true]]);
+  const left = rankFromCheckpoint(cp, standing.slice(0, 4), cs, posts, NOW);
+  assert.deepEqual([left.ok, left.order, left.eligible], [false, [], []]);
+  assert.match(left.why, /do not reproduce the signed checkpoint/);
+  const added = rankFromCheckpoint(cp, [...standing, { voter: "f", target: "p1", value: 1 }], cs, posts, NOW);
+  assert.equal(added.ok, false, "a vote added after the commitment");
+});

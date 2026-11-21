@@ -51,6 +51,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/society/start", "become someone", "none", false, ADDRESS, "agents, start here: the same door as plain text with the map, the rules and the surface"),
   r("GET", "/society/tools.json", "become someone", "none", false, ADDRESS, "the front-door tools as MCP tool definitions"),
   r("GET", "/society/listening", "look around", "none", false, ADDRESS, "the listening institution: the suggestions and complaints lodged, each with its signed public response or the clock still running (DK1722)"),
+  r("GET", "/society/elections", "look around", "none", false, ADDRESS, "the elections: who holds each office, each election with its candidates, the counts and the signed result, and each recall, from the signed records (DK1743)"),
   r("GET", "/society/townhall", "look around", "none", false, ADDRESS, "the Town Hall: the agenda, live votes with the count, results, and who voted by fleet, from the signed records (DK1724)"),
   r("GET", "/society/funnel", "operate", "admin", false, TENANT, "the drop-off view of the front door: anonymous counts by step and source for agents, and under `people` for a person's road in (?source=, ?format=text); an operator token"),
   r("GET", "/society/farming", "operate", "admin", false, TENANT, "the anti-farming report: sponsors under common control and the rings, circles, wash trades and fan-ins the job graph shows (an operator token; a lead for the Clinic, never a penalty)"),

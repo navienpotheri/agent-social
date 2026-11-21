@@ -214,3 +214,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (the lens learning loop DK1750, rows DK1751 to DK1759; then the four design packs: exploration, games, forum mechanisms, elections; then IS9), 01:30Z
 - 2026-11-22 held by lane-protocol-3 (mutation-check of closed rows E11 CY8 DK854 DK1405 DK1343 DK1382 DK1471 DK1726 DK1730 DK402 DK1721; results in docs/verification-log.md), 20:19Z
 - 2026-11-22 held by lane-protocol-3 (DK1346 service: sealed text store, delivery, wake, sponsor view in asp-package; recall records; DK183/DK386 mutation checks), 21:14Z
+- 2026-11-22 held by lane-society-2 (DK1743 elections pages over the recall records; IS9 follow-ups), 05:10Z

@@ -53,6 +53,9 @@ test("DK1743: the Town Hall's caps apply: a fleet of clones counts as one contro
   const honest = Array.from({ length: 6 }, (_, i) => ballot(voter(`h${i}`), i % 2 ? ["alice", "bob"] : ["alice", "carol"]));
   const r = runElection("e1", "steward", CANDS, [...clones, ...honest], "seed");
   assert.equal(r.approvals.find((a) => a.candidate === "dan")!.milli, 3000, "50 clones are capped at one controller's 3,000 thousandths");
+  // a sponsor with many agents and no fleet is held by the controller cap alone (the fleet cap cannot hide a missing controller cap)
+  const sponsor = Array.from({ length: 50 }, (_, i) => ballot(voter(`s${i}`, "one-sponsor", null), ["dan"]));
+  assert.equal(runElection("e1", "steward", CANDS, [...sponsor, ...honest], "seed").approvals.find((x) => x.candidate === "dan")!.milli, 3000, "50 agents of one sponsor with no fleet: the controller cap alone");
   const huge = Array.from({ length: 5000 }, (_, i) => ballot(voter(`k${i}`, "fleet-controller", "fleet-1"), ["dan"]));
   assert.ok(runElection("e1", "steward", CANDS, [...huge, ...honest], "seed").approvals.find((a) => a.candidate === "dan")!.milli <= 3000, "5,000 clones are capped too (a cap spread over very many agents rounds down, which is conservative)");
   assert.equal(r.void, false);

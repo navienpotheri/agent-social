@@ -1269,6 +1269,9 @@ export class EventLog {
     } else if (t === "asp.clinic_diagnosis/v0.2") {
       await tx.putMarker(`diagnosis_withdrawn:${info.subject}`, at);
       effects.diagnosis_withdrawn = true;
+    } else if (t === "asp.gateway_refusal/v0.2") {
+      await tx.putMarker(`refusal_reversed:${info.subject}`, contestId);
+      effects.refusal_recorded_as_wrong = true;
     } else if (t === "asp.quarantine/v0.2") {
       if (!(await tx.getMarker(`quarantine_released:${info.subject}|${info.agent}`))) { await tx.putMarker(`quarantine_released:${info.subject}|${info.agent}`, contestId); effects.quarantine_ended_for = info.agent; }
     }
@@ -2538,6 +2541,13 @@ export class EventLog {
         const id = pb.key.slice("academy.course.".length), cur = ((await tx.getMarker(`town_course:${id}`)) ?? "").split(",").filter(Boolean);
         await tx.putMarker(`town_course:${id}`, [...cur, r.id].join(","));
       }
+      // A learning path (DK1608, S1610): key `academy.path.<id>`, value { title, courses: [course ids in order] }; the shape is checked at the proposal and every course must be published when it is enacted.
+      if (/^academy\.path\./.test(pb.key)) {
+        if (b.kind !== "learning_path") throw rule("town_path_kind", "a key under academy.path. is a learning path: its kind is learning_path");
+        const v = (r.body as { value?: { title?: unknown; courses?: unknown } | null }).value;
+        const cs = v?.courses;
+        if (typeof v?.title !== "string" || !v.title.trim() || !Array.isArray(cs) || cs.length < 2 || cs.length > 12 || cs.some((c) => typeof c !== "string" || !c) || new Set(cs).size !== cs.length) throw rule("town_path_shape", "a learning path has a title and 2 to 12 different course ids in order (value.title, value.courses)");
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -2571,6 +2581,9 @@ export class EventLog {
     if (now < Date.parse(prop.closes_at) + rules.coolingOffMs) throw rule("town_cooling_off", `an enactment waits ${rules.coolingOffMs / 3_600_000} hours after the window closes`);
     if (await tx.getMarker(`town_enacted:${b.proposal}`)) throw rule("town_enacted", "this proposal was enacted already");
     if (b.key !== prop.key || JSON.stringify(b.value) !== JSON.stringify(prop.value)) throw rule("town_enactment_mismatch", "an enactment makes the change that was voted, no other");
+    if (/^academy\.path\./.test(prop.key)) {
+      for (const c of ((prop.value as { courses?: string[] } | null)?.courses ?? [])) if (!(await tx.getMarker(`course:${c}`))) throw rule("town_path_unknown_course", `the learning path names ${c}, which is not a published course: a path is enacted only over courses that exist`);
+    }
     await tx.putMarker(`town_enacted:${b.proposal}`, r.id);
     await tx.putMarker(`town_setting:${prop.key}`, JSON.stringify({ value: prop.value, proposal: b.proposal, enactment: r.id, at: r.issued_at }));
     const keys = ((await tx.getMarker("town_keys")) ?? "").split("\n").filter(Boolean);
@@ -3147,6 +3160,61 @@ export class EventLog {
       const raw = await tx.getMarker(`recall:${recall}`);
       return raw ? this.recallCountIn(tx, JSON.parse(raw)) : null;
     });
+  }
+
+  /**
+   * The elections as the public page reads them (DK1743): the holders of each office, every election with its window, its candidates, the number of committed and revealed ballots, the live count and the signed result, and
+   * every recall with its petition, its vote and its result. Built from the signed records and the log's own counts, so the page equals a count taken from the log. Reads only.
+   */
+  async electionsView(at?: string) {
+    const all = await this.recordsOfTypes(["election", "candidacy", "ballot_commit", "ballot_reveal", "election_result", "recall_petition", "recall_vote", "recall_result"]);
+    // the time is the one asked for, else the later of the wall clock and the newest record (a log with a clock of its own shows its own latest state)
+    const now = at ? Date.parse(at) : Math.max(Date.now(), ...all.map((r) => Date.parse(r.issued_at)));
+    const recs = all.filter((r) => Date.parse(r.issued_at) <= now);
+    const T = (x: string) => `asp.${x}/v0.2`;
+    const resultOf = new Map<string, AspRecord>();
+    for (const r of recs) if (r.type === T("election_result")) resultOf.set((r.body as { election: string }).election, r);
+    const elections = [];
+    for (const e of recs.filter((r) => r.type === T("election"))) {
+      const b = e.body as { office: string; opens_at: string; closes_at: string; reveals_close_at: string; thread?: string };
+      const mine = (t: string) => recs.filter((r) => r.type === T(t) && (r.body as { election: string }).election === e.id);
+      const res = resultOf.get(e.id);
+      const state = res ? ((res.body as { void: boolean }).void ? "void" : "decided") : now < Date.parse(b.opens_at) ? "upcoming" : now < Date.parse(b.closes_at) ? "voting" : now < Date.parse(b.reveals_close_at) ? "revealing" : "closed";
+      const tally = await this.electionTally(e.id);
+      elections.push({
+        id: e.id, office: b.office, state, opensAt: b.opens_at, closesAt: b.closes_at, revealsCloseAt: b.reveals_close_at, ...(b.thread ? { thread: b.thread } : {}),
+        candidates: mine("candidacy").map((c) => ({ did: c.issuer, endorsers: ((c.body as { endorsers: string[] }).endorsers ?? []).length })),
+        committed: mine("ballot_commit").length, revealed: mine("ballot_reveal").length,
+        live: tally ? { approvals: tally.approvals, counted: tally.counted, controllers: tally.controllers, unrevealed: tally.unrevealed, elected: tally.elected, void: tally.void } : null,
+        result: res ? { id: res.id, at: res.issued_at, elected: (res.body as { elected: string[] }).elected, void: (res.body as { void: boolean }).void } : null,
+      });
+    }
+    const recalls = [];
+    for (const p of recs.filter((r) => r.type === T("recall_petition") && !(r.body as { recall?: string }).recall)) {
+      const b = p.body as { officer: string; election_result: string; reason?: string };
+      const signers = recs.filter((r) => r.type === T("recall_petition") && (r.id === p.id || (r.body as { recall?: string }).recall === p.id)).sort((x, y) => (x.issued_at < y.issued_at ? -1 : 1));
+      const resRec = (await this.store.transaction((tx) => tx.getRecord(b.election_result)))?.record;
+      const resBody = resRec?.body as { election: string; controllers: number } | undefined;
+      const el = resBody ? recs.find((r) => r.id === resBody.election) : undefined;
+      const need = Math.max(5, Math.ceil((resBody?.controllers ?? 0) / 10));
+      const opensAt = signers.length >= need ? signers[need - 1]!.issued_at : null;
+      const closesAt = opensAt ? new Date(Date.parse(opensAt) + 7 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z") : null;
+      const votes = recs.filter((r) => r.type === T("recall_vote") && (r.body as { recall: string }).recall === p.id).length;
+      const res = recs.find((r) => r.type === T("recall_result") && (r.body as { recall: string }).recall === p.id);
+      // the live count is the log's own and is shown for the present only; a page as of an earlier time shows the counts of records, not the weighted count
+      const live = at ? null : (await this.recallTally(p.id));
+      recalls.push({
+        id: p.id, officer: b.officer, office: (el?.body as { office?: string } | undefined)?.office ?? null, reason: b.reason ?? "", petitioned: signers.length, needed: need,
+        state: res ? ((res.body as { removed: boolean }).removed ? "removed" : "kept") : opensAt ? (now < Date.parse(closesAt!) ? "voting" : "closed") : "petition",
+        opensAt, closesAt, votes, live,
+      });
+    }
+    return {
+      at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      offices: { steward: await this.officeHolders("steward"), auditor: await this.officeHolders("auditor") },
+      elections, recalls,
+      note: "Offices are few and hold no power over money, the Code, the safety floors or legal matters. A ballot is committed first and revealed after the window; an unrevealed ballot is not counted. The count is the log's own, recomputed from the signed ballots.",
+    };
   }
 
   /** Whether an officer was removed from an office by a recall (S1600): the record of the result, or null. Reads only. */
