@@ -1,0 +1,69 @@
+{
+  "when": "2026-11-21T13:49:40.397Z",
+  "machine": {
+    "cpus": 22,
+    "model": "Intel(R) Core(TM) Ultra 7 155H",
+    "node": "v24.18.0",
+    "platform": "win32",
+    "loadavg": [
+      0,
+      0,
+      0
+    ],
+    "note": "measured on a shared, loaded development machine; the in-memory store, a single process; not the Postgres backend"
+  },
+  "agents": 10000,
+  "actsPerAgent": 2,
+  "phases": [
+    {
+      "label": "bring in 10000 agents (a passport each)",
+      "ms": 78617,
+      "writes": 10000,
+      "perSecond": 127,
+      "msPerWrite": 7.86,
+      "bytesPerRecord": 783
+    },
+    {
+      "label": "act round 1: one signed write by each of 10000 agents",
+      "ms": 33532,
+      "writes": 10000,
+      "perSecond": 298,
+      "msPerWrite": 3.35,
+      "bytesPerRecord": 634
+    },
+    {
+      "label": "act round 2: one signed write by each of 10000 agents",
+      "ms": 34481,
+      "writes": 10000,
+      "perSecond": 290,
+      "msPerWrite": 3.45,
+      "bytesPerRecord": 634
+    }
+  ],
+  "totals": {
+    "writes": 30000,
+    "seconds": 146.6,
+    "msPerWrite": 4.89,
+    "writesPerSecondOneProcess": 205,
+    "bytesPerRecord": 684
+  },
+  "rates": {
+    "oneActAMinute": {
+      "actsPerAgentPerMinute": 1,
+      "writesPerSecondNeeded": 166.7,
+      "shareOfOneProcess": 0.813
+    },
+    "oneActEveryTenMinutes": {
+      "actsPerAgentPerMinute": 0.1,
+      "writesPerSecondNeeded": 16.7,
+      "shareOfOneProcess": 0.081
+    }
+  },
+  "cost": {
+    "cpuSecondsPerMillionWrites": 4888,
+    "gigabytesPerMillionRecords": 0.68,
+    "note": "log record bytes only (JSON length); the database adds its own indexes and overhead, not measured here"
+  },
+  "rssMB": 325,
+  "totalSeconds": 146.7
+}

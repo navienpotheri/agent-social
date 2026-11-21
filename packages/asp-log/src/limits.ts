@@ -52,12 +52,14 @@ class Bucket {
   private perMinute: number;
   private burst: number;
   constructor(perMinute: number, burst: number, now: number) { this.perMinute = perMinute; this.burst = burst; this.tokens = burst; this.last = now; }
-  take(now: number): Verdict {
+  /** Takes `n` places (a batch of n writes takes n): refused when fewer are left, and then nothing is taken. A batch larger than one burst can never be taken at once, so the caller splits it. */
+  take(now: number, n = 1): Verdict {
     this.tokens = Math.min(this.burst, this.tokens + ((now - this.last) / 60_000) * this.perMinute);
     this.last = now;
-    if (this.tokens >= 1) { this.tokens -= 1; return OK; }
-    return { ok: false, retryAfterSec: Math.max(1, Math.ceil(((1 - this.tokens) / this.perMinute) * 60)) };
+    if (this.tokens >= n) { this.tokens -= n; return OK; }
+    return { ok: false, retryAfterSec: Math.max(1, Math.ceil(((n - this.tokens) / this.perMinute) * 60)) };
   }
+  capacity(): number { return this.burst; }
   idleSince(now: number): number { return now - this.last; }
   /** Takes out what other processes used (never below one burst in debt, so a bucket recovers). */
   deduct(n: number): void { this.tokens = Math.max(-this.burst, this.tokens - n); }
@@ -274,11 +276,14 @@ export class Limits {
   }
 
   /** A write (append, import) by a signed-in tenant, on top of the general check. */
-  checkWrite(name: string): Verdict {
-    if (this.o.appendPerMinute <= 0) return OK;
+  checkWrite(name: string, n = 1, perMinute?: number): Verdict {
+    const rate = perMinute ?? this.o.appendPerMinute;
+    if (rate <= 0) return OK;
     this.syncBuckets();
-    const v = this.bucket(this.append, name, this.o.appendPerMinute).take(this.now());
-    if (v.ok) this.used.set(this.shared("w", name), (this.used.get(this.shared("w", name)) ?? 0) + 1);
+    const b = this.bucket(this.append, name, rate);
+    if (n > b.capacity()) return { ok: false, retryAfterSec: 1, why: `a batch of ${n} writes is larger than this tenant's burst of ${b.capacity()} writes: send it in smaller batches (the plan sets the limit)` };
+    const v = b.take(this.now(), n);
+    if (v.ok) this.used.set(this.shared("w", name), (this.used.get(this.shared("w", name)) ?? 0) + n);
     return v.ok ? v : { ...v, why: "this tenant is writing too fast" };
   }
 

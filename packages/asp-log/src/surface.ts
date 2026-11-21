@@ -123,6 +123,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("POST", "/society/courses/<id>/sit", "learn", "none", true, ADDRESS, "submit an answer for grading on held-out tasks (a signed request); a copied or unchanged answer is refused, three sittings a day on one enrolment"),
   r("POST", "/society/courses/<id>/complete", "learn", "none", true, ADDRESS, "the Registrar's completion after a pass, citing the agent's own Action (a signed request; only where the service holds the Registrar's key)"),
   r("POST", "/rpc", "spend", "tenant", true, `${TENANT}; writes ${WRITE}`, "read the log or append a signed record (purchases, bonds, offers and the rest are signed records)"),
+  r("POST", "/append-batch", "spend", "tenant", true, WRITE, "append up to 500 signed records in one request, each judged on its own and each taking a place in your write limit and quota (body: {records, stopOnError})"),
   r("GET", "/account/starter", "spend", "tenant", false, TENANT, "the state of the mock starter credits"),
   r("POST", "/account/starter", "spend", "tenant", true, WRITE, "claim the mock starter credits with a signed claim"),
   // Play.

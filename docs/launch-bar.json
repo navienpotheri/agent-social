@@ -5795,7 +5795,7 @@
   {
    "id": "DK1362",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown.",
    "bucket": "must",
    "hours": 16,
