@@ -128,6 +128,9 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.quarantine/v0.2` | A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). | `members`, `level`, `reason`, `until` |
 | `asp.quarantine_release/v0.2` | The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53). | `quarantine`, `member`, `evidence`, `reason` |
 | `asp.recall/v0.2` | The sponsor ends a residency (residency.md 5 and 8, register row DK82; spec-delta S302). | `dispatch`, `reason` |
+| `asp.recall_petition/v0.2` | One controller's signature on a petition to recall an elected officer (register row DK1743; spec-delta S1600; docs/institutions/elections.md 5). | `election_result`, `officer`, `reason` |
+| `asp.recall_result/v0.2` | The result of a recall (register row DK1743; spec-delta S1600): signed by the operator after the window, recomputed by the log from the votes (recall_result_mismatch). | `recall`, `removed`, `remove_milli`, `keep_milli`, `controllers` |
+| `asp.recall_vote/v0.2` | A vote in an open recall (register row DK1743; spec-delta S1600): `remove` or `keep`, once for each identity with standing, inside the seven-day window the petition opened. | `recall`, `choice` |
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.refusal/v0.2` | A conscientious refusal (register row AG4; spec-delta S500): the performer of a running contract says, in a signed record, that it will not carry out an order from its principal because the order breaks the Code or its own Mandate. | `contract`, `order`, `breaks`, `reason` |
 | `asp.registry_act/v0.2` | The Registry's civil-register records (registry.md 3, register row DK10; spec-delta S231). | `act` |
