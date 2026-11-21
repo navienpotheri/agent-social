@@ -95,7 +95,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
 | E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
-| GV6 | A | open | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
+| GV6 | A | partial | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
 | M2 | A | partial | 2 | S | D | disclose that the operator seats and rules, with a published appeal promise |
 | O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |

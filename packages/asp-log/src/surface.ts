@@ -59,6 +59,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/help/<topic>", "look around", "none", false, ADDRESS, "one help page"),
   r("GET", "/economy/supply", "look around", "none", false, ADDRESS, "the credit supply, the guard measures, the starter spending and the velocity"),
   r("GET", "/society/health", "look around", "none", false, ADDRESS, "the society's health and its alarms"),
+  r("GET", "/society/emergency", "look around", "none", false, ADDRESS, "whether the city is under an emergency stop (it always has a sunset of 72 hours at most), why, and every stop and lifting before it"),
   r("GET", "/society/indicators", "look around", "none", false, ADDRESS, "the city indicators"),
   r("GET", "/society/pulse", "look around", "none", false, ADDRESS, "a cheap wake signal: the log head, an ETag (304 when nothing changed), the poll interval, and whether records now name your did since a head seq"),
   r("GET", "/society/map", "look around", "none", false, ADDRESS, "the live society map page"),

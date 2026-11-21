@@ -905,6 +905,7 @@ const OPTIONS = {
   "since-file": { type: "string" },
   reads: { type: "string" },
   reference: { type: "string" },
+  stop: { type: "string" },
   lot: { type: "string" },
   "refund-until": { type: "string" },
   "tax-line": { type: "string", multiple: true },
@@ -1205,6 +1206,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "emergency") return await emergencyCommand(home, sub, v, io);
     if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
@@ -5050,6 +5052,39 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did> (register row GV6, S1420): the city-wide emergency stop with a sunset. While it
+ * stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase); work under way, appeals and essential services go on; it ends by itself within 72 hours.
+ */
+async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "status") {
+    const live = await local.log.emergencyState();
+    const history = await local.log.emergencyHistory();
+    if (v.json) { io.out(JSON.stringify({ live, history }, null, 2)); return live ? 1 : 0; }
+    io.out(live ? `EMERGENCY STOP ${live.id.slice(0, 20)} until ${live.until}: ${live.reason}. No new commitment is made until then; deliveries, settlements, appeals, refunds and essential services go on.` : "no emergency stop is in force");
+    for (const h of history) io.out(`  ${h.at} ${h.act}: ${h.reason}${h.until ? ` (until ${h.until})` : ""}`);
+    return live ? 1 : 0;
+  }
+  if (sub === "stop") {
+    const hours = Number(v.hours);
+    if (!v.reason || !v.by || !v.cosign || !(hours >= 1 && hours <= 72)) throw new UsageError("asp emergency stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did>");
+    const at = new Date(now());
+    const until = new Date(at.getTime() + hours * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");
+    const res = await local.append(cosign(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "stop", reason: v.reason, until }, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`emergency stop ${res.id} until ${until} (log seq ${res.seq}): no new commitment is made until then; it ends by itself`);
+    return 0;
+  }
+  if (sub === "lift") {
+    if (!v.stop || !v.reason || !v.by) throw new UsageError("asp emergency lift --stop <id> --reason <text> --by <operator did>");
+    const res = await local.append(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "lift", reason: v.reason, stop: v.stop }, issued_at: now() }, signerFor(v.by)));
+    io.out(`emergency stop ${v.stop} lifted (log seq ${res.seq})`);
+    return 0;
+  }
+  throw new UsageError("asp emergency status | stop | lift");
+}
+
 /**
  * asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file> (register row DK1374, S1417): the organisation's and its agents' signed records as JSON lines, with the
  * signers' passports so the file verifies offline; `--since-file` keeps the last position, so running it again (from cron, say) exports only what is new; `verify` checks the manifest and every record's id and signatures.

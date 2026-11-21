@@ -515,7 +515,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
 | GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
 | DK392 | A | closed | Tutorial jobs the city funds and mentors paid by the apprenticeship scheme. |
-| GV6 | A | open | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
+| GV6 | A | partial | Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restor... |
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
 | GV9 | A | partial | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
