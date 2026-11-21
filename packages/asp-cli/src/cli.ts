@@ -390,6 +390,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
+import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -650,6 +651,10 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "budget-usd": { type: "string" },
+  session: { type: "string" },
+  "price-in": { type: "string" },
+  "price-out": { type: "string" },
   "daily-tokens": { type: "string" },
   manifest: { type: "string" },
   "stop-after": { type: "string" },
@@ -1182,6 +1187,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
+    if (cmd === "live") return await liveCommand(home, sub, v, io);
     if (cmd === "pause" || cmd === "resume") {
       // US1: hold every running session instead of ending it. The gateways poll this file; asp resume removes it.
       const file = join(home, "paused");
@@ -3652,6 +3658,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
     ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    // A hard dollar cap (an estimate from tokens and a price table): `asp gateway --budget-usd 5 [--price-in <$ per million> --price-out <$ per million>]`.
+    ...(() => { if (v["budget-usd"] === undefined) return {}; const cap = Number(v["budget-usd"]), pi = v["price-in"] === undefined ? undefined : Number(v["price-in"]), po = v["price-out"] === undefined ? undefined : Number(v["price-out"]); if (!(cap > 0) || (pi !== undefined && !(pi >= 0)) || (po !== undefined && !(po >= 0))) throw new UsageError("--budget-usd is a number of dollars above 0; --price-in and --price-out are dollars per million tokens"); return { usdCap: cap, ...(pi !== undefined || po !== undefined ? { price: { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) } } : {}) }; })(),
     // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
     ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
@@ -3883,7 +3891,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), spend_usd: sum0.spendUsd, ...(sum0.usdCap !== undefined ? { cap_usd: sum0.usdCap } : {}), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
@@ -4411,7 +4419,7 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
         : e.kind === "run_end" ? (d.requests !== undefined
-          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked${d.spend_usd !== undefined ? `, est. spend USD ${d.spend_usd}${d.cap_usd !== undefined ? ` of ${d.cap_usd}` : ""}` : ""}`
           // a run under a contract (the package path) records strikes and what was masked, not request counts
           : `exit ${d.exit_code}; ${d.strikes ?? 0} strike(s)${d.redactions !== undefined ? `, ${d.redactions} secret-like value(s) masked` : ""}${d.killed ? `; stopped: ${d.killed}` : ""}`)
         : e.kind === "assistant_text" ? q(d.text)
@@ -7033,7 +7041,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -7456,6 +7464,39 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   const rl = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
   if (rl) io.out(`  run log   ${rl}  (on this machine; asp run-log show|verify reads it; asp run-log keep seals a copy on the service)`);
   return 0;
+}
+
+/** asp live preflight | report (live-run readiness): see live-cmd.ts. */
+async function liveCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub === "preflight") {
+    const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string; agent?: string; bank?: string }; service?: string }; } catch { return undefined; } })();
+    return await livePreflight({
+      home, env: io.env, out: (l) => io.out(l),
+      flags: { ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
+      stopAll: async (h) => await stopCmd(h, undefined, { all: true } as Values, { ...io, out: () => undefined, err: () => undefined }),
+      mandateOf: async (contract) => { const chain = (await (await openLog(home, logEnv)).log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2"); const b = chain.at(-1)?.record.body as { scopes?: string[] } | undefined; return b ? { scopes: b.scopes ?? [] } : undefined; },
+      identities: () => cfg?.identities,
+    });
+  }
+  if (sub === "report") {
+    const all = sessionsOf(home);
+    const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
+    if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
+    if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
+    const { start, end } = pick[0];
+    const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
+    let log: { records: number; actions: number } | undefined;
+    try {
+      const l = (await openLog(home, logEnv)).log;
+      const chain = await l.chain(start.contract);
+      const actions = chain.length ? (await l.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
+      log = { records: chain.length, actions: actions.length };
+    } catch { /* the log could not be read: the report says what it has */ }
+    const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}) });
+    if (v.json) io.out(JSON.stringify(report, null, 2)); else printReport(report, (l) => io.out(l));
+    return report.runLog.chainOk === false ? 1 : 0;
+  }
+  throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json]");
 }
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */

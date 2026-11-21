@@ -197,4 +197,5 @@ Areas (so lanes do not collide):
 - 2026-11-21 held by lane-protocol-2 (DK1728 Market completeness audit: table and first chain built, partial; DK1729 the unmapped ids and the longer chain), 18:10Z
 - 2026-11-22 held by lane-cli-3 (DK79 collection taps: registry, tap, disclosure; then DK1716 finishing, OpenClaw and Hermes adapters, DK1713 follow-up), 00:30Z
 - 2026-11-22 held by launch-bar-2 (US8 built, partial; next US1, JO3, DK440)
+- 2026-11-22 held by lane-cli-3 (live-run readiness for 2026-11-23: --budget-usd hard cap, asp live preflight, asp live report, stand-in rehearsal of failure modes)
 - 2026-11-22 held by launch-bar-2: forum front end design pack (docs/forum-design.md, screens), then GV11 and D12/DK272 private memory with lane-cli-3

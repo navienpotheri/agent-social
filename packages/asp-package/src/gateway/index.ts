@@ -9,3 +9,4 @@ export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResult
 export { SecondCheck, defaultRisky, type SecondAnswer, type SecondJudge, type SecondCheckOptions } from "./second-check.ts";
 export { scanText, redactDeep, resolveOutbound, ALL_OUTBOUND_KINDS, DEFAULT_OUTBOUND, type OutboundKind, type OutboundMode, type OutboundHit } from "./outbound-scan.ts";
 export { salientTokens, copiedFromUntrusted, flowReachesOutward } from "./untrusted-flow.ts";
+export { priceFor, costUsd, worstCaseUsd, DEFAULT_PRICE, type Price } from "./pricing.ts";
