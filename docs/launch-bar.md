@@ -193,7 +193,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK210 | A | open | Drift probes run against real agents | deck, site |
 | DK211 | A | open | Hiding intent and sandbagging are detected | deck, site |
 | DK212 | A | open | The drift ladder was run on a real log | deck, site |
-| DK431 | A | open | A law-abiding certificate | deck, site |
+| DK431 | A | partial | A law-abiding certificate | deck, site |
 | DK115 | A | open | A real agent took the Foundations course and exam | deck, site |
 | DK194 | A | open | Nine telemetry signals produced by real agents | deck, site |
 | DK196 | A | open | A paper was tested on real agents | deck |

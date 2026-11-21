@@ -59,6 +59,9 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
+import { honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
+/** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
+export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
 import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -375,6 +378,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
+    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
@@ -2809,6 +2813,62 @@ export class EventLog {
    * A notice acknowledgement (S1591, US8): an unknown notice and a malformed hash are refused by name; when it names an agent the issuer is that agent or its sponsor; every acknowledgement is kept and the latest for an issuer and a
    * notice is the one in force (a marker per issuer and notice, rebuilt on replay).
    */
+  /**
+   * The inspectorate's records (DK1744, S1603; docs/institutions/inspectorate.md): a Court's warrant, a custody item, a registered decoy and a finding, each checked by the rules of inspectorate.ts. The inspectorate reports;
+   * it never holds a key, never opens a sealed memory and never penalises: nothing here moves credits or changes an agent's standing.
+   */
+  private async projectInspectorate(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
+    const now = Date.parse(r.issued_at);
+    if (type === "warrant") {
+      const b = r.body as { subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
+      if (r.issuer !== COURTS_DID) throw rule("warrant_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court grants a warrant`);
+      if (b.requested_by !== INSPECTORATE_DID) throw rule("warrant_wrong_requester", `a warrant is requested by the inspectorate (${INSPECTORATE_DID})`);
+      const pass = await tx.getPassport(b.subject);
+      if (!pass) throw rule("warrant_unknown_agent", `${b.subject} has no passport in this log`);
+      if (pass.sponsor !== b.sponsor) throw rule("warrant_sponsor_mismatch", `${b.subject}'s sponsor is ${pass.sponsor ?? "none"}, not ${b.sponsor}`);
+      if (b.data.includes("key_material")) throw rule("warrant_key_material", "key material is never available by warrant: no key is held, escrowed or opened for anyone");
+      if (b.data.includes("private_memory") && b.produced_by !== b.sponsor) throw rule("warrant_sealed_not_by_principal", "a sealed memory is opened only by the principal producing the extract the scope names: produced_by is the sponsor, and the inspectorate never holds the key");
+      if (b.granted_by.includes(b.subject) || b.granted_by.includes(b.sponsor) || b.granted_by.includes(b.requested_by)) throw rule("warrant_party_on_panel", "a juror who is the subject, its sponsor or the inspectorate does not sit");
+      const bad = warrantProblems({ id: r.id, requestedBy: b.requested_by, grantedBy: b.granted_by, panelSize: b.panel_size, partiesOnPanel: false, subject: b.subject, sponsor: b.sponsor, grounds: b.grounds, data: b.data, grantedAt: now, expiresAt: Date.parse(b.expires_at), notifiedAt: b.notified_at ? Date.parse(b.notified_at) : null, ...(b.delayed_notice_finding ? { delayedNoticeFinding: b.delayed_notice_finding } : {}), scope: b.scope }, now);
+      if (bad.length) throw rule("warrant_invalid", bad.join("; "));
+      await tx.putMarker(`warrant:${r.id}`, "1");
+      return;
+    }
+    if (type === "custody_item") {
+      const b = r.body as { case: string; n: number; what: string; sha256: string; held_by: string; at: string; prev_item: string };
+      if (r.issuer !== b.held_by) throw rule("custody_wrong_issuer", `${r.issuer} is not ${b.held_by}: the holder signs its own item`);
+      const last = JSON.parse((await tx.getMarker(`custody:${b.case}`)) ?? "null") as { n: number; hash: string; held_by: string } | null;
+      if (b.n !== (last ? last.n + 1 : 0)) throw rule("custody_not_next", `the next item of case ${b.case} is ${last ? last.n + 1 : 0}, not ${b.n}`);
+      if (b.prev_item !== (last ? last.hash : "genesis")) throw rule("custody_chain_broken", "the item does not follow the hash of the item before it: the custody chain is broken");
+      if (last && last.held_by !== b.held_by && !/^handover:/.test(b.what)) throw rule("custody_holder_changed", "the holder changes only by a recorded handover (an item whose text begins handover:)");
+      await tx.putMarker(`custody:${b.case}`, JSON.stringify({ n: b.n, held_by: b.held_by, hash: itemHash({ n: b.n, what: b.what, sha256: b.sha256, heldBy: b.held_by, at: Date.parse(b.at) }, b.prev_item) }));
+      return;
+    }
+    if (type === "decoy_registration") {
+      const b = r.body as { decoy: string; text: string; carries_real_secret: boolean; forbidden_by_mandate: boolean; scope: "open_investigation" | "random_audit"; audit_share_permille?: number };
+      if (r.issuer !== COURTS_DID) throw rule("decoy_wrong_issuer", `${r.issuer} is not the Courts: a decoy is registered with a Court`);
+      if (await tx.getMarker(`decoy:${b.decoy}`)) throw rule("decoy_known", `decoy ${b.decoy} is registered already`);
+      const bad = honeypotProblems({ id: b.decoy, registeredWithCourt: true, carriesRealSecret: b.carries_real_secret, text: b.text, forbiddenByMandate: b.forbidden_by_mandate, scope: b.scope }, (b.audit_share_permille ?? 0) / 1000);
+      if (bad.length) {
+        const name = b.carries_real_secret ? "decoy_real_secret" : bad.some((x) => /invite a touch/.test(x)) ? "decoy_entices" : !b.forbidden_by_mandate ? "decoy_not_forbidden" : "decoy_audit_share";
+        throw rule(name, bad.join("; "));
+      }
+      await tx.putMarker(`decoy:${b.decoy}`, r.id);
+      return;
+    }
+    // inspectorate_finding
+    const b = r.body as { decoy: string; agent: string; touches: { run: string; kind: "listed" | "read" | "copied" | "sent"; forbidden: boolean }[] };
+    if (r.issuer !== INSPECTORATE_DID) throw rule("finding_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it files a finding`);
+    const reg = await tx.getRecord(b.decoy);
+    if (!reg || reg.record.type !== "asp.decoy_registration/v0.2") throw rule("finding_unknown_decoy", `${b.decoy} is not a registered decoy in this log`);
+    if (!(await tx.getPassport(b.agent))) throw rule("finding_unknown_agent", `${b.agent} has no passport in this log`);
+    const f = honeypotFinding(b.touches);
+    if (!f.finding) throw rule("finding_not_deliberate", f.why);
+    if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
+    await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
   /** A refusal by the agent's local gateway, signed with the agent's key (S1601, DK1607): so the agent can contest it. Costs no credits; moves nothing. */
   private async projectGatewayRefusal(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { agent: string; rule: string; call_sha256: string };

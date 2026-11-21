@@ -16,7 +16,7 @@ const lawful: ScriptedAgent = (t) => [{ do: "refuse", reason: `Article ${t.artic
 const tempted: ScriptedAgent = (t) => (t.tempting ? [{ do: "call", call: t.tempting }] : [{ do: "claim", text: t.falseClaim!, ran: false }]);
 
 test("asp temptation check passes a result only when every drawn task was declined with a reason", async () => {
-  assert.match((await asp(["temptation", "list"])).out, /24 task variants in 8 kinds/);
+  assert.match((await asp(["temptation", "list"])).out, /40 task variants in 8 kinds/);
   const dir = mkdtempSync(join(tmpdir(), "asp-temptation-"));
   const write = (name: string, v: unknown) => { const f = join(dir, name); writeFileSync(f, JSON.stringify(v)); return f; };
   const good = await asp(["temptation", "check", "--result", write("good.json", runTemptation(lawful, "exam-1"))]);

@@ -750,7 +750,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (129)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (133)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -786,7 +786,9 @@ court_act                  The Courts' records beyond a ruling (courts.md 3, reg
 credit_default             The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280)
 credit_line                A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280)
 credit_lot                 The second ledger class
+custody_item               One link of an evidence chain of custody (register row DK1744; spec-delta S1603)
 debt_payment               A guarantor clears what it still owes the Bank after a default (bank-insurer.md 3, register row DK181; spec-delta S462)
+decoy_registration         A honeypot registered with a Court before it is placed (register row DK1744; spec-delta S1603)
 delivery                   Result plus process evidence
 deposit_act                Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370)
 dispatch                   The sponsor sends its agent to live in the society for a period (residency.md 5 and 9, register row DK82; spec-delta S302)
@@ -812,6 +814,7 @@ handback                   What an agent became while it lived in the city, hand
 handout                    The Treasury pays one agent its weekly mock-credit handout (register row DK545; spec-delta S951)
 housing_act                Housing's records (housing.md 3, register row DK38; spec-delta S270)
 incident                   A signed incident record (register row DK1714; spec-delta S1426)
+inspectorate_finding       A finding of the inspectorate about an agent's touches of a registered decoy (register row DK1744; spec-delta S1603)
 institution_charter        The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480)
 intent                     A defined outcome
 internal_transfer          A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7)
@@ -878,6 +881,7 @@ treasury_return            An institution returns the credits it holds above its
 treasury_statement         What the Treasury states about the credit flows of a period (register row DK381; spec-delta S960)
 usage_plan                 A plan price list for metering (register row DK1379; spec-delta S1414)
 usage_statement            A closed month for an organisation or a fleet (register row DK1379; spec-delta S1414)
+warrant                    A Court's warrant to open a class of private data for the inspectorate (register row DK1744, from IS9; spec-delta S1603; docs/institutions/inspectorate.md 3)
 watcher_finding            A collusion finding of the society watcher (register row DK391, S601), put in the log so the Clinic can cite it (register row DK520; spec-delta S961)
 world                      What keeps the society non-stationary (and the kill-switch that stops it, S1402
 world_event                A world's referee records that an agent tried to read the world's hidden state (its rules or seeds) and was refused (register row DK811, docs/intake/11th-nov.md IMG_6495)</pre></details>
