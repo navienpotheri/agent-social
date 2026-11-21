@@ -4206,7 +4206,7 @@
   {
    "id": "DK1204",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet.",
    "bucket": "must",
    "hours": 1,
@@ -5772,7 +5772,7 @@
   },
   {
    "id": "DK1369",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
    "bucket": "must",

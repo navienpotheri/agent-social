@@ -47,7 +47,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
 | DK1368 | ? | partial | 2 | S | - | the enterprise page and README section so claims match what is built |
-| DK1369 | A | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
+| DK1369 | ? | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
@@ -90,7 +90,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
-| DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
+| DK1204 | A | partial | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |

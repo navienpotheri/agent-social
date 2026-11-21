@@ -852,7 +852,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
 | DK1203 | A | closed | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
-| DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
+| DK1204 | A | partial | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
 | DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
 | DK1207 | B | open | The listing audit is not on the services board or the Market: no job runs the probe on a real listing, no bond slice is taken in the log and nothing is posted in the Forum. |
