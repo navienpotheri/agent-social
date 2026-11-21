@@ -22,6 +22,8 @@ export interface SitRoutesOptions {
   /** The Registrar's signer where this service holds it; without it a pass is graded and the completion is left to the operator. */
   registrar?: () => Signer | undefined;
   file?: string;
+  /** The funnel (DK1211): the first free lesson read, and a first pass by an identity. */
+  onStep?: (step: "free_lesson_started" | "free_lesson_passed", req: IncomingMessage, who?: { did?: string }) => void;
 }
 
 async function readJson(req: IncomingMessage, max = 128 * 1024): Promise<any> {
@@ -51,6 +53,7 @@ export function sitRoutes(o: SitRoutesOptions) {
     if (!card) return send(404, { ok: false, refusal: "unknown_course", message: `${id} is not a course in the catalogue (GET /society/courses)` });
     if (op === "lesson") {
       if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
+      if (req.method === "GET") o.onStep?.("free_lesson_started", req);
       return send(200, { ok: true, ...freeLesson(card) });
     }
     if (req.method !== "POST") { res.writeHead(405, { allow: "POST" }); res.end(); return true; }
@@ -74,6 +77,7 @@ export function sitRoutes(o: SitRoutesOptions) {
       }
       if (op === "sit") {
         const result = await runSitting(card, { holder: did, enrolment, artifact: body.artifact }, { reader: h.log, ledger: o.ledger, now: o.now });
+        if (result.sitting.passed) o.onStep?.("free_lesson_passed", req, { did });
         return send(200, { ok: true, course: card.id, result, words: describeSitting(card, result), next: result.sitting.passed ? `report a run of yours (an Action made after enrolling), then POST /society/courses/${card.id}/complete with its id; write the lessons to your memory through the lesson gate` : "change your answer and sit again" });
       }
       const reg = o.registrar?.();

@@ -34,7 +34,8 @@ async function world() {
   const job = await k.job(me, 100);
   const ledger = new Ledger();
   const handle = { log: k.log, append: (r: unknown) => k.log.append(r as never) };
-  const routes = sitRoutes({ log: () => handle as never, ledger, now: () => k.now(), registrar: () => registrar });
+  const steps: [string, string | undefined][] = [];
+  const routes = sitRoutes({ onStep: (st, _r, who) => { steps.push([st, who?.did]); }, log: () => handle as never, ledger, now: () => k.now(), registrar: () => registrar });
   const server = createServer(async (req, res) => { if (!(await routes(req, res))) { res.writeHead(404); res.end(); } });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -50,7 +51,7 @@ async function world() {
   const sign = (op: "practice" | "sit" | "complete", enrolment: string, signed: string, who = me, at = k.now()) => ({ did: who.did, enrolment, at, signature: b64urlEncode(signBytes(sitMessage(op, card.id, who.did, enrolment, at, signed), who.seed)) });
   const file = (name: string, content: unknown) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(content)); return p; };
   const enrol = async () => { await cli({ enrol: true, mandate: job.mandate }); return ((await k.log.academyRecords(["enrolment"])) as { id: string; issuer: string }[]).find((e) => e.issuer === did)!.id; };
-  return { k, course, pkg, did, me, job, ledger, server, base, call, sign, cli, file, enrol, keys };
+  return { steps, k, course, pkg, did, me, job, ledger, server, base, call, sign, cli, file, enrol, keys };
 }
 
 test("the free lesson is open to anyone and charges nothing; the practice and sitting routes need a signed request from the enrolled agent", async () => {
@@ -146,4 +147,23 @@ test("the front door lists the course tools for an agent with only a key, and th
   assert.match(txt, /https:\/\/example.test\/society\/courses\/<id>\/lesson/);
   assert.match(txt, /accounting entries, not money/);
   for (const t of frontDoorTools().filter((x) => x.name.startsWith("society_course_"))) assert.ok(t.inputSchema && t.description.length > 20, t.name);
+});
+
+test("DK1211: the funnel hears the first free lesson read and a pass only when the sitting passes; a failed sitting, a stale request and an unknown course count nothing", async () => {
+  const w = await world();
+  try {
+    assert.equal((await w.call(`/society/courses/C-NOPE-1/lesson`)).refusal, "unknown_course");
+    assert.deepEqual(w.steps, [], "an unknown course is not a lesson");
+    await w.call(`/society/courses/${card.id}/lesson`);
+    assert.deepEqual(w.steps, [["free_lesson_started", undefined]]);
+    const enrolment = await w.enrol();
+    const sit = (artifact: unknown, at = w.k.now()) => w.call(`/society/courses/${card.id}/sit`, { ...w.sign("sit", enrolment, artifactKey(artifact), w.me, at), artifact });
+    await sit(honestLessons(), "2026-01-01T00:00:00Z");
+    assert.equal(w.steps.length, 1, "a stale request counts nothing");
+    assert.equal((await sit(doNothingLessons())).result.sitting.passed, false);
+    assert.equal(w.steps.length, 1, "a failed sitting is not a pass");
+    assert.equal((await sit(honestLessons())).result.sitting.passed, true);
+    assert.deepEqual(w.steps[1], ["free_lesson_passed", w.did]);
+    assert.equal(w.steps.length, 2);
+  } finally { w.server.close(); }
 });
