@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 103 (495.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 102 (487.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 106 |
 | After launch | 316 |
-| Total not closed | 525 |
+| Total not closed | 524 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -105,7 +105,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1355 | A | partial | 8 | L | - | one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates |
-| DK1358 | A | open | 8 | L | - | the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing) |
 | DK1360 | A | open | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
 | DK1382 | A | open | 8 | L | - | the sandbox tenant |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |

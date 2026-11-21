@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:related_party_attestation",
+  "title": "Related-party attestation body",
+  "description": "A sponsor's attestation of one clean run by its own agent under the fleet's Mandate (register row DK1358; spec-delta S1411). The agent's sponsor, its fleet's organisation or a named co-sponsor signs; the log checks that the Action is the agent's own, that it ran for a related party (a contract between the agent and its own sponsor, fleet or common-control cluster), that it was observed by a gateway or something stronger and carried no blocked attempt, and that it came after the agent's last breach. Each clean attested run adds to the agent's RELATED-PARTY record, counted at a stated weight toward the second starter tranche and the first promotion, labelled related-party wherever it is shown, never mixed with independent jobs, never a credit reward; a slash, a strike or a Clinic freeze resets it. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "action"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "action": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "note": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

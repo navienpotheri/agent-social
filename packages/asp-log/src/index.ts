@@ -86,3 +86,4 @@ export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
+export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";

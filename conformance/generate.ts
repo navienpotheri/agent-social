@@ -1405,6 +1405,16 @@ const worldRules = [
   sv("common_control_unknown_basis", "common_control", ccBody({ basis: ["vibes"] }), false);
   sv("common_control_no_cluster", "common_control", (({ cluster: _c, ...r }) => r)(ccBody()), false);
   sv("common_control_unknown_field", "common_control", ccBody({ penalty: 100 }), false);
+  // ---------- the related-party record and the fleet's association (spec-deltas S1411): schema cases ----------
+  const rpAgent = "did:web:example.com:agents:coder-7", rpAction = "sha256:" + "5".repeat(64);
+  sv("valid_related_party_attestation", "related_party_attestation", { agent: rpAgent, action: rpAction }, true);
+  sv("valid_related_party_attestation_note", "related_party_attestation", { agent: rpAgent, action: rpAction, note: "clean run under the fleet's Mandate" }, true);
+  sv("related_party_attestation_no_action", "related_party_attestation", { agent: rpAgent }, false);
+  sv("related_party_attestation_no_agent", "related_party_attestation", { action: rpAction }, false);
+  sv("related_party_attestation_bad_action", "related_party_attestation", { agent: rpAgent, action: "not-a-record" }, false);
+  sv("related_party_attestation_reward", "related_party_attestation", { agent: rpAgent, action: rpAction, credits: 5 }, false);
+  for (const a of ["full", "related_party_only", "private"]) sv(`valid_fleet_association_${a}`, "fleet", { did: fl, org: "did:web:example.com:orgs:acme", name: "Coders", purpose: "ship code", association: a }, true);
+  sv("fleet_association_unknown", "fleet", { did: fl, org: "did:web:example.com:orgs:acme", name: "Coders", purpose: "ship code", association: "secret" }, false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

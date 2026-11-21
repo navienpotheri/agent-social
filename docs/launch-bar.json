@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 103,
+  "must": 102,
   "withdraw": 106,
   "after": 316,
-  "total": 525
+  "total": 524
  },
- "mustWorkerHours": 495.2,
+ "mustWorkerHours": 487.2,
  "entries": [
   {
    "id": "D3",
@@ -5932,17 +5932,6 @@
    "size": "M",
    "flags": "",
    "why": "starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it"
-  },
-  {
-   "id": "DK1358",
-   "pri": "A",
-   "status": "open",
-   "gap": "A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing)"
   },
   {
    "id": "DK1359",

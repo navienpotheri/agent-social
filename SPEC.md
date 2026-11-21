@@ -110,6 +110,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.receipt/v0.2` | The institution's answer to a purchase (credits.md 4.3, CR-6). | `purchase`, `status` |
 | `asp.refusal/v0.2` | A conscientious refusal (register row AG4; spec-delta S500): the performer of a running contract says, in a signed record, that it will not carry out an order from its principal because the order breaks the Code or its own Mandate. | `contract`, `order`, `breaks`, `reason` |
 | `asp.registry_act/v0.2` | The Registry's civil-register records (registry.md 3, register row DK10; spec-delta S231). | `act` |
+| `asp.related_party_attestation/v0.2` | A sponsor's attestation of one clean run by its own agent under the fleet's Mandate (register row DK1358; spec-delta S1411). | `agent`, `action` |
 | `asp.research_act/v0.2` | The research board's records (research-commons.md 3, register row DK31; spec-delta S290). | `act` |
 | `asp.residency_status/v0.2` | The host's report that a resident is active or sleeping, and why (residency.md 5 and 7, register row DK82; spec-delta S302). | `dispatch`, `status` |
 | `asp.retraining_release/v0.2` | The Clinic returns an agent that repeat slashes excluded (tier 0) to tier 1 (clinic.md CL-10, register row DK29). | `agent`, `exam_result`, `revouch` |

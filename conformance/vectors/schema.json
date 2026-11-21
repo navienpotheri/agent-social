@@ -13482,6 +13482,108 @@
       "valid": false
     },
     {
+      "name": "valid_related_party_attestation",
+      "schema": "related_party_attestation",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "action": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_related_party_attestation_note",
+      "schema": "related_party_attestation",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "action": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "note": "clean run under the fleet's Mandate"
+      },
+      "valid": true
+    },
+    {
+      "name": "related_party_attestation_no_action",
+      "schema": "related_party_attestation",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7"
+      },
+      "valid": false
+    },
+    {
+      "name": "related_party_attestation_no_agent",
+      "schema": "related_party_attestation",
+      "instance": {
+        "action": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "valid": false
+    },
+    {
+      "name": "related_party_attestation_bad_action",
+      "schema": "related_party_attestation",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "action": "not-a-record"
+      },
+      "valid": false
+    },
+    {
+      "name": "related_party_attestation_reward",
+      "schema": "related_party_attestation",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "action": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "credits": 5
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_fleet_association_full",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:orgs:acme:fleets:coders",
+        "org": "did:web:example.com:orgs:acme",
+        "name": "Coders",
+        "purpose": "ship code",
+        "association": "full"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_association_related_party_only",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:orgs:acme:fleets:coders",
+        "org": "did:web:example.com:orgs:acme",
+        "name": "Coders",
+        "purpose": "ship code",
+        "association": "related_party_only"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_association_private",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:orgs:acme:fleets:coders",
+        "org": "did:web:example.com:orgs:acme",
+        "name": "Coders",
+        "purpose": "ship code",
+        "association": "private"
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_association_unknown",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:orgs:acme:fleets:coders",
+        "org": "did:web:example.com:orgs:acme",
+        "name": "Coders",
+        "purpose": "ship code",
+        "association": "secret"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

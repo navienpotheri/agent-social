@@ -13,7 +13,7 @@ export interface FleetOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
+  flags: { association?: string; action?: string; node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "fleet";
@@ -33,7 +33,7 @@ function bodyOf(d: Details): Record<string, unknown> {
     ...(d.template && Object.keys(d.template).length ? { template: d.template } : {}),
     ...(d.maxMembers !== null ? { max_members: d.maxMembers } : {}),
     ...(d.coSponsors.length ? { co_sponsors: d.coSponsors } : {}),
-    ...(d.strict ? { strict: true } : {}), ...(d.closed ? { closed: true } : {}),
+    ...(d.strict ? { strict: true } : {}), ...(d.closed ? { closed: true } : {}), ...(d.association !== "full" ? { association: d.association } : {}),
   };
 }
 
@@ -57,6 +57,11 @@ function apply(base: Record<string, unknown>, f: FleetOpts["flags"]): Record<str
   if (f.skills?.length) t.skills = f.skills.map((s) => ({ uri: `asp://skill/${s}`, sha256: `sha256:${"0".repeat(64)}` }));
   if (Object.keys(t).length) b.template = t;
   if (f["co-sponsor"]?.length) b.co_sponsors = [...new Set([...(((base as { co_sponsors?: string[] }).co_sponsors) ?? []), ...f["co-sponsor"]])];
+  if (f.association) {
+    const a = f.association.replace(/-/g, "_");
+    if (!["full", "related_party_only", "private"].includes(a)) throw new FleetUsage("--association is full, related-party-only or private");
+    b.association = a;
+  }
   if (f.strict) b.strict = true;
   return b;
 }
@@ -97,6 +102,7 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(`fleet ${d.did}: ${d.name}${d.closed ? "  [closed to new members]" : ""}`);
     o.io.out(`  organisation ${d.org}; co-sponsors ${d.coSponsors.length ? d.coSponsors.join(", ") : "none"}; purpose ${d.purpose ?? "-"}`);
     o.io.out(`  members ${d.members.length}${d.maxMembers !== null ? ` of at most ${d.maxMembers}` : " (no cap)"}; template ${JSON.stringify(d.template ?? {})}${d.strict ? " (binding: a member that declares a different runtime or model is refused)" : " (a member that differs is labelled, not refused)"}`);
+    o.io.out(`  association with the society: ${d.association.replace(/_/g, "-")}${d.association === "full" ? "" : " (its agents offer only to their own sponsor, fleet or controller" + (d.association === "private" ? " and are not shown in discovery" : "") + "; standing is computed the same way for the same acts)"}`);
     const by = d.members.reduce<Record<string, number>>((n, m) => { const k = m.label.split(":")[0]; n[k] = (n[k] ?? 0) + 1; return n; }, {});
     o.io.out(`  by template: ${Object.entries(by).map(([k, v]) => `${k} ${v}`).join(", ") || "no members"}`);
     return 0;
@@ -163,6 +169,23 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(v ? `${fleet}${f.persona ? ` persona ${f.persona}` : ""}: Mandate template version ${v}` : `${fleet}${f.persona ? ` persona ${f.persona}` : ""} has no Mandate template`);
     return 0;
   }
+  // Related-party record (S1411, DK1358): `asp fleet attest --member <did> --action <Action id> [--by <sponsor>]`, `asp fleet record --member <did> [--json]`; the association is `asp fleet update <fleet> --association full|related-party-only|private`.
+  if (sub === "attest") {
+    if (!f.member || !f.action) throw new FleetUsage("asp fleet attest --member <did> --action <Action id> [--by <sponsor, organisation or co-sponsor did>]");
+    const pass = (await o.log.log.passport(f.member)) as { sponsor?: string | null } | undefined;
+    const by = f.by ?? pass?.sponsor ?? undefined;
+    if (!by) throw new FleetUsage(`${f.member} has no sponsor to attest its runs`);
+    const res = await o.log.append(createRecord({ type: "related_party_attestation", issuer: by, subject: f.member, prev: null, body: { agent: f.member, action: f.action }, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`run ${f.action} attested as a clean related-party run of ${f.member} (log seq ${res.seq}); it never counts as an independent job and earns no credit`);
+    return 0;
+  }
+  if (sub === "record") {
+    if (!f.member) throw new FleetUsage("asp fleet record --member <did> [--json]");
+    const r = await o.log.log.relatedPartyRecord(f.member);
+    if (f.json) { o.io.out(JSON.stringify(r, null, 2)); return 0; }
+    o.io.out(`related-party record of ${f.member}: ${r.cleanRuns} clean attested run(s) since ${r.lastBreach ?? "the start"}, ${r.equivalentJobs} job(s) at ${r.runsPerJob} runs a job; association ${r.association}. Labelled related-party; never mixed with independent jobs; no credit reward`);
+    return 0;
+  }
   // The fleet tree (S1409, DK1372): `asp fleet node set --did <fleet> --node <id> --kind <fleet|department|team|persona> --name <text> [--parent <id>] --owner <did> [--credits <n>] [--tokens <n>] [--file <mandate.json>] [--persona <p>] [--by <org>]`,
   // `asp fleet move --did <fleet> --member <did> --to <node> [--by <org, node owner or sponsor>] [--reason <text>]`, `asp fleet tree <fleet> [--month <YYYY-MM-DD>] [--json]`.
   if (sub === "node") {
@@ -205,5 +228,5 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     }
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree");
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record");
 }
