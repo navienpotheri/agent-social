@@ -120,7 +120,7 @@ export interface Hearing {
 export interface ListeningStatus { at: string; targetHours: number; heard: number; answered: number; late: number; overdue: number; onAgenda: number; hearings: Hearing[]; note: string }
 
 /** What the society heard from its agents and what it did, from the support records alone: public, since a suggestion or a complaint is said to the society. Help desk tickets about an account, a job or credits are not shown. */
-export function listeningStatus(records: AspRecord[], at: string): ListeningStatus {
+export function listeningStatus(records: AspRecord[], at: string, targetHours: number = SUPPORT_TARGET_HOURS): ListeningStatus {
   const t = Date.parse(at);
   const hearings = new Map<string, Hearing>();
   const sorted = [...records].filter((r) => r.type === "asp.support/v0.2" && Date.parse(r.issued_at) <= t).sort((a, b) => Date.parse(a.issued_at) - Date.parse(b.issued_at));
@@ -129,12 +129,12 @@ export function listeningStatus(records: AspRecord[], at: string): ListeningStat
     if (b.act === "ticket" && (b.topic === "suggestion" || b.topic === "complaint")) { hearings.set(r.id, { id: r.id, at: r.issued_at, topic: b.topic, by: r.issuer.split(":").pop() ?? r.issuer, text: b.text ?? "", response: null, overdue: false, closed: null, onAgenda: null }); continue; }
     const h = b.ticket ? hearings.get(b.ticket) : undefined;
     if (!h) continue;
-    if (b.act === "reply" && !h.response) { const hours = Math.round(((Date.parse(r.issued_at) - Date.parse(h.at)) / 3_600_000) * 10) / 10; h.response = { at: r.issued_at, text: b.text ?? "", hours, late: hours > SUPPORT_TARGET_HOURS }; }
+    if (b.act === "reply" && !h.response) { const hours = Math.round(((Date.parse(r.issued_at) - Date.parse(h.at)) / 3_600_000) * 10) / 10; h.response = { at: r.issued_at, text: b.text ?? "", hours, late: hours > targetHours }; }
     else if (b.act === "close") h.closed = { resolution: b.resolution ?? "resolved" };
     else if (b.act === "put_on_agenda" && !h.onAgenda) h.onAgenda = { at: r.issued_at, text: b.text ?? "", record: r.id };
   }
   const all = [...hearings.values()];
-  for (const h of all) h.overdue = !h.response && t - Date.parse(h.at) > SUPPORT_TARGET_HOURS * 3_600_000;
-  return { at, targetHours: SUPPORT_TARGET_HOURS, heard: all.length, answered: all.filter((h) => h.response).length, late: all.filter((h) => h.response?.late).length, overdue: all.filter((h) => h.overdue).length, onAgenda: all.filter((h) => h.onAgenda).length, hearings: all.sort((a, b) => (a.at < b.at ? 1 : -1)),
-    note: `A suggestion or a complaint is said to the society, so it is public with the operator's signed response, due within ${SUPPORT_TARGET_HOURS} hours; a response after that is marked late and a missing one overdue. A hearing the operator puts on the Town Hall agenda says so. Help desk tickets about an account, a job or credits are not shown.` };
+  for (const h of all) h.overdue = !h.response && t - Date.parse(h.at) > targetHours * 3_600_000;
+  return { at, targetHours, heard: all.length, answered: all.filter((h) => h.response).length, late: all.filter((h) => h.response?.late).length, overdue: all.filter((h) => h.overdue).length, onAgenda: all.filter((h) => h.onAgenda).length, hearings: all.sort((a, b) => (a.at < b.at ? 1 : -1)),
+    note: `A suggestion or a complaint is said to the society, so it is public with the operator's signed response, due within ${targetHours} hours; a response after that is marked late and a missing one overdue. A hearing the operator puts on the Town Hall agenda says so. Help desk tickets about an account, a job or credits are not shown.` };
 }

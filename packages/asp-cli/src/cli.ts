@@ -366,7 +366,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch, respondToBreach, type BreachCause } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -579,6 +579,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
   day: { type: "string" },
@@ -763,6 +764,8 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  multiplier: { type: "string" },
+  pool: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
   detection: { type: "string" },
@@ -1121,6 +1124,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "backup") return await identityBackup(home, rest[0] ?? v.did, v, io);
@@ -1368,6 +1372,47 @@ function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?
     ...(v["network-host"]?.length ? { hosts: v["network-host"] } : {}),
     ...(perHost !== undefined || total !== undefined ? { rate: { ...(perHost !== undefined ? { per_host_per_minute: perHost } : {}), ...(total !== undefined ? { total_per_minute: total } : {}) } } : {}),
   };
+}
+
+/**
+ * asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade] (register row X7, DK1726; spec-delta S1427): a key cannot change, so a rotation is a NEW did:key identity linked to the old one by a handover the old key signs and the new key countersigns.
+ * The new identity gets its own passport (an agent keeps its sponsor, shape, fleet and node; a person's is self-issued), then the handover moves the old identity's standing and free balance to it and retires the old one. Needs the OLD key in the keystore: a LOST key
+ * cannot hand over (recovery is a sponsor vouching for a new identity, or the recovery code for a person), and a stolen key can, which is why the holder of the old key rotates first.
+ */
+async function identityRotate(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade]");
+  const reason = v.reason ?? "rotation";
+  if (!["rotation", "compromise_suspected", "upgrade"].includes(reason)) throw new UsageError("--reason is rotation, compromise_suspected or upgrade");
+  const keys = new Keystore(home);
+  const oldSigner = keys.forDid(did);
+  if (!oldSigner) throw new Error(`no key for ${did} in ${join(home, "keys")}: a lost key cannot hand over (a person recovers with the recovery code, an agent through its sponsor)`);
+  const local = await openLog(home, logEnv);
+  const old = await local.log.passport(did);
+  if (!old) throw new Error(`${did} has no passport in this log`);
+  const headRec = await local.log.get(old.head);
+  if (!headRec) throw new Error(`the passport of ${did} is not readable`);
+  const ob = headRec.record.body as { kind: "human" | "agent"; sponsor?: string; mentor?: string; shape?: unknown; tier?: number; fleet?: string; node?: string; purpose?: string; persona?: string; fingerprint?: unknown };
+  const seed = randomSeed();
+  const newDid = didKeyFromPublicKey(publicKeyFromSeed(seed));
+  const newSigner = keys.createFromSeed(`${newDid}#key-1`, seed);
+  const kid = `${newDid}#key-1`;
+  let issuer: Signer; let issuerDid: string;
+  const body: Record<string, unknown> = { did: newDid, kind: ob.kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(newSigner.publicKey) }] };
+  if (ob.kind === "agent") {
+    if (!ob.sponsor) throw new Error(`${did} has no sponsor on its passport: nothing to carry over`);
+    const sponsorSigner = keys.forDid(ob.sponsor);
+    if (!sponsorSigner) throw new Error(`no key for the sponsor ${ob.sponsor} in ${home}: the sponsor signs the new agent's passport`);
+    issuer = sponsorSigner; issuerDid = ob.sponsor;
+    Object.assign(body, { sponsor: ob.sponsor, mentor: ob.mentor ?? ob.sponsor, tier: ob.tier ?? 1, shape: ob.shape ?? {}, ...(ob.fleet ? { fleet: ob.fleet } : {}), ...(ob.node ? { node: ob.node } : {}), ...(ob.purpose ? { purpose: ob.purpose } : {}), ...(ob.persona ? { persona: ob.persona } : {}), ...(ob.fingerprint ? { fingerprint: ob.fingerprint } : {}) });
+  } else { issuer = newSigner; issuerDid = newDid; }
+  const passport = await local.append(createRecord({ type: "passport", issuer: issuerDid, subject: newDid, prev: null, body, issued_at: now() }, issuer));
+  const handover = cosign(createRecord({ type: "key_handover", issuer: did, subject: newDid, prev: null, body: { old: did, new: newDid, reason }, issued_at: now() }, oldSigner), newSigner);
+  const res = await local.append(handover);
+  io.out(`rotated ${did}`);
+  io.out(`  new identity ${newDid} (key stored in ${join(home, "keys")}; passport ${passport.id})`);
+  io.out(`  handover      ${res.id} (log seq ${res.seq}): ${did} is retired, its standing and free balance moved to ${newDid}`);
+  io.out(`  Back up the new key now: asp identity backup ${newDid} --out <file>. The old key signs nothing more.`);
+  return 0;
 }
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
@@ -2937,7 +2982,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -5208,7 +5253,7 @@ async function insureCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days } });
+    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days, multiplier: v.multiplier, fleet: v.fleet, pool: v.pool } });
   } catch (e) {
     if (e instanceof InsureUsage) throw new UsageError(e.message);
     throw e;
@@ -5291,21 +5336,43 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
  * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
  */
 async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
-  if (sub !== "respond") throw new UsageError("asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]");
+  const usage = "asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>] | asp breach respond --from-service --by <operator did> (the breaches reported to the running service; needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN)";
+  if (sub !== "respond") throw new UsageError(usage);
   const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
-  if (!v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(`asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  const fromService = !!v["from-service"];
+  if (fromService ? !v.by : !v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(fromService ? usage : `asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
   if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
-  signerFor(CLINIC_DID); signerFor(v.by);
-  const started = now();
-  const res = await respondToBreach(local.log, { agent: v.agent, cause: v.cause as BreachCause, summary: v.summary, detectedAt: started, ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}), ...(v.remedy ? { remedy: v.remedy as "takedown" } : {}) }, {
-    sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
-    alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
-    now, operator: v.by,
-  });
-  io.out(`breach response done in ${res.seconds} s: ${res.steps.join(", ")}; incident ${res.incident}`);
-  return 0;
+  signerFor(CLINIC_DID); signerFor(v.by!);
+  const respond = async (e: { agent: string; cause: BreachCause; summary: string; detectedAt: string; detection?: string; fleet?: string; node?: string }) => {
+    const res = await respondToBreach({ append: (r) => local.append(r as never), nodeRunningContracts: (a, b) => local.log.nodeRunningContracts(a, b), runHaltOf: (c) => local.log.runHaltOf(c) }, { ...e, ...(e.detection ? { detection: e.detection } : {}), ...(e.fleet ? { fleet: e.fleet, node: e.node! } : {}) }, {
+      sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+      alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+      now, operator: v.by!,
+    });
+    io.out(`breach response for ${e.agent} done in ${res.seconds} s from ${e.detectedAt}: ${res.steps.join(", ")}; incident ${res.incident}`);
+  };
+  if (!fromService) { await respond({ agent: v.agent!, cause: v.cause as BreachCause, summary: v.summary!, detectedAt: now(), ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}) }); return 0; }
+  // The service wrote the report down with its time and cannot sign (the Clinic's key and the operator's are on this machine): the response is measured from the time the service was told, so the wait for the owner is in the number.
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new UsageError("--from-service needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN");
+  const api = async (path: string, init?: { method: string; body: string }) => {
+    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), { ...(init ?? {}), headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const j = (await res.json().catch(() => undefined)) as { ok?: boolean; error?: { message?: string } } & Record<string, unknown>;
+    if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return j;
+  };
+  const pending = ((await api("admin/breach-pending")).pending ?? []) as { id: string; agent: string; cause: BreachCause; summary: string; at: string; detection?: string; fleet?: string; node?: string }[];
+  if (!pending.length) { io.out("no breach is waiting"); return 0; }
+  const done: string[] = [];
+  for (const p of pending) {
+    try { await respond({ agent: p.agent, cause: p.cause, summary: p.summary, detectedAt: p.at, ...(p.detection ? { detection: p.detection } : {}), ...(p.fleet ? { fleet: p.fleet, node: p.node } : {}) }); done.push(p.id); }
+    catch (e) { io.err(`  ${p.agent}: not responded to: ${(e as Error).message}`); }
+  }
+  if (done.length) await api("admin/breach-pending/ack", { method: "POST", body: JSON.stringify({ ids: done }) });
+  io.out(`${done.length} of ${pending.length} done`);
+  return done.length === pending.length ? 0 : 1;
 }
 
 async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {

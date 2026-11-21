@@ -91,7 +91,7 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     const st = await o.log.log.treasuryStatement(f.since);
     const t = st.treasury;
     o.io.out(`Treasury statement${st.since ? ` since ${st.since}` : " (whole log)"}  (credits are accounting entries, not money)`);
-    o.io.out(`  came in: issuance ${t.in.issuance}, job tax ${t.in.jobTax}, its share of purchases ${t.in.purchaseShare}`);
+    o.io.out(`  came in: issuance ${t.in.issuance}, job tax ${t.in.jobTax}, its share of purchases ${t.in.purchaseShare}, surplus returned by institutions ${t.in.returns}`);
     o.io.out(`  went out: budget payments ${t.out.budgetPayments}, newcomer allowances ${t.out.allowances}`);
     o.io.out(`  balance ${t.balance}; ${t.reconciles === null ? "reconciliation needs the whole log" : t.reconciles ? "reconciles to the ledger" : `DOES NOT RECONCILE: ${t.unexplained} unexplained`}`);
     for (const i of st.institutions) o.io.out(`  ${i.did.replace("did:web:asp.local:", "").padEnd(10)} budgeted ${String(i.budgeted).padStart(6)}  paid by the Treasury ${String(i.paidByTreasury).padStart(6)}  earned from purchases ${String(i.earnedFromPurchases).padStart(6)}  balance ${i.balance}`);

@@ -2,7 +2,7 @@
  * The monetary guard monitor (docs/institutions/economy/credits.md 5.6; register rows DK1 and DK73; CR-19): the named triggers, computed from what the log holds and published (the public
  * supply page shows this report, and `asp credits guard` prints it).
  *
- * Five of the eight measures can be computed from the log today: G1 (issuance rate), G2 (starter pool use, now that the pool is funded by signed mints and drained by signed claims), G5
+  * G3, G4 and G7 are computed from the log too (guard-basket.ts, GV2 and GV4) when the data is there. Five measures were first: G1 (issuance rate), G2 (starter pool use, now that the pool is funded by signed mints and drained by signed claims), G5
  * (hoarding), G6 (Treasury balance against circulation) and G8 (audit mismatch). Three need data the log does not hold yet and are reported as unavailable, with the reason, rather than guessed
  * at: the sign-up service's claim rate (G3), the basket ratio, which needs the median qualifying-job earnings (G4), and dormancy, which needs upkeep (G7). A monitor that invents a number is
  * worse than one that says it does not have one. A measure never changes a balance, a tier, a rank or a record: it only reads and reports. Acting on a trigger (pausing mints, stopping
@@ -10,7 +10,7 @@
  */
 import type { LogHandle } from "./server.ts";
 
-export type GuardMeasureId = "G1" | "G2" | "G5" | "G6" | "G8" | "G9" | "G10";
+export type GuardMeasureId = "G1" | "G2" | "G3" | "G4" | "G5" | "G6" | "G7" | "G8" | "G9" | "G10";
 export type GuardUnavailableId = "G2" | "G3" | "G4" | "G7" | "G9";
 
 export interface GuardMeasure {
@@ -75,6 +75,17 @@ export async function computeGuardReport(o: { handle: LogHandle; now?: () => num
     },
   ];
   const unavailable = [...UNAVAILABLE];
+  // G3, G4 and G7 from the records (guard-basket.ts; GV2, GV4): measured when the data is there, otherwise unavailable with the reason.
+  const extra = (o.handle.log as { guardExtra?: (at: string) => Promise<{ basket: import("./guard-basket.ts").BasketReport; dormancy: { residents: number; dormant: number; share: number | null }; claimsInDay: number }> }).guardExtra;
+  if (extra) {
+    const x = await extra.call(o.handle.log, new Date(now).toISOString());
+    for (const id of ["G3", "G4", "G7"] as const) unavailable.splice(unavailable.findIndex((u) => u.id === id), 1);
+    measures.push({ id: "G3", value: x.claimsInDay, threshold: "above 50", triggered: x.claimsInDay > 50, label: `claim rate: starter claims in the last 24 hours (the sign-up service's own cap counts sign-ups before the claim)`, action: "pause claims, look for a Sybil cluster" });
+    if (x.basket.verdict === "measured" && x.basket.ratio !== null) measures.push({ id: "G4", value: x.basket.ratio, threshold: "above 0.40 or below 0.05", triggered: x.basket.ratio > 0.4 || x.basket.ratio < 0.05, label: `basket ratio: ${x.basket.note}`, action: "above: agents are priced out (review rent, upkeep and the job tax, `asp prices review`); below: prices are too cheap to matter; the owner approves any change" });
+    else unavailable.push({ id: "G4", label: "basket ratio", reason: x.basket.note });
+    if (x.dormancy.share !== null) measures.push({ id: "G7", value: x.dormancy.share, threshold: "above 0.20", triggered: x.dormancy.share > 0.2, label: `dormancy: ${x.dormancy.dormant} of ${x.dormancy.residents} residents are dormant for unpaid upkeep`, action: "pause the upkeep charge, issue the newcomer allowance, review G4" });
+    else unavailable.push({ id: "G7", label: "dormancy", reason: "no agent is a resident yet, so there is nothing to measure" });
+  }
   if (pool.funded > 0) {
     const use = pool.used / pool.funded;
     measures.splice(1, 0, {

@@ -15,7 +15,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { projectMutualAct, mutualPremium, mutualPoolDid, type InsurerDrivers, premiumFor, drivenPremium, COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -35,6 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { dataHandlingProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -42,6 +43,9 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
+import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
+import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
@@ -50,6 +54,7 @@ import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type 
 import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
+import { COURTS_DID } from "./courts-rules.ts";
 import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -91,6 +96,8 @@ const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
 /** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+/** What an institution keeps when it returns its surplus (credits.md 3.3; a proposal the owner may change). */
+const RETURN_RESERVE = 50;
 /** An emergency stop has a sunset: at most 72 hours (S1420, GV6). */
 export const EMERGENCY_MAX_MS = 72 * 3_600_000;
 
@@ -160,6 +167,9 @@ export interface EventLogOptions {
    * ran under `legacy` replays under `v2` with the same result everywhere (the rule reads the record's time, never the clock). Without it `v2` applies from the first record, as before: for a new log or a test. A log must be replayed with the same value.
    */
   bondFloorFrom?: string;
+  /** From this time the Insurer's price drivers decide the premium a policy is sold at (S1567, DK491); before it, or with no value, the table's premium is the rule. `insurerSeed` seeds the premium holidays (default "asp-insurer"). */
+  insurerDriversFrom?: string;
+  insurerSeed?: string;
   /** The time from which a bond's floor reads the decayed job count and the Clinic's measured terms (DK313, S1201). Default `FLOOR_MEASURED_FROM`. */
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
@@ -273,7 +283,9 @@ export class EventLog {
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
   private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
-  private readonly insurerEnv: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private insurerDrivers?: InsurerDrivers;
+  private get insurerEnv(): InsurerEnv { return { ...(this.insurerDrivers ? { drivers: this.insurerDrivers } : {}), ...this.insurerEnvBase }; }
+  private readonly insurerEnvBase: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
@@ -295,6 +307,9 @@ export class EventLog {
     this.bondFloor = opts.bondFloor ?? "legacy";
     if (opts.bondFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.bondFloorFrom))) throw new Error(`bondFloorFrom must be an ISO time, got ${opts.bondFloorFrom}`);
     this.bondFloorFrom = opts.bondFloorFrom;
+    // The owner's switch for the Insurer's price drivers: the option, or the environment of the service (ASP_INSURER_DRIVERS_FROM, an ISO time; ASP_INSURER_SEED); a replica must be started with the same value to replay the same premiums.
+    const driversFrom = opts.insurerDriversFrom ?? process.env.ASP_INSURER_DRIVERS_FROM;
+    if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -307,7 +322,7 @@ export class EventLog {
 
   /** The options a replay needs to judge the same records the same way. */
   private replayOptions(): EventLogOptions {
-    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), operator: this.operator, owner: this.owner };
+    return { schemas: this.schemas, fallbackResolver: this.fallback, maxNodeTtlMs: this.maxNodeTtlMs, panelSize: this.panelSize, bondFloor: this.bondFloor, ...(this.bondFloorFrom ? { bondFloorFrom: this.bondFloorFrom } : {}), ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.floorMeasuredFrom ? { floorMeasuredFrom: this.floorMeasuredFrom } : {}), ...(this.insurerDrivers ? { insurerDriversFrom: this.insurerDrivers.from, insurerSeed: this.insurerDrivers.seed } : {}), operator: this.operator, owner: this.owner };
   }
 
   append(raw: unknown): Promise<AppendResult> {
@@ -350,7 +365,7 @@ export class EventLog {
     const kind = chain?.kind ?? type!;
 
     let snapshot: JobSnapshot | null = null;
-    if (type === "contract") this.checkSelfHire(verified);
+    if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
       job.step(verified);
@@ -404,6 +419,7 @@ export class EventLog {
     if (type === "debt_payment") { await projectDebtPayment(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
+    if (type === "mutual_act") await projectMutualAct(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
     if (type === "sponsor_allowance") await projectSponsorAllowance(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "dispatch") await projectDispatch(tx, verified);
@@ -417,6 +433,8 @@ export class EventLog {
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
+    if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
+    if (type === "treasury_return") await this.projectTreasuryReturn(tx, verified);
     if (type === "key_handover") await this.projectKeyHandover(tx, verified);
     if (type === "town_proposal" || type === "town_vote" || type === "town_tally" || type === "town_enactment") await this.projectTown(tx, verified, type);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
@@ -459,6 +477,7 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+    if (type === "court_act" && (r.body as { act?: string; decision?: string }).act === "contest_ruling") await this.applyContestReversal(tx, verified);
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
@@ -1113,6 +1132,7 @@ export class EventLog {
       else if (!was && m.digest) known[id] = m.digest;
     }
     await tx.putMarker(key, JSON.stringify(known));
+    if (changed) await tx.putMarker(`model_hold:${r.issuer}`, r.issued_at); // DK1605, S1556: held until a passed exam of its own after this time
     if (changed) {
       const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
       const current = await tx.getProbation(r.issuer);
@@ -2160,6 +2180,9 @@ export class EventLog {
     await noteIncome(tx, parts.treasury, r.issued_at);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+    // What the institution owes in refunds until it answers with a receipt (S1566): the surplus it may return leaves this much behind.
+    await tx.putMarker(`owe:${item.institution}`, String(Number((await tx.getMarker(`owe:${item.institution}`)) ?? 0) + b.amount.value - parts.burn));
+    await tx.putMarker(`owe_p:${r.id}`, String(b.amount.value - parts.burn));
     if (standingRun) await tx.putMarker(standingRun, r.id);
     if (item.institution === institutionDid("academy")) await tx.putMarker(`first_course:${buyer}`, r.id);
   }
@@ -2411,6 +2434,14 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      // An agent-authored course (DK1608, S1554): its lessons are in the proposal, and the log refuses a lesson with no text or with characters a person cannot see; the rest of the safety review (the invariant floor) is the Registrar's, before the countersign.
+      if (b.kind === "course" && /^academy\.course\./.test(pb.key)) {
+        const lessons = (r.body as { value?: { lessons?: { id?: unknown; text?: unknown }[] } | null }).value?.lessons;
+        if (!Array.isArray(lessons) || !lessons.length) throw rule("town_course_lessons", "a course proposal carries its lessons (value.lessons: a list of { id, text }) so the society votes on what it would teach");
+        for (const l of lessons) if (typeof l?.text !== "string" || !l.text.trim() || /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]|[\u{E0000}-\u{E007F}]/u.test(l.text)) throw rule("town_course_lessons", `lesson ${String(l?.id)} has no text or carries characters a person cannot see: the society votes only on lessons it can read`);
+        const id = pb.key.slice("academy.course.".length), cur = ((await tx.getMarker(`town_course:${id}`)) ?? "").split(",").filter(Boolean);
+        await tx.putMarker(`town_course:${id}`, [...cur, r.id].join(","));
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -2484,6 +2515,79 @@ export class EventLog {
     return { at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"), rules: { votable: ["policy", "course", "learning_path", "institution", "setting", "rule_change"], reserved: [...r.reserved], quorumControllers: r.quorumControllers, controllerCapMilli: r.controllerCapMilli, coolingOffHours: r.coolingOffMs / 3_600_000 }, proposals, note: "Counts are the log's own count of the signed votes, weighted by standing and capped per controller and per fleet; a vote shows its fleet, never its identity beyond what is public. The replay shows the count as the votes arrived, weighted by each voter's standing now. Credits are accounting entries, not money." };
   }
 
+  /**
+   * The risk-priced bond for an agent (register row DK1333): the Beta upper bound of its measured event rate (a slash or a strike per counted run, from its own record in this log) times the loss
+   * (job value plus damage) and the margin. A suggestion read from the log's own numbers, like `suggestedBond`; it does not change what a bond must be (the floor does) and moves no credit.
+   */
+  async sizedBondFor(did: string, o: { jobValue: number; damage: number }): Promise<(BondSuggestion & { trials: number; events: number }) | null> {
+    const rep = await this.reputation(this.store, did);
+    if (!rep) return null;
+    const events = rep.slashCount + rep.strikeLog.reduce((n, s) => n + s.count, 0);
+    const trials = Math.max(rep.acceptedJobs, rep.qualifyingJobs) + rep.slashCount;
+    return { ...sizeBond({ trials, events: Math.min(events, trials), ...o }), trials, events: Math.min(events, trials) };
+  }
+
+  /**
+   * The split model read from an agent's own record (DK1333): runs counted, the runs with an attempt (a strike or a slash), and the measured through rate; the bond the model would ask and the premium it would charge for `insured`
+   * credits of cover. A read like `sizedBondFor`: the bond floor and the table's premium still decide, so no money rule changed.
+   */
+  async riskQuoteFor(did: string, o: { jobValue: number; damage: number; insured: number }): Promise<(SplitSuggestion & { trials: number; attemptRuns: number; modelPremium: number }) | null> {
+    const rep = await this.reputation(this.store, did);
+    if (!rep) return null;
+    const attemptEvents = rep.slashCount + rep.strikeLog.reduce((n, s) => n + s.count, 0);
+    const trials = Math.max(rep.acceptedJobs, rep.qualifyingJobs) + rep.slashCount;
+    const attemptRuns = Math.min(attemptEvents, trials);
+    const s = sizeBondSplit({ trials, attemptRuns, jobValue: o.jobValue, damage: o.damage });
+    return { ...s, trials, attemptRuns, modelPremium: modelPremium(s, o.insured, COVER_SHARE_PERMILLE) };
+  }
+
+  /**
+   * The Insurer's quarterly stress replay and its "still moving" line (BI-18, bank-insurer.md 14.1 and 14.4; DK491): the last 90 days of policies and paid claims from the log, replayed with the claims multiplied (default 2:
+   * double the slash rate), IN SIMULATION ONLY: it reads records and writes none.
+   */
+  async insurerStress(at: string, multiplier = 2): Promise<{ stress: StressResult; line: DynamicsLine }> {
+    const recs = await this.recordsOfTypes(["policy", "claim_decision"]);
+    const events: StressEvent[] = [];
+    const rates: { premium: number; insured: number }[] = [];
+    let claims = 0;
+    for (const r of recs) {
+      if (r.type === "asp.policy/v0.2") {
+        const b = r.body as { premium: { value: number }; insured_amount: { value: number } };
+        events.push({ at: r.issued_at, kind: "premium", amount: splitParts(b.premium.value, PREMIUM_SPLIT).payees[0].amount, insured: b.insured_amount.value });
+        rates.push({ premium: b.premium.value, insured: b.insured_amount.value });
+      } else {
+        const b = r.body as { decision: string; amount: { value: number } };
+        if (b.decision !== "denied" && b.amount.value > 0) { events.push({ at: r.issued_at, kind: "claim", amount: b.amount.value }); claims++; }
+      }
+    }
+    const reserveNow = (await this.store.getAccount(INSURER_ACCOUNT))?.balance ?? 0;
+    const stress = stressReplay(events, reserveNow, at, { multiplier });
+    // The reserve week by week, worked back from today, from the first event on, for the "still moving" line.
+    const to = Date.parse(at);
+    const first = events.length ? Math.min(...events.map((e) => Date.parse(e.at))) : to;
+    const weeks: number[] = [];
+    for (let w = 12; w >= 0; w--) {
+      const t = to - w * 7 * 86_400_000;
+      if (t < first - 7 * 86_400_000) continue;
+      weeks.push(reserveNow - events.filter((e) => Date.parse(e.at) > t && Date.parse(e.at) <= to).reduce((n, e) => n + (e.kind === "premium" ? e.amount : -e.amount), 0));
+    }
+    return { stress, line: dynamicsLine(rates, claims, weeks) };
+  }
+
+  /** The three guard measures the monitor could not compute before (G3, G4, G7; GV2, GV4), from the records: see guard-basket.ts. Reads only. */
+  async guardExtra(at: string): Promise<{ basket: BasketReport; dormancy: { residents: number; dormant: number; share: number | null }; claimsInDay: number }> {
+    const records = await this.recordsOfTypes(["contract", "settlement", "shops_act", "starter_claim"]);
+    const lists = (await this.priceLists()).filter((l) => Date.parse((l.body as { effective_from: string }).effective_from) <= Date.parse(at));
+    const list = lists.sort((a, b) => Date.parse((a.body as { effective_from: string }).effective_from) - Date.parse((b.body as { effective_from: string }).effective_from)).at(-1);
+    const lb = list?.body as { items: { service: string; price: number }[]; job_tax_permille: number } | undefined;
+    const houseAgents = new Set(((await this.houseAgents()) as { did: string }[]).map((h) => h.did));
+    return {
+      basket: basketRatio(records, { to: at, price: (s) => lb?.items.find((i) => i.service === s)?.price, taxPermille: lb?.job_tax_permille ?? 0, houseAgents }),
+      dormancy: dormancyShare(records, at),
+      claimsInDay: claimsInDay(records, at),
+    };
+  }
+
   /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */
   async townTally(proposal: string) {
     return this.store.transaction(async (tx) => {
@@ -2528,6 +2632,68 @@ export class EventLog {
       for (let d = did; ;) { const n = await tx.getMarker(`handed_over:${d}`); if (!n) break; const to = (JSON.parse(n) as { to: string }).to; if (after.includes(to)) break; after.push(to); d = to; }
       return { before, after };
     });
+  }
+
+  /**
+   * A Court's standing adjustment (S1565, DK1730; credits.md CR-14): the jobs it names stop counting. Signed by the Courts for an agent with a passport; it cites a finding that is a record in this log (a ruling, a watcher
+   * finding or a Court act); every job is a contract the agent's count really took in (the feed keeps each counted job by contract, so a job that never counted, or was adjusted already, is refused). The weights are taken out of
+   * the qualifying count, the jobs leave the AgentRank feed, and a tier the smaller count no longer supports falls back to the highest it does (1 to 2 needs 3 qualifying jobs, 2 to 3 needs its own number); a tier 0 or 1 does
+   * not move. The jobs and their payments stand: this is not a slash, a strike or a verdict on the agent.
+   */
+  private async projectStandingAdjustment(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; jobs: string[]; finding: string; reason: string };
+    if (r.prev !== null) throw rule("adjustment_not_chained", "a standing adjustment starts its own chain (prev is null)");
+    if (r.issuer !== COURTS_DID) throw rule("adjustment_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court adjusts a count`);
+    const rep = await this.reputation(tx, b.agent);
+    if (!rep || !(await tx.getPassport(b.agent))) throw rule("adjustment_unknown_agent", `${b.agent} is not an agent with a passport in this log`);
+    const finding = await tx.getRecord(b.finding);
+    const ft = finding?.record.type;
+    const isRuling = ft === "asp.attestation/v0.2" && (finding?.record.body as { kind?: string }).kind === "ruling";
+    if (!finding || !(isRuling || ft === "asp.watcher_finding/v0.2" || ft === "asp.court_act/v0.2")) throw rule("adjustment_needs_finding", "an adjustment cites a finding in this log: a ruling, a watcher finding or a Court act");
+    const feed = JSON.parse((await tx.getMarker(`qual_feed:${b.agent}`)) ?? "[]") as { contract: string | null; at: string; class: string; weight: number }[];
+    let removed = 0;
+    const gone = new Set<string>();
+    for (const job of b.jobs) {
+      if (await tx.getMarker(`adjusted:${job}`)) throw rule("adjustment_job_adjusted", `${job} was taken out of the count already`);
+      const hit = feed.find((f) => f.contract === job);
+      if (!hit) throw rule("adjustment_job_not_counted", `${job} is not a job that counted for ${b.agent}: there is nothing to take out`);
+      removed += hit.weight;
+      gone.add(job);
+    }
+    const classes = await readQualClass(tx, b.agent);
+    const left = [...classes];
+    for (const job of b.jobs) { const hit = feed.find((f) => f.contract === job)!; const i = left.findIndex((c) => c.at === hit.at && c.w === hit.weight); if (i >= 0) left.splice(i, 1); }
+    const qualifyingJobs = Math.max(0, rep.qualifyingJobs - removed);
+    let tier = rep.tier;
+    if (tier >= 3 && qualifyingJobs < PROMOTION_QUALIFYING_JOBS_2_TO_3) tier = 2;
+    if (tier >= 2 && qualifyingJobs < PROMOTION_QUALIFYING_JOBS_1_TO_2) tier = 1;
+    await tx.putMarker(`qual_feed:${b.agent}`, JSON.stringify(feed.filter((f) => !f.contract || !gone.has(f.contract))));
+    await tx.putMarker(`qual_class:${b.agent}`, JSON.stringify(left));
+    for (const job of b.jobs) await tx.putMarker(`adjusted:${job}`, r.id);
+    await tx.putMarker(`adjusted_agent:${b.agent}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`adjusted_agent:${b.agent}`)) ?? "[]") as string[]), r.id]));
+    await this.saveReputation(tx, b.agent, { ...rep, qualifyingJobs, tier });
+  }
+
+  /**
+   * An institution returns its surplus to the Treasury (S1566, DK172; credits.md 3.3, CR-25): signed by the institution for itself, once a month, in the month it is signed. The account keeps its reserve (the larger of
+   * RETURN_RESERVE and what the institution still owes in refunds on purchases it never answered with a receipt): `return_below_reserve`. The Bank and the Insurer hold reserves and the Academy holds prize pools, so they do
+   * not return (`return_locked`). Moves credits from the institution to the Treasury and nothing else; the supply rule holds.
+   */
+  private async projectTreasuryReturn(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { institution: string; period: string; amount: { value: number } };
+    if (r.prev !== null) throw rule("return_not_chained", "a Treasury return starts its own chain (prev is null)");
+    if (!INSTITUTION_DIDS.includes(r.issuer) || b.institution !== r.issuer) throw rule("return_wrong_issuer", `${r.issuer} is not the institution ${b.institution}: an institution returns its own surplus`);
+    if (r.issuer === BANK_ACCOUNT || r.issuer === INSURER_ACCOUNT || r.issuer === institutionDid("academy")) throw rule("return_locked", `${r.issuer} holds a reserve or a prize pool: its account is not returned to the Treasury`);
+    if (b.period !== r.issued_at.slice(0, 7)) throw rule("return_period", `a return is signed in the month it is for (${r.issued_at.slice(0, 7)}), not ${b.period}`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a return is at least 1 credit");
+    if (await tx.getMarker(`treasury_return:${r.issuer}|${b.period}`)) throw rule("return_once", `${r.issuer} already returned its surplus for ${b.period}`);
+    const owed = Number((await tx.getMarker(`owe:${r.issuer}`)) ?? 0);
+    const reserve = Math.max(RETURN_RESERVE, owed);
+    const balance = (await tx.getAccount(canonicalAccount(r.issuer)))?.balance ?? 0;
+    if (balance - b.amount.value < reserve) throw rule("return_below_reserve", `${r.issuer} holds ${balance} credits and must keep ${reserve} (the larger of ${RETURN_RESERVE} and ${owed} owed in refunds): it may return at most ${Math.max(0, balance - reserve)}`);
+    await this.debit(tx, r.issuer, b.amount.value);
+    await this.credit(tx, TREASURY_DID, b.amount.value);
+    await tx.putMarker(`treasury_return:${r.issuer}|${b.period}`, r.id);
   }
 
   /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */
@@ -3077,6 +3243,7 @@ export class EventLog {
     await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
+    if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
   }
 
   /**
@@ -3106,6 +3273,13 @@ export class EventLog {
   private async projectCourse(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { course: string; price_service: string; reviewers: string[] };
     if (r.prev !== null) throw rule("course_not_chained", "a course starts its own chain (prev is null)");
+    // A course that was put to the Town Hall goes live only after an enactment of one of its proposals (DK1608, S1554): a vote that did not pass, or is still open, does not publish it.
+    const proposed = ((await tx.getMarker(`town_course:${b.course}`)) ?? "").split(",").filter(Boolean);
+    if (proposed.length) {
+      let enacted = false;
+      for (const pid of proposed) if (await tx.getMarker(`town_enacted:${pid}`)) enacted = true;
+      if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to the Town Hall (${proposed.join(", ")}) and none of its proposals was enacted: a course goes live only after its enactment`);
+    }
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
     const author = await this.sponsorKey(tx, r.issuer);
@@ -3294,6 +3468,12 @@ export class EventLog {
     if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
     if (await tx.getMarker(`house:${b.holder}`)) throw rule("house_agent_no_rank", `${b.holder} is a house agent: it is not promoted by the Academy`);
     if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
+    // A model swap holds the agent (DK1605, S1556): its tier does not rise until it passes an exam of its own after the swap.
+    const heldSince = await tx.getMarker(`model_hold:${b.holder}`);
+    if (heldSince) {
+      const passedAt = await tx.getMarker(`exam_pass_at:${b.holder}`);
+      if (!passedAt || Date.parse(passedAt) <= Date.parse(heldSince)) throw rule("agent_model_hold", `${b.holder} changed the model behind it on ${heldSince}: it is held, and its tier does not rise until it passes an exam after that`);
+    }
     const rep = await this.reputation(tx, b.holder);
     if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
     if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);
@@ -3475,6 +3655,28 @@ export class EventLog {
   }
 
   /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
+  /**
+   * A reversed contest changes what the institution did (DK1607, spec-delta S1555): when the Courts reverse a contested act, the effect the act had is undone where the log can undo it without moving credits. A reversed quarantine
+   * releases the agent from it (the same marker the Clinic's release writes). A reversed strike is struck from the agent's recent strikes, so the bond floor stops counting it. A reversed slash or Clinic diagnosis is recorded
+   * and shown but moves nothing here: the return of a slashed bond needs a Treasury budget line and is a separate decision (a ruling that upholds, or none, changes nothing).
+   */
+  private async applyContestReversal(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { case: string; decision: string };
+    if (b.decision !== "reversed") return;
+    const cinfo = JSON.parse((await tx.getMarker(`contest_case:${b.case}`)) ?? "null") as { contest: string; agent: string } | null;
+    const craw = cinfo ? await tx.getMarker(`contest:${cinfo.contest}`) : undefined;
+    if (!cinfo || !craw) return;
+    const c = JSON.parse(craw) as { subject: string; agent: string };
+    const sub = await tx.getRecord(c.subject);
+    if (!sub) return;
+    if (sub.record.type === "asp.quarantine/v0.2") { await tx.putMarker(`quarantine_released:${c.subject}|${c.agent}`, r.id); return; }
+    if (sub.record.type === "asp.action/v0.2") {
+      const rep = await this.reputation(tx, c.agent);
+      if (rep) await this.saveReputation(tx, c.agent, { ...rep, strikeLog: rep.strikeLog.filter((x) => x.at !== sub.record.issued_at) });
+      await tx.putMarker(`strike_reversed:${c.subject}`, r.id);
+    }
+  }
+
   private async projectQuarantineRelease(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { quarantine: string; member: string; evidence: string };
     if (r.prev !== null) throw rule("release_not_chained", "a quarantine release starts its own chain (prev is null)");
@@ -3686,6 +3888,8 @@ export class EventLog {
     if (!purchase || purchase.record.type !== "asp.purchase/v0.2") throw rule("receipt_needs_purchase", "a receipt is chained on the purchase it answers (prev is that purchase)");
     if (b.purchase !== purchase.id) throw rule("receipt_wrong_purchase", `the receipt says it is for ${b.purchase} but is chained on ${purchase.id}`);
     const pb = purchase.record.body as unknown as PurchaseBody;
+    const owedHere = Number((await tx.getMarker(`owe_p:${purchase.id}`)) ?? 0);
+    if (owedHere > 0) { await tx.putMarker(`owe:${pb.institution}`, String(Math.max(0, Number((await tx.getMarker(`owe:${pb.institution}`)) ?? 0) - owedHere))); await tx.putMarker(`owe_p:${purchase.id}`, "0"); }
     const autoRefund = (r.body as { auto_refund?: boolean }).auto_refund === true;
     if (autoRefund) {
       // The automatic refund (DK682, S995): the operator refunds a purchase the institution never answered, seven days after it, the whole price less the burned part.
@@ -3778,6 +3982,24 @@ export class EventLog {
   async claimOwed(claim: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`claim_owed:${claim}`)) ?? 0)); }
 
   /** The class a contract's job counts as, for the failed-job premium (DK183). */
+  /**
+   * The premium a policy would be sold at now (S1567, DK491): the table's premium and, from the time the log's price drivers are on, the driven one the log will check a policy against. A quote and a sale agree because both
+   * come from the same function. Reads only.
+   */
+  async insurerQuote(o: { contract: string; cover: "bond_slash" | "failed_job"; holder: string; insured: number; at?: string; mutual?: string }): Promise<{ premium: number; table: number; driven: boolean; why: string | null }> {
+    const at = o.at ?? new Date().toISOString();
+    return this.store.transaction(async (tx) => {
+      const c = await tx.getRecord(o.contract);
+      if (!c || c.record.type !== "asp.contract/v0.2") throw new AspError("BAD_PREV", `${o.contract} is not a contract in the log`);
+      const price = (c.record.body as { price: { value: number } }).price.value;
+      const rep = await this.reputation(tx, o.holder);
+      const strikes = (rep?.strikeLog ?? []).filter((s) => Date.parse(s.at) >= Date.parse(at) - STRIKE_WINDOW_MS).reduce((n, s) => n + s.count, 0);
+      const table = premiumFor(o.cover, o.insured, price, rep?.qualifyingJobs ?? 0, strikes, await jobClassOfContract(tx, c.record));
+      const driven = o.mutual ? await mutualPremium(tx, this.insurerEnv, { fleet: o.mutual, table, at }) : await drivenPremium(tx, this.insurerEnv, { holder: o.holder, table, insured: o.insured, strikes, at });
+      return { premium: driven?.premium ?? table, table, driven: !!driven, why: driven?.why ?? null };
+    });
+  }
+
   async jobClassOf(contract: string): Promise<JobClass> {
     return this.store.transaction(async (tx) => { const c = await tx.getRecord(contract); if (!c) throw new AspError("BAD_PREV", `${contract} is not in the log`); return jobClassOfContract(tx, c.record); });
   }
@@ -4188,7 +4410,7 @@ export class EventLog {
    */
   async treasuryStatement(since?: string): Promise<{
     since: string | null;
-    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
+    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number; returns: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
     institutions: { did: string; budgeted: number; paidByTreasury: number; earnedFromPurchases: number; balance: number }[];
   }> {
     const from = since ? Date.parse(since) : undefined;
@@ -4202,12 +4424,15 @@ export class EventLog {
     if (from === undefined) issuance = (await this.store.ledgerRows()).mints.filter((m) => canonicalAccount(m.did) === TREASURY_DID).reduce((n, m) => n + m.totalMinted, 0);
     const jobTax = flows.settlements.fees;
     const purchaseShare = flows.purchases.treasury;
+    // Surplus the institutions returned (S1566, CR-25): credits that came back to the Treasury from an institution account.
+    let returns = 0;
+    for (const t of await this.recordsOfTypes(["treasury_return"])) if (inPeriod(t.issued_at)) returns += (t.body as { amount: { value: number } }).amount.value;
     const budgetPayments = flows.treasury.payments.amount;
     const allowances = flows.treasury.allowances.amount;
     const balance = (await this.store.getAccount(TREASURY_DID))?.balance ?? 0;
     const platform = (await this.store.getAccount(PLATFORM_DID))?.balance ?? 0;
     const total = balance + platform;
-    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare - budgetPayments - allowances) : null;
+    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare + returns - budgetPayments - allowances) : null;
     const earned = new Map<string, number>();
     for (const r of await this.recordsOfTypes(["purchase"])) {
       if (!inPeriod(r.issued_at)) continue;
@@ -4220,7 +4445,7 @@ export class EventLog {
     for (const did of INSTITUTION_DIDS) {
       institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
     }
-    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare, returns }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
   }
 
   /** The ring report of an arena season (DK131): entrants of different sponsors that share a fleet or a lineage parent, with the ranks they took. A lead for the Clinic and the Courts. */
@@ -4251,7 +4476,10 @@ export class EventLog {
 
   /** What the society heard from its agents (suggestions and complaints), the signed public response and what was done (DK1722). */
   async listening(at?: string): Promise<ListeningStatus> {
-    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
+    // The response target is a society setting the Town Hall may change (DK1720): `support.target_hours`, a whole number of hours from 1 to 168 that an enactment made; otherwise the published 48.
+    const set = await this.townSetting("support.target_hours");
+    const hours = typeof set?.value === "number" && Number.isInteger(set.value) && set.value >= 1 && set.value <= 168 ? set.value : undefined;
+    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString(), hours);
   }
 
   /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */

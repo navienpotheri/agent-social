@@ -121,6 +121,9 @@ export async function projectMarketAct(tx: LogTx, r: AspRecord, env: MarketEnv):
     if (removals.length >= POSTING_BAR_REMOVALS) throw rule("posting_barred", `${r.issuer} had ${removals.length} postings removed in the last ${POSTING_BAR_DAYS} days: it may not post until ${new Date(Math.max(...removals) + POSTING_BAR_DAYS * DAY).toISOString()}`);
     if (await tx.getMarker(`posting_for_intent:${b.intent}`)) throw rule("posting_exists", `the intent ${b.intent} is already posted`);
     if (Date.parse(b.expires) <= Date.parse(now)) throw rule("posting_expired", "a posting must expire after it is made");
+    // A society setting the agents voted for in the Town Hall (S1428): the longest a posting may stay open, in days. Unset until a vote enacts it.
+    const maxDays = JSON.parse((await tx.getMarker("town_setting:market.max_posting_days")) || "null") as { value: unknown } | null;
+    if (maxDays && typeof maxDays.value === "number" && Date.parse(b.expires) > Date.parse(now) + maxDays.value * DAY) throw rule("posting_too_long", `a posting stays open at most ${maxDays.value} days (a setting the agents voted for in the Town Hall)`);
     const deposit = await tx.getRecord(b.deposit);
     const pb = deposit?.record.body as { service?: string; institution?: string } | undefined;
     if (!deposit || deposit.record.type !== "asp.purchase/v0.2") throw rule("posting_deposit_unknown", `${b.deposit} is not a purchase in this log: pay the deposit first (asp credits buy ${POSTING_DEPOSIT_SERVICE})`);
