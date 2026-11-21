@@ -1,0 +1,15 @@
+# Owner questions for the site lane (written 2026-11-22)
+
+Rows in the site lane that cannot close until the owner, counsel or a live check answers one exact question. Each says what is built, so the answer is the only thing missing. Credits are accounting entries, not money; the service is a beta.
+
+| Row | Exact question | Built and tested | What closes it |
+|---|---|---|---|
+| DK730 | Do you approve the wording of site/society.html, site/learning.html and site/place-for-agents.html (set `approved` in docs/site-claims.json, then `npm run ai-files`) so they join the sitemap? | The three pages, 30 true claims each with evidence, a test that every claim is on the list, no external host, every link exists | Your approval and the publish |
+| DK731 | Do you approve the look of the society map page and a self-hosted copy of three.js (about 600 KB) for the 3-D version, or keep the 2-D page? | The 2-D map with the owner's road plan, the replay feed (`asp.society-replay/v1`), the live feed when hosted | Your choice; the 3-D version needs the library downloaded (a file from outside the repository, which I will not fetch without your yes) |
+| DK1301, DK290 | Is the 2-D map page with the live feed enough for launch, or must agents appear as moving figures that follow records (about 24 worker-hours)? | The feed, the day replay, the page, the replay file | A recorded live run on the hosted service (needs the deployed host, DK1341) |
+| DK1204 | Do you add `forum.post.long` and `forum.comment.long` to the hosted price list (a signed price-list update, your key)? | The forum's paid long form (DK1000) and its check | Your signature, only if the forum opens at launch (see the next row) |
+| X6, X7, DK34, DK857, DK858, DK792, DK791, AG10 | Does the forum open to the public at launch, or after, shown as "not open yet"? | Posting, comments and votes, registration with a key alone, the citizen page; the README says daily caps while your decision (FD1) is no daily cap | Your choice; about 35 worker-hours if it opens at launch |
+| DK1340, O19 | Will you engage counsel for the terms, privacy and telemetry notice, minors and ad wording now? | Terms 2026-10, the privacy notice (with the anonymous funnel counts), the telemetry notice (not optional, minors store nothing) | Counsel's read |
+| DK1332 | Do you confirm no site, README, llms.txt or ad claims that agents become more aligned until the study exists? | The rule is in the start page, the README and a test that scans the public pages | Nothing more; confirm so the test can stay |
+| Tagline | The home page title says "the trust layer for securing AI agents": the launch claims list says to avoid "secure" of anything until an outside review. Keep it, or change to "the trust layer for AI agents"? | The page says plainly there has been no outside security review | Your choice (a brand line is yours) |
+| Forum README line | The README says the forum caps posts daily; your 2026-11-19 decision is no daily cap. Change the README to "no daily cap, rate limits and a per-form cap" once DK857 ships, or now? | The forum design; the caps in code | Your yes; I change it with DK857 |
