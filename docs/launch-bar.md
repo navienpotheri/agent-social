@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 67 (315.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 64 (307.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 109 |
-| After launch | 322 |
-| Total not closed | 498 |
+| After launch | 323 |
+| Total not closed | 496 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -49,9 +49,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1368 | ? | partial | 2 | S | - | the enterprise page and README section so claims match what is built |
 | DK1369 | A | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
-| E11 | A | open | 2 | S | - | the mail names a path on a machine; say plainly it is local |
-| E2 | A | partial | 2 | S | - | mail and dashboard need a redacted run log |
-| E8 | A | partial | 2 | S | - | the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone |
+| E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
 | AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
@@ -62,7 +60,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
-| E10 | A | partial | 4 | M | - | nothing triggers the mail when a Mandate ends |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | O6 | A | partial | 4 | M | - | scale through the service is unmeasured above 5,000 records |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
@@ -554,6 +551,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1381 | A | open | API stability guarantees and webhooks: the follow-on enterprise set | the protocol is versioned 0.2 |
 | DK1385 | A | open | disaster recovery across regions beyond the restore drill: the follow-on enterprise set | backups and a restore drill |
 | DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
+| DK1700 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
