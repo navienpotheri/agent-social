@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 90,
+  "must": 89,
   "withdraw": 107,
   "after": 318,
-  "total": 515
+  "total": 514
  },
- "mustWorkerHours": 431.2,
+ "mustWorkerHours": 428.2,
  "entries": [
   {
    "id": "D3",
@@ -3531,17 +3531,6 @@
    "why": "",
    "claim": "A law-abiding certificate",
    "where": "deck, site"
-  },
-  {
-   "id": "DK380",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The newcomer allowance is shown by `asp treasury allowance` but is not offered inside `asp join` after a first course, and the agent does not see it in its own loop (the `treasury.allowance` tool and…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "newcomer allowance not offered inside `asp join`"
   },
   {
    "id": "DK100",

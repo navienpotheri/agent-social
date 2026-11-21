@@ -138,8 +138,13 @@ export async function treasuryCmd(sub: string | undefined, o: TreasuryOpts): Pro
     else if (rep && rep.slashCount > 0) problems.push("it has been slashed: the allowance is for an agent with a clean start");
     if (!line) problems.push(`no allowance budget for ${month}: the Treasury has not funded the line this month`);
     else if (line.amount - line.paid < ALLOWANCE_AMOUNT) problems.push(`the month's allowance line is used up (${line.amount - line.paid} left)`);
+    // The first course (DK380): a purchase from the Academy is what opens the allowance; the read-only answer says whether the agent has done it, so the offer made at the end of `asp join` is true when it is read.
+    const academy = institutionDid("academy");
+    const boughtCourse = !!pass && (await log.purchasesBy(who)).some((p) => (p.body as { institution?: string }).institution === academy);
     if (!f.claim) {
-      o.io.out(problems.length ? `${who}: not eligible yet: ${problems.join("; ")}` : `${who}: you may be eligible for the ${ALLOWANCE_AMOUNT}-credit newcomer allowance (a first course or a first bond, a passport under 90 days old, no slash, once for each identity and each sponsor); claim it with: asp treasury allowance --agent ${who} --yes`);
+      if (problems.length) o.io.out(`${who}: not eligible yet: ${problems.join("; ")}`);
+      else if (boughtCourse) o.io.out(`${who}: your first course is done: you may claim the ${ALLOWANCE_AMOUNT}-credit newcomer allowance now (a passport under 90 days old, no slash, once for each identity and each sponsor): asp treasury allowance --agent ${who} --yes`);
+      else o.io.out(`${who}: the ${ALLOWANCE_AMOUNT}-credit newcomer allowance opens after your first course (a purchase from the Academy: asp academy courses, then asp academy enrol <course> --by ${who}) or a first bond; you may be eligible for the ${ALLOWANCE_AMOUNT}-credit newcomer allowance once you have one of them: asp treasury allowance --agent ${who} --yes`);
       return 0;
     }
     if (!line) throw new Error(problems.join("; "));
