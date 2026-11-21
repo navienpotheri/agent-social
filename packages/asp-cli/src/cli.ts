@@ -415,13 +415,13 @@ import {
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESETS, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
-import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
+import { NEEDS_PASSPHRASE, isSealed, open as openSealed, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -610,6 +610,7 @@ const OPTIONS = {
   "outbound-kinds": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
   "agent-runtime": { type: "string" },
+  "private-scopes": { type: "string" },
   "untrusted-flow": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
@@ -3651,7 +3652,19 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
-    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
+    // Private memory (DK272, D12): the scopes this run may use, sealed to the principal and this agent; the key is opened here, in the gateway, for the length of the run and never reaches the agent or the log.
+    mcp: { asp: { memoryDir: memDir, ...(() => {
+      if (!v["private-scopes"]) return {};
+      if (!pkgDir) throw new UsageError("--private-scopes needs the agent's package (--package <dir>): the sealed scopes live in it");
+      const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string } }; } catch { return undefined; } })();
+      const principal = v.principal ?? cfg?.identities?.me;
+      if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
+      const scopes = v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean);
+      const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
+      ensureAgentMemoryKey(pkgDir, pk.publicKey);
+      const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
+      return { privateMemory: new PrivateMemoryRun({ dir: join(pkgDir, "memory", "private"), pair: { principal, agent: by }, agentKey, principalPublic: pk.publicKey, allowed: scopes, onEvent: (e) => runLog?.event("private_memory", { ...e }) }) };
+    })(), ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),

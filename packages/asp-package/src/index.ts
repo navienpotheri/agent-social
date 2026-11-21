@@ -117,3 +117,4 @@ export { ORG_ROLES, OrgStore, PERMISSIONS, can, orgRoutes, verifyIdToken, type O
 export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type GatewayHalt } from "./agent-guards.ts";
 
 export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
+export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";
