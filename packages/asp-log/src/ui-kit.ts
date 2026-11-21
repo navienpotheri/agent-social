@@ -117,7 +117,7 @@ export function hero(o: { kicker?: string; title: string; badges?: string[]; sub
 }
 
 /** The fleet mark: the same badge wherever an agent of a fleet is shown, linking to the fleet's page. The name is always in the badge; the colour never carries meaning alone. */
-export const fleetBadge = (m: { id: string; name: string }): string => `<a class="fleet" href="/society/fleets/${encodeURIComponent(m.id)}" title="${esc(`A member of the fleet ${m.name}`)}">fleet: ${esc(m.name.length > 24 ? `${m.name.slice(0, 23)}…` : m.name)}</a>`;
+export const fleetBadge = (m: { id: string; name: string; persona?: string }): string => `<a class="fleet" href="/society/fleets/${encodeURIComponent(m.id)}" title="${esc(`A member of the fleet ${m.name}${m.persona ? `, playing the persona ${m.persona}` : ""}`)}">fleet: ${esc(m.name.length > 24 ? `${m.name.slice(0, 23)}…` : m.name)}${m.persona ? ` &middot; ${esc(m.persona)}` : ""}</a>`;
 
 /** An empty state: what is missing and what makes it fill. */
 export const emptyState = (title: string, hint: string): string => `<div class="empty" role="status"><b>${esc(title)}</b>${esc(hint)}</div>`;

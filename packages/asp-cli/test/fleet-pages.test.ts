@@ -27,14 +27,14 @@ async function society(seed = true) {
     await k.log.append(mk("fleet", org, { did: RES, org: org.did, name: "Research", purpose: "Read papers and summarise them" }, null, { subject: RES }));
   }
   /** An agent whose passport names a fleet (the kit's own `agent` does not set one). */
-  const mkAgent = async (n: string, sponsor: Party = org, fleet?: string): Promise<Party> => {
+  const mkAgent = async (n: string, sponsor: Party = org, fleet?: string, persona?: string): Promise<Party> => {
     const a = party(`did:web:example.com:agents:${n}`);
-    await k.log.append(mk("passport", sponsor, { did: a.did, kind: "agent", sponsor: sponsor.did, tier: 1, shape: {}, keys: keysOf(a), ...(fleet ? { fleet } : {}) }, null, { subject: a.did }));
+    await k.log.append(mk("passport", sponsor, { did: a.did, kind: "agent", sponsor: sponsor.did, tier: 1, shape: {}, keys: keysOf(a), ...(fleet ? { fleet } : {}), ...(persona ? { persona } : {}) }, null, { subject: a.did }));
     await k.mint(a.did, 300);
     return a;
   };
-  const pa = await mkAgent("fl-pay-a", org, seed ? PAY : undefined);
-  const pb = await mkAgent("fl-pay-b", org, seed ? PAY : undefined);
+  const pa = await mkAgent("fl-pay-a", org, seed ? PAY : undefined, seed ? "coder" : undefined);
+  const pb = await mkAgent("fl-pay-b", org, seed ? PAY : undefined, seed ? "reviewer" : undefined);
   const ra = await mkAgent("fl-res-a", org, seed ? RES : undefined);
   const lone = await mkAgent("fl-lone", other);
   void names;
@@ -73,9 +73,10 @@ test("DK1367: the directory reads fleets, members, the work inside a fleet and t
   assert.equal(pay.maxMembers, 5);
   assert.deepEqual(pay.template, { runtime: "claude-code", model: "test-model" });
   assert.equal(pay.orgName, "fl-org");
-  assert.deepEqual(fleetOfAgent(dir, w.pa.did), { id: PAY, name: "Payments" });
+  assert.deepEqual(fleetOfAgent(dir, w.pa.did), { id: PAY, name: "Payments", persona: "coder" }, "the mark carries the persona the passport names");
+  assert.deepEqual(pay.members.map((m) => [m.name, m.persona, m.node]), [["fl-pay-a", "coder", null], ["fl-pay-b", "reviewer", null]]);
   assert.equal(fleetOfAgent(dir, w.lone.did), null);
-  assert.ok(pay.not_yet.some((x) => /personas/.test(x)), "what is not carried yet is said");
+  assert.deepEqual(pay.not_yet, [], "personas are carried now: nothing is left to say");
 });
 
 test("DK1367: the fleet page: hero, members linked to their journeys, the work inside the fleet in words, the public record, the filter links; the list; JSON; an unknown fleet", async () => {
@@ -91,13 +92,15 @@ test("DK1367: the fleet page: hero, members linked to their journeys, the work i
   assert.match(page, /Keep payments tests green/);
   assert.match(page, /\/agent\/did%3Aweb%3Aexample\.com%3Aagents%3Afl-pay-a\/journey/, "members link to their journeys");
   assert.match(page, /fl-pay-b/);
+  assert.match(page, /<td>coder<\/td><td>root<\/td>/, "each member's persona and node");
+  assert.match(page, /<td>reviewer<\/td>/);
+  assert.doesNotMatch(page, /Not on this page yet/, "nothing is missing now");
   assert.ok(!page.includes("fl-res-a"), "another fleet's member is not listed");
   assert.match(page, /Work between members of one fleet is related-party work/);
   assert.match(page, /1 contract between members of this fleet \(1 settled accepted\)/);
   assert.match(page, /\/society\/leaderboards\?fleet=/);
   assert.match(page, /\/market\/board\?fleet=/);
   assert.match(page, /Template: claude-code, test-model/);
-  assert.match(page, /Not on this page yet/);
   const byName = await (await w.get("/society/fleets/Payments")).text();
   assert.match(byName, /<h1>Payments<\/h1>/, "a fleet is found by its name too");
   const json = (await (await w.get("/society/fleets/Payments", "application/json")).json()) as { ok: boolean; fleet: { id: string; members: { name: string }[] } };
@@ -123,10 +126,10 @@ test("DK1367: with no fleet declared the list says so and offers no member; an a
 test("DK1367: the journey carries the fleet mark for a member, in the page and the data, and none for an agent outside a fleet", async () => {
   const w = await society();
   const html = await (await w.get("/agent/fl-pay-a/journey")).text();
-  assert.match(html, /<a class="fleet" href="\/society\/fleets\/did%3Aweb%3Aexample\.com%3Afleets%3Apayments"[^>]*>fleet: Payments<\/a>/);
+  assert.match(html, /<a class="fleet" href="\/society\/fleets\/did%3Aweb%3Aexample\.com%3Afleets%3Apayments" title="A member of the fleet Payments, playing the persona coder">fleet: Payments &middot; coder<\/a>/);
   assert.match(html, /work inside a fleet is related-party work and never counts toward standing/);
   const data = (await (await w.get("/agent/fl-pay-a/journey?format=json")).json()) as { fleet?: { id: string; name: string } };
-  assert.deepEqual(data.fleet, { id: PAY, name: "Payments" });
+  assert.deepEqual(data.fleet, { id: PAY, name: "Payments", persona: "coder" });
   const lone = await (await w.get("/agent/fl-lone/journey")).text();
   assert.ok(!/class="fleet"/.test(lone));
   const loneData = (await (await w.get("/agent/fl-lone/journey?format=json")).json()) as { fleet?: unknown };
@@ -165,7 +168,7 @@ test("DK1367: the job board marks a posting by a fleet agent and filters by flee
   const all = await w.k.log.marketBoard();
   assert.equal(all.length, 3);
   const mark = (did: string) => all.find((e) => e.poster === did)?.posterFleet;
-  assert.deepEqual(mark(w.pa.did), { id: PAY, name: "Payments" });
+  assert.deepEqual(mark(w.pa.did), { id: PAY, name: "Payments", persona: "coder" });
   assert.deepEqual(mark(w.ra.did), { id: RES, name: "Research" });
   assert.equal(mark(w.lone.did), undefined, "a posting by an agent outside a fleet carries no mark");
   for (const q of [PAY, "Payments"]) assert.deepEqual((await w.k.log.marketBoard(undefined, undefined, { fleet: q })).map((e) => e.poster), [w.pa.did]);
@@ -182,7 +185,7 @@ test("DK1367: the map feed has a district for each fleet that has members and pu
   const districts = feed.places.filter((p) => p.fleet);
   assert.deepEqual(districts.map((p) => [p.id, p.name]), [[`fleet:${PAY}`, "Fleet: Payments"], [`fleet:${RES}`, "Fleet: Research"]]);
   assert.equal(feed.places.filter((p) => !p.fleet).length, 12, "the twelve institutions are unchanged");
-  assert.deepEqual(feed.agents.find((a) => a.id === w.pa.did)!.fleet, { id: PAY, name: "Payments" });
+  assert.deepEqual(feed.agents.find((a) => a.id === w.pa.did)!.fleet, { id: PAY, name: "Payments", persona: "coder" });
   assert.equal(feed.agents.find((a) => a.id === w.lone.did)!.fleet, undefined);
   const page = await publicReply(w.k.log as never, `/registry/agents/${encodeURIComponent(w.pa.did)}`, true);
   assert.match(page!.html ?? "", /\/society\/fleets\/did%3Aweb%3Aexample\.com%3Afleets%3Apayments/);

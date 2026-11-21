@@ -1141,7 +1141,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did)); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
