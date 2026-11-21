@@ -50,9 +50,9 @@ test("DK1360: a private tenant's run keeps the text on its own machine, the serv
     const run = () => call(["run", "claude-code", "--prompt", TASK, "--allow", "all", "--permissions", "develop", "--project", project, "--json"]);
 
     // The operator records the organisation's choice in the tenant (asp serve token --data-sharing private does it for a new tenant).
-    const tenantsNow = JSON.parse(readFileSync(tokens, "utf8")) as { name: string; dataSharing?: string }[];
+    const tenantsNow = JSON.parse(readFileSync(tokens, "utf8")) as { name: string; dataSharing?: { choice: string; at: string } }[];
     const me = tenantsNow.find((t) => t.name === "tm-run-agent")!;
-    me.dataSharing = "private";
+    me.dataSharing = { choice: "private", at: new Date().toISOString() };
     writeFileSync(tokens, JSON.stringify(tenantsNow));
     const status = await call(["telemetry"]);
     assert.match(status.out, /chose to keep its data private/);

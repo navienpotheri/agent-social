@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 69,
-  "withdraw": 109,
+  "must": 68,
+  "withdraw": 110,
   "after": 322,
   "total": 500
  },
- "mustWorkerHours": 317.2,
+ "mustWorkerHours": 309.2,
  "entries": [
   {
    "id": "D3",
@@ -5784,7 +5784,7 @@
   {
    "id": "DK1362",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown.",
    "bucket": "must",
    "hours": 16,
@@ -5806,7 +5806,7 @@
   {
    "id": "DK1364",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody…",
    "bucket": "must",
    "hours": 4,
@@ -5850,7 +5850,7 @@
   {
    "id": "DK1371",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback.",
    "bucket": "must",
    "hours": 10,
@@ -5872,7 +5872,7 @@
   {
    "id": "DK1374",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools.",
    "bucket": "must",
    "hours": 6,
@@ -5951,17 +5951,6 @@
    "says": "the protocol is versioned 0.2"
   },
   {
-   "id": "DK1382",
-   "pri": "A",
-   "status": "open",
-   "gap": "An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the sandbox tenant"
-  },
-  {
    "id": "DK1383",
    "pri": "?",
    "status": "partial",
@@ -5971,6 +5960,19 @@
    "size": "M",
    "flags": "",
    "why": "the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors"
+  },
+  {
+   "id": "DK1384",
+   "pri": "A",
+   "status": "partial",
+   "gap": "An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1385",
@@ -6010,23 +6012,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1473",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A stealth farm is not caught: each hop of a ring used only twice and most of the work honest-looking is below every rule of the detector (0 of 50 in the red team), and an attacker who adapts to the d…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1474",
+   "id": "DK1475",
    "pri": "A",
    "status": "open",
-   "gap": "The service does not yet feed its own counters to the meter or show a statement. The log's meter counts what agents signed (active agents, writes, Actions, tokens, stored data); reads and the hosted…",
+   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6047,6 +6036,19 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
+  },
+  {
+   "id": "DK1650",
+   "pri": "A",
+   "status": "open",
+   "gap": "The usage routes (`GET /usage`, `GET /usage/statements`, DK1474) are tested only against a stand-in log for the tenant list: no test runs them on a running `asp serve` with real tenants, a real signe…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

@@ -25,8 +25,8 @@ test("DK1360: a private tenant is recorded and said; the default records nothing
   assert.doesNotMatch(open.text, /data sharing/);
   const explicit = await asp(["serve", "token", "--tokens", file, "--tenant", "org-explicit", "--data-sharing", "share"]);
   assert.equal(explicit.code, 0, explicit.text);
-  const tenants = JSON.parse(readFileSync(file, "utf8")) as { name: string; dataSharing?: string }[];
-  assert.equal(tenants.find((t) => t.name === "org-private")!.dataSharing, "private");
+  const tenants = JSON.parse(readFileSync(file, "utf8")) as { name: string; dataSharing?: { choice: string } }[];
+  assert.equal(tenants.find((t) => t.name === "org-private")!.dataSharing?.choice, "private");
   assert.equal(tenants.find((t) => t.name === "org-shared")!.dataSharing, undefined);
   assert.equal(tenants.find((t) => t.name === "org-explicit")!.dataSharing, undefined, "share is the default and records nothing");
   const bad = await asp(["serve", "token", "--tokens", file, "--tenant", "org-bad", "--data-sharing", "maybe"]);

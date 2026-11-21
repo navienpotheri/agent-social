@@ -12,9 +12,9 @@
  * Credits are accounting entries, not money; nothing here changes a standing.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { TELEMETRY_NOTICE, type TelemetryStore, type Tenant, TELEMETRY_NOTICE_PRIVATE } from "@agent-social/asp-log";
+import { TELEMETRY_NOTICE, TELEMETRY_NOTICE_PRIVATE, type TelemetryStore, type Tenant } from "@agent-social/asp-log";
 
-export interface TelemetryRoutesOptions { store: TelemetryStore; now: () => string }
+export interface TelemetryRoutesOptions { store: TelemetryStore; now: () => string; /** Saves a change to a tenant (the data-sharing choice, DK1360). */ updateTenant?: (name: string, patch: Partial<Tenant>) => void }
 
 const readBody = (req: IncomingMessage, max = 512 * 1024): Promise<Record<string, unknown>> => new Promise((resolve, reject) => {
   let b = "";
@@ -34,16 +34,26 @@ export function telemetryRoutes(o: TelemetryRoutesOptions) {
     try {
       if (req.method === "GET" && url.pathname === "/telemetry") {
         const entries = o.store.list(t.name);
-        const priv = t.dataSharing === "private";
-        if (priv) return send(200, { ok: true, on: false, sharing: "private", minor: !!t.minor, stored: 0, deleted: 0, notice: TELEMETRY_NOTICE_PRIVATE, say: "Your organisation chose to keep its data private: nothing is stored here for your agents; the text stays on your machines and only hashes go in the signed log." });
-        return send(200, { ok: true, sharing: "share", on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
+        return send(200, { ok: true, sharing: t.dataSharing?.choice ?? "share", on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: t.dataSharing?.choice === "private" ? TELEMETRY_NOTICE_PRIVATE : TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
       }
       if (req.method === "POST" && (url.pathname === "/telemetry/opt-out" || url.pathname === "/telemetry/opt-in")) return fail(410, "TELEMETRY_NOT_OPTIONAL", "telemetry is not optional for an agent (owner decision, DK1303): there is no off switch; you can list what is stored and delete it with asp telemetry delete --all");
+      if (url.pathname === "/telemetry/sharing") {
+        const choice = t.dataSharing?.choice ?? "share";
+        const info = { ok: true, choice, ...(t.dataSharing ? { at: t.dataSharing.at } : {}), options: { share: "The text in the telemetry store is kept and may be used for the society's research, as for every open agent.", private: "Your text is never stored here: only its hash is kept and may go in the signed log, and your agents are not used in studies." }, terms: "docs/legal/dpa-draft.md section 3" };
+        if (req.method === "GET") return send(200, info);
+        if (req.method === "POST") {
+          if (!person) return fail(403, "FORBIDDEN", "a machine token cannot change the data-sharing choice");
+          if (!o.updateTenant) return fail(501, "NOT_AVAILABLE", "this service cannot record the choice");
+          const b = await readBody(req);
+          if (b.choice !== "share" && b.choice !== "private") return fail(400, "BAD_CHOICE", "choice is share or private");
+          o.updateTenant(t.name, { dataSharing: { choice: b.choice, at: o.now() } });
+          return send(200, { ...info, choice: b.choice, at: o.now(), say: b.choice === "private" ? "Kept private: from now on only hashes are stored for this tenant. Text stored earlier stays until you delete it (asp telemetry delete-all, with a receipt)." : "Shared: text is stored and may be used for the society's research." });
+        }
+      }
       if (req.method === "POST" && url.pathname === "/telemetry/content") {
-        if (t.dataSharing === "private") return fail(409, "private_tenant_keep_text_local", "this organisation chose to keep its data private: the service stores none of it. Keep the text on your own machine and put only its hash in the log (the gateway and `asp run` do this)");
         const b = await readBody(req);
-        const r = o.store.put(t.name, b.kind, b.content, { ...(t.minor ? { minor: true } : {}), ...(typeof b.did === "string" ? { did: b.did.slice(0, 200) } : {}), at: o.now() });
-        return r.ok ? send(r.stored ? 201 : 200, { ok: true, hash: r.hash, stored: r.stored }) : fail(r.status, r.code, r.message);
+        const r = o.store.put(t.name, b.kind, b.content, { ...(t.minor ? { minor: true } : {}), ...(t.dataSharing?.choice === "private" ? { private: true } : {}), ...(typeof b.did === "string" ? { did: b.did.slice(0, 200) } : {}), at: o.now() });
+        return r.ok ? send(r.stored ? 201 : 200, { ok: true, hash: r.hash, stored: r.stored, ...(r.private ? { private: true } : {}) }) : fail(r.status, r.code, r.message);
       }
       if (req.method === "GET" && url.pathname === "/telemetry/content") return send(200, { ok: true, entries: o.store.list(t.name) });
       const m = /^\/telemetry\/content\/(sha256:[0-9a-f]{64})$/.exec(decodeURIComponent(url.pathname));

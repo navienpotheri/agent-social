@@ -79,7 +79,7 @@ export { hostedBotRoutes } from "./hosted-routes.ts";
 export { handoutRoutes } from "./handout-pages.ts";
 export { abuseIntakeRoutes } from "./abuse-intake.ts";
 export { storyRoutes } from "./story-pages.ts";
-export { fleetDashboardRoutes, renderFleetDashboard, type FleetDashboardSource } from "./fleet-dashboard-routes.ts";
+export { fleetDashboardRoutes, fleetLiveRoute, renderFleetLive, renderFleetDashboard, type FleetDashboardSource } from "./fleet-dashboard-routes.ts";
 export { fleetRoutes, renderFleet, renderFleetList, type FleetSource } from "./fleet-pages.ts";
 export { journeyRoutes, renderJourneyHtml, buildJourney, sponsorJourney, type JourneySource } from "./journey-pages.ts";
 export { RECALL_DEADLINE_SECONDS, POLL_SECONDS, newNodeKey, issueDelegation, recallDelegation, ResidentHost, type HostLog, type NodeKey } from "./residency-host.ts";
@@ -106,3 +106,4 @@ export { fromFailingRun as evalFromFailingRun, revise as reviseEvalScenario, ded
 export { GraderBook, clusters as failureClusters, type Grade, type RunFacts as GraderRunFacts } from "./graders.ts";
 export { Trail as ReviewTrail, admit as admitChange, validateChange, split as splitChange, applyChange, revertChange, attribute as attributeChange, checkRuntimes, prune as pruneChanges, promote as promoteChange, type Change as LearnedChange, type LineageEdge } from "./change-review.ts";
 export { serviceFarmingFacts, tenantOfDid } from "./farming-facts.ts";
+export { SANDBOX_BANNER, SANDBOX_CREDITS_PER_REQUEST, SANDBOX_CREDITS_PER_TENANT, checkEnvironment, markSandbox, resetSandbox, sandboxRoutes } from "./tenant-sandbox.ts";

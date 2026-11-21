@@ -1057,7 +1057,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
 | DK1361 | A | closed | There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
 | DK1360 | A | closed | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
-| DK1362 | A | open | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
+| DK1362 | A | partial | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
 | DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
 | DK1364 | A | partial | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
 | DK1366 | A | closed | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
@@ -1065,10 +1065,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
 | DK1369 | A | partial | It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, retention against an append-only log, audit export, billing and service levels have not been checked as a whole. |
 | DK1370 | A | partial | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
-| DK1371 | A | open | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
+| DK1371 | A | partial | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
 | DK1372 | A | closed | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
 | DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
-| DK1374 | A | open | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
+| DK1374 | A | partial | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
 | DK1377 | A | partial | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
@@ -1076,17 +1076,19 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1379 | A | partial | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
 | DK1380 | A | partial | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
 | DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |
-| DK1382 | A | open | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
+| DK1382 | A | closed | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
 | DK1383 | A | partial | Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors. |
-| DK1384 | A | closed | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
+| DK1384 | A | partial | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
 | DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
 | DK1386 | A | open | An enterprise cannot restrict how its agents reach the platform: no network allow lists or private connectivity. |
 | DK1387 | A | closed | No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned. |
 | DK1470 | A | closed | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | closed | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
-| DK1473 | A | partial | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
-| DK1474 | A | open | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
+| DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
+| DK1475 | A | open | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
+| DK1650 | A | open | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |

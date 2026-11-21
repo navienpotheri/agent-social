@@ -333,6 +333,8 @@ import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, render
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
+import { fleetOnboardCmd } from "./fleet-onboard.ts";
+import { OffboardUsage, offboardCmd } from "./offboard.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
@@ -354,6 +356,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts } from "@agent-social/asp-package";
+import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
@@ -404,7 +407,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -441,6 +444,10 @@ const OPTIONS = {
   method: { type: "string" },
   sponsor: { type: "string" },
   fleet: { type: "string" },
+  format: { type: "string" },
+  choice: { type: "string" },
+  keys: { type: "boolean" },
+  "fleet-did": { type: "string" },
   purpose: { type: "string" },
   runtime: { type: "string" },
   backend: { type: "string" },
@@ -693,6 +700,7 @@ const OPTIONS = {
   "rate-limit": { type: "string" },
   "data-sharing": { type: "string" },
   "write-limit": { type: "string" },
+  "plans-file": { type: "string" },
   "address-limit": { type: "string" },
   "max-in-flight": { type: "string" },
   "max-failed-auth": { type: "string" },
@@ -895,6 +903,8 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  "since-file": { type: "string" },
+  reads: { type: "string" },
   reference: { type: "string" },
   lot: { type: "string" },
   "refund-until": { type: "string" },
@@ -1052,7 +1062,12 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
-    if (cmd === "fleet" && ["plan", "enrol", "join", "status"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
+    if (cmd === "offboard") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine`); return s; };
+      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
@@ -1084,7 +1099,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits", "reset-sandbox"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "enrol") return await enrolCmd(home, v, io);
     if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
@@ -1191,6 +1206,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
@@ -1847,7 +1863,17 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
+    io.out(`  data sharing: ${a.tenant.dataSharing?.choice ?? "share"}${a.tenant.dataSharing?.choice === "private" ? " (only hashes are stored for you; your agents are not used in studies)" : " (as for every open agent; asp account data-sharing)"}`);
     io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
+    return 0;
+  }
+  // The data-sharing choice of an organisation (DK1360): `asp account data-sharing` shows it, `--choice share|private` records it.
+  if (sub === "data-sharing") {
+    if (v.choice !== undefined && v.choice !== "share" && v.choice !== "private") throw new UsageError("asp account data-sharing [--choice share|private]");
+    const r = v.choice ? await json("telemetry/sharing", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ choice: v.choice }) }) : await json("telemetry/sharing");
+    io.out(`data sharing: ${r.choice}`);
+    if (r.say) io.out(r.say);
+    if (!v.choice) { io.out(`  share:   ${r.options.share}`); io.out(`  private: ${r.options.private}`); io.out(`  choose with: asp account data-sharing --choice share|private   (terms: ${r.terms})`); }
     return 0;
   }
   if (sub === "starter") {
@@ -2465,7 +2491,7 @@ async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const sharing = v["data-sharing"];
   if (sharing !== undefined && sharing !== "share" && sharing !== "private") throw new UsageError("--data-sharing is share or private");
   tenants.push({
-    name, role, tokenSha256: hashToken(token), ...(sharing === "private" ? { dataSharing: "private" as const } : {}), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
+    name, role, tokenSha256: hashToken(token), ...(sharing === "private" ? { dataSharing: { choice: "private" as const, at: now() } } : {}), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
     ...(recordQuota !== undefined ? { recordQuota } : {}), ...(byteQuotaMb !== undefined ? { byteQuota: Math.round(byteQuotaMb * 1024 * 1024) } : {}),
     ...(v["rate-limit"] !== undefined ? { rateLimitPerMinute: Math.trunc(Number(v["rate-limit"])) } : {}), createdAt: now(),
   });
@@ -2485,6 +2511,15 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
   if (!existsSync(file)) throw new Error(`${file} does not exist`);
   const tenants: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
   const save = (data: unknown, path = file) => writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+  if (sub === "reset-sandbox") {
+    // DK1382: clears a sandbox (its log and the service's state), keeping the tenants. Only a log marked sandbox is touched.
+    if (v.confirm !== "sandbox") throw new UsageError("asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox   (stop the sandbox service first; the tenants stay, everything else is cleared)");
+    const db = need("db");
+    if (!db.startsWith("local:")) throw new UsageError("a sandbox is on a local log: --db local:<dir>");
+    const r = resetSandbox(db.slice("local:".length), file);
+    io.out(`sandbox reset: ${r.removed.length} item${r.removed.length === 1 ? "" : "s"} cleared (the log and the service's state); the tenants in ${file} stay and the credits are free to take again`);
+    return 0;
+  }
   if (sub === "suspend" || sub === "resume") {
     const name = need("tenant");
     const t = tenants.find((x) => x.name === name);
@@ -2729,6 +2764,10 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"], log: (l) => io.err(`  ${l}`), ...(v["google-auth-url"] ? { authUrl: v["google-auth-url"] } : {}), ...(v["google-token-url"] ? { tokenUrl: v["google-token-url"] } : {}), ...(v["google-userinfo-url"] ? { userinfoUrl: v["google-userinfo-url"] } : {}) });
     } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
+  // The sandbox (DK1382): a service of its own on a log of its own, never production's.
+  const sandbox = !!v.sandbox;
+  if (sandbox && !db.startsWith("local:")) throw new UsageError("--sandbox runs on a local log: --db local:<dir> (a new, empty directory)");
+  if (db.startsWith("local:")) { try { checkEnvironment(db.slice("local:".length), sandbox ? "sandbox" : "production"); } catch (e) { throw new UsageError((e as Error).message); } }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
@@ -2790,7 +2829,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
-    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now })] : []),
+    ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
+    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
@@ -2845,10 +2885,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   });
   // The measured front door (DK1211): counters for each step, kept as hashes next to the tokens file; `GET /society/funnel` shows them to an operator.
   const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
-  const publicList = [journeyRoutes(journeySource as never), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [journeyRoutes(journeySource as never), fleetLiveRoute(), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
-  const server = createLogServer({ ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const planTable = v["plans-file"] ? (JSON.parse(readFileSync(v["plans-file"], "utf8")) as Record<string, unknown>) : undefined;
+  const server = createLogServer({ ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
   // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
   if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
@@ -2872,6 +2913,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     server.on("close", () => clearInterval(timer));
     (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
   }
+  if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
@@ -2895,7 +2937,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
-  io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
+  if (sandbox) io.out(`  SANDBOX   ${SANDBOX_BANNER}`);
+  io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port}${sandbox ? " [SANDBOX]" : ""} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
   if (mailer) io.out(`  mail      ${io.env.RESEND_API_KEY && !v["mail-dry-run"] ? "sending through Resend" : "DRY RUN: no RESEND_API_KEY, so mail is written to " + v.tokens + ".outbox and not sent"}; from ${v["mail-from"]}${v["mail-operator"] ? `; operator notes to ${v["mail-operator"]}` : ""}; a pass every ${num("mail-interval", 60)} s`);
@@ -5062,6 +5105,31 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
 /**
+ * asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file> (register row DK1374, S1417): the organisation's and its agents' signed records as JSON lines, with the
+ * signers' passports so the file verifies offline; `--since-file` keeps the last position, so running it again (from cron, say) exports only what is new; `verify` checks the manifest and every record's id and signatures.
+ */
+async function auditExportCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[]): Promise<number> {
+  if (sub === "verify") {
+    const file = rest[0];
+    if (!file) throw new UsageError("asp audit-export verify <file>");
+    const r = verifyAuditExport(readFileSync(file, "utf8"));
+    io.out(r.ok ? `${file}: ${r.records} record(s) of ${r.manifest!.org}, the manifest and every signature that can be checked from the file check${r.unverified.length ? `; ${r.unverified.length} record(s) are signed by a key that is not in the file (${[...new Set(r.unverified.map((u) => u.kid))].join(", ")}) and are listed, not checked` : ""}` : `${file}: does not check:\n  ${r.problems.join("\n  ")}`);
+    return r.ok ? 0 : 1;
+  }
+  if (sub !== "export") throw new UsageError("asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file>");
+  if (!v.org) throw new UsageError("asp audit-export export --org <organisation did>");
+  const local = await openLog(home, logEnv);
+  let afterSeq = 0;
+  if (v["since-file"] && existsSync(v["since-file"])) afterSeq = Number(JSON.parse(readFileSync(v["since-file"], "utf8")).last_seq ?? 0);
+  const out = await local.log.auditExport(v.org, { ...(v.from ? { from: new Date(v.from).toISOString() } : {}), ...(v.to ? { to: new Date(v.to).toISOString() } : {}), afterSeq });
+  const file = v.out ?? join(process.cwd(), `audit-${v.org.replace(/[^a-z0-9]+/gi, "-").slice(0, 40)}-${now().slice(0, 10)}.jsonl`);
+  writeFileSync(file, out.text);
+  if (v["since-file"] && out.manifest.last_seq !== null) writeFileSync(v["since-file"], JSON.stringify({ org: v.org, last_seq: out.manifest.last_seq, at: now() }) + "\n");
+  io.out(`${out.manifest.records} record(s) (${out.manifest.passports} passport(s) of signers) of ${v.org} written to ${file}${afterSeq ? ` since position ${afterSeq}` : ""}; check it with: asp audit-export verify ${file}`);
+  return 0;
+}
+
+/**
  * asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256 of the payment reference> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]
  * (register row DK1370, ledger part; S1413): the operator records a sale of purchased credits (with the owner's co-signature, the owner's go for each sale), the expiry of a lot and a refund inside its window, and anyone reads
  * the two classes. The payment itself is not here: `reference` is the hash of the payment provider's reference. Credits are accounting entries, not money.
@@ -5112,7 +5180,7 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new UsageError("--month is YYYY-MM");
   if (!sub || sub === "report") {
     if (!v.fleet && !v.org && !v.agent) throw new UsageError("asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json]");
-    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month });
+    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) });
     if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
     const u = m.usage;
     io.out(`usage of ${m.scope} in ${month}: ${u.activeAgents} active agent(s), ${u.writes} write(s), ${u.actions} action(s), ${u.tokensIn + u.tokensOut} token(s), ${u.modelRequests} model request(s), ${u.toolCalls} tool call(s), ${u.storageBytes} byte(s) stored; reads ${u.reads ?? "counted by the service, not the log"}`);
@@ -5131,9 +5199,9 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
     const plan = await local.log.usagePlan(v.plan);
     if (!plan) throw new UsageError(`${v.plan} is not a plan in this log`);
     const taxes = (v["tax-line"] ?? []).map((t) => { const [name, bp] = t.split(":"); const n = Number(bp); if (!name || !Number.isInteger(n) || n < 0 || n > 10000) throw new UsageError("--tax-line is <name>:<basis points>, for example GST:1800"); return { name, rate_bp: n }; });
-    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month })).usage;
+    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) })).usage;
     const priced = priceStatement(plan, m, taxes);
-    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
+    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes, ...(m.reads !== null ? { reads: m.reads } : {}) }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
     const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
     io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
     for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
@@ -5293,6 +5361,7 @@ async function fleetEnrolCommand(home: string, sub: string | undefined, v: Value
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine to sign the fleet and its agents`); return s; };
   try {
+    if (["blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetOnboardCmd(sub!, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], days: v.days, sponsor: v.sponsor, persona: v.persona, format: v.format, file: v.file, confirm: v.confirm, purpose: v.purpose, name: v.name, "fleet-did": v["fleet-did"] } });
     return await fleetEnrolCmd(sub, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], invitation: v.invitation, service: v.service, name: v.name, "accept-terms": v["accept-terms"], days: v.days } });
   } catch (e) {
     if (e instanceof FleetEnrolUsage) throw new UsageError(e.message);

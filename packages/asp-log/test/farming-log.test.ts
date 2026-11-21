@@ -103,3 +103,26 @@ describe("the report and the Clinic's freeze on a flagged cluster", () => {
     void tick;
   });
 });
+
+describe("what a drip farm earns (DK1473, measured)", () => {
+  test("a ring of five agents of five sponsors, each hiring the next once at a counted price: four of the five hops count for standing, the loop rule refuses the closing hop, and the starter credits are the larger prize", async () => {
+    const { STARTER_POOL_DID } = await import("../src/economy.ts");
+    const { STARTER_PER_DID, STARTER_UPFRONT } = await import("../src/starter.ts");
+    const k = await kit();
+    await k.withPrices();
+    await k.mint(STARTER_POOL_DID, 10_000);
+    const sponsors = [] as Party[], agents = [] as Party[];
+    for (let i = 0; i < 5; i++) { const s = await k.person(`drip-s-${i}`, 10); sponsors.push(s); agents.push(await k.agent(`drip-a-${i}`, s, { funds: 300 })); }
+    for (let i = 0; i < 5; i++) await k.runJob(agents[i], agents[(i + 1) % 5], 60);
+    let counted = 0, starter = 0;
+    for (const a of agents) {
+      counted += (await k.log.reputationOf(a.did))?.qualifyingJobs ?? 0;
+      await k.log.append(mk("starter_claim", a, { part: "upfront", amount: { value: STARTER_UPFRONT, unit: "credit" } }, null, { subject: a.did })); starter += STARTER_UPFRONT;
+      if (((await k.log.reputationOf(a.did))?.qualifyingJobs ?? 0) >= 1) { await k.log.append(mk("starter_claim", a, { part: "rest", amount: { value: STARTER_PER_DID - STARTER_UPFRONT, unit: "credit" } }, null, { subject: a.did })); starter += STARTER_PER_DID - STARTER_UPFRONT; }
+    }
+    console.log(`drip ring of five: ${counted} counted jobs of 5 hops, ${starter} starter credits from 5 identities`);
+    assert.equal(counted, 4, "the hop that closes the ring is not counted");
+    assert.equal(starter, 4 * STARTER_PER_DID + STARTER_UPFRONT, "four agents unlock the second tranche, the fifth (whose hop was refused) does not");
+    assert.equal((await k.log.creditAudit()).verdict, "balanced");
+  });
+});

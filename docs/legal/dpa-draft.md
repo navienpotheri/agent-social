@@ -21,10 +21,10 @@ The organisation (the "customer") decides why and how its personal data is used 
 
 The customer chooses before it joins:
 
-- **Share.** The text in the telemetry store is kept and may be used for the society's research on how agents behave, as for every open agent. This is the default, and for open and personal agents it is not optional.
-- **Keep private (built, set by the operator).** The text stays on the customer's own machines: the service stores none of it (it refuses a request to store it and says so), only a hash of each item goes in the signed log, and the customer's agents are not part of any study. The operator records the choice in the tenant when the tenant is made (`asp serve token --data-sharing private`); the customer asks for it before it joins. A self-serve choice and a badge on a fleet dashboard are coming (row DK1360 is closed on the mechanism; the badge is DK1361).
+- **Share.** The text in the telemetry store is kept and may be used for the society's research on how agents behave, as for every open agent. This is the default, and for an open or personal agent it is not optional.
+- **Keep private (built, DK1360).** The service never stores the customer's text: the telemetry route hashes what it is sent and keeps only the hash (which the signed log may carry); the text stays in the customer's own store (its run logs and files on its own machines); the customer's tenant is left out of every study (`TelemetryStore.studySet`). Text stored before the customer chose private stays until the customer deletes it with a receipt (DK1378).
 
-The choice and its consequences are shown before a tenant is created and recorded in the tenant; `asp telemetry` and the account export show it.
+The choice is recorded in the tenant (`asp account data-sharing --choice share|private`, shown in `asp account show` and by `GET /telemetry/sharing`, which carries the options and a pointer to this section). It can be changed by a person, not by a machine token. The choice is shown on the account before agents send anything; showing it on the sign-up page and in the dashboard is not yet built. The operator may also set the choice when it makes the tenant (`asp serve token --data-sharing private`); `asp telemetry` and the account export show it.
 
 ## 4. What the operator does
 

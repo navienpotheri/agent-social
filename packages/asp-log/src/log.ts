@@ -35,6 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
 import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
@@ -2344,6 +2345,27 @@ export class EventLog {
     else if (o.org) for (const r of recs) if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor === o.org) members.add(b.did); }
     const { total, perAgent } = meterOf(recs, members, o.month, o.reads ?? null);
     return { scope: o.agent ?? o.fleet ?? o.org ?? "", usage: total, perAgent };
+  }
+
+  /** The usage statements closed for these holders (all when none are named), each with a recount against the log (S1416, DK1474): what a tenant sees of its months. */
+  async usageStatementsOf(holders?: string[]): Promise<{ id: string; at: string; holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number; usage_matches_log: boolean; differences: string[] }[]> {
+    const out = [];
+    for (const r of await this.recordsOfTypes(["usage_statement"])) {
+      const b = r.body as { holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number };
+      if (holders && !holders.includes(b.holder)) continue;
+      const c = await this.checkStatement(r.id);
+      out.push({ id: r.id, at: r.issued_at, holder: b.holder, ...(b.fleet ? { fleet: b.fleet } : {}), month: b.month, plan: b.plan, total: b.total, currency: b.currency, ...(b.credits_applied ? { credits_applied: b.credits_applied } : {}), usage_matches_log: c.ok, differences: c.differences });
+    }
+    return out;
+  }
+
+  /** The audit export of an organisation (S1417, DK1374): its records and its agents' in the log's own signed form, with the passports of the signers, as JSON lines; `afterSeq` makes it incremental (a scheduled export keeps the last position). */
+  async auditExport(org: string, o: { from?: string; to?: string; afterSeq?: number } = {}): Promise<{ manifest: AuditManifest; text: string }> {
+    const all: { seq: number; id: string; record: AspRecord }[] = [];
+    for (let after = 0; ;) { const page = await this.store.since(after, 1000); if (!page.length) break; for (const s of page) { after = s.seq; all.push({ seq: s.seq, id: s.id, record: s.record }); } }
+    const head = await this.store.logHead();
+    const { manifest, lines } = buildAuditExport(all, org, { ...o, headSeq: head.seq });
+    return { manifest, text: lines.join("\n") + "\n" };
   }
 
   /** The signed plan of this log by id (S1414), or undefined. */
