@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 
 export const STEPS = ["start_page_read", "enrolled", "first_act", "free_lesson_started", "free_lesson_passed", "returned"] as const;
 export type Step = (typeof STEPS)[number];
-/** The steps of a person's road in (row U10; spec-delta S1451): the join page viewed, the form submitted, the account made, the first write by one of its agents, a return on a later day. */
+/** The steps of a person's road in (row U10; spec-delta S1451): the join page viewed, the form submitted, the account made, the first write by one of their agents, a return on a later day. */
 export const PERSON_STEPS = ["join_page_viewed", "join_submitted", "signed_up", "first_act", "returned"] as const;
 export type PersonStep = (typeof PERSON_STEPS)[number];
 const SOURCE = /^[a-z0-9][a-z0-9-]{0,23}$/;
@@ -62,20 +62,20 @@ export class Funnel {
     const w = rows.reduce<DropOffRow | null>((a, b) => (!a || b.lost > a.lost ? b : a), null);
     return w && w.lost > 0 ? { step: w.step, lost: w.lost } : null;
   }
-  /** The stored hashes by step and source, for a file the service keeps so a restart does not lose the counts (hashes under a daily salt; no raw key, no address). */
-  dump(): Record<string, string[]> { return Object.fromEntries([...this.seen].map(([id, set]) => [id, [...set]])); }
-  /** Reads what `dump` wrote; anything that is not a known step, a valid source or a 16-hex hash is dropped. */
-  load(data: unknown): void {
-    if (!data || typeof data !== "object") return;
-    for (const [id, list] of Object.entries(data as Record<string, unknown>)) {
-      const [step, source] = id.split("|");
-      if (!this.steps.includes(step) || !SOURCE.test(source ?? "") || !Array.isArray(list)) continue;
-      const set = this.seen.get(id) ?? this.seen.set(id, new Set()).get(id)!;
-      for (const h of list) if (typeof h === "string" && /^[0-9a-f]{16}$/.test(h)) set.add(h);
-    }
-  }
   /** What is stored: counts only, as the public view would show them. No visitor hash leaves this object. */
   snapshot(): { step: string; source: string; visitors: number }[] {
     return [...this.seen].map(([id, set]) => { const [step, source] = id.split("|"); return { step, source, visitors: set.size }; }).sort((a, b) => this.steps.indexOf(a.step) - this.steps.indexOf(b.step) || a.source.localeCompare(b.source));
+  }
+  /** The counted hashes, for a service that keeps its counters across a restart (DK1211). Hashes under a secret salt, never a key or an address. */
+  dump(): Record<string, string[]> { return Object.fromEntries([...this.seen].map(([id, set]) => [id, [...set]])); }
+  /** Reads what `dump` wrote; entries with a step or a source outside the fixed alphabets are dropped. */
+  load(d: unknown): void {
+    if (!d || typeof d !== "object") return;
+    for (const [id, hashes] of Object.entries(d as Record<string, unknown>)) {
+      const [step, source] = id.split("|");
+      if (!this.steps.includes(step) || !SOURCE.test(source ?? "") || !Array.isArray(hashes)) continue;
+      const set = this.seen.get(id) ?? this.seen.set(id, new Set()).get(id)!;
+      for (const h of hashes) if (typeof h === "string" && /^[0-9a-f]{16}$/.test(h)) set.add(h);
+    }
   }
 }

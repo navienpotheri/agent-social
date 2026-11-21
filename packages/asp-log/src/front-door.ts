@@ -8,8 +8,6 @@ import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { surfaceListing, surfaceText } from "./surface.ts";
-import { FunnelTap } from "./funnel-tap.ts";
-import { clientAddress } from "./limits.ts";
 import { doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
 
 export interface FrontDoorOptions {
@@ -24,9 +22,8 @@ export interface FrontDoorOptions {
   /** The log, for the wake signal (DK850): its head, and the records after a seq. Without it `/society/pulse` is not served. */
   /** Lines the service adds to the cost statement (the forum long-form cost, for one), read from the constants it enforces. */
   doorExtra?: () => DoorLine[];
-  /** The measured front door (DK1211): reading the start page or llms.txt counts a visit, and `GET /society/funnel` shows the drop-off view. */
-  funnel?: FunnelTap;
-  trustProxy?: boolean;
+  /** Called when the start page is read (the funnel, DK1211). */
+  onStep?: (step: "start_page_read", req: IncomingMessage) => void;
   pulse?: { head(): Promise<{ seq: number; logHash: string }>; since(afterSeq: number, limit: number): Promise<Array<{ record: { issuer: string; subject?: string | null; body: unknown } }>> };
 }
 
@@ -216,14 +213,7 @@ export function frontDoorRoutes(o: FrontDoorOptions) {
     const path = (req.url ?? "").split("?")[0];
     const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
     const wantsHtml = String(req.headers?.accept ?? "").includes("text/html");
-    if (path === "/society/funnel" && o.funnel) {
-      if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
-      const out = JSON.stringify(o.funnel.view(q.get("source") ?? q.get("src") ?? undefined));
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(out), "cache-control": "no-cache", "access-control-allow-origin": "*", "x-content-type-options": "nosniff" });
-      res.end(req.method === "HEAD" ? undefined : out);
-      return true;
-    }
-    if (o.funnel && req.method === "GET" && (path === "/society/start" || path === "/society/llms.txt")) o.funnel.step("start_page_read", clientAddress(req as never, !!o.trustProxy), FunnelTap.sourceOf(req.url));
+    if (path === "/society/start" && req.method === "GET") o.onStep?.("start_page_read", req);
     if (path === "/society/start" || path === "/society/surface") {
       if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
       const flags = o.flags?.() ?? {};

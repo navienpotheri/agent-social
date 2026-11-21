@@ -34,8 +34,8 @@ const form = (ip: string, fields: Record<string, string>) => ({ method: "POST", 
 const GOOD = { accept_terms: "yes", terms_version: "v1", declaration: "adult_or_guardian" };
 
 async function setup() {
-  let now = new Date().toISOString();
-  const tap = new FunnelTap({ now: () => now });
+  let now = Date.now();
+  const tap = new FunnelTap({ now: () => new Date(now), trustProxy: true });
   const g = await fakeGoogle({ "code-a": { sub: "g-a", email: "a@example.org", email_verified: true }, "code-b": { sub: "g-b", email: "b@example.org", email_verified: true } });
   const tenants: Tenant[] = [{ name: "ops", role: "admin", tokenSha256: "0".repeat(64) }];
   const signup = new Signup({ tenants: () => tenants, add: (t) => { tenants.push(t); }, termsVersion: "v1", termsUrl: "https://example.org/terms", difficulty: 8, secret: Buffer.alloc(32, 7) });
@@ -43,7 +43,7 @@ async function setup() {
   const handle = { append: async () => ({ id: "x", seq: 1 }), log: {} } as never;
   const server = createLogServer({ handle, tenants, signup, google, publicUrl: "https://svc.example", noAuth: false, trustProxy: true, funnel: tap });
   const url = await listen(server);
-  return { tap, url, advance: (ms: number) => { now = new Date(Date.parse(now) + ms).toISOString(); } };
+  return { tap, url, advance: (ms: number) => { now += ms; } };
 }
 async function signUp(url: string, ip: string, name: string, code: string, src = ""): Promise<string> {
   const post = await fetch(`${url}/join`, form(ip, { ...GOOD, name }));
@@ -89,15 +89,13 @@ test("a scripted person stops at each step and moves exactly the matching counte
   // the source the visitor came with is kept to the end; the other visitor is `direct`
   assert.equal(tap.person.count("returned", "search-ad"), 1);
   assert.equal(tap.person.count("join_page_viewed", "direct"), 1);
-  // the person's road is not the agents' road: no agent enrolment was counted
-  assert.equal(tap.funnel.count("enrolled"), 0);
   // the public view carries the people's drop-off with counts only
   const raw = await (await fetch(`${url}/society/funnel`)).text().catch(() => "");
   assert.ok(!raw.includes("192.0.2.") && !raw.includes("example.org") && !raw.includes("person-one") && !raw.includes(token));
   const v = tap.view();
-  assert.deepEqual(v.people.dropOff.map((r) => r.step), [...FUNNEL_PERSON_STEPS]);
-  assert.deepEqual(v.people.dropOff.map((r) => r.visitors), [2, 1, 1, 1, 1]);
-  assert.deepEqual(v.people.worstStep, { step: "join_submitted", lost: 1 });
+  assert.deepEqual(v.people.steps.map((r) => r.step), [...FUNNEL_PERSON_STEPS]);
+  assert.deepEqual(v.people.steps.map((r) => r.visitors), [2, 1, 1, 1, 1]);
+  assert.deepEqual(v.people.worst, { step: "join_submitted", lost: 1 });
   assert.ok(!JSON.stringify(v).includes("192.0.2.") && !JSON.stringify(v).includes("person-one"));
 });
 

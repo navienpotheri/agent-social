@@ -15,7 +15,7 @@ const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events)\/.+|c
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
-import { FunnelTap } from "./funnel-tap.ts";
+import type { FunnelTap } from "./funnel-tap.ts";
 import { fleetJoin } from "./fleet-join.ts";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
@@ -108,6 +108,8 @@ export interface ServerOptions {
   httpEnrol?: (address: string, body: unknown) => Promise<{ status: number; body: unknown; retryAfterSec?: number }>;
   /** The browser sign-up with a verified Google account (/join and /auth/callback); needs `signup`. */
   google?: GoogleSignIn;
+  /** The measured front door (DK1211): counts the steps an agent takes, and serves `GET /society/funnel` to an operator. */
+  funnel?: FunnelTap;
   /** The service's public address (https://log.example.org), for the pages and the terms links. */
   publicUrl?: string;
   tenants?: Tenant[];
@@ -135,8 +137,6 @@ export interface ServerOptions {
   limits?: Limits | LimitOptions;
   /** Read the client's address from X-Forwarded-For (only behind a proxy you control, or anyone can pick their own address). */
   trustProxy?: boolean;
-  /** The measured front door (DK1211): called where a step happens (enrolment, a first write, a return on a later day). */
-  funnel?: FunnelTap;
   /** Extra routes, e.g. package storage: return true when handled. */
   extra?: (req: IncomingMessage, res: ServerResponse, ctx: { tenant: Tenant }) => Promise<boolean>;
 }
@@ -226,7 +226,7 @@ export function createLogServer(opts: ServerOptions): Server {
         const termsUrl = info.termsUrl, privacyUrl = termsUrl ? termsUrl.replace(/\/terms$/, "/privacy") : undefined;
         const askedC = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("c") ?? undefined;
         const form = (extra: { error?: string; name?: string; c?: string } = {}) => joinForm({ termsVersion: info.termsVersion, termsUrl, privacyUrl, open: info.open, reason: info.reason, ...extra });
-        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") { opts.funnel?.personStep("join_page_viewed", address, FunnelTap.sourceOf(req.url)); return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {})); }
+        if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join") { opts.funnel?.personStep("join_page_viewed", req); return page(200, form(askedC && CHALLENGE_RE.test(askedC) ? { c: askedC } : {})); }
         if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/join/recover") return page(200, recoverForm({ open: true }));
         if (req.method === "POST" && (req.url ?? "").split("?")[0] === "/join/recover") {
           const q = new URLSearchParams(await readBody(req, 8 * 1024).catch(() => ""));
@@ -245,7 +245,7 @@ export function createLogServer(opts: ServerOptions): Server {
           if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name, ...(c ? { c } : {}) }));
           if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name, ...(c ? { c } : {}) }));
           const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(c ? { c } : {}) });
-          opts.funnel?.personStep("join_submitted", address);
+          opts.funnel?.personStep("join_submitted", req);
           return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
         }
         if (req.method === "GET") {
@@ -260,7 +260,8 @@ export function createLogServer(opts: ServerOptions): Server {
           }
           const r = opts.signup.registerVerified(address, { ...done.form }, done.google);
           if (!r.ok) return page(r.status, joinError("Sign-up did not finish", r.message), clear);
-          opts.funnel?.personStep("signed_up", address);
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
+          opts.funnel?.personStep("signed_up", req, { tenant: r.tenant });
           if (done.form.c && pickup) { pickup.put(done.form.c, { tenant: r.tenant, token: r.token, quotas: r.quotas }); return page(201, joinDoneCli(r.tenant), clear); }
           return page(201, joinDone({ tenant: r.tenant, token: r.token, service: base || `https://${req.headers.host}`, quotas: r.quotas }), clear);
         }
@@ -272,7 +273,7 @@ export function createLogServer(opts: ServerOptions): Server {
           let hb: unknown;
           try { hb = JSON.parse(await readBody(req, 8 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 8 KB" } }); }
           const hr = await opts.httpEnrol(address, hb);
-          if (hr.status >= 200 && hr.status < 300) opts.funnel?.step("enrolled", address);
+          if (hr.status >= 200 && hr.status < 300 && (hr.body as { ok?: boolean } | undefined)?.ok !== false) opts.funnel?.step("enrolled", req, { tenant: String((hr.body as { tenant?: unknown })?.tenant ?? "") || undefined });
           if (hr.retryAfterSec) res.setHeader("retry-after", String(hr.retryAfterSec));
           return json(res, hr.status, hr.body);
         }
@@ -280,7 +281,7 @@ export function createLogServer(opts: ServerOptions): Server {
           let fb: unknown;
           try { fb = JSON.parse(await readBody(req, 16 * 1024)); } catch { return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "the body is JSON, at most 16 KB" } }); }
           const fr = await fleetJoin({ handle: opts.handle, signup: opts.signup, body: fb, address });
-          if (fr.status === 201) opts.funnel?.step("enrolled", address);
+          if (fr.status === 201) opts.funnel?.step("enrolled", req, { tenant: fr.status === 201 ? String((fr.body as { tenant?: unknown }).tenant ?? "") : "" });
           if (fr.retryAfterSec) res.setHeader("retry-after", String(fr.retryAfterSec));
           return json(res, fr.status, fr.body);
         }
@@ -293,7 +294,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (kr.retryAfterSec) res.setHeader("retry-after", String(kr.retryAfterSec));
             return json(res, kr.status, { ok: false, error: { code: kr.code, message: kr.message, ...(kr.retryAfterSec ? { retryAfterSec: kr.retryAfterSec } : {}) } });
           }
-          opts.funnel?.step("enrolled", address);
+          opts.funnel?.step("enrolled", req, { tenant: kr.tenant });
           return json(res, 201, { ok: true, tenant: kr.tenant, token: kr.token, did: kr.did, quotas: kr.quotas, termsVersion: kr.termsVersion, ...(kr.costs ? { costs: kr.costs } : {}), verify: `GET /registry/agents/${encodeURIComponent(kr.did ?? "")}/record (your identity, recomputed from the log)`, wake: wakeRecipe(kr.did) });
         }
         if (req.method === "GET" && req.url === "/signup") return json(res, 200, { ok: true, ...opts.signup.info() });
@@ -306,7 +307,7 @@ export function createLogServer(opts: ServerOptions): Server {
             if (r.retryAfterSec) res.setHeader("retry-after", String(r.retryAfterSec));
             return json(res, r.status, { ok: false, error: { code: r.code, message: r.message, ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}) } });
           }
-          opts.funnel?.step("enrolled", address);
+          opts.funnel?.step("enrolled", req, { tenant: r.tenant });
           return json(res, 201, { ok: true, tenant: r.tenant, token: r.token, quotas: r.quotas, termsVersion: r.termsVersion });
         }
         return json(res, 405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
@@ -329,7 +330,14 @@ export function createLogServer(opts: ServerOptions): Server {
         if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
         res.on("close", leave);
       }
-      opts.funnel?.returned(tenant.name, tenant.signup?.at ?? tenant.createdAt, address);
+      opts.funnel?.seen(req, tenant);
+      if (opts.funnel && req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/funnel") {
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the funnel needs an operator token" } });
+        const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+        const src = q.get("source") ?? undefined;
+        if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
+        return json(res, 200, opts.funnel.view(src));
+      }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });
       let call: { target?: string; method?: string; args?: unknown[] };
@@ -376,7 +384,7 @@ export function createLogServer(opts: ServerOptions): Server {
           const recs = method === "importRecords" ? ((args[0] as { record?: { issuer?: string; subject?: string } }[] | undefined) ?? []).map((x) => x?.record) : [args[0] as { issuer?: string; subject?: string } | undefined];
           opts.owners.add(tenant.name, recs.flatMap((r) => [r?.issuer, r?.subject]).filter((x): x is string => typeof x === "string" && x.startsWith("did:")));
         }
-        if (isWrite) opts.funnel?.firstAct(tenant.name, tenant.signup?.at ?? tenant.createdAt, address);
+        if (isWrite) opts.funnel?.step("first_act", req, { tenant: tenant.name });
         if (opts.usage && incoming) opts.usage.add(tenant.name, method === "importRecords" ? ((result as { imported?: number } | undefined)?.imported ?? incoming.records) : 1, incoming.bytes);
         return json(res, 200, result === undefined ? { ok: true, undefined: true } : { ok: true, result });
       } catch (e) {
@@ -389,7 +397,7 @@ export function createLogServer(opts: ServerOptions): Server {
     }
   };
   const server = (opts.tls ? createHttpsServer({ cert: opts.tls.cert, key: opts.tls.key }, handler) : createServer(handler)) as unknown as Server;
-  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); });
+  server.on("close", () => { opts.usage?.flush(); opts.owners?.flush(); opts.funnel?.save(true); });
   server.requestTimeout = 60_000;
   server.headersTimeout = 15_000;
   return server;

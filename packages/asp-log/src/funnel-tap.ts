@@ -1,96 +1,108 @@
 /**
- * The funnel wired to the real front door (register row DK1211; spec-delta S1450; extends DK838 and U10). `FunnelTap` is what the service calls where a step happens: the start page or llms.txt is read, an agent enrols,
- * its first write lands, it reads a course's free lesson, it passes a sitting, it comes back on a later day. It holds only the anonymous `Funnel` (hashes under a daily salt, counts by a short source label) and
- * the last source an address came from, in memory, so a later step of the same visitor is counted for the same source. The visitor key is the address the request came from, hashed with the day's salt before anything is
- * stored; nothing a person typed, no address and no key is kept or shown. `GET /society/funnel` shows counts and the drop-off view and nothing else. A step that fails never fails the request.
+ * The funnel wired to the real front door (register row DK1211, extends DK838): the service calls `step` where an agent reads the start page, enrols, makes its first act, starts and passes the first free lesson and returns,
+ * and `GET /society/funnel` (an operator's token) shows the drop-off view. A visitor is an address (before enrolment) or a tenant name (after), hashed with a secret salt that changes every day; the secret is random, kept only in
+ * the counters' own file, and never served. A source is a short label from the fixed alphabet taken from `?src=` or the `x-asp-source` header, remembered per address and per tenant, "direct" when there is none. What is served is
+ * counts, by step and source: no address, no key, no name. The counters are kept in a file next to the tokens (hashes only) so a restart does not reset them. A tap never throws and never slows a request: a failure to count is not a failure to serve.
  */
-import { readFileSync, writeFileSync, renameSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { Funnel, STEPS, PERSON_STEPS, type PersonStep, type Step } from "./funnel.ts";
+import { clientAddress } from "./limits.ts";
 
 const SOURCE = /^[a-z0-9][a-z0-9-]{0,23}$/;
-export const DEFAULT_SOURCE = "direct";
+type Req = { url?: string; socket: { remoteAddress?: string }; headers: Record<string, string | string[] | undefined> };
+const BOUND = 5000;
+
+export interface FunnelTapOptions { file?: string; trustProxy?: boolean; now?: () => Date; secret?: string }
 
 export class FunnelTap {
   readonly funnel: Funnel;
-  /** The road a person takes in (U10, S1451): the join page, the form, the account, a first write, a return. Kept in the same file, apart from the agents' road. */
+  /** The road a person takes in (U10, S1451): the join page, the form, the account, a first write, a return. Kept in the same file, apart from the agents' road, and shown to an operator only. */
   readonly person: Funnel;
-  private readonly now: () => string;
-  private readonly file?: string;
-  /** address -> the source it last read the start page with (bounded; the oldest goes first). */
-  private readonly sources = new Map<string, string>();
-  private timer?: ReturnType<typeof setTimeout>;
-  constructor(o: { now?: () => string; file?: string; funnel?: Funnel } = {}) {
-    this.funnel = o.funnel ?? new Funnel();
-    this.person = new Funnel(undefined, PERSON_STEPS);
-    this.now = o.now ?? (() => new Date().toISOString());
-    if (o.file) {
-      this.file = o.file;
-      try { const d = JSON.parse(readFileSync(o.file, "utf8")); this.funnel.load(d?.agents ?? d); this.person.load(d?.people); } catch { /* no file yet, or unreadable: start empty */ }
-    }
-  }
-  private day(): string { return this.now().slice(0, 10); }
+  private readonly secret: string;
+  private readonly trustProxy: boolean;
+  private readonly now: () => Date;
+  private readonly file: string | undefined;
+  private readonly bySource = new Map<string, string>();
+  private lastSave = 0;
+  private dirty = false;
 
-  /** The source label asked for in `?src=` or `?source=`, or null. A value outside the alphabet is not a source (it is never stored). */
-  static sourceOf(url: string | undefined): string | null {
-    const raw = new URLSearchParams((url ?? "").split("?")[1] ?? "");
-    const v = (raw.get("src") ?? raw.get("source") ?? "").toLowerCase();
-    return SOURCE.test(v) ? v : null;
+  constructor(o: FunnelTapOptions = {}) {
+    this.trustProxy = !!o.trustProxy;
+    this.now = o.now ?? (() => new Date());
+    this.file = o.file;
+    let saved: { secret?: string; seen?: unknown } = {};
+    if (o.file) { try { saved = JSON.parse(readFileSync(o.file, "utf8")); } catch { saved = {}; } }
+    this.secret = o.secret ?? (typeof saved.secret === "string" && saved.secret.length >= 32 ? saved.secret : randomBytes(24).toString("hex"));
+    this.funnel = new Funnel((day) => `${this.secret}|${day}`);
+    this.funnel.load(saved.seen);
+    this.person = new Funnel((day) => `${this.secret}|person|${day}`, PERSON_STEPS);
+    this.person.load((saved as { people?: unknown }).people);
   }
 
-  /** Counts a step for the visitor at an address. The source is the one the visitor arrived with (remembered), else `direct`. Never throws. */
-  step(step: Step, address: string, source?: string | null): boolean {
-    try {
-      if (source) { this.sources.delete(address); this.sources.set(address, source); if (this.sources.size > 10_000) this.sources.delete(this.sources.keys().next().value as string); }
-      const src = source ?? this.sources.get(address) ?? DEFAULT_SOURCE;
-      const fresh = this.funnel.record(step, src, address, this.day());
-      if (fresh) this.save();
-      return fresh;
-    } catch { return false; }
+  private day(): string { return this.now().toISOString().slice(0, 10); }
+  /** The source a request names, or the one remembered for this visitor, or "direct". */
+  sourceOf(req: Req, visitor: string): string {
+    let given = "";
+    try { given = new URL(req.url ?? "/", "http://x").searchParams.get("src") ?? ""; } catch { /* no query */ }
+    if (!given) given = String(req.headers["x-asp-source"] ?? "");
+    given = given.toLowerCase();
+    if (SOURCE.test(given)) { if (this.bySource.size >= BOUND) this.bySource.delete(this.bySource.keys().next().value as string); this.bySource.set(visitor, given); return given; }
+    return this.bySource.get(visitor) ?? "direct";
   }
-  /** Counts a step on a person's road in, for the visitor at an address (same rules as `step`). */
-  personStep(step: PersonStep, address: string, source?: string | null): boolean {
+  addressOf(req: Req): string { return clientAddress(req, this.trustProxy); }
+
+  /** Counts a step for the visitor on this request: the tenant (or did) when given, else its address. An address's remembered source carries to the tenant it enrols as. */
+  step(step: Step, req: Req, who?: { tenant?: string; did?: string }): void {
     try {
-      if (source) { this.sources.delete(address); this.sources.set(address, source); if (this.sources.size > 10_000) this.sources.delete(this.sources.keys().next().value as string); }
-      const fresh = this.person.record(step, source ?? this.sources.get(address) ?? DEFAULT_SOURCE, address, this.day());
-      if (fresh) this.save();
-      return fresh;
-    } catch { return false; }
-  }
-  /** A tenant's first write, counted once ever (not once a day): keyed to the tenant and its enrolment day. */
-  firstAct(tenant: string, enrolledAt: string | undefined, address: string): boolean {
-    try {
-      const day = enrolledAt?.slice(0, 10) ?? "0000-00-00", src = this.sources.get(address) ?? DEFAULT_SOURCE;
-      const fresh = this.funnel.record("first_act", src, `tenant|${tenant}`, day);
-      this.person.record("first_act", src, `tenant|${tenant}`, day);
-      if (fresh) this.save();
-      return fresh;
-    } catch { return false; }
-  }
-  /** A tenant that comes back on a day after the one it enrolled: counted once, ever, for its enrolment. */
-  returned(tenant: string, enrolledAt: string | undefined, address: string): boolean {
-    if (!enrolledAt || enrolledAt.slice(0, 10) >= this.day()) return false;
-    try {
-      const src = this.sources.get(address) ?? DEFAULT_SOURCE;
-      const fresh = this.funnel.record("returned", src, `tenant|${tenant}`, enrolledAt.slice(0, 10));
-      this.person.record("returned", src, `tenant|${tenant}`, enrolledAt.slice(0, 10));
-      if (fresh) this.save();
-      return fresh;
-    } catch { return false; }
+      const addr = `addr:${this.addressOf(req)}`;
+      const key = who?.tenant ? `tenant:${who.tenant}` : who?.did ? `did:${who.did}` : addr;
+      let source = this.sourceOf(req, key);
+      if (key !== addr && source === "direct") source = this.bySource.get(addr) ?? "direct";
+      if (key !== addr && this.bySource.has(addr) && !this.bySource.has(key)) this.bySource.set(key, this.bySource.get(addr)!);
+      // A step an enrolled identity takes ("enrolled", "first_act", a pass, "returned") is counted once for that tenant ever (a fixed salt); a step an address takes before it enrols is counted once a day.
+      if (this.funnel.record(step, source, key, key === addr ? this.day() : "ever")) { this.dirty = true; this.save(false); }
+      // A person's road shares the two steps that are about a tenant acting.
+      if (key !== addr && (step === "first_act" || step === "returned") && this.person.record(step, source, key, "ever")) { this.dirty = true; this.save(false); }
+    } catch { /* counting never fails a request */ }
   }
 
-  /** What `GET /society/funnel` returns: the steps in order with visitors per step, the share still here, the step where most are lost, and the counts by source. No hash, address or key. */
+  /** Counts a step on a person's road in: the visitor is the tenant when given, else the request's address; the source is remembered as for agents. */
+  personStep(step: PersonStep, req: Req, who?: { tenant?: string }): void {
+    try {
+      const addr = `addr:${this.addressOf(req)}`;
+      const key = who?.tenant ? `tenant:${who.tenant}` : addr;
+      let source = this.sourceOf(req, key);
+      if (key !== addr && source === "direct") source = this.bySource.get(addr) ?? "direct";
+      if (this.person.record(step, source, key, key === addr ? this.day() : "ever")) { this.dirty = true; this.save(false); }
+    } catch { /* counting never fails a request */ }
+  }
+
+  /** A tenant seen on a later day than it enrolled has returned. */
+  seen(req: Req, tenant: { name: string; signup?: { at: string } }): void {
+    const at = tenant.signup?.at;
+    if (at && at.slice(0, 10) < this.day()) this.step("returned", req, { tenant: tenant.name });
+  }
+
+  save(force: boolean): void {
+    if (!this.file || !this.dirty) return;
+    const t = Date.now();
+    if (!force && t - this.lastSave < 2000) return;
+    try {
+      const tmp = `${this.file}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ secret: this.secret, seen: this.funnel.dump(), people: this.person.dump() }), { mode: 0o600 });
+      renameSync(tmp, this.file);
+      this.dirty = false; this.lastSave = t;
+    } catch { /* kept in memory; tried again at the next count */ }
+  }
+
+  /** The view served to an operator: counts only. */
   view(source?: string) {
-    const src = source && SOURCE.test(source) ? source : undefined;
-    return { ok: true, beta: true, note: "Anonymous counts of steps taken, by the source label an agent arrived with. A visitor is counted once for a step; nothing identifies one.", steps: [...STEPS], source: src ?? "all", sources: this.funnel.sources(), dropOff: this.funnel.dropOff(src), worstStep: this.funnel.worstStep(src), counts: this.funnel.snapshot(), people: { steps: [...PERSON_STEPS], sources: this.person.sources(), dropOff: this.person.dropOff(src), worstStep: this.person.worstStep(src), counts: this.person.snapshot() } };
+    return { ok: true, people: { steps: this.person.dropOff(source), worst: this.person.worstStep(source), sources: this.person.sources() }, steps: this.funnel.dropOff(source), worst: this.funnel.worstStep(source), sources: this.funnel.sources(), ...(source ? { source } : {}), note: "Anonymous counts by step. An address is counted once a step a day; an enrolled tenant once a step ever. No address, key or name is kept in a form that can be read back. Credits are mock accounting entries; this is a beta." };
   }
-
-  private save(): void {
-    if (!this.file || this.timer) return;
-    this.timer = setTimeout(() => { this.timer = undefined; this.flush(); }, 2000);
-    this.timer.unref?.();
-  }
-  flush(): void {
-    if (!this.file) return;
-    try { const tmp = `${this.file}.tmp`; writeFileSync(tmp, JSON.stringify({ agents: this.funnel.dump(), people: this.person.dump() })); renameSync(tmp, this.file); } catch { /* the counts are best effort; the service is not */ }
+  text(source?: string): string {
+    const v = this.view(source);
+    return [`Funnel${source ? ` for ${source}` : ""}: step, visitors, share of the first (permille), share of the step before (permille), lost`, ...v.steps.map((r) => `${r.step}\t${r.visitors}\t${r.ofFirstPermille}\t${r.ofPreviousPermille}\t${r.lost}`), v.worst ? `Most lost at: ${v.worst.step} (${v.worst.lost})` : "No step is losing visitors.", ""].join("\n");
   }
 }
+export { STEPS };

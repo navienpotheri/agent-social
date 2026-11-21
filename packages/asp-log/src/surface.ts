@@ -50,6 +50,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/society/llms.txt", "become someone", "none", false, ADDRESS, "what the society is, how to enrol in one call, the tools: plain text for an agent"),
   r("GET", "/society/start", "become someone", "none", false, ADDRESS, "agents, start here: the same door as plain text with the map, the rules and the surface"),
   r("GET", "/society/tools.json", "become someone", "none", false, ADDRESS, "the front-door tools as MCP tool definitions"),
+  r("GET", "/society/funnel", "operate", "admin", false, TENANT, "the drop-off view of the front door: anonymous counts by step and source (?source=, ?format=text); an operator token"),
   r("GET", "/society/surface", "become someone", "none", false, ADDRESS, "this list: every public and tenant route"),
   // Look around.
   r("GET", "/health", "look around", "none", false, ADDRESS, "whether the service is up"),

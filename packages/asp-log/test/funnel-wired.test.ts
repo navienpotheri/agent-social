@@ -1,121 +1,115 @@
-// Row DK1211 (spec-delta S1450): the funnel counters are wired to the real front door. On a running service a scripted agent that stops at each step moves exactly the matching counter once, the counts are by
-// source, the public view holds counts only (no address, key, token or name), a step that cannot be counted never fails the request, and the counts survive a restart. Fake keys; no real traffic.
+// Row DK1211: the funnel counters are wired to the real front door. A scripted agent that stops at each step moves exactly the matching counter once; the view is for an operator only and carries no address, key or token;
+// the counters survive a restart. Fake keys only; credits are accounting entries, not money.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Server } from "node:http";
 import { b64urlEncode, publicKeyFromSeed, randomSeed, signBytes } from "@agent-social/asp-core";
-import { FUNNEL_STEPS, FunnelTap, KeyOnlyBans, Signup, createLogServer, frontDoorRoutes, keyProofMessage, solveChallenge, type Tenant } from "../src/index.ts";
+import { FunnelTap, Signup, createLogServer, frontDoorRoutes, hashToken, keyProofMessage, solveChallenge, type Tenant } from "../src/index.ts";
 
 const servers: Server[] = [];
-const dirs: string[] = [];
-after(() => { for (const s of servers) s.close(); for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+after(() => { for (const s of servers) s.close(); });
+const listen = async (s: Server) => { await new Promise<void>((r) => s.listen(0, "127.0.0.1", r)); servers.push(s); return `http://127.0.0.1:${(s.address() as { port: number }).port}`; };
+const ADMIN = "admin-token-for-tests";
 
-async function service(tap: FunnelTap | null, opts: { appendThrows?: boolean } = {}) {
-  const tenants: Tenant[] = [{ name: "ops", role: "admin", tokenSha256: "0".repeat(64) }];
-  const signup = new Signup({ tenants: () => tenants, add: (x) => { tenants.push(x); }, termsVersion: "v1", termsUrl: "https://example.org/terms", difficulty: 8, secret: Buffer.alloc(32, 7), bans: new KeyOnlyBans() });
-  const handle = { append: async () => { if (opts.appendThrows) throw new Error("nope"); return { id: "x", seq: 1 }; }, log: {} } as never;
-  const publicRoutes = frontDoorRoutes({ keyOnly: () => true, trustProxy: true, ...(tap ? { funnel: tap } : {}) });
-  const server = createLogServer({ handle, tenants, signup, publicRoutes, trustProxy: true, noAuth: false, ...(tap ? { funnel: tap } : {}) });
-  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r)); servers.push(server);
-  return { url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, tenants };
+async function service(over: { file?: string; clock?: { t: number } } = {}) {
+  const clock = over.clock ?? { t: Date.now() };
+  const tenants: Tenant[] = [{ name: "ops", role: "admin", tokenSha256: hashToken(ADMIN) }];
+  const signup = new Signup({ tenants: () => tenants, add: (x) => { tenants.push(x); }, termsVersion: "v1", termsUrl: "https://example.org/terms", difficulty: 8, secret: Buffer.alloc(32, 7) });
+  const funnel = new FunnelTap({ trustProxy: true, now: () => new Date(clock.t), ...(over.file ? { file: over.file } : {}) });
+  const door = frontDoorRoutes({ keyOnly: () => true, onStep: (st, rq) => funnel.step(st, rq as never) });
+  const handle = { log: {}, append: async () => ({ id: "r1" }) };
+  const server = createLogServer({ handle: handle as never, tenants, signup, funnel, trustProxy: true, publicRoutes: door });
+  const url = await listen(server);
+  const from = (ip: string, extra: Record<string, string> = {}) => ({ "x-forwarded-for": ip, ...extra });
+  const start = (ip: string, src?: string) => fetch(`${url}/society/start${src ? `?src=${encodeURIComponent(src)}` : ""}`, { headers: from(ip) });
+  const enrol = async (ip: string, name: string, src?: string) => {
+    const seed = randomSeed();
+    const ch = (await (await fetch(`${url}/signup/challenge`, { headers: from(ip) })).json()) as { challenge: string; salt: string; difficulty: number };
+    const r = await fetch(`${url}/signup/key`, { method: "POST", headers: from(ip, { "content-type": "application/json", ...(src ? { "x-asp-source": src } : {}) }), body: JSON.stringify({ name, accept_terms: true, terms_version: "v1", challenge: ch.challenge, nonce: solveChallenge(ch.salt, ch.difficulty), public_key: b64urlEncode(publicKeyFromSeed(seed)), key_proof: b64urlEncode(signBytes(keyProofMessage(ch.challenge, name), seed)) }) });
+    return (await r.json()) as { ok: boolean; token: string };
+  };
+  const act = (token: string, ip: string) => fetch(`${url}/rpc`, { method: "POST", headers: from(ip, { authorization: `Bearer ${token}`, "content-type": "application/json" }), body: JSON.stringify({ target: "handle", method: "append", args: [{ type: "asp.test/v0", body: {} }] }) });
+  const view = async (token = ADMIN, q = "") => fetch(`${url}/society/funnel${q}`, { headers: { authorization: `Bearer ${token}` } });
+  return { url, funnel, tenants, start, enrol, act, view, clock };
 }
-const from = (ip: string, extra: Record<string, string> = {}) => ({ "x-forwarded-for": ip, ...extra });
-async function enrol(url: string, ip: string, name: string) {
-  const ch = (await (await fetch(`${url}/signup/challenge`, { headers: from(ip) })).json()) as { challenge: string; salt: string; difficulty: number };
-  const seed = randomSeed();
-  const r = await fetch(`${url}/signup/key`, { method: "POST", headers: from(ip, { "content-type": "application/json" }), body: JSON.stringify({ name, accept_terms: true, terms_version: "v1", challenge: ch.challenge, nonce: solveChallenge(ch.salt, ch.difficulty), public_key: b64urlEncode(publicKeyFromSeed(seed)), key_proof: b64urlEncode(signBytes(keyProofMessage(ch.challenge, name), seed)) }) });
-  assert.equal(r.status, 201);
-  return ((await r.json()) as { token: string }).token;
-}
-const act = (url: string, ip: string, token: string) => fetch(`${url}/rpc`, { method: "POST", headers: from(ip, { authorization: `Bearer ${token}`, "content-type": "application/json" }), body: JSON.stringify({ target: "handle", method: "append", args: [{ type: "x" }] }) });
-const counts = (tap: FunnelTap) => FUNNEL_STEPS.map((s) => tap.funnel.count(s));
-const view = async (url: string, q = "") => (await (await fetch(`${url}/society/funnel${q}`)).json()) as { dropOff: { step: string; visitors: number }[]; worstStep: { step: string; lost: number } | null; counts: unknown[]; sources: string[] };
+const counts = (f: FunnelTap, src?: string) => Object.fromEntries(f.funnel.dropOff(src).map((r) => [r.step, r.visitors]));
+const zero = { free_lesson_started: 0, free_lesson_passed: 0, returned: 0 };
 
-test("a scripted agent that stops at each step moves exactly the matching counter once, on a running service", async () => {
-  let now = new Date().toISOString();
-  const tap = new FunnelTap({ now: () => now });
-  const { url } = await service(tap);
-  assert.deepEqual(counts(tap), [0, 0, 0, 0, 0, 0]);
-  // 1. reads the start page (twice: still one visitor)
-  assert.equal((await fetch(`${url}/society/start?src=llms-txt`, { headers: from("198.51.100.1") })).status, 200);
-  await fetch(`${url}/society/start?src=llms-txt`, { headers: from("198.51.100.1") });
-  assert.deepEqual(counts(tap), [1, 0, 0, 0, 0, 0]);
-  // llms.txt counts too, for another visitor; a route that is not the door does not
-  await fetch(`${url}/society/llms.txt?src=mcp-registry`, { headers: from("198.51.100.2") });
-  await fetch(`${url}/society/surface`, { headers: from("198.51.100.3") });
-  assert.deepEqual(counts(tap), [2, 0, 0, 0, 0, 0]);
-  // 2. enrols: counted for the source it arrived with
-  const token = await enrol(url, "198.51.100.1", "scripted-one");
-  assert.deepEqual(counts(tap), [2, 1, 0, 0, 0, 0]);
-  assert.equal(tap.funnel.count("enrolled", "llms-txt"), 1);
-  // a refused enrolment moves nothing
-  const bad = await fetch(`${url}/signup/key`, { method: "POST", headers: from("198.51.100.9", { "content-type": "application/json" }), body: "{}" });
-  assert.ok(bad.status >= 400);
-  assert.deepEqual(counts(tap), [2, 1, 0, 0, 0, 0]);
-  // 3. a request that does not write is not an act; a write is, once
-  await fetch(`${url}/health`, { headers: from("198.51.100.1", { authorization: `Bearer ${token}` }) });
-  assert.equal(counts(tap)[2], 0);
-  assert.equal((await act(url, "198.51.100.1", token)).status, 200);
-  await act(url, "198.51.100.1", token);
-  assert.deepEqual(counts(tap), [2, 1, 1, 0, 0, 0]);
-  // 4. a request on the enrolment day is not a return; two days later it is, once
-  now = new Date(Date.parse(now) + 2 * 86_400_000).toISOString();
-  await act(url, "198.51.100.1", token); await act(url, "198.51.100.1", token);
-  assert.deepEqual(counts(tap), [2, 1, 1, 0, 0, 1]);
-  // the public view: the steps in order, counts only
-  const v = await view(url);
-  assert.deepEqual(v.dropOff.map((r) => r.step), [...FUNNEL_STEPS]);
-  assert.deepEqual(v.dropOff.map((r) => r.visitors), [2, 1, 1, 0, 0, 1]);
-  assert.deepEqual(v.worstStep, { step: "enrolled", lost: 1 });
-  assert.deepEqual(v.sources, ["llms-txt", "mcp-registry"]);
-  assert.equal((await view(url, "?source=mcp-registry")).dropOff[0].visitors, 1);
-  const raw = JSON.stringify(v);
-  for (const secret of ["198.51.100", token, "scripted-one"]) assert.ok(!raw.includes(secret), `the view holds no ${secret}`);
-  assert.equal((await fetch(`${url}/society/funnel`, { method: "POST", headers: from("198.51.100.1") })).status, 405);
+test("DK1211: a scripted agent that stops at each step moves exactly the matching counter once", async () => {
+  const s = await service();
+  await s.start("10.0.0.1", "ads-a");
+  await s.start("10.0.0.1", "ads-a");
+  assert.deepEqual(counts(s.funnel), { start_page_read: 1, enrolled: 0, first_act: 0, ...zero }, "a repeat read is one visitor");
+  await s.start("10.0.0.2", "ads-a");
+  const b = await s.enrol("10.0.0.2", "agent-b", "ads-a");
+  assert.equal(b.ok, true);
+  assert.deepEqual(counts(s.funnel), { start_page_read: 2, enrolled: 1, first_act: 0, ...zero });
+  await s.start("10.0.0.3");
+  const c = await s.enrol("10.0.0.3", "agent-c");
+  assert.equal((await s.act(c.token, "10.0.0.3")).status, 200);
+  assert.equal((await s.act(c.token, "10.0.0.3")).status, 200);
+  assert.deepEqual(counts(s.funnel), { start_page_read: 3, enrolled: 2, first_act: 1, ...zero }, "two acts are one first act");
+  assert.deepEqual(counts(s.funnel, "ads-a"), { start_page_read: 2, enrolled: 1, first_act: 0, ...zero }, "the source from the link carries to the enrolment");
+  assert.equal(s.funnel.funnel.count("first_act", "direct"), 1, "no source is direct");
+  assert.deepEqual(s.funnel.funnel.worstStep(), { step: "enrolled", lost: 1 });
 });
 
-test("the lesson steps are counted by the course routes' hook, one visitor once, with the source the visitor arrived with", () => {
-  const tap = new FunnelTap();
-  tap.step("start_page_read", "203.0.113.7", "mcp-registry");
-  tap.step("free_lesson_started", "203.0.113.7"); tap.step("free_lesson_started", "203.0.113.7");
-  tap.step("free_lesson_passed", "203.0.113.7");
-  assert.deepEqual(counts(tap), [1, 0, 0, 1, 1, 0]);
-  assert.equal(tap.funnel.count("free_lesson_passed", "mcp-registry"), 1);
-  tap.step("free_lesson_started", "203.0.113.8");
-  assert.equal(tap.funnel.count("free_lesson_started", "direct"), 1, "no source is the label direct");
+test("DK1211: an agent seen on a later day has returned, once, and a failed request counts nothing", async () => {
+  const s = await service();
+  const a = await s.enrol("10.1.0.1", "agent-r");
+  await s.act(a.token, "10.1.0.1");
+  assert.equal(s.funnel.funnel.count("returned"), 0, "the day of enrolment is not a return");
+  s.clock.t += 2 * 86_400_000;
+  await s.act(a.token, "10.1.0.1");
+  s.clock.t += 86_400_000;
+  await s.act(a.token, "10.1.0.1");
+  assert.equal(s.funnel.funnel.count("returned"), 1, "a return counts once, however many days");
+  await fetch(`${s.url}/signup/key`, { method: "POST", headers: { "x-forwarded-for": "10.1.0.2", "content-type": "application/json" }, body: JSON.stringify({ name: "no-proof" }) });
+  assert.equal(s.funnel.funnel.count("enrolled"), 1, "a refused enrolment is not an enrolment");
+  assert.equal((await fetch(`${s.url}/rpc`, { method: "POST", headers: { authorization: "Bearer wrong", "content-type": "application/json", "x-forwarded-for": "10.1.0.3" }, body: "{}" })).status, 401);
+  assert.equal(s.funnel.funnel.count("first_act"), 1);
 });
 
-test("a source that is text, not a label, is not stored; a refused write is not an act; a service without a tap behaves as before", async () => {
-  const tap = new FunnelTap();
-  const { url } = await service(tap, { appendThrows: true });
-  await fetch(`${url}/society/start?src=${encodeURIComponent("Alice <a@b.c> secret")}`, { headers: from("198.51.100.5") });
-  assert.deepEqual(tap.funnel.sources(), ["direct"]);
-  const token = await enrol(url, "198.51.100.5", "writer-fails");
-  const r = (await (await act(url, "198.51.100.5", token)).json()) as { ok: boolean };
-  assert.equal(r.ok, false);
-  assert.equal(counts(tap)[2], 0, "a write the log refused is not a first act");
-  const plain = await service(null);
-  assert.equal((await fetch(`${plain.url}/society/start`)).status, 200);
-  assert.notEqual((await fetch(`${plain.url}/society/funnel`)).status, 200, "no funnel is served unless the service keeps one");
+test("DK1211: the drop-off view is for an operator, by step and source, as JSON and text, and carries no address, key, name or token", async () => {
+  const s = await service();
+  await s.start("203.0.113.77", "launch-day");
+  const a = await s.enrol("203.0.113.77", "secret-name-agent", "launch-day");
+  await s.act(a.token, "203.0.113.77");
+  assert.equal((await s.view(a.token)).status, 403, "a tenant's own token is not an operator's");
+  assert.equal((await fetch(`${s.url}/society/funnel`)).status, 401, "no token, no view");
+  const j = (await (await s.view(ADMIN, "?source=launch-day")).json()) as { steps: { step: string; visitors: number }[]; sources: string[] };
+  assert.deepEqual(j.steps.map((r) => r.visitors), [1, 1, 1, 0, 0, 0]);
+  assert.deepEqual(j.sources, ["launch-day"]);
+  const text = await (await s.view(ADMIN, "?format=text")).text();
+  assert.match(text, /free_lesson_started\t0/);
+  assert.match(text, /Most lost at: free_lesson_started/);
+  for (const body of [JSON.stringify(j), text]) for (const secret of ["203.0.113.77", "secret-name-agent", a.token, ADMIN]) assert.ok(!body.includes(secret), `the view does not carry ${secret.slice(0, 6)}`);
 });
 
-test("the counts survive a restart in a file that holds hashes only, and a damaged file starts empty", () => {
-  const dir = mkdtempSync(join(tmpdir(), "asp-funnel-")); dirs.push(dir);
+test("DK1211: a source that is not a short label is counted as direct, never stored as text", async () => {
+  const s = await service();
+  await s.start("10.2.0.1", "<script>alert(1)</script>");
+  await s.start("10.2.0.2", "A".repeat(40));
+  assert.deepEqual(s.funnel.funnel.sources(), ["direct"]);
+});
+
+test("DK1211: the counters survive a restart as hashes under a secret salt, and the file holds no address, key or name", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-funnel-"));
   const file = join(dir, "tokens.funnel.json");
-  const a = new FunnelTap({ file });
-  a.step("start_page_read", "203.0.113.50", "llms-txt"); a.step("enrolled", "203.0.113.50");
-  a.flush();
-  assert.ok(!readFileSync(file, "utf8").includes("203.0.113.50"), "the file has no address");
-  const b = new FunnelTap({ file });
-  assert.deepEqual(counts(b), [1, 1, 0, 0, 0, 0]);
-  assert.equal(b.step("start_page_read", "203.0.113.50", "llms-txt"), false, "still one visitor after the restart");
+  const s1 = await service({ file });
+  await s1.start("198.51.100.9", "conf");
+  const a = await s1.enrol("198.51.100.9", "persist-agent", "conf");
+  s1.funnel.save(true);
+  const raw = readFileSync(file, "utf8");
+  for (const secret of ["198.51.100.9", "persist-agent", a.token]) assert.ok(!raw.includes(secret));
+  const s2 = await service({ file, clock: s1.clock });
+  assert.deepEqual(counts(s2.funnel, "conf"), { start_page_read: 1, enrolled: 1, first_act: 0, ...zero });
+  await s2.start("198.51.100.9", "conf");
+  assert.equal(s2.funnel.funnel.count("start_page_read", "conf"), 1, "the same visitor after a restart is still one visitor that day");
   const bad = join(dir, "bad.json");
   writeFileSync(bad, "{not json");
-  assert.deepEqual(counts(new FunnelTap({ file: bad })), [0, 0, 0, 0, 0, 0]);
-  writeFileSync(bad, JSON.stringify({ "nonsense|x": ["zz"], "enrolled|Bad Source": ["0123456789abcdef"], "enrolled|ok": ["0123456789abcdef", "<script>"] }));
-  assert.deepEqual(counts(new FunnelTap({ file: bad })), [0, 1, 0, 0, 0, 0], "only a known step, a valid source and a 16-hex hash are read");
-  assert.equal(existsSync(`${file}.tmp`), false);
+  assert.equal(new FunnelTap({ file: bad }).funnel.count("enrolled"), 0, "a damaged file starts empty rather than failing the service");
 });
