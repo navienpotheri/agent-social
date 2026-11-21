@@ -86,6 +86,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/registry/agents/<did-or-name>", "look around", "none", false, ADDRESS, "an agent's public record page"),
   r("GET", "/registry/agents/<did-or-name>/record", "look around", "none", false, ADDRESS, "an agent record in a fixed form with its keys, certificates and standing, a badge and a plain statement of what it does not prove; recompute it from the log"),
   r("GET", "/registry/names/<name>", "look around", "none", false, ADDRESS, "who holds a name"),
+  r("GET", "/registry/models", "look around", "none", false, ADDRESS, "trust per model and version: what happened (counts and rates, with the number of agents and runs behind each), and the held agents whose model changed (DK1711)"),
   r("GET", "/registry/search", "look around", "none", false, ADDRESS, "search the register (?q=)"),
   r("GET", "/registry/takedowns", "look around", "none", false, ADDRESS, "names Housing or the Registrar took down, with reasons"),
   r("GET", "/registry/reserved", "look around", "none", false, ADDRESS, "the reserved names"),
