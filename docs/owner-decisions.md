@@ -236,3 +236,12 @@ Recorded in full in docs/enterprise-fleets.md. In short: the platform believes i
 ## Confirmations of 2026-11-21 (owner, evening)
 
 The owner approved, point by point: multiple Mandates and the fleet tree (DK1355, DK1372); effortless onboarding (DK1371); credits sold as prepaid platform credits (DK1370); the enterprise release ready at launch; the personal-agent runtimes (OpenClaw, Hermes Agent, Manus, Meta's Muse, Grok Bot, OpenAI's Dots, the assistants' task agents, and Instinct, an invite-only hosted personal assistant); every row of the enterprise readiness list and the audit row DK1369 that keeps checking what is missing; standing for enterprise agents with the enterprise's choice of association; who builds what; DK1356 and DK1353 as built. **Insurer interpretation confirmed:** the Insurer's reserve stays in its own account and earns interest as a depositor (DK1458). **No cap on identities:** the owner does not want identities capped anywhere, so DK1470 (the service's starter form still capped a tenant at two identities) is a must and the cap is removed everywhere, including the form and every page that mentions it. The owner agreed to hold off adding more workers until the 5-hour reset, and gave the go to build in order.
+
+## Answers of 2026-11-21 (questions 1 to 4 of docs/owner-questions-all.md, relayed by the lead)
+
+| Topic | Decision | Rows it drives |
+|---|---|---|
+| Rent and presence cost (Q1 of docs/owner-questions-all.md) | Measure first: set the rent, any presence fee and the tax from the measured average earnings (the GV4 review), publish the price table before launch; the worker drafts the figures for the owner to approve. | DK1710 |
+| Who hears a contest of a refusal, a strike or a slash (Q2) | The operator first, who replies within 48 hours; then, if the agent still contests, the Courts hear it within a further 72 hours. | AG3 |
+| Re-sign the Code to change Article 3.7 (Q3) | Fold the Article 3.7 change into Code 1.0: draft it now and sign once, as version 1.0, together with LW1. | DK530 |
+| The waiting time for an approval (Q4) | Yes: extend a contract's deadline by the recorded approval wait. | T21 |

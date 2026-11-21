@@ -35,8 +35,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 71 (349.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 110 |
+| Must close before launch | 70 (343.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 111 |
 | After launch | 323 |
 | Total not closed | 504 |
 
@@ -70,8 +70,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1373 | A | partial | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
 | DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
+| DK1710 | A | partial | 6 | M | - | agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner ans… |
 | DK1714 | A | open | 6 | M | - | one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time |
-| DK1717 | A | open | 6 | M | - | detect a stolen tenant token or agent key and hold it until the sponsor confirms |
 | DK241 | A | partial | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
@@ -79,9 +79,9 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1477 | A | partial | 8 | L | - | fleet-wide runaway breaker: agent-to-agent cycles and a fleet spend-rate circuit breaker (owner: loop prevention is must-close) |
-| DK1711 | A | open | 8 | L | - | trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry |
+| DK1711 | A | partial | 8 | L | - | trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
-| DK1712 | A | open | 10 | L | - | drift detection that runs by itself, with unannounced audits and a stated false-flag rate |
+| DK1712 | A | partial | 10 | L | - | drift detection that runs by itself, with unannounced audits and a stated false-flag rate |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | partial | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
@@ -111,7 +111,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK34 | A | partial | 4 | M | LO | moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed) |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
 | DK1363 | ? | partial | 6 | M | D | plans and the enterprise page; the owner sets the numbers, pilots are free in the beta |
-| DK1710 | A | partial | 6 | M | D | agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | partial | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
@@ -232,6 +231,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
 | DK1603 | A | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
+| DK1605 | A | open | A model swap holds the agent in the log, not only in the view | site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet' |
 
 ### Bucket 3: after launch
 

@@ -40,6 +40,7 @@ import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
 import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
+import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
@@ -3524,6 +3525,12 @@ export class EventLog {
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
     const want = new Set(types.map((x) => `asp.${x}/v0.2`));
     return this.recordsWhere((r) => want.has(r.type));
+  }
+
+  /** Trust per model and version (DK1711): counts of slashes, refusals, drift findings and quarantines under each model, the swaps and the holds until a re-examination. House agents are left out. */
+  async modelTrust() {
+    const records = await this.recordsOfTypes(["action", "contract", "settlement", "refusal", "clinic_diagnosis", "quarantine", "exam_result"]);
+    return modelTrustOf(records, { houseAgents: new Set(((await this.houseAgents()) as { did: string }[]).map((h) => h.did)) });
   }
 
   /** The facts about every agent at `at`, for discovery and the board (market.md 7). */
