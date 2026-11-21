@@ -4251,7 +4251,10 @@ export class EventLog {
 
   /** What the society heard from its agents (suggestions and complaints), the signed public response and what was done (DK1722). */
   async listening(at?: string): Promise<ListeningStatus> {
-    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
+    // The response target is a society setting the Town Hall may change (DK1720): `support.target_hours`, a whole number of hours from 1 to 168 that an enactment made; otherwise the published 48.
+    const set = await this.townSetting("support.target_hours");
+    const hours = typeof set?.value === "number" && Number.isInteger(set.value) && set.value >= 1 && set.value <= 168 ? set.value : undefined;
+    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString(), hours);
   }
 
   /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */
