@@ -36,9 +36,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 70 (323.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 107 |
+| Withdraw the claim until done | 108 |
 | After launch | 322 |
-| Total not closed | 499 |
+| Total not closed | 500 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -67,7 +67,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
-| CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
+| CY12 | A | partial | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
 | DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
@@ -227,6 +227,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1476 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
 
 ### Bucket 3: after launch

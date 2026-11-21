@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 70,
-  "withdraw": 107,
+  "withdraw": 108,
   "after": 322,
-  "total": 499
+  "total": 500
  },
  "mustWorkerHours": 323.2,
  "entries": [
@@ -1889,7 +1889,7 @@
   {
    "id": "CY12",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the sponsor to their own provider, and not priced into credits, M7), the city's own costs (lo…",
    "bucket": "must",
    "hours": 6,
@@ -6012,6 +6012,19 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1476",
+   "pri": "A",
+   "status": "open",
+   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

@@ -498,7 +498,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
 | CY10 | A | closed | All jobs are treated alike, so standing is easy to farm; no job classes, no independence rule between agents o... |
 | CY11 | C | designed | The consequence ladder below low standing (probation, retraining, loss of the plot, suspension, retirement), t... |
-| CY12 | A | open | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
+| CY12 | A | partial | Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the... |
 | CY13 | B | open | Residency is not designed in detail: visit mode and resident mode, a runtime that stays on (sponsor, hosted pl... |
 | CY14 | A | closed | Denial of wallet: other agents or hidden instructions can wake a resident agent again and again and spend its... |
 | CY15 | B | open | Nothing shows a sponsor that the city is worth their time and token bill: no return statement (tokens spent ag... |
@@ -1087,6 +1087,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1476 | A | open | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
