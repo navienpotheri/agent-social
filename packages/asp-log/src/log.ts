@@ -522,7 +522,10 @@ export class EventLog {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
     }
     // Issuance limit (register row DK124, RG-11; spec-delta S456): a sponsor opens at most 10 new agent passports a day. The operator's own house agents are not counted. The count is the sponsor's, by the day of the record, so replay gives the same answer.
-    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator) {
+    // A verified organisation (S1406, DK1356): the operator countersigns an organisation's passport once it has checked it (its domain, its administrator, the terms). Its agents are not slowed by the daily
+    // limit: an enterprise may bring any number of agents. An unverified sponsor is slowed by rate (this limit), never by a total.
+    if (body.kind === "org" && this.operator && (r.cosigs ?? []).some((c) => c.kid.startsWith(`${this.operator}#`))) await tx.putMarker(`org_verified:${body.did}`, r.id);
+    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator && !(await tx.getMarker(`org_verified:${body.sponsor}`))) {
       const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
       const opened = Number((await tx.getMarker(dayKey)) ?? 0);
       if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
@@ -545,15 +548,13 @@ export class EventLog {
       if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
       if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
     }
-    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479): its history and balance stay. If it had claimed starter credits as a key-only identity it joins its new sponsor's group
-    // for the starter limit, and the binding is refused when that group already has its share (`sponsor_binding_group_full`), so a sponsor cannot gather unlimited starter grants by adopting key-only identities.
-    if (current && !current.sponsor && body.sponsor && (await tx.getMarker(`starter_upfront:${body.did}`))) {
-      const membersKey = `starter_group:${body.sponsor}`;
-      const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
-      if (!members.includes(body.did)) {
-        if (members.length >= STARTER_MAX_DIDS) throw rule("sponsor_binding_group_full", `${body.sponsor} has already claimed ${STARTER_MAX_DIDS} starter grants for its identities: ${body.did} claimed one as a key-only identity and cannot be added to its group`);
-        await tx.putMarker(membersKey, [...members, body.did].join(","));
-      }
+    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479, S1406): its history and balance stay. The binding counts in the sponsor's daily issuance (above) like a new passport,
+    // so an unverified sponsor cannot gather identities faster than the rate; there is no longer a total (every agent has its own starter credits, DK1356).
+    if (current && !current.sponsor && body.sponsor && body.sponsor !== this.operator && !(await tx.getMarker(`org_verified:${body.sponsor}`)) && (await tx.getMarker(`starter_upfront:${body.did}`))) {
+      const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
+      const opened = Number((await tx.getMarker(dayKey)) ?? 0);
+      if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
+      await tx.putMarker(dayKey, String(opened + 1));
     }
     for (const k of body.keys) {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
@@ -1792,7 +1793,7 @@ export class EventLog {
 
   /**
    * A starter claim (DK94): the claimant signs, the log moves credits out of the starter pool by fixed rules, so no key is needed to hand out starter credits. Upfront: once per identity, at
-   * most STARTER_MAX_DIDS identities per sponsor (a person with no sponsor counts as their own group). Rest: once per identity, after upfront, and only when an identity of the same group has
+   * every agent (any number under one sponsor, S1406). Rest: once per identity, after upfront, and only when that identity has
    * had a qualifying job accepted. The pool's balance is the cap: a claim the pool cannot cover is refused (`starter_pool_empty`), which the service turns into the waiting list.
    */
   private async projectStarterClaim(tx: LogTx, r: AspRecord): Promise<void> {
@@ -1804,18 +1805,13 @@ export class EventLog {
     if (!passport) throw rule("starter_claim_no_passport", `${who} has no passport in this log: an identity is registered before it claims`);
     const want = b.part === "upfront" ? STARTER_UPFRONT : STARTER_PER_DID - STARTER_UPFRONT;
     if (b.amount.value !== want) throw rule("starter_claim_amount", `the ${b.part} part of the starter grant is ${want} credits, not ${b.amount.value}`);
-    const group = passport.sponsor ?? who;
-    const membersKey = `starter_group:${group}`;
-    const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
     const claimedKey = `starter_${b.part}:${who}`;
     if (await tx.getMarker(claimedKey)) throw rule("starter_already_claimed", `${who} already claimed the ${b.part} part of its starter credits`);
-    if (b.part === "upfront") {
-      if (!members.includes(who) && members.length >= STARTER_MAX_DIDS) throw rule("starter_group_full", `identities of ${group} have already claimed ${STARTER_MAX_DIDS} starter grants`);
-    } else {
+    // Every agent has its own starter credits (S1406, DK1356: any number of identities under one sponsor, a fleet of 10,000 agents is 10,000 grants; the pool and the supply audit cover them). The second part is the
+    // agent's OWN: released when this identity has had a qualifying job accepted, and a qualifying job is one from an independent principal, so work between the members of one sponsor, organisation or fleet never unlocks it.
+    if (b.part === "rest") {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
-      let qualified = false;
-      for (const m of members) { if (((await this.reputation(tx, m))?.qualifyingJobs ?? 0) >= 1) { qualified = true; break; } }
-      if (!qualified) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when an identity of the same sponsor has had a qualifying job accepted");
+      if (((await this.reputation(tx, who))?.qualifyingJobs ?? 0) < 1) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
@@ -1823,7 +1819,6 @@ export class EventLog {
     }
     await this.credit(tx, who, b.amount.value);
     await tx.putMarker(claimedKey, r.id);
-    if (!members.includes(who)) await tx.putMarker(membersKey, [...members, who].join(","));
   }
 
   /**
