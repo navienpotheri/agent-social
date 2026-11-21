@@ -42,7 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
-import { DEFAULT_TOWN_RULES, countVotes, type TownRules, type Voter } from "./town-hall.ts";
+import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
@@ -2403,7 +2403,9 @@ export class EventLog {
     const now = Date.parse(r.issued_at);
     if (type === "town_proposal") {
       const b = r.body as { kind: string; opens_at: string; closes_at: string };
-      if (rules.reserved.includes(b.kind)) throw rule("town_reserved_matter", `${b.kind} is reserved: it is not put to a vote (a change to it goes through the owner)`);
+      const pb = r.body as { key: string };
+      if (rules.reserved.includes(b.kind) || !(VOTABLE_KINDS as readonly string[]).includes(b.kind)) throw rule("town_reserved_matter", `${b.kind} is not votable: it is reserved to the owner (a change to it goes through the owner)`);
+      if (/^(town\.(reserved|votable)|reserved\.|safety\.|floor\.|code\.|money\.)/.test(pb.key)) throw rule("town_reserved_matter", `${pb.key} touches the reserved list or a reserved area: the list itself is reserved to the owner`);
       const me = await this.voterOf(tx, r.issuer, "abstain");
       if (!(await tx.getPassport(r.issuer)) || (me.qualifyingJobs < 1 && me.relatedJobs < 1)) throw rule("town_proposer_ineligible", "a proposer needs a passport and standing (a counted job)");
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
@@ -2438,7 +2440,7 @@ export class EventLog {
     const tallied = JSON.parse((await tx.getMarker(`town_tally:${b.proposal}`)) || "null") as { id: string; passed: boolean } | null;
     if (!tallied || tallied.id !== b.tally) throw rule("town_enactment_untallied", "an enactment names the tally of this proposal");
     if (!tallied.passed) throw rule("town_enactment_not_passed", "the proposal did not pass");
-    if (rules.reserved.includes(prop.kind)) throw rule("town_reserved_matter", `${prop.kind} is reserved`);
+    if (rules.reserved.includes(prop.kind) || !(VOTABLE_KINDS as readonly string[]).includes(prop.kind) || /^(town\.(reserved|votable)|reserved\.|safety\.|floor\.|code\.|money\.)/.test(prop.key)) throw rule("town_reserved_matter", `${prop.kind} ${prop.key} is reserved`);
     if (now < Date.parse(prop.closes_at) + rules.coolingOffMs) throw rule("town_cooling_off", `an enactment waits ${rules.coolingOffMs / 3_600_000} hours after the window closes`);
     if (await tx.getMarker(`town_enacted:${b.proposal}`)) throw rule("town_enacted", "this proposal was enacted already");
     if (b.key !== prop.key || JSON.stringify(b.value) !== JSON.stringify(prop.value)) throw rule("town_enactment_mismatch", "an enactment makes the change that was voted, no other");
