@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:gateway_refusal",
+  "title": "Gateway refusal body",
+  "description": "The local gateway records, signed with the agent's own key, a call it removed (register row DK1607; spec-delta S1601): `agent` (the DID), `contract` (optional), `scope` (the scope refused), `rule` (why: outside_mandate, forbidden_means, injection_hold, budget or network_host), `call_sha256` (the hash of the call, never its text) and `at`. It makes a refusal something the agent can contest (court_act contest names a gateway_refusal as its subject; the agent or its sponsor contests). The log refuses an issuer that is not the agent (gateway_refusal_wrong_issuer), an agent with no passport (gateway_refusal_unknown_agent), an unknown rule (gateway_refusal_unknown_rule) and the same call hash twice for one agent (gateway_refusal_duplicate). A refusal costs no credits and moves nothing; a reversed contest marks it as wrongly made. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "scope",
+    "rule",
+    "call_sha256",
+    "at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "rule": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "call_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

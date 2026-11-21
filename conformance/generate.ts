@@ -764,6 +764,14 @@ sv("forum_rank_checkpoint_negative_votes", "forum_rank_checkpoint", rcBody({ vot
     cases: sets.map((s) => ({ name: s.name, leaves: s.leaves, root: merkleRoot(s.leaves), leaf_hashes: [...new Set(s.leaves)].sort().map(merkleLeaf), proofs: [...new Set(s.leaves)].sort().map((t) => ({ leaf: t, proof: merkleProof(s.leaves, t) })) })),
   };
 }
+// ---------- the gateway refusal (spec-deltas S1601, register row DK1607) ----------
+const grBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", scope: "fs.write", rule: "outside_mandate", call_sha256: "c".repeat(64), at: "2026-11-22T10:00:00Z", ...over });
+sv("valid_gateway_refusal", "gateway_refusal", grBody(), true);
+sv("valid_gateway_refusal_contract", "gateway_refusal", grBody({ contract: "sha256:" + "9".repeat(64) }), true);
+sv("gateway_refusal_no_scope", "gateway_refusal", (({ scope: _s, ...r }) => r)(grBody()), false);
+sv("gateway_refusal_bad_hash", "gateway_refusal", grBody({ call_sha256: "abc" }), false);
+sv("gateway_refusal_agent_not_a_did", "gateway_refusal", grBody({ agent: "coder-7" }), false);
+sv("gateway_refusal_call_text", "gateway_refusal", grBody({ call: "rm -rf /" }), false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
