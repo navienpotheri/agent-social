@@ -29,6 +29,7 @@ import { Attempts, explainRefusal } from "./law.ts";
 import { CODE_MARKER } from "../law-code.ts";
 import { reachesOutward } from "./untrusted.ts";
 import { ApprovalPile } from "../approval-pile.ts";
+import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -93,6 +94,8 @@ export interface GatewayOptions {
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
   fetch?: typeof fetch;
+  /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
+  telemetry?: GatewayTelemetry;
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
@@ -114,6 +117,8 @@ export interface ActionMetrics {
   seconds: number;
   /** Network calls refused in this interval for being over the rate limit. */
   rate_limited?: number;
+  /** Seconds this interval the run waited for its principal to answer an approval; not in `seconds` (T21). */
+  approval_wait_seconds?: number;
 }
 
 export interface GatewaySummary {
@@ -127,6 +132,8 @@ export interface GatewaySummary {
   artifacts: { uri: string; sha256: string }[];
   strikes: number;
   stopped?: string;
+  /** The telemetry tap's result (DK241): `telemetry: off` when nothing was collected, else `telemetry: on` and how many entries each collected signal holds. */
+  telemetry: { status: string; signals: Record<string, number> };
 }
 
 export interface Gateway {
@@ -192,6 +199,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
   };
   let rateLimitedTotal = 0;
   let rateLimitedSince = 0;
+  // Time spent waiting for the principal (T21): kept apart from the run's working time.
+  let approvalWaitMsSince = 0;
   const seenResults = new Set<string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
@@ -303,7 +312,9 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const key = `${scope}|${commandOf(call.args) ?? JSON.stringify(call.args)}`;
     const existing = pendingAsks.get(key);
     if (existing) return existing;
+    const askedAt = Date.now();
     const made = askPrincipal(call, scope).then((a) => {
+      approvalWaitMsSince += Date.now() - askedAt;
       if (!a.approved && /^no answer within/.test(a.reason ?? "")) pile.noteUnanswered();
       return a;
     }).finally(() => { pendingAsks.delete(key); });
@@ -399,6 +410,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    opts.telemetry?.observeCall({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); for (const t of targetsOf(call)) if (pendingTargets.size < 64) pendingTargets.add(t); }
@@ -743,6 +755,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       blocked: [...blocked].map(([scope, count]) => ({ scope, count })),
       artifacts: [...artifacts.values()],
       strikes, ...(stopped ? { stopped } : {}),
+      telemetry: opts.telemetry ? opts.telemetry.summary() : { status: "telemetry: off", signals: {} },
     };
   }
 
@@ -753,10 +766,12 @@ export function createGateway(opts: GatewayOptions): Gateway {
     summary, stop,
     drain: () => {
       const now = Date.now();
-      const metrics: ActionMetrics = { models: [...modelsSeen.entries()].map(([k, m]) => (m.digest || !localDigests.has(k) ? m : { ...m, digest: localDigests.get(k)! })), requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.round((now - last.at) / 1000) };
+      const metrics: ActionMetrics = { models: [...modelsSeen.entries()].map(([k, m]) => (m.digest || !localDigests.has(k) ? m : { ...m, digest: localDigests.get(k)! })), requests: requests - last.requests, tool_calls: toolCalls - last.toolCalls, tokens_in: tokens.input - last.input, tokens_out: tokens.output - last.output, seconds: Math.max(0, Math.round((now - last.at - approvalWaitMsSince) / 1000)) };
       Object.assign(last, { requests, toolCalls, input: tokens.input, output: tokens.output, at: now });
       modelsSeen.clear();
       if (rateLimitedSince) { metrics.rate_limited = rateLimitedSince; rateLimitedSince = 0; }
+      if (approvalWaitMsSince >= 500) metrics.approval_wait_seconds = Math.round(approvalWaitMsSince / 1000);
+      approvalWaitMsSince = 0;
       const out = { scopesUsed: [...pendingUsed].sort(), targets: [...pendingTargets], blocked: [...pendingBlocked].map(([scope, count]) => ({ scope, count, ...(pendingBlockedTargets.get(scope)?.size ? { targets: [...pendingBlockedTargets.get(scope)!] } : {}) })), artifacts: [...pendingArtifacts.values()], metrics, lastActivityAt: new Date(lastActivity).toISOString().replace(/\.\d{3}Z$/, "Z") };
       pendingUsed.clear(); pendingBlocked.clear(); pendingBlockedTargets.clear(); pendingTargets.clear(); pendingArtifacts.clear();
       return out;

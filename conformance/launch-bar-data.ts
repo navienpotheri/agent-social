@@ -28,7 +28,7 @@ export const MUST: Record<string, Must> = {
   // mail and records
   E2: [2, "", "mail and dashboard need a redacted run log"],
   E5: [4, "", "`asp run` runtimes must keep a run log like `asp gateway`"],
-  E8: [2, "", "the mail exists (S70) but the row stays partial until E11 (links), E5 (a run log for every runtime) and E12 are done: close it with them, not alone"],
+  E8: [2, "", "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"],
   E9: [2, "LO", "live send of the end mail and an alert from the deployed service"],
   E10: [4, "", "nothing triggers the mail when a Mandate ends"],
   E16: [2, "LO", "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"],
@@ -112,6 +112,15 @@ export const MUST: Record<string, Must> = {
   LW1: [1, "DX", "the owner reads and signs Code version 1.0 with their own key (the run never signs)"],
   DK421: [1, "D", "operator succession: the owner chooses and signs (OD-DK421)"],
   DK1312: [2, "D", "this row: it closes only when the owner approves"],
+  // the owner's questions of 2026-11-21 (rent, model trust and drift, breaches): rows by lane-verify
+  DK1710: [6, "D", "agents pay no published rent or tax yet: the price and the tax rate are the owner's decision, with a review against the credit faucets"],
+  DK1711: [8, "", "trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry"],
+  DK1712: [10, "", "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"],
+  DK1713: [10, "", "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"],
+  DK1714: [6, "", "one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time"],
+  DK1715: [3, "", "default spend ceilings in the starter Mandate, alerts at 50, 80, 100 percent and a hard stop"],
+  DK1716: [5, "", "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"],
+  DK1717: [6, "", "detect a stolen tenant token or agent key and hold it until the sponsor confirms"],
 };
 
 export type W = [claim: string, where: string];
@@ -210,6 +219,7 @@ export const WITHDRAW: Record<string, W> = {
   DK61: ["The hosted accountability API, pay per governed run", DECK],
   DK62: ["Enterprise tenancy: private logs, single sign-on, support", DECK],
   DK63: ["Network intelligence data marketplace", DECK],
+  DK1603: ["A house agent has run on the hosted service", "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"],
   DK1602: ["The cost to the sponsor on the journey was checked on a real model agent", "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"],
   DK1600: ["A real model agent has sat a course live", "site, docs: say 'built and tested; the first live run with a real model agent is pending'"],
   DK81: ["A visible map of the society", "deck (becomes true with DK730 and DK731)"],

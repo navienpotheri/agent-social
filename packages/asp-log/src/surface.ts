@@ -178,6 +178,10 @@ export const SURFACE: SurfaceRoute[] = [
   r("POST", "/abuse/report", "your account", "none", true, "a per-address limit on reports", "report abuse: a signed report, admitted by the operator before it counts"),
   r("GET", "/mail/unsubscribe", "your account", "none", true, ADDRESS, "stop the service's mail to an address (a signed link)"),
   r("POST", "/mail/webhook/resend", "your account", "none", true, "signed by the mail provider", "the mail provider's bounce and complaint webhook"),
+  r("POST", "/org", "your account", "tenant", true, TENANT, "create an organisation: the tenant becomes its owner (roles, single sign-on, provisioning, an audit trail)"),
+  r("POST", "/org/<name>/sso/oidc/login", "your account", "none", true, ADDRESS, "sign in to an organisation through its identity provider (an OpenID Connect id_token); the answer is a token limited by the person's role"),
+  r("GET", "/org/<name>/*", "your account", "tenant", false, TENANT, "the organisation, its members and its audit trail, as the person's role allows (a person's token or the owner tenant's)"),
+  r("POST", "/org/<name>/scim/Users", "your account", "tenant", true, TENANT, "the identity system's provisioning feed: provision, PATCH or DELETE a user (deprovisioning freezes the person's agents)"),
   // Operate: never in the public listing.
   r("GET", "/admin/audit", "operate", "admin", false, TENANT, "the operator's audit trail"),
   r("GET", "/admin/tenants", "operate", "admin", false, TENANT, "the tenants and who is suspended"),

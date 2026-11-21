@@ -108,4 +108,6 @@ export { Trail as ReviewTrail, admit as admitChange, validateChange, split as sp
 export { serviceFarmingFacts, tenantOfDid } from "./farming-facts.ts";
 export { TestProvider, sellCredits, refundCredits, referenceHash, TEST_METHODS, type PaymentProvider, type Order } from "./payments.ts";
 export { SANDBOX_BANNER, SANDBOX_CREDITS_PER_REQUEST, SANDBOX_CREDITS_PER_TENANT, checkEnvironment, markSandbox, resetSandbox, sandboxRoutes } from "./tenant-sandbox.ts";
+export { PERSONAL_AGENTS, firstMinute, personalAgentByName, type PersonalAgent, type PersonalWay } from "./personal-agents.ts";
+export { ORG_ROLES, OrgStore, PERMISSIONS, can, orgRoutes, verifyIdToken, type Org, type OrgMember, type OrgPermission, type OrgRole, type OidcConfig } from "./org-tenancy.ts";
 export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type GatewayHalt } from "./agent-guards.ts";

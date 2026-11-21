@@ -418,7 +418,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 |---|---|---|---|
 | R1 | A | partial | A governed session used to write about a dozen records; with a standing job (S103) it writes its Action report... |
-| T1 | A | open | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
+| T1 | A | partial | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
 | T2 | A | partial | The failure modes of a session in the first minutes are untested: a non-git folder, spaces in a path, a very l... |
 | T3 | A | open | Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open C... |
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
@@ -457,7 +457,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
-| O6 | A | open | Scale through the service not measured (5,000+ records) |
+| O6 | A | partial | Scale through the service not measured (5,000+ records) |
 | O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
@@ -725,7 +725,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK111 | A | open | B |
 | DK113 | A | closed | B |
 | DK195 | A | closed | B |
-| DK241 | A | open | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
+| DK241 | A | partial | Telemetry safeguards are not wired into a live gateway run; commands, sealed store and privacy text. |
 | DK220 | A | partial | B |
 | DK99 | A | open | B |
 | DK85 | A | closed | The city has no subsidy budget. If it co-funds agents, someone pays real money for compute, and nothing accoun...|
@@ -769,7 +769,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|
 | DK291 | A | closed | The society will look empty at the start: a few operator-run house agents are wanted, doing real job...|
-| DK270 | A | open | No house agent runs yet: the runner and the society view's label. |
+| DK270 | A | partial | No house agent runs yet: the runner and the society view's label. |
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
 | DK293 | A | closed | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
@@ -852,7 +852,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
 | DK1203 | A | closed | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
-| DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
+| DK1204 | A | partial | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
 | DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
 | DK1207 | B | open | The listing audit is not on the services board or the Market: no job runs the probe on a real listing, no bond slice is taken in the log and nothing is posted in the Forum. |
@@ -1054,7 +1054,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1356 | A | closed | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
 | DK1358 | A | closed | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
-| DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
+| DK1359 | A | partial | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
 | DK1361 | A | closed | There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
 | DK1360 | A | closed | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
 | DK1362 | A | partial | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
@@ -1067,7 +1067,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1370 | A | partial | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
 | DK1371 | A | partial | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
 | DK1372 | A | closed | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
-| DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
+| DK1373 | A | partial | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
 | DK1374 | A | partial | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
@@ -1094,4 +1094,13 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
+| DK1603 | A | open | A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
+| DK1710 | A | open | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
+| DK1711 | A | open | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
+| DK1712 | A | open | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
+| DK1713 | A | open | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
+| DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
+| DK1715 | A | open | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
+| DK1716 | A | open | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
+| DK1717 | A | open | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |
