@@ -1232,7 +1232,7 @@
   {
    "id": "O15",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Certificates are the operator's problem: the service reads the files once at start (a renewed certificate needs a restart), there is no ACME or renewal, and a client of a service with a self-signed o…",
    "bucket": "after",
    "hours": 0,

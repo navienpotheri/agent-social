@@ -313,7 +313,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T20 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | T32 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O17 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| O15 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| O15 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O3 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O4 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | O5 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |

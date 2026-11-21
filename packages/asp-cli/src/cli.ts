@@ -375,6 +375,7 @@ import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
+import { reloadTlsOnSighup } from "./tls-reload.ts";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -3056,6 +3057,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
+  if (tls && process.platform !== "win32") { reloadTlsOnSighup(server as never, { cert: resolve(io.cwd, v["tls-cert"]!), key: resolve(io.cwd, v["tls-key"]!) }, io.err); io.out("  tls      a renewed certificate is read again on SIGHUP (kill -HUP <pid>)"); }
   if (sandbox) io.out(`  SANDBOX   ${SANDBOX_BANNER}`);
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port}${sandbox ? " [SANDBOX]" : ""} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);

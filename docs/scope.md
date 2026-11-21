@@ -465,7 +465,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O12 | A | partial | Branch protection on main is not set |
 | O13 | A | open | The website and a demo do not exist, and the published description, topics and private vulnerability reporting... |
 | O14 | B | partial | What CI does not cover: macOS, Node versions between 22.18 and 24 and newer than 24, the real-agent evaluation... |
-| O15 | B | open | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
+| O15 | B | partial | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
 | O17 | B | open | The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they... |
 | O18 | A | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
 | O19 | A | partial | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
