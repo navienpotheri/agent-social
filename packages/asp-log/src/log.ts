@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
@@ -372,10 +373,10 @@ export class EventLog {
     if (type === "standing_order") await this.projectStandingOrder(tx, verified);
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
-    if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "credit_default") { await projectCreditDefault(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "founding_act") await projectFoundingAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
     if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d), debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
-    if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
+    if (type === "debt_payment") { await projectDebtPayment(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
@@ -384,6 +385,7 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "refusal") await projectRefusal(tx, verified);
     if (type === "abuse_report") await projectAbuseReport(tx, verified, { operator: this.operator, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
@@ -1317,13 +1319,14 @@ export class EventLog {
       await noteEarned(tx, cbody.performer, body.escrow_released.value);
       if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
-    if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
+    if (fees > 0) { await this.credit(tx, PLATFORM_DID, fees); await noteIncome(tx, fees, r.issued_at); }
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     {
       // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
       const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
+      await serveQueue(tx, this.bankEnv, r.issued_at);
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
     }
     await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
@@ -1757,6 +1760,7 @@ export class EventLog {
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
+    await noteIncome(tx, parts.treasury, r.issued_at);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
     if (standingRun) await tx.putMarker(standingRun, r.id);
