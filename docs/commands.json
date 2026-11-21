@@ -209,6 +209,10 @@
           "description": "An organisation's tenancy (DK1359, DK1373): roles (owner, administrator, member, auditor), single sign-on by OpenID Connect, provisioning and deprovisioning (a deprovision ends the person's tokens and freezes their agents), as the caller's role allows"
         },
         {
+          "command": "asp org private-log set --org <org> --did <signing identity> | checkpoint publish|check --org <org> --private-log <folder> [--did <signing identity>] | checkpoint show --org <org>",
+          "description": "An organisation's private log (DK1359): its records stay in a log of its own; the society witnesses signed checkpoints of it, refuses a second history at the same point, and the organisation checks its log against them"
+        },
+        {
           "command": "asp org audit show --org <org> [--after <seq>] | export --org <org> --did <organisation did> --out <file|folder> [--every <seconds> [--times <n>]] | verify --file <file>",
           "description": "The organisation's audit trail (DK1374): sign-ins, roles and provisioning, and an export of it with the organisation's and its agents' signed records, signed by the organisation's key, verified from the file alone, on a schedule from where the last one stopped"
         },

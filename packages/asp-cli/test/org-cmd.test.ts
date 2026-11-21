@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashToken } from "@agent-social/asp-log";
+import { LocalLog } from "@agent-social/asp-package";
 import { main, type Io } from "../src/cli.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
@@ -101,5 +102,59 @@ test("an organisation end to end: sign-on, a person signs in, a linked agent is 
     assert.match((await ok(["org", "audit", "verify", "--file", join(sched, latest)])).out, /audit export verified/, "an incremental file verifies on its own");
     assert.equal(existsSync(join(sched, "cursor.json")), true);
     void mkdirSync;
+  } finally { server.kill(); }
+});
+
+test("an organisation's private log: its records stay in a log of its own, the society witnesses signed checkpoints, refuses a second history at the same point or a foreign signer, and the organisation can check its log against them", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-org-priv-"));
+  const tokens = join(dir, "tokens.json");
+  writeFileSync(tokens, JSON.stringify([{ name: "acme", role: "tenant", tokenSha256: hashToken("tok-acme") }]));
+  const server = spawn(process.execPath, [cli, "serve", "--db", `local:${join(dir, "log")}`, "--tokens", tokens, "--port", "0"], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      let buf = "";
+      server.stdout.on("data", (d) => { buf += d; const m = /listening on (http:\/\/[^ ]+)/.exec(buf); if (m) resolve(m[1]); });
+      server.on("close", () => reject(new Error(`the service exited: ${buf}`)));
+      setTimeout(() => reject(new Error(`no start line: ${buf}`)), 20_000);
+    });
+    const f = makeFixture();
+    const env = { ASP_LOG_URL: url, ASP_LOG_TOKEN: "tok-acme" };
+    const ok = async (args: string[]) => { const r = await asp(f, args, env); assert.equal(r.code, 0, `${args.join(" ")}: ${r.err || r.out}`); return r; };
+    await ok(["identity", "new", "--kind", "human", "--did", ORG, "--no-recovery"]);       // the organisation's key and passport in the society's log
+    await ok(["org", "create", "--name", "acme"]);
+    // the private log: a log of its own on another home, with the organisation's records
+    const priv = makeFixture(), other = makeFixture();
+    const local = (fx: Fixture, names: string[]) => Promise.all(names.map((n) => asp(fx, ["identity", "new", "--kind", "human", "--did", `did:web:private.example:u:${n}`, "--no-recovery"], {}))).then(() => undefined);
+    await local(priv, ["a"]); await local(priv, ["b"]); await local(other, ["x"]); await local(other, ["y"]);
+    // a checkpoint cannot be published before the private log is declared
+    const early = await asp(f, ["org", "checkpoint", "publish", "--org", "acme", "--did", ORG, "--private-log", priv.aspHome], env);
+    assert.notEqual(early.code, 0);
+    assert.match(early.err, /no private log is declared/);
+    await ok(["org", "private-log", "set", "--org", "acme", "--did", ORG]);
+    const first = await ok(["org", "checkpoint", "publish", "--org", "acme", "--did", ORG, "--private-log", priv.aspHome]);
+    assert.match(first.out, /the society witnessed the private log at seq \d+ .*1 checkpoint\(s\) in all/);
+    assert.match((await ok(["org", "checkpoint", "check", "--org", "acme", "--private-log", priv.aspHome])).out, /the private log matches all 1 checkpoint/);
+    // the log grows: a later checkpoint is witnessed too, and the old one still matches
+    await local(priv, ["c"]);
+    assert.match((await ok(["org", "checkpoint", "publish", "--org", "acme", "--did", ORG, "--private-log", priv.aspHome])).out, /2 checkpoint\(s\) in all/);
+    assert.match((await ok(["org", "checkpoint", "check", "--org", "acme", "--private-log", priv.aspHome])).out, /matches all 2/);
+    // another history at a seq already witnessed is refused: the organisation cannot show two histories
+    await local(other, ["z"]);                                                         // a different log that reaches the same count as the private log
+    const heads = async (fx: Fixture) => (await (await LocalLog.open(fx.aspHome)).log.head()).seq;
+    assert.equal(await heads(other), await heads(priv), "the same seq, a different history");
+    const fork = await asp(f, ["org", "checkpoint", "publish", "--org", "acme", "--did", ORG, "--private-log", other.aspHome], env);
+    assert.notEqual(fork.code, 0);
+    assert.match(fork.err, /a private log cannot show two histories/);
+    // the organisation checks its log against the society's checkpoints: a different log does not match
+    const mismatch = await asp(f, ["org", "checkpoint", "check", "--org", "acme", "--private-log", other.aspHome], env);
+    assert.equal(mismatch.code, 1);
+    assert.match(mismatch.out, /do not match: the private log was changed after it was witnessed/);
+    // a person without the right role cannot publish; a checkpoint signed by another identity is refused
+    const foreign = makeFixture();
+    await asp(foreign, ["identity", "new", "--kind", "human", "--did", "did:web:elsewhere.example:org", "--no-recovery"], {});
+    const wrong = await asp(foreign, ["org", "checkpoint", "publish", "--org", "acme", "--did", "did:web:elsewhere.example:org", "--private-log", priv.aspHome], env);
+    assert.notEqual(wrong.code, 0);
+    assert.match(wrong.err, /are signed by did:web:acme\.example:org/);
+    assert.match((await ok(["org", "audit", "show", "--org", "acme"])).out, /private_log\.set[\s\S]*checkpoint\.publish[\s\S]*checkpoint\.equivocation/);
   } finally { server.kill(); }
 });

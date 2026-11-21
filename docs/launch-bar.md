@@ -105,7 +105,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | X6 | A | partial | 2 | S | LO | daily caps are gone (DK857) and the head is signed (DK791); left: deploy behind the beta site and a live run with real agents |
 | DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
-| T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
+| T1 | A | partial | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
 | U8 | A | partial | 3 | M | D | the dashboard has its pass (S84); left: the sign-up page, consent screen and mail in the same language, and real phones: the owner approves the look |
 | U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
 | X7 | A | partial | 3 | M | LO | reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents |

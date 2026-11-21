@@ -638,6 +638,8 @@ sv("mandate_network_rate_empty", "mandate", { ...m, network: { hosts: ["example.
 sv("mandate_network_rate_unknown_field", "mandate", { ...m, network: { hosts: ["example.com"], rate: { per_second: 2 } } }, false);
 sv("mandate_network_empty", "mandate", { ...m, network: {} }, false);
 sv("valid_action_rate_limited", "action", { contract: fakeId("c"), scopes_used: ["web.read"], metrics: { requests: 4, tool_calls: 40, rate_limited: 12 } }, true);
+sv("valid_action_approval_wait", "action", { contract: fakeId("c"), scopes_used: ["shell.exec"], metrics: { requests: 4, tool_calls: 9, seconds: 40, approval_wait_seconds: 120 } }, true);
+sv("invalid_action_approval_wait_negative", "action", { contract: fakeId("c"), scopes_used: ["shell.exec"], metrics: { approval_wait_seconds: -1 } }, false);
 sv("valid_mandate_network_hosts", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org", "*.github.com"] } }, true);
 sv("mandate_network_empty_hosts", "mandate", { ...m, network: { hosts: [] } }, false);
 sv("mandate_network_bare_wildcard", "mandate", { ...m, network: { hosts: ["*"] } }, false);

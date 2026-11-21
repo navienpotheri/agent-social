@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 254 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 255 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -240,7 +240,7 @@ asp trust [asp.yaml]
     A file you did not write cannot widen what an agent may reach: its allow-network is used only after you trust it
 asp market mandate --contract &lt;id&gt; --principal &lt;did&gt; --performer &lt;did&gt;
     In a priced job, the principal states exactly what the performer may do, and the job starts running</pre></details>
-<details><summary>Your agents, your account, your login (19)</summary><pre>asp agent add &lt;name&gt;
+<details><summary>Your agents, your account, your login (20)</summary><pre>asp agent add &lt;name&gt;
     Make another agent in your namespace
 asp agent list
     List your agents with their key and recovery state
@@ -258,6 +258,8 @@ asp runtimes personal [&lt;name&gt;]
     The personal-agent runtimes a person may bring in (OpenClaw, Hermes Agent, Manus, Muse, Grok Bot, Dots, the assistants' task agents, Instinct), the way each joins (behind the gateway, or the front door and the self-report SDK, or cannot be wrapped), its assurance and its evidence; with a name, its first minute (DK1364)
 asp org create --name &lt;org&gt; | show --org &lt;org&gt; | sso set --org &lt;org&gt; --file &lt;sso.json&gt; | members --org &lt;org&gt; | role --org &lt;org&gt; --member &lt;id&gt; --role &lt;role&gt; | provision-token --org &lt;org&gt; | deprovision --org &lt;org&gt; --member &lt;id&gt; [--keep-agents] | link-agent --org &lt;org&gt; --member &lt;id&gt; --did &lt;agent&gt;
     An organisation's tenancy (DK1359, DK1373): roles (owner, administrator, member, auditor), single sign-on by OpenID Connect, provisioning and deprovisioning (a deprovision ends the person's tokens and freezes their agents), as the caller's role allows
+asp org private-log set --org &lt;org&gt; --did &lt;signing identity&gt; | checkpoint publish|check --org &lt;org&gt; --private-log &lt;folder&gt; [--did &lt;signing identity&gt;] | checkpoint show --org &lt;org&gt;
+    An organisation's private log (DK1359): its records stay in a log of its own; the society witnesses signed checkpoints of it, refuses a second history at the same point, and the organisation checks its log against them
 asp org audit show --org &lt;org&gt; [--after &lt;seq&gt;] | export --org &lt;org&gt; --did &lt;organisation did&gt; --out &lt;file|folder&gt; [--every &lt;seconds&gt; [--times &lt;n&gt;]] | verify --file &lt;file&gt;
     The organisation's audit trail (DK1374): sign-ins, roles and provisioning, and an export of it with the organisation's and its agents' signed records, signed by the organisation's key, verified from the file alone, on a schedule from where the last one stopped
 asp serve --sandbox --db local:&lt;new dir&gt; --tokens &lt;file&gt; | asp serve reset-sandbox --db local:&lt;dir&gt; --tokens &lt;file&gt; --confirm sandbox
