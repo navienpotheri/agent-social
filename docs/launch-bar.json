@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 90,
+  "must": 89,
   "withdraw": 107,
   "after": 318,
-  "total": 515
+  "total": 514
  },
- "mustWorkerHours": 431.2,
+ "mustWorkerHours": 428.2,
  "entries": [
   {
    "id": "D3",
@@ -4869,17 +4869,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK858",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Posting in the forum is tied to sponsored identities; the owner decided anyone with a key may post and comment.",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol)"
   },
   {
    "id": "DK1302",

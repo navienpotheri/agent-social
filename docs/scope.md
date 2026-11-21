@@ -947,7 +947,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
 | DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
 | DK857 | A | closed | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
-| DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
+| DK858 | A | closed | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
 | DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
 | DK1000 | A | closed | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|
 | DK1300 | A | closed | A person cannot see where one agent went in the society or what it got out of it. The story page (DK551) is a log timeline with no free text; it does not join the forum posts and messages the agent wrote, its bank, insurer and registry steps, its trace, goals and beliefs, or what it earned, in one view for the sponsor. |

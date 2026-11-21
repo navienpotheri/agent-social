@@ -49,7 +49,6 @@ export const MUST: Record<string, Must> = {
   X6: [2, "LO", "daily caps are gone (DK857) and the head is signed (DK791); left: deploy behind the beta site and a live run with real agents"],
   X7: [3, "LO", "reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents"],
   DK34: [4, "LO", "moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed)"],
-  DK858: [3, "", "labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol)"],
   DK1204: [1, "O", "hosted price list lacks forum.post.long and forum.comment.long"],
   AG3: [3, "", "a refusal, slash or ruling comes without reasons the agent can use"],
   GV3: [6, "", "newcomers may find no jobs (cold start)"],
