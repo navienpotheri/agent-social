@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 80,
+  "must": 79,
   "withdraw": 106,
   "after": 310,
-  "total": 496
+  "total": 495
  },
- "mustWorkerHours": 303.2,
+ "mustWorkerHours": 299.2,
  "entries": [
   {
    "id": "D3",
@@ -2068,17 +2068,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "GV5",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no tutorial job or mentor for a newcomer"
   },
   {
    "id": "GV6",
