@@ -8,7 +8,9 @@
  * Roles within an organisation (DK1359) and the fleet tree (DK1372) are not built yet: one role, the owning tenant. Credits are accounting entries, not money.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { barChart, emptyState, fleetBadge, fleetCsv, lineGraph, fleetDashboard, fleetDirectory, findFleet, hero, monthOf, shell, shortNameHtml, uiEsc, type FleetControls, type FleetDashboard, type StoredRec } from "@agent-social/asp-log";
+import { fleetEvents, fleetLive, LIVE_RANGES, type LiveRange, barChart, emptyState, fleetBadge, fleetCsv, lineGraph, fleetDashboard, fleetDirectory, findFleet, hero, monthOf, shell, shortNameHtml, uiEsc, type FleetControls, type FleetDashboard, type StoredRec } from "@agent-social/asp-log";
+
+import { LIVE_CLIENT_SCRIPT } from "./fleet-live-client.ts";
 
 export interface FleetDashboardSource {
   stored: () => Promise<StoredRec[]>;
@@ -56,33 +58,42 @@ export function renderFleetDashboard(d: FleetDashboard, audit: { at: string; by:
 
 const DASH_CSS = ".al-critical b{color:var(--warn)}.al-warn b{color:var(--acc)}.al-critical,.al-warn,.al-info{list-style:none}.mixgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:var(--s3)}";
 
-/** The live page: a shell with no data in it. It asks for the organisation's token (kept in this tab only, never in the address), fetches the dashboard's content with it every 5 seconds and swaps it in; a screen reader is told of each update politely. */
+/** The live page: a shell with no data in it. It asks for the organisation's token (kept in this tab only, never sent in the address), then runs the dynamic client (`fleet-live-client.ts`): a summary and the newest records every 2 seconds, animated numbers, a time range, filters, tooltips, drill-down, a ticker, pause and resume, and a table for every graph. */
 export function renderFleetLive(fleet: string): string {
   const esc = uiEsc;
-  const script = `(function(){var F=${JSON.stringify(fleet).replace(/</g, String.fromCharCode(92) + "u003c")},K="asp-fleet-token",box=document.getElementById("live"),st=document.getElementById("status"),inp=document.getElementById("tok"),btn=document.getElementById("go"),stop=document.getElementById("stop"),timer=null,tok="";try{tok=sessionStorage.getItem(K)||""}catch(e){}
-function open(){var o=[];box.querySelectorAll("details").forEach(function(d,i){if(d.open)o.push(i)});return o}
-function reopen(o){var ds=box.querySelectorAll("details");o.forEach(function(i){if(ds[i])ds[i].open=true})}
-function load(){if(!tok){st.textContent="Enter your token to start.";return}
-fetch("/fleet/"+encodeURIComponent(F)+"/dashboard?fragment=1",{headers:{authorization:"Bearer "+tok,accept:"text/html"},cache:"no-store"}).then(function(r){if(!r.ok)throw r.status;return r.text()}).then(function(h){var o=open();box.innerHTML=h;reopen(o);st.textContent="Live: updated "+new Date().toLocaleTimeString()+", every 5 seconds."}).catch(function(e){st.textContent="Could not update ("+e+")."+(e===401||e===403?" Check the token.":" Trying again.");if(e===401||e===403)halt()})}
-function run(){halt();load();timer=setInterval(function(){if(!document.hidden)load()},5000);stop.disabled=false}
-function halt(){if(timer){clearInterval(timer);timer=null}stop.disabled=true}
-btn.addEventListener("click",function(){tok=inp.value.trim();if(!tok){st.textContent="Enter your token to start.";return}try{sessionStorage.setItem(K,tok)}catch(e){}inp.value="";run()});
-stop.addEventListener("click",function(){halt();st.textContent="Stopped. Start again with your token."});
-if(tok)run();else st.textContent="Enter your token to start."})();`;
+  const script = LIVE_CLIENT_SCRIPT.replace("__FLEET__", JSON.stringify(fleet).replace(/</g, String.fromCharCode(92) + "u003c"));
+  const ranges = (Object.keys(LIVE_RANGES) as LiveRange[]).map((r) => `<button type="button" class="chip" data-range="${r}" aria-pressed="false">${r}</button>`).join("");
   return shell({
-    title: `Live dashboard: ${fleet}`, here: "/society/fleets", description: "The live dashboard of a fleet: tables, charts and graphs that update by themselves.", css: DASH_CSS,
-    body: `<section class="hero"><p class="kicker">Fleet dashboard (private to its organisation)</p><h1>Live dashboard</h1><p class="sub">${esc(fleet)}. This page holds no data: it asks the service for it with your token and shows what comes back.</p>`
-      + `<form class="livebar" onsubmit="return false"><label for="tok">Token</label><input id="tok" type="password" autocomplete="off" placeholder="your tenant token (kept in this tab only)"><button id="go" type="button">Start</button><button id="stop" type="button" disabled>Stop</button></form><p id="status" role="status" aria-live="polite" class="mut">Enter your token to start.</p></section><div id="live"></div>`,
+    title: `Live dashboard: ${fleet}`, here: "/society/fleets", description: "The live dashboard of a fleet: it updates as records are written, with filters, a time range and a table for every graph.", css: DASH_CSS + LIVE_CSS,
+    body: `<section class="hero"><p class="kicker">Fleet dashboard (private to its organisation)</p><h1>Live dashboard</h1><p class="sub">${esc(fleet)}. This page holds no data: it asks the service for it with your token and shows what comes back, as it is written.</p>`
+      + `<form class="livebar" onsubmit="return false"><label for="tok">Token</label><input id="tok" type="password" autocomplete="off" placeholder="your tenant token (kept in this tab only)"><button id="go" type="button">Start</button><button id="pause" type="button" aria-pressed="false" disabled>Pause</button><button id="stop" type="button" disabled>Stop</button></form>`
+      + `<div class="livebar" role="group" aria-label="Time range">${ranges}</div>`
+      + `<div class="livebar"><label for="fleetsel">Fleet</label><select id="fleetsel"><option>${esc(fleet)}</option></select><label for="f-persona">Persona</label><select id="f-persona"><option value="">All personas</option></select><label for="f-node">Node</label><select id="f-node"><option value="">All nodes</option></select><label for="f-tier">Tier</label><select id="f-tier"><option value="">All tiers</option></select></div>`
+      + `<p id="status" role="status" aria-live="polite" class="mut">Enter your token to start.</p><p id="announce" class="vh" aria-live="polite"></p></section>`
+      + `<div class="livegrid"><div id="live"></div><aside aria-label="Live activity"><h2>Live activity</h2><ul id="ticker" class="ticker plain"></ul></aside></div><div id="tip" class="tip" role="tooltip" hidden></div>`,
     script,
   });
 }
+
+const LIVE_CSS = `.livegrid{display:grid;grid-template-columns:minmax(0,1fr) 19rem;gap:var(--s4);align-items:start}@media (max-width:900px){.livegrid{grid-template-columns:minmax(0,1fr)}}
+.ticker{max-height:34rem;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:var(--s2) var(--s3)}.ticker li{padding:var(--s2) 0;border-top:1px solid var(--line);font-size:.9rem}.ticker li:first-child{border-top:0}.ticker time{color:var(--mut);font-variant-numeric:tabular-nums}
+.k-slash a,.k-drift a{color:var(--warn)}.tip{position:fixed;z-index:20;max-width:20rem;background:var(--fg);color:var(--bg);padding:var(--s1) var(--s2);border-radius:6px;font-size:.85rem;pointer-events:none;transform:translate(.6rem,.6rem)}
+.pick{cursor:pointer}.pick:hover,.pick:focus-visible{background:var(--acc-bg)}.pick.on{outline:2px solid var(--acc);outline-offset:-2px}.chart .cursor{stroke:var(--mut);stroke-dasharray:3 3}.chart .pt{cursor:pointer}.chart .pt:hover{r:5}
+.livebar select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.35rem .6rem;min-height:2.4rem}.chip[aria-pressed="true"]{background:var(--acc-bg);border-color:var(--acc);color:var(--acc)}
+@media (prefers-reduced-motion:no-preference){.ticker li.new{animation:fresh .8s ease-out}@keyframes fresh{from{background:var(--acc-bg);transform:translateY(-.4rem);opacity:.3}to{background:transparent;transform:none;opacity:1}}.chart .pt{transition:r .15s}}
+`;
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'";
 
 export function fleetDashboardRoutes(o: FleetDashboardSource) {
   return async (req: IncomingMessage, res: ServerResponse, ctx: { tenant: { name: string; role?: string } }): Promise<boolean> => {
     const url = new URL(req.url ?? "/", "http://x");
-    const m = /^\/fleet\/([^/]+)\/(dashboard|export|freeze|unfreeze|caps)\/?$/.exec(url.pathname);
+    if (url.pathname.replace(/\/+$/, "") === "/fleets/mine") {
+      const sendMine = (body: unknown) => { const t = JSON.stringify(body); res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); res.end(t); return true; };
+      const dir = fleetDirectory(await o.stored());
+      return sendMine({ ok: true, fleets: dir.fleets.filter((x) => ctx.tenant.role === "admin" || o.owned(ctx.tenant.name).includes(x.org)).map((x) => ({ id: x.id, name: x.name, members: x.members.length })) });
+    }
+    const m = /^\/fleet\/([^/]+)\/(dashboard|export|freeze|unfreeze|caps|summary|events)\/?$/.exec(url.pathname);
     if (!m) return false;
     const send = (code: number, ctype: string, body: string) => { res.writeHead(code, { "content-type": ctype, "cache-control": "no-store", "x-robots-tag": "noindex", ...(ctype.startsWith("text/html") ? { "content-security-policy": CSP } : {}) }); res.end(req.method === "HEAD" ? undefined : body); return true; };
     const fail = (code: number, c: string, msg: string) => send(code, "application/json", JSON.stringify({ ok: false, error: { code: c, message: msg } }));
@@ -94,6 +105,15 @@ export function fleetDashboardRoutes(o: FleetDashboardSource) {
       if (ctx.tenant.role !== "admin" && !o.owned(ctx.tenant.name).includes(f.org)) return fail(403, "NOT_YOURS", "the dashboard and the controls of a fleet are for the tenant that owns the fleet's organisation");
       const now = o.now(), month = monthOf(now);
       const wantsJson = url.searchParams.get("format") === "json" || String(req.headers.accept ?? "").includes("application/json");
+      if (op === "summary" || op === "events") {
+        if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
+        if (op === "events") { const since = Math.max(0, Math.trunc(Number(url.searchParams.get("since") ?? 0)) || 0); return send(200, "application/json", JSON.stringify({ ok: true, ...fleetEvents(stored, f.id, since, 40)! })); }
+        const range = (url.searchParams.get("range") ?? "24h") as LiveRange;
+        if (!LIVE_RANGES[range]) return fail(400, "BAD_RANGE", "the range is 1h, 24h, 7d or 30d");
+        const tierQ = url.searchParams.get("tier");
+        const filter = { ...(url.searchParams.get("persona") ? { persona: url.searchParams.get("persona")! } : {}), ...(url.searchParams.get("node") ? { node: url.searchParams.get("node")! } : {}), ...(tierQ && Number.isInteger(Number(tierQ)) ? { tier: Number(tierQ) } : {}) };
+        return send(200, "application/json", JSON.stringify(fleetLive(stored, f.id, { range, now, filter, controls: o.controls.get(f.id) })));
+      }
       if (op === "dashboard" || op === "export") {
         if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
         const controls = o.controls.get(f.id);

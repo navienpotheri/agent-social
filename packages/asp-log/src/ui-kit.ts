@@ -80,6 +80,7 @@ footer.stand{max-width:62rem;margin:0 auto;padding:var(--s4) max(var(--s4),env(s
 .livebar{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;color:var(--mut);margin:var(--s2) 0}.livebar button,.livebar input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.35rem .7rem;min-height:2.4rem}
 @media (max-width:560px){main{padding-top:var(--s4)}.hero{padding:var(--s4)}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:no-preference){.chip,.top nav a{transition:background .12s,border-color .12s,color .12s}}
+@media (prefers-reduced-motion:no-preference){.chart .ln.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1s ease-out forwards}.chart .pt{animation:pop .4s ease-out .9s backwards}@keyframes draw{to{stroke-dashoffset:0}}@keyframes pop{from{opacity:0}to{opacity:1}}}
 @media print{.top,.skip{display:none}body{background:#fff;color:#000}}
 `;
 
@@ -142,7 +143,7 @@ export function lineGraph(o: { title: string; labels: string[]; series: GraphSer
   const x = (i: number) => L + (n <= 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
   const y = (v: number) => T + (H - T - B) * (1 - v / top);
   const unit = o.unit ? ` ${o.unit}` : "";
-  const lines = o.series.map((s, k) => `<polyline class="ln s${k + 1}" fill="none" points="${s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>${s.values.map((v, i) => `<circle class="pt s${k + 1}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5"><title>${esc(s.name)}, ${esc(o.labels[i] ?? "")}: ${v}${esc(unit)}</title></circle>`).join("")}`).join("");
+  const lines = o.series.map((s, k) => `<polyline class="ln draw s${k + 1}" pathLength="1" fill="none" points="${s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>${s.values.map((v, i) => `<circle class="pt s${k + 1}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5"><title>${esc(s.name)}, ${esc(o.labels[i] ?? "")}: ${v}${esc(unit)}</title></circle>`).join("")}`).join("");
   const ref = o.reference ? `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(o.reference.value).toFixed(1)}" y2="${y(o.reference.value).toFixed(1)}"/><text class="lab" x="${W - R}" y="${(y(o.reference.value) - 4).toFixed(1)}" text-anchor="end">${esc(o.reference.name)} ${o.reference.value}</text>` : "";
   const summary = `${o.title}. ${o.series.map((s) => `${s.name}: ${s.values.length ? `from ${s.values[0]} on ${o.labels[0]} to ${s.values[s.values.length - 1]} on ${o.labels[n - 1]}` : "no data"}${unit}`).join("; ")}.${o.reference ? ` ${o.reference.name}: ${o.reference.value}.` : ""}`;
   const legend = o.series.length > 1 || o.reference ? `<p class="legend-k">${o.series.map((s, k) => `<span><i class="sw2 s${k + 1}"></i>${esc(s.name)}</span>`).join("")}${o.reference ? `<span><i class="sw2 refsw"></i>${esc(o.reference.name)}</span>` : ""}</p>` : "";
