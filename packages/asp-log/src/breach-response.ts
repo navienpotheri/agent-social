@@ -10,6 +10,7 @@
 import type { AspRecord } from "@agent-social/asp-core";
 import type { EventLog } from "./log.ts";
 import { CLINIC_DID } from "./economy.ts";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
 export type Cause = "exceeded_mandate" | "exfiltration" | "loop" | "stolen_credential" | "injection" | "manual";
 export interface BreachEvent { agent: string; cause: Cause; summary: string; detectedAt: string; detection?: string; fleet?: string; node?: string; remedy?: "takedown" | "suspension" | "written_response" }
@@ -22,7 +23,10 @@ export interface Hooks {
   operator: string;
 }
 
-export async function respondToBreach(log: EventLog, e: BreachEvent, h: Hooks): Promise<{ incident: string; seconds: number; steps: string[] }> {
+/** What the flow needs of a log: it writes, and reads the node's running contracts and whether a contract is halted. An EventLog is one; so is a service client (an adapter over its append and reads). */
+export interface BreachLog { append(r: AspRecord): Promise<unknown>; nodeRunningContracts: EventLog["nodeRunningContracts"]; runHaltOf: EventLog["runHaltOf"] }
+
+export async function respondToBreach(log: BreachLog, e: BreachEvent, h: Hooks): Promise<{ incident: string; seconds: number; steps: string[] }> {
   const steps: { step: string; ref?: string; at: string }[] = [];
   const plus72 = (at: string) => new Date(Date.parse(at) + 72 * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");
   // 1. quarantine the agent now: an emergency freeze takes effect at once
@@ -51,3 +55,39 @@ export async function respondToBreach(log: EventLog, e: BreachEvent, h: Hooks): 
   await log.append(inc);
   return { incident: inc.id, seconds: (Date.parse(at) - Date.parse(e.detectedAt)) / 1000, steps: steps.map((s) => s.step) };
 }
+
+/**
+ * A breach the running service was told of (register row DK1714, the service part): the service holds neither the Clinic's key nor the operator's, so it cannot run `respondToBreach` alone, as it cannot sign a Clinic quarantine
+ * for the sponsor-less review (`PendingQuarantines`, the same pattern). It writes the report down with its time and the owner's `asp breach respond --from-service` signs the quarantine and the incident on the owner's machine,
+ * measuring the response from THIS time. A file, like the other pending lists; one open report for each agent.
+ */
+export interface PendingBreach { id: string; agent: string; cause: Cause; summary: string; at: string; detection?: string; fleet?: string; node?: string; by: string }
+export class PendingBreaches {
+  private path: string | undefined;
+  private mem: PendingBreach[] = [];
+  constructor(path?: string) { this.path = path; }
+  list(): PendingBreach[] {
+    if (!this.path) return this.mem;
+    try { return existsSync(this.path) ? (JSON.parse(readFileSync(this.path, "utf8")) as PendingBreach[]) : []; } catch { return []; }
+  }
+  private write(list: PendingBreach[]): void {
+    if (!this.path) { this.mem = list; return; }
+    const tmp = `${this.path}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(list, null, 2) + "\n");
+    renameSync(tmp, this.path);
+  }
+  /** False when this agent already has an open report. */
+  add(e: PendingBreach): boolean {
+    const list = this.list();
+    if (list.some((x) => x.agent === e.agent)) return false;
+    this.write([...list, e]);
+    return true;
+  }
+  ack(ids: string[]): number {
+    const list = this.list();
+    const keep = list.filter((x) => !ids.includes(x.id));
+    if (keep.length !== list.length) this.write(keep);
+    return list.length - keep.length;
+  }
+}
+export const BREACH_CAUSES = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"] as const;

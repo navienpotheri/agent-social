@@ -74,7 +74,7 @@ export function auditLedger(rows: LedgerRows, platformDid: string = PLATFORM_DID
   const burned = bal(BURN_DID);
   const institutions = INSTITUTION_DIDS.map((did) => ({ did, balance: bal(did) })).filter((i) => i.balance !== 0 || rows.accounts.some((a) => a.did === i.did));
   const reserved = new Set<string>([platformDid, TREASURY_DID, BURN_DID, BANK_DEPOSIT_DID, FOUNDING_STAKE_DID, ...INSTITUTION_DIDS]);
-  const circulating = sum(rows.accounts.filter((a) => !reserved.has(a.did)).map((a) => a.balance));
+  const circulating = sum(rows.accounts.filter((a) => !reserved.has(a.did) && !a.did.startsWith("did:web:asp.local:pool:")).map((a) => a.balance));
   const open = rows.escrows.filter((e) => !e.settled);
   const locked = {
     escrow: sum(open.map((e) => e.escrowLocked)),

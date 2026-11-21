@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:treasury_return",
+  "title": "Treasury return body",
+  "description": "An institution returns the credits it holds above its reserve to the Treasury (credits.md 3.3, CR-25; register row DK172; spec-delta S1566): the provider share of a city-run institution that has no costs in credits would only accumulate. Signed by the institution itself, once a month, for itself. The log keeps the reserve (the larger of 50 credits and what refunds the institution still owes on purchases it never answered) in the account (return_below_reserve), refuses the Bank, the Insurer (their accounts are reserves) and the Academy (its account holds prize pools: return_locked) and moves credits only: debits the institution and credits the Treasury, so the supply rule holds. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["institution", "period", "amount"],
+  "additionalProperties": false,
+  "properties": {
+    "institution": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "period": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
+    "memo": { "type": "string", "maxLength": 200 }
+  }
+}

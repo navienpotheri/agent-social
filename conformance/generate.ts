@@ -15,6 +15,8 @@ import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
+import { KNOWN_NOTICES } from "../packages/asp-core/src/notice-ack.ts";
+import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
@@ -728,6 +730,65 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- the notice acknowledgement (spec-deltas S1591, register row US8): schema cases and the shared validation ----------
+const ackBody = (over: Record<string, unknown> = {}) => ({ notice: "asp.my-data/v1", statement_sha256: "a".repeat(64), ...over });
+sv("valid_notice_ack", "notice_ack", ackBody(), true);
+sv("valid_notice_ack_privacy", "notice_ack", ackBody({ notice: "asp.privacy/v1" }), true);
+sv("valid_notice_ack_terms_for_an_agent", "notice_ack", ackBody({ notice: "asp.terms/v1", agent: "did:web:example.com:agents:coder-7" }), true);
+sv("notice_ack_no_hash", "notice_ack", (({ statement_sha256: _h, ...r }) => r)(ackBody()), false);
+sv("notice_ack_no_notice", "notice_ack", (({ notice: _n, ...r }) => r)(ackBody()), false);
+sv("notice_ack_agent_not_a_did", "notice_ack", ackBody({ agent: "coder-7" }), false);
+sv("notice_ack_extra_field", "notice_ack", ackBody({ read_at: "2026-11-22T00:00:00Z" }), false);
+{
+  const nk = (b: Record<string, unknown>, rule: string | null, name: string) => ({ name, input: b, problem: rule });
+  (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors = {
+    notices: KNOWN_NOTICES,
+    cases: [
+      nk(ackBody(), null, "the statement of the data"),
+      nk(ackBody({ notice: "asp.privacy/v1" }), null, "the privacy notice"),
+      nk(ackBody({ notice: "asp.terms/v1" }), null, "the terms"),
+      nk(ackBody({ statement_sha256: "0123456789abcdef".repeat(4) }), null, "a mixed hexadecimal hash"),
+      nk(ackBody({ notice: "asp.cookies/v1" }), "notice_ack_unknown_notice", "an unknown notice"),
+      nk(ackBody({ notice: 7 }), "notice_ack_unknown_notice", "a notice that is not a string"),
+      nk(ackBody({ statement_sha256: "A".repeat(64) }), "notice_ack_bad_hash", "an uppercase hash"),
+      nk(ackBody({ statement_sha256: "a".repeat(63) }), "notice_ack_bad_hash", "a hash one character short"),
+      nk(ackBody({ statement_sha256: "a".repeat(65) }), "notice_ack_bad_hash", "a hash one character long"),
+      nk(ackBody({ statement_sha256: "g".repeat(64) }), "notice_ack_bad_hash", "a hash with a character that is not hexadecimal"),
+      nk(ackBody({ statement_sha256: "sha256:" + "a".repeat(57) }), "notice_ack_bad_hash", "a prefixed hash"),
+    ],
+  };
+}
+// ---------- the job-data term (spec-deltas S1569, register row JO3): schema cases and the shared reading and validation ----------
+sv("valid_contract_data_handling_defaults", "contract", contractBody({ data_handling: {} }), true);
+sv("valid_contract_data_handling_explicit", "contract", contractBody({ data_handling: { term: "asp.job-data/v1", commons_sharing: false, retention: "delete_at_settlement", personal_data: "none" } }), true);
+sv("valid_contract_data_handling_commons", "contract", contractBody({ data_handling: { commons_sharing: true } }), true);
+sv("valid_contract_data_handling_retain", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 30 } }), true);
+sv("valid_contract_data_handling_personal", "contract", contractBody({ data_handling: { personal_data: "included" } }), true);
+sv("contract_data_handling_bad_retention", "contract", contractBody({ data_handling: { retention: "keep_forever" } }), false);
+sv("contract_data_handling_bad_personal_data", "contract", contractBody({ data_handling: { personal_data: "maybe" } }), false);
+sv("contract_data_handling_commons_not_boolean", "contract", contractBody({ data_handling: { commons_sharing: "yes" } }), false);
+sv("contract_data_handling_extra_field", "contract", contractBody({ data_handling: { share_with: "anyone" } }), false);
+sv("contract_data_handling_days_not_integer", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 1.5 } }), false);
+{
+  const dh = (d: DataHandling | undefined, rule: string | null) => ({ input: d ?? null, problem: rule });
+  const handling = [
+    { name: "absent", ...dh(undefined, null) },
+    { name: "empty object", ...dh({}, null) },
+    { name: "the default term written out", ...dh({ term: "asp.job-data/v1" }, null) },
+    { name: "an unknown term", ...dh({ term: "asp.job-data/v2" }, "data_handling_unknown_term") },
+    { name: "an empty term", ...dh({ term: "" }, "data_handling_unknown_term") },
+    { name: "retain_days with the default retention", ...dh({ retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retain_days with delete_at_settlement", ...dh({ retention: "delete_at_settlement", retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retention retain_days without retain_days", ...dh({ retention: "retain_days" }, "data_handling_retention_invalid") },
+    { name: "retain_days of 0", ...dh({ retention: "retain_days", retain_days: 0 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 366", ...dh({ retention: "retain_days", retain_days: 366 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1.5", ...dh({ retention: "retain_days", retain_days: 1.5 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1", ...dh({ retention: "retain_days", retain_days: 1 }, null) },
+    { name: "retain_days of 365", ...dh({ retention: "retain_days", retain_days: 365 }, null) },
+    { name: "commons sharing and personal data included", ...dh({ commons_sharing: true, personal_data: "included" }, null) },
+  ].map((c) => ({ ...c, reading: readDataHandling(c.input) }));
+  (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors = { term: JOB_DATA_TERM, maxRetainDays: MAX_RETAIN_DAYS, cases: handling };
+}
 sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); delete d.evidence.trace; return d; })(), false);
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
@@ -1165,6 +1226,8 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   const polBase = { holder: "did:web:example.com:agents:alice-coder", contract: "sha256:" + "d".repeat(64), cover: "bond_slash", insured_amount: { value: 20, unit: "credit" }, premium: { value: 2, unit: "credit" }, valid_from: "2026-11-12T00:00:00Z", valid_to: "2027-01-12T00:00:00Z" };
   sv("valid_policy", "policy", polBase, true);
   sv("valid_policy_failed_job", "policy", { ...polBase, cover: "failed_job" }, true);
+  sv("valid_policy_mutual", "policy", { ...polBase, mutual: "did:web:example.com:orgs:acme:fleets:coders" }, true);
+  sv("policy_mutual_not_a_did", "policy", { ...polBase, mutual: "the coders" }, false);
   sv("policy_bad_cover", "policy", { ...polBase, cover: "everything" }, false);
   sv("policy_no_premium", "policy", { ...polBase, premium: undefined }, false);
   sv("policy_extra_field", "policy", { ...polBase, exclusions: [] }, false);
@@ -1550,6 +1613,31 @@ const worldRules = [
   sv("incident_unknown_step", "incident", incBody({ steps: [{ step: "shrug" }] }), false);
   sv("incident_credit_restitution", "incident", incBody({ restitution: { open: true, remedy: "credits" } }), false);
   sv("incident_no_detected_at", "incident", (({ detected_at: _d, ...r }) => r)(incBody()), false);
+  // ---------- the standing adjustment (spec-deltas S1565): schema cases ----------
+  const adjBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", jobs: ["sha256:" + "5".repeat(64), "sha256:" + "6".repeat(64)], finding: "sha256:" + "7".repeat(64), reason: "the jobs came from a pair that hired each other", ...over });
+  sv("valid_standing_adjustment", "standing_adjustment", adjBody(), true);
+  sv("standing_adjustment_no_jobs", "standing_adjustment", adjBody({ jobs: [] }), false);
+  sv("standing_adjustment_duplicate_jobs", "standing_adjustment", adjBody({ jobs: ["sha256:" + "5".repeat(64), "sha256:" + "5".repeat(64)] }), false);
+  sv("standing_adjustment_no_finding", "standing_adjustment", (({ finding: _f, ...r }) => r)(adjBody()), false);
+  sv("standing_adjustment_no_reason", "standing_adjustment", adjBody({ reason: "" }), false);
+  sv("standing_adjustment_extra_field", "standing_adjustment", adjBody({ slash: 5 }), false);
+  sv("standing_adjustment_job_not_a_record_id", "standing_adjustment", adjBody({ jobs: ["a job"] }), false);
+  // ---------- the treasury return (spec-deltas S1566): schema cases ----------
+  const retBody = (over: Record<string, unknown> = {}) => ({ institution: "did:web:asp.local:institutions:registry", period: "2026-11", amount: { value: 120, unit: "credit" }, ...over });
+  sv("valid_treasury_return", "treasury_return", retBody(), true);
+  sv("valid_treasury_return_memo", "treasury_return", retBody({ memo: "the first of the month" }), true);
+  sv("treasury_return_bad_period", "treasury_return", retBody({ period: "2026-13" }), false);
+  sv("treasury_return_no_amount", "treasury_return", (({ amount: _a, ...r }) => r)(retBody()), false);
+  sv("treasury_return_extra_field", "treasury_return", retBody({ to: "did:web:asp.local:treasury" }), false);
+  sv("treasury_return_no_institution", "treasury_return", (({ institution: _i, ...r }) => r)(retBody()), false);
+  // ---------- the fleet mutual pool (spec-deltas S1568): schema cases ----------
+  const muBody = (over: Record<string, unknown> = {}) => ({ act: "open", fleet: "did:web:example.com:orgs:acme:fleets:coders", ...over });
+  sv("valid_mutual_open", "mutual_act", muBody(), true);
+  sv("valid_mutual_return", "mutual_act", muBody({ act: "return", memo: "end of the quarter" }), true);
+  sv("valid_mutual_close", "mutual_act", muBody({ act: "close" }), true);
+  sv("mutual_unknown_act", "mutual_act", muBody({ act: "dissolve" }), false);
+  sv("mutual_carries_an_amount", "mutual_act", muBody({ act: "return", amount: { value: 5, unit: "credit" } }), false);
+  sv("mutual_no_fleet", "mutual_act", (({ fleet: _f, ...r }) => r)(muBody()), false);
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
@@ -1703,5 +1791,7 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("notice-ack.json", (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors);
+write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

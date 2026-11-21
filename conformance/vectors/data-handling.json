@@ -1,0 +1,205 @@
+{
+  "term": "asp.job-data/v1",
+  "maxRetainDays": 365,
+  "cases": [
+    {
+      "name": "absent",
+      "input": null,
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "empty object",
+      "input": {},
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "the default term written out",
+      "input": {
+        "term": "asp.job-data/v1"
+      },
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "an unknown term",
+      "input": {
+        "term": "asp.job-data/v2"
+      },
+      "problem": "data_handling_unknown_term",
+      "reading": {
+        "term": "asp.job-data/v2",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "an empty term",
+      "input": {
+        "term": ""
+      },
+      "problem": "data_handling_unknown_term",
+      "reading": {
+        "term": "",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days with the default retention",
+      "input": {
+        "retain_days": 30
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": 30,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days with delete_at_settlement",
+      "input": {
+        "retention": "delete_at_settlement",
+        "retain_days": 30
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "delete_at_settlement",
+        "retain_days": 30,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retention retain_days without retain_days",
+      "input": {
+        "retention": "retain_days"
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": null,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days of 0",
+      "input": {
+        "retention": "retain_days",
+        "retain_days": 0
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": 0,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days of 366",
+      "input": {
+        "retention": "retain_days",
+        "retain_days": 366
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": 366,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days of 1.5",
+      "input": {
+        "retention": "retain_days",
+        "retain_days": 1.5
+      },
+      "problem": "data_handling_retention_invalid",
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": 1.5,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days of 1",
+      "input": {
+        "retention": "retain_days",
+        "retain_days": 1
+      },
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": 1,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "retain_days of 365",
+      "input": {
+        "retention": "retain_days",
+        "retain_days": 365
+      },
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": false,
+        "retention": "retain_days",
+        "retain_days": 365,
+        "personal_data": "none"
+      }
+    },
+    {
+      "name": "commons sharing and personal data included",
+      "input": {
+        "commons_sharing": true,
+        "personal_data": "included"
+      },
+      "problem": null,
+      "reading": {
+        "term": "asp.job-data/v1",
+        "commons_sharing": true,
+        "retention": "delete_at_settlement",
+        "retain_days": null,
+        "personal_data": "included"
+      }
+    }
+  ]
+}

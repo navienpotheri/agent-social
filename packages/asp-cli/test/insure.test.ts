@@ -46,6 +46,7 @@ test("cover is bought before the job and a covered failure is paid by the terms 
     const contract = await job();
     const quoted = await ok(f, ["insure", "quote", "--contract", contract, "--cover", "bond_slash", "--by", AGENT, "--amount", "20"]);
     assert.match(quoted.out, /premium 2 credits/);
+    assert.match(quoted.out, /risk model \(advisory, not charged\): \d+ credits for this cover, from \d+ runs with an attempt in \d+ and 12 of 165 measured attempts getting through; the table's 2 is what is charged/, "DK1333: the model premium is shown beside the table's and the table's is what is charged");
     tick();
     const bought = await ok(f, ["insure", "buy", "--contract", contract, "--cover", "bond_slash", "--by", AGENT, "--amount", "20"]);
     const policy = /^policy (\S+):/.exec(bought.out)![1];
@@ -66,6 +67,10 @@ test("cover is bought before the job and a covered failure is paid by the terms 
     const report = await ok(f, ["insure", "report"]);
     assert.match(report.out, /Insurer report \d{4}-\d{2}: 1 policy\(ies\) sold for 2 credits in premiums; reserve 598 against a floor of 500 \(above\)/);
     assert.match(report.out, /claim \S+: paid 4 credits, covered/);
+    const stress = await ok(f, ["insure", "stress"]);
+    assert.match(stress.out, /stress replay of the last 90 days \(simulation only, nothing is written\): 2 event\(s\), premiums to the reserve 2, claims paid 4;/);
+    assert.match(stress.out, /with claims 2 times what they were, the reserve ends at 5\d\d against a floor of 500.*\[(holds|sales_stop)\]/);
+    assert.match(stress.out, /still moving: 1 policy, 1 claim\(s\) \(100\.0 per 100\)/);
     // A second job: cover bought after the first Action is refused.
     const second = await job(AGENT2);
     await ok(f, ["market", "bond", "--contract", second, "--backer", AGENT2, "--amount", "20", "--escrow-payer", PRINCIPAL, "--escrow-amount", "100"]);

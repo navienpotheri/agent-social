@@ -8,11 +8,11 @@ const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 const plan = read("docs/live-run-plan.md");
 
-test("every command in the plan is documented, except the preflight that lane-cli-3 is building", () => {
+test("every command in the plan is documented, (the preflight and the report included)", () => {
   const commands = read("docs/commands.md");
   const typed = [...plan.matchAll(/npm run asp -- ([a-z]+(?: [a-z]+)?)/g)].map((m) => m[1]!);
   assert.ok(typed.length >= 10);
-  const pending = new Set(["live preflight"]);
+  const pending = new Set<string>();
   for (const c of new Set(typed)) {
     if (pending.has(c)) continue;
     const first = c.split(" ")[0]!;

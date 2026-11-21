@@ -1,4 +1,4 @@
-// Row DK1730: a cap across all of one sponsor's agents (asp budget set --agent sponsor:<did> --monthly-tokens n): the runs of two agents of one sponsor share it, and the run that would pass it is refused with the sponsor
+// Row DK1769: a cap across all of one sponsor's agents (asp budget set --agent sponsor:<did> --monthly-tokens n): the runs of two agents of one sponsor share it, and the run that would pass it is refused with the sponsor
 // named; another sponsor is not affected. Fake agent and provider; fake keys.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
