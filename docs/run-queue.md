@@ -171,3 +171,4 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 
 - 2026-11-21 (lead, owner instruction): at least THREE workers work continuously on the 88 must-close rows of docs/launch-bar.md; lanes: lane-protocol, lane-cli, lane-site (the existing launch-bar worker takes a lane); no worker-hour estimates are quoted to the owner; the 16:25 task (agent-social-reset-continue) starts the missing workers after the 5-hour reset. The owner is considering a higher plan; the plan facts are in the reply of 2026-11-21.
 - 2026-11-21 held by lane-society (DK1710, then DK1712, DK1711), 14:56Z
+- held by lane-protocol-2, 2026-11-21: DK1717 (stolen token and agent key use-anomaly detection and the revoke-and-rotate path), then DK1714 (breach response end to end).
