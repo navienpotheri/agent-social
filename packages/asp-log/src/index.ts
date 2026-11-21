@@ -43,7 +43,7 @@ export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
 export { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type EdgeComparison, type OutcomeJob, type Window as OutcomeWindow } from "./outcomes.ts";
-export { QUARANTINE_NOTICE_FROM, TUTORIAL_LABEL, TUTORIAL_DAYS, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
+export { QUARANTINE_NOTICE_FROM, SERVICE_HELD_BOND_PERMILLE, TUTORIAL_LABEL, TUTORIAL_DAYS, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
 export { ABUSE_RESTITUTION_CAP, ABUSE_RESTITUTION_OFF_FROM, APPEAL_HOLD_MS, APPEAL_FREEZE_MAX_MS, JUROR_PENALTY_PERMILLE, effectiveFault } from "./courts-rules.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";
@@ -85,3 +85,6 @@ export { didYouMean } from "./surface.ts";
 export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
+
+export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView } from "./fleets.ts";
+export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";

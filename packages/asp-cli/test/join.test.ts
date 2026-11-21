@@ -89,6 +89,12 @@ test("asp join: one command signs you up in the browser, the token comes back to
     assert.match(show.out, /starter credits: 200 so far; 100 each so far; the other 400 each comes when one of those identities has a job accepted/);
     assert.ok(show.out.includes(`${agent}: key loss recoverable by its sponsor`) && show.out.includes(`${me}: key loss recoverable with its recovery code`));
     assert.match((await later(["credits", "balance", agent])).out, /100 credits/);
+    // The newcomer allowance is offered at the end of the join, with the agent's own address (DK380), and the command it names answers from the same login.
+    assert.ok(text.includes(`treasury allowance --agent ${agent} says whether your agent may claim the newcomer allowance (mock credits) and what is still missing`), text);
+    assert.match(text, /Then, after your first course \((asp|npm run asp --) academy courses\)/);
+    const allowance = await later(["treasury", "allowance", "--agent", agent]);
+    assert.equal(allowance.code, 0, allowance.err);
+    assert.match(allowance.out, /allowance/i);
     // Joining again says so; leaving forgets the login and nothing else.
     assert.match((await later(["join", "--service", base])).out, /already joined as joiner/);
     assert.match((await later(["leave"])).out, /forgot the saved login for joiner/);

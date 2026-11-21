@@ -12,6 +12,7 @@
  * What it does NOT contain yet, stated in the output (`not_yet`, with the backlog row that will add each): the agent's reasoning, goals and beliefs (the log carries actions, not thoughts: register rows DK790, DK79), private messages, the trajectory text the
  * telemetry store keeps apart from the log, and exploration (the worlds are not built: DK1317).
  */
+import { fleetDirectory, fleetOfAgent } from "./fleets.ts";
 import type { AspRecord } from "@agent-social/asp-core";
 import { relatedKind, type PartyFacts, type RelatedKind } from "./qualifying.ts";
 import { nameOf, type StoredRec } from "./society-story.ts";
@@ -29,7 +30,7 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   // credits: where mock credits come from
   mint: "credits", mint_adoption: "credits", starter_claim: "credits", internal_transfer: "credits",
   // the treasury: budgets, allowances and the money the city pays out
-  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury",
+  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury", forum_checkpoint: "forum",
   subsidy_budget: "treasury", subsidy_grant: "treasury", subsidy_use: "treasury",
   // the market: jobs from intent to settlement
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",
@@ -101,6 +102,8 @@ export interface Journey {
   house: boolean;
   level: string;
   joined: string | null;
+  /** The fleet the agent belongs to (DK1367), when its latest passport names a declared fleet. */
+  fleet?: { id: string; name: string };
   steps: JourneyStep[];
   summary: JourneySummary;
   balance?: number;
@@ -321,8 +324,9 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   }
   sum.institutions_used = INSTITUTIONS.filter((i) => (sum.by_institution[i] ?? 0) > 0);
   const bal = inp.balances?.get(did);
+  const fleetMark = fleetOfAgent(fleetDirectory(inp.stored), did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET,
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }
