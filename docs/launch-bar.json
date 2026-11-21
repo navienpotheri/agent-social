@@ -6004,7 +6004,7 @@
   {
    "id": "DK1608",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log: the Registrar's countersign asks `mayGoLive`, but nothing in the log refuses a `course` record…",
    "bucket": "withdraw",
    "hours": 0,

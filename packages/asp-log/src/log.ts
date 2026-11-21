@@ -42,6 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { lessonTextProblems } from "./lesson-invariants.ts";
 import { sizeBond, type BondSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
@@ -2412,6 +2413,14 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      const key = (r.body as { key: string }).key;
+      if (key.startsWith("academy.course.")) {
+        // A course put to a vote (S1430, DK1608): its lessons are read now, and a course that fails the text checks is not put to a vote at all.
+        const lessons = ((r.body as { value?: { lessons?: { id?: string; text?: string }[] } }).value?.lessons ?? []);
+        if (!lessons.length) throw rule("town_course_no_lessons", "a course put to a vote has at least one lesson");
+        for (const l of lessons) { const probs = lessonTextProblems(l.text ?? ""); if (probs.length) throw rule("town_course_review_failed", `lesson ${l.id ?? "?"}: ${probs[0].reason}`); }
+        await tx.putMarker(`town_course:${key.slice("academy.course.".length)}`, JSON.stringify({ proposal: r.id, proposer: r.issuer }));
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -3118,6 +3127,12 @@ export class EventLog {
   /** A course (AC-3): the instructor signs, the Registrar countersigns (having read the lessons and reviews in the commons), and the reviewers are agents of at least two distinct sponsors, none the author's. */
   private async projectCourse(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { course: string; price_service: string; reviewers: string[] };
+    // A course that was put to a vote goes live only through it (S1430, DK1608): the proposal was enacted, and the instructor is the one who proposed it.
+    const voted = JSON.parse((await tx.getMarker(`town_course:${b.course}`)) || "null") as { proposal: string; proposer: string } | null;
+    if (voted) {
+      if (!(await tx.getMarker(`town_enacted:${voted.proposal}`))) throw rule("course_vote_not_enacted", `the course ${b.course} was put to a vote (${voted.proposal}) and that vote was not enacted`);
+      if (voted.proposer !== r.issuer) throw rule("course_not_by_proposer", `the course ${b.course} was proposed by ${voted.proposer}: it is signed by its proposer`);
+    }
     if (r.prev !== null) throw rule("course_not_chained", "a course starts its own chain (prev is null)");
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");

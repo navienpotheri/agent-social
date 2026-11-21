@@ -113,3 +113,4 @@ export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } fro
 export { readOrgRecords } from "./audit-export.ts";
 export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./token-watch.ts";
 export { respondToBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
+export { INVARIANT_PATTERNS, HIDDEN, lessonTextProblems, type TextProblem } from "./lesson-invariants.ts";
