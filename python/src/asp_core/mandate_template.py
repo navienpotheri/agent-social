@@ -56,6 +56,13 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
         hosts = (m.get("network") or {}).get("hosts") or []
         if not hosts or not all(h in ceiling["network"]["hosts"] for h in hosts):
             out.append("network")
+    if has(ceiling.get("token_budget")):
+        c = ceiling["token_budget"]
+        s = m.get("token_budget") or {}
+        for k in ("per_run", "per_month"):
+            if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
+                out.append("token_budget")
+                break
     if has(ceiling.get("institution_spend")):
         lines = m.get("institution_spend") or []
         ok = all(any(c["institution"] == l["institution"] and c["period"] == l["period"] and l["cap"]["value"] <= c["cap"]["value"] for c in ceiling["institution_spend"]) for l in lines)
