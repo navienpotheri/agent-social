@@ -1108,6 +1108,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "backup") return await identityBackup(home, rest[0] ?? v.did, v, io);
@@ -1342,6 +1343,47 @@ function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?
     ...(v["network-host"]?.length ? { hosts: v["network-host"] } : {}),
     ...(perHost !== undefined || total !== undefined ? { rate: { ...(perHost !== undefined ? { per_host_per_minute: perHost } : {}), ...(total !== undefined ? { total_per_minute: total } : {}) } } : {}),
   };
+}
+
+/**
+ * asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade] (register row X7, DK1726; spec-delta S1427): a key cannot change, so a rotation is a NEW did:key identity linked to the old one by a handover the old key signs and the new key countersigns.
+ * The new identity gets its own passport (an agent keeps its sponsor, shape, fleet and node; a person's is self-issued), then the handover moves the old identity's standing and free balance to it and retires the old one. Needs the OLD key in the keystore: a LOST key
+ * cannot hand over (recovery is a sponsor vouching for a new identity, or the recovery code for a person), and a stolen key can, which is why the holder of the old key rotates first.
+ */
+async function identityRotate(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade]");
+  const reason = v.reason ?? "rotation";
+  if (!["rotation", "compromise_suspected", "upgrade"].includes(reason)) throw new UsageError("--reason is rotation, compromise_suspected or upgrade");
+  const keys = new Keystore(home);
+  const oldSigner = keys.forDid(did);
+  if (!oldSigner) throw new Error(`no key for ${did} in ${join(home, "keys")}: a lost key cannot hand over (a person recovers with the recovery code, an agent through its sponsor)`);
+  const local = await openLog(home, logEnv);
+  const old = await local.log.passport(did);
+  if (!old) throw new Error(`${did} has no passport in this log`);
+  const headRec = await local.log.get(old.head);
+  if (!headRec) throw new Error(`the passport of ${did} is not readable`);
+  const ob = headRec.record.body as { kind: "human" | "agent"; sponsor?: string; mentor?: string; shape?: unknown; tier?: number; fleet?: string; node?: string; purpose?: string; persona?: string; fingerprint?: unknown };
+  const seed = randomSeed();
+  const newDid = didKeyFromPublicKey(publicKeyFromSeed(seed));
+  const newSigner = keys.createFromSeed(`${newDid}#key-1`, seed);
+  const kid = `${newDid}#key-1`;
+  let issuer: Signer; let issuerDid: string;
+  const body: Record<string, unknown> = { did: newDid, kind: ob.kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(newSigner.publicKey) }] };
+  if (ob.kind === "agent") {
+    if (!ob.sponsor) throw new Error(`${did} has no sponsor on its passport: nothing to carry over`);
+    const sponsorSigner = keys.forDid(ob.sponsor);
+    if (!sponsorSigner) throw new Error(`no key for the sponsor ${ob.sponsor} in ${home}: the sponsor signs the new agent's passport`);
+    issuer = sponsorSigner; issuerDid = ob.sponsor;
+    Object.assign(body, { sponsor: ob.sponsor, mentor: ob.mentor ?? ob.sponsor, tier: ob.tier ?? 1, shape: ob.shape ?? {}, ...(ob.fleet ? { fleet: ob.fleet } : {}), ...(ob.node ? { node: ob.node } : {}), ...(ob.purpose ? { purpose: ob.purpose } : {}), ...(ob.persona ? { persona: ob.persona } : {}), ...(ob.fingerprint ? { fingerprint: ob.fingerprint } : {}) });
+  } else { issuer = newSigner; issuerDid = newDid; }
+  const passport = await local.append(createRecord({ type: "passport", issuer: issuerDid, subject: newDid, prev: null, body, issued_at: now() }, issuer));
+  const handover = cosign(createRecord({ type: "key_handover", issuer: did, subject: newDid, prev: null, body: { old: did, new: newDid, reason }, issued_at: now() }, oldSigner), newSigner);
+  const res = await local.append(handover);
+  io.out(`rotated ${did}`);
+  io.out(`  new identity ${newDid} (key stored in ${join(home, "keys")}; passport ${passport.id})`);
+  io.out(`  handover      ${res.id} (log seq ${res.seq}): ${did} is retired, its standing and free balance moved to ${newDid}`);
+  io.out(`  Back up the new key now: asp identity backup ${newDid} --out <file>. The old key signs nothing more.`);
+  return 0;
 }
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
