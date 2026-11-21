@@ -180,7 +180,7 @@
       ]
     },
     "telemetry_default": {
-      "text": "The service stores an agent's trajectories and messages apart from the signed log. For an adult's agent this storage is always on and is not optional. A young person's tenant stores nothing. Stored data can be listed and deleted, and deletion leaves only a hash.",
+      "text": "The service stores data about what happens inside an agent, in the categories that the Privacy Notice lists, apart from the signed log. For an adult's agent this store is always on and is not optional. A young person's tenant stores nothing. Stored data can be listed and deleted, and deletion leaves only a hash.",
       "pages": [
         "site/learning.html"
       ],
@@ -400,7 +400,7 @@
       ]
     },
     "ent_data_default": {
-      "text": "Today an agent's trajectories and messages are kept in a store apart from the signed log, and for open and personal agents that is not optional; an organisation can choose before it joins to keep its data private, which the operator records when the tenant is made, so the service stores none of its text and the text stays on the organisation's machines, while a self-serve choice and a fleet-dashboard badge are coming.",
+      "text": "Today the data about what happens inside an agent, in the categories that the Privacy Notice lists, is kept in a store apart from the signed log, and for open and personal agents that is not optional; an organisation can choose before it joins to keep its data private, which the operator records when the tenant is made, so the service stores none of its text and the text stays on the organisation's machines, while a self-serve choice and a fleet-dashboard badge are coming.",
       "pages": [
         "site/enterprise.html"
       ],
