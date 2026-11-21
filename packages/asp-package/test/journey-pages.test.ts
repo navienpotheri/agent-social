@@ -115,11 +115,49 @@ test("the page renders both views: the sponsor page shows the text, the public p
   for (const page of [pub, spo]) {
     assert.ok(!page.includes("<img src=x") && !page.includes("<script>alert"), "markup in a title or a post is escaped");
     assert.match(page, /Not on this page yet/);
-    assert.match(page, /the agent's reasoning/);
-    assert.match(page, /<code>DK790<\/code>/);
+    assert.match(page, /the agent's beliefs/);
+    assert.match(page, /<code>DK1315<\/code>/);
     assert.match(page, /direct messages between agents[\s\S]*<code>DK1346<\/code>/);
     assert.match(page, /compute cost beyond tokens[\s\S]*<code>DK1313<\/code>/);
     assert.match(page, /prefers-color-scheme:dark/);
     assert.match(page, /viewport/);
   }
+});
+
+test("DK1345: the sponsor view shows what the gateway's tap filed for the agent (goal, reasoning, plan), in order; the public view never does; a hash-only item shows no text; another agent's items stay out", async () => {
+  const { TelemetryStore } = await import("@agent-social/asp-log");
+  const w = await society();
+  const store = new TelemetryStore();
+  const T = "tenant-one";
+  const put = (kind: string, c: Record<string, unknown>, at: string, did: string, o: { private?: boolean } = {}) => store.put(T, kind, JSON.stringify(c), { did, at, ...o });
+  put("reasoning", { category: "reasoning", step: 1, text: "The refund is outside the Mandate, so I will ask first." }, "2026-11-20T10:02:00Z", w.ada.did);
+  put("goal", { category: "goals", step: 0, task: "Tidy the failing tests in the repository." }, "2026-11-20T10:01:00Z", w.ada.did);
+  put("plan", { category: "plans", step: 2, tool: "TodoWrite", plan: { todos: ["read the failure", "fix it"] } }, "2026-11-20T10:03:00Z", w.ada.did);
+  put("memory", { category: "memory", step: 3, args: { note: "kept private" } }, "2026-11-20T10:04:00Z", w.ada.did, { private: true });
+  put("goal", { category: "goals", step: 0, task: "BOB'S TASK" }, "2026-11-20T10:00:30Z", w.bob.did);
+  const src: JourneySource = { stored: async () => w.stored, forum: forumFor(w.ada.did), balances: async () => new Map(), now: nowIso, cognition: (did, tenant) => store.list(tenant).filter((e) => e.did === did).map((e) => ({ at: e.at, hash: e.hash, kind: e.kind, ...(store.get(tenant, e.hash)?.content !== undefined ? { content: store.get(tenant, e.hash)!.content! } : {}) })) };
+  const name = w.ada.did.split(":").pop()!;
+  const own = await sponsorJourney(src, name, [w.ada.did], T);
+  const c = (own.body as any).cognition as { items: { category: string; text: string | null; step: number }[]; counts: Record<string, number> };
+  assert.deepEqual(c.items.map((i) => i.category), ["goals", "reasoning", "plans", "memory"], "in the order they happened");
+  assert.match(c.items[0]!.text!, /Tidy the failing tests/);
+  assert.match(c.items[1]!.text!, /outside the Mandate/);
+  assert.equal(c.items[3]!.text, null, "a private tenant's item keeps the hash and no text");
+  assert.deepEqual(c.counts, { goals: 1, reasoning: 1, plans: 1, memory: 1 });
+  assert.ok(!JSON.stringify(own.body).includes("BOB'S TASK"), "another agent's items stay out");
+  // the page
+  const page = renderJourneyHtml((await buildJourney(src, name, "sponsor", T))!);
+  assert.match(page, /What it was asked, thought and planned/);
+  assert.match(page, /<caption>Items by category<\/caption>/, "a table with the figures");
+  assert.ok(page.indexOf("Tidy the failing tests") < page.indexOf("outside the Mandate"), "the page keeps the order");
+  // never public, never to a stranger, never without a tenant
+  const pub = await buildJourney(src, name, "public", T);
+  assert.equal(pub!.cognition, undefined);
+  assert.ok(!renderJourneyHtml(pub!).includes("Tidy the failing tests"));
+  assert.ok(!JSON.stringify(await sponsorJourney(src, name, [w.bob.did, w.s2.did], "tenant-two")).includes("Tidy the failing tests"));
+  assert.equal((await buildJourney(src, name, "sponsor"))!.cognition, undefined, "no tenant, no cognition");
+  // reasoning, goals and trajectory text are no longer listed as missing; beliefs still are
+  const gaps = ((own.body as any).not_yet as { what: string }[]).map((n) => n.what);
+  assert.ok(!gaps.includes("the agent's reasoning") && !gaps.includes("its trajectory text"));
+  assert.ok(gaps.includes("the agent's beliefs"));
 });
