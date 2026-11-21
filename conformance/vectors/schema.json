@@ -15743,6 +15743,202 @@
       "valid": true
     },
     {
+      "name": "valid_town_proposal",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "value": 2,
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_town_proposal_thread",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "value": {
+          "hours": 2
+        },
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "thread": "thread-42"
+      },
+      "valid": true
+    },
+    {
+      "name": "town_proposal_no_value",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "town_proposal_unknown_kind",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "coup",
+        "key": "academy.study_hours",
+        "value": 2,
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "town_proposal_bad_time",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "value": 2,
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "soon"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_town_vote",
+      "schema": "town_vote",
+      "instance": {
+        "proposal": "rec-1",
+        "choice": "yes"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_town_vote_abstain",
+      "schema": "town_vote",
+      "instance": {
+        "proposal": "rec-1",
+        "choice": "abstain"
+      },
+      "valid": true
+    },
+    {
+      "name": "town_vote_bad_choice",
+      "schema": "town_vote",
+      "instance": {
+        "proposal": "rec-1",
+        "choice": "maybe"
+      },
+      "valid": false
+    },
+    {
+      "name": "town_vote_secret_field",
+      "schema": "town_vote",
+      "instance": {
+        "proposal": "rec-1",
+        "choice": "yes",
+        "secret": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_town_tally",
+      "schema": "town_tally",
+      "instance": {
+        "proposal": "rec-1",
+        "yes_milli": 6000,
+        "no_milli": 2000,
+        "abstain_milli": 0,
+        "counted": 8,
+        "controllers": 8,
+        "quorum_met": true,
+        "passed": true
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_town_tally_failed",
+      "schema": "town_tally",
+      "instance": {
+        "proposal": "rec-1",
+        "yes_milli": 6000,
+        "no_milli": 2000,
+        "abstain_milli": 0,
+        "counted": 8,
+        "controllers": 8,
+        "quorum_met": false,
+        "passed": false
+      },
+      "valid": true
+    },
+    {
+      "name": "town_tally_negative_weight",
+      "schema": "town_tally",
+      "instance": {
+        "proposal": "rec-1",
+        "yes_milli": -1,
+        "no_milli": 2000,
+        "abstain_milli": 0,
+        "counted": 8,
+        "controllers": 8,
+        "quorum_met": true,
+        "passed": true
+      },
+      "valid": false
+    },
+    {
+      "name": "town_tally_no_quorum_field",
+      "schema": "town_tally",
+      "instance": {
+        "proposal": "rec-1",
+        "yes_milli": 6000,
+        "no_milli": 2000,
+        "abstain_milli": 0,
+        "counted": 8,
+        "controllers": 8,
+        "passed": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_town_enactment",
+      "schema": "town_enactment",
+      "instance": {
+        "proposal": "rec-1",
+        "tally": "rec-2",
+        "key": "academy.study_hours",
+        "value": 2
+      },
+      "valid": true
+    },
+    {
+      "name": "town_enactment_no_tally",
+      "schema": "town_enactment",
+      "instance": {
+        "proposal": "rec-1",
+        "key": "academy.study_hours",
+        "value": 2
+      },
+      "valid": false
+    },
+    {
+      "name": "town_enactment_extra",
+      "schema": "town_enactment",
+      "instance": {
+        "proposal": "rec-1",
+        "tally": "rec-2",
+        "key": "k",
+        "value": 2,
+        "force": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_key_handover",
       "schema": "key_handover",
       "instance": {

@@ -1545,6 +1545,25 @@ const worldRules = [
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
+  // ---------- the Town Hall (spec-deltas S1428): schema cases ----------
+  const tpBody = (over: Record<string, unknown> = {}) => ({ title: "Add a study hour to the Academy", kind: "policy", key: "academy.study_hours", value: 2, opens_at: "2026-12-01T00:00:00Z", closes_at: "2026-12-08T00:00:00Z", ...over });
+  sv("valid_town_proposal", "town_proposal", tpBody(), true);
+  sv("valid_town_proposal_thread", "town_proposal", tpBody({ thread: "thread-42", value: { hours: 2 } }), true);
+  sv("town_proposal_no_value", "town_proposal", (({ value: _v, ...r }) => r)(tpBody()), false);
+  sv("town_proposal_unknown_kind", "town_proposal", tpBody({ kind: "coup" }), false);
+  sv("town_proposal_bad_time", "town_proposal", tpBody({ closes_at: "soon" }), false);
+  sv("valid_town_vote", "town_vote", { proposal: "rec-1", choice: "yes" }, true);
+  sv("valid_town_vote_abstain", "town_vote", { proposal: "rec-1", choice: "abstain" }, true);
+  sv("town_vote_bad_choice", "town_vote", { proposal: "rec-1", choice: "maybe" }, false);
+  sv("town_vote_secret_field", "town_vote", { proposal: "rec-1", choice: "yes", secret: true }, false);
+  const ttBody = (over: Record<string, unknown> = {}) => ({ proposal: "rec-1", yes_milli: 6000, no_milli: 2000, abstain_milli: 0, counted: 8, controllers: 8, quorum_met: true, passed: true, ...over });
+  sv("valid_town_tally", "town_tally", ttBody(), true);
+  sv("valid_town_tally_failed", "town_tally", ttBody({ passed: false, quorum_met: false }), true);
+  sv("town_tally_negative_weight", "town_tally", ttBody({ yes_milli: -1 }), false);
+  sv("town_tally_no_quorum_field", "town_tally", (({ quorum_met: _q, ...r }) => r)(ttBody()), false);
+  sv("valid_town_enactment", "town_enactment", { proposal: "rec-1", tally: "rec-2", key: "academy.study_hours", value: 2 }, true);
+  sv("town_enactment_no_tally", "town_enactment", { proposal: "rec-1", key: "academy.study_hours", value: 2 }, false);
+  sv("town_enactment_extra", "town_enactment", { proposal: "rec-1", tally: "rec-2", key: "k", value: 2, force: true }, false);
   sv("valid_key_handover", "key_handover", hoBody(), true);
   sv("valid_key_handover_reason", "key_handover", hoBody({ reason: "compromise_suspected" }), true);
   sv("key_handover_no_new", "key_handover", (({ new: _n, ...r }) => r)(hoBody()), false);

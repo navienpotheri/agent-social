@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 70 (347.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 69 (337.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 113 |
 | After launch | 327 |
-| Total not closed | 510 |
+| Total not closed | 509 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -81,7 +81,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1711 | A | partial | 8 | L | - | trust per model and version: a silent swap is detected and the tier held until a re-exam; a per-model table in the Registry |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1712 | A | partial | 10 | L | - | drift detection that runs by itself, with unannounced audits and a stated false-flag rate |
-| DK1721 | A | open | 10 | L | - | voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | partial | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
@@ -114,7 +113,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | partial | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
-| DK1720 | A | open | 12 | L | D | the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved |
+| DK1720 | A | partial | 12 | L | D | the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved |
 | DK1370 | ? | partial | 20 | L | D | selling prepaid platform credits: the design, two ledger classes, billing and the claims rewrite; the first sale waits for the owner's go and the legal review |
 
 ### Bucket 2: withdraw the claim until done
