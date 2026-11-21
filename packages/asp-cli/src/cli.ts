@@ -211,7 +211,7 @@
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
  *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
- *   asp my-data [--agent <did>] [--acknowledge] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
+ *   asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -376,7 +376,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
-import { JOB_DATA_TERM, dataHandlingProblem } from "@agent-social/asp-core";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -1190,7 +1190,17 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
-    if (cmd === "my-data") return myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now });
+    if (cmd === "my-data") {
+      const by = v.by;
+      const sign = v.acknowledge && by ? async (sha: string, agent?: string) => {
+        const signer = new Keystore(home).forDid(by);
+        if (!signer) throw new UsageError(`no key for ${by} here: only its holder can sign (asp my-data --acknowledge --by <your did>)`);
+        const handle = await openLog(home, logEnv);
+        const rec = createRecord({ type: "notice_ack", issuer: by, subject: agent ?? null, prev: null, body: { notice: "asp.my-data/v1", statement_sha256: sha, ...(agent ? { agent } : {}) }, issued_at: now() } as never, signer);
+        return (await handle.append(rec as never)).id;
+      } : undefined;
+      return await myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now, ...(sign ? { sign } : {}) });
+    }
     if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "budget") return await budgetCommand(home, sub, v, io);
     if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
@@ -3717,12 +3727,17 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(gate ? { gate } : {}),
     // Private memory (DK272, D12): the scopes this run may use, sealed to the principal and this agent; the key is opened here, in the gateway, for the length of the run and never reaches the agent or the log.
     mcp: { asp: { memoryDir: memDir, ...(() => {
-      if (!v["private-scopes"]) return {};
+      // The Mandate names the scopes (learning.private_scopes, S1593); --private-scopes may only narrow that list, and names scopes alone when the Mandate has none (the flag of the first build).
+      const fromMandate = ((mandate0 as { learning?: { private_scopes?: string[] } } | undefined)?.learning?.private_scopes) ?? [];
+      const flagged = v["private-scopes"] ? v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      const wanted = flagged.length ? (fromMandate.length ? flagged.filter((x) => fromMandate.includes(x)) : flagged) : fromMandate;
+      if (flagged.length && fromMandate.length && wanted.length < flagged.length) io.err(`  memory   a private scope the Mandate does not list was left out: ${flagged.filter((x) => !fromMandate.includes(x)).join(", ")}`);
+      if (!wanted.length) return {};
       if (!pkgDir) throw new UsageError("--private-scopes needs the agent's package (--package <dir>): the sealed scopes live in it");
       const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string } }; } catch { return undefined; } })();
       const principal = v.principal ?? cfg?.identities?.me;
       if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
-      const scopes = v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean);
+      const scopes = wanted;
       const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
       ensureAgentMemoryKey(pkgDir, pk.publicKey);
       const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
@@ -6142,7 +6157,13 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       },
       subcontract: { allowed: false },
       nodes: { max_parallel: Math.max(1, Math.trunc(Number(v["node-max-parallel"] ?? "1")) || 1) },
-      learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
+      learning: (() => {
+        // Private memory scopes of the run (D12, DK272; spec-delta S1593): the names the agent may open through the gateway's private-memory tools.
+        const names = v["private-scopes"] ? String(v["private-scopes"]).split(",").map((x) => x.trim()).filter(Boolean) : [];
+        const bad = names.length ? privateScopesProblem(names) : null;
+        if (bad) throw new UsageError(`--private-scopes: ${typeof bad === "string" ? bad : (bad as { message?: string }).message ?? "invalid"}`);
+        return { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false, ...(names.length ? { private_scopes: names } : {}) };
+      })(),
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).

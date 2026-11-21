@@ -209,8 +209,8 @@ JOBS AND CREDITS (THE MARKET)
       Let the sessions held by asp pause continue
   asp market contract ... [--commons-sharing] [--retain-days &lt;n&gt;] [--personal-data none|included]
       Every new contract carries the job-data term (JO3): the poster's data is shared for the job only and the performer deletes its copies when the job settles; the flags allow the commons, a retention of 1 to 365 days after settlement, or declare personal data of other people. The term is written explicitly and said in words
-  asp my-data [--agent &lt;did&gt;] [--acknowledge] [--json]
-      Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read
+  asp my-data [--agent &lt;did&gt;] [--acknowledge [--by &lt;did&gt;]] [--json]
+      Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read, and with --by &lt;your did&gt; signs it into the log as a notice_ack record
   asp credits guard [--json]
       The monetary guard measures (credits.md 5.6): issuance rate, starter pool use, hoarding, the Treasury share and an audit mismatch, each with its threshold and the action the specification names; the measures the log cannot compute yet are listed with the reason. Exit 1 when a measure is over its threshold. It only reads: acting on a trigger is the operator's decision
   asp history &lt;agent did&gt; [--json] [--sign --by &lt;did&gt; [--out &lt;file&gt;]] | --verify &lt;file&gt;

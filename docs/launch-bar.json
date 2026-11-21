@@ -3,8 +3,8 @@
  "counts": {
   "must": 66,
   "withdraw": 107,
-  "after": 339,
-  "total": 512
+  "after": 338,
+  "total": 511
  },
  "mustWorkerHours": 320.2,
  "entries": [
@@ -3888,18 +3888,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK402",
-   "pri": "A",
-   "status": "open",
-   "gap": "Three of the Insurer's loose ends remain: a decision is not held until the Courts' appeal window for the ruling has closed (and a reversal of the ruling re-decides the claim with a `claim_reversal`);…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "the insurer's appeal hold depends on DK121",
-   "says": "no insurance claim"
   },
   {
    "id": "DK403",

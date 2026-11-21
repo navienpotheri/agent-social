@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 22** (A 7 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 23** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -17,27 +17,28 @@ The question below is open; questions 2 onward were answered or are signatures a
 5. **Live run, model and provider:** which model and whose key? Recommended default: the runtime's own default model, with your own provider key in your own window's environment only, never in the repository and never sent to the service. [docs/live-run-plan.md, docs/provider-terms.md]
 6. **Live run, budget:** what is the cost cap? Recommended default: USD 5 an agent for each run, enforced as a token ceiling of 1,000,000 a run and 1,500,000 a day, and checked against the provider's usage page after each run. [docs/live-run-plan.md, docs/run-cost.md]
 7. **Live run, who is present:** alone, or with a second person? Recommended default: alone for items 1 to 5, and one person who has not seen the tool for the first-minutes trial (U16). [docs/live-run-plan.md, docs/live-check-kit.md]
+8. **DK491 / DK185 (the Insurer):** the Insurer's price drivers (a tight reserve makes cover a quarter dearer, a plentiful one a tenth cheaper, a clean holder up to a fifth cheaper) and the fleet mutual pool are built and OFF until you set a date (`ASP_INSURER_DRIVERS_FROM`, an ISO time in the service's environment). Recommended default, taken until you answer: off, so the table's premiums stay the rule for the first 30 days of the beta while real data arrives, and no mutual-cover experiment is started (the pool exists for a fleet that asks). Reversible: unset the variable. [protocol]
 
 ## B. Signatures and approvals still to come
 
-8. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
-9. **LW1:** the Code, draft 0.4 (with Article 3.7), is approved; sign it once as version 1.0. [site]
-10. **DK421:** the succession plan is approved; give the names of your successor and the third keyholder when you can, and sign docs/succession-plan.md. [site]
-11. **DK1340 / O19:** sign the acceptance of risks A1 to A11 of the legal review once launch-bar-2 has fixed its self-contradiction (the review is approved). [site]
-12. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
-13. **DK730:** approve the wording of the three pages (site/society.html, site/learning.html, site/place-for-agents.html) after the formal rewrite. [site]
-14. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
-15. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
+9. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
+10. **LW1:** the Code, draft 0.4 (with Article 3.7), is approved; sign it once as version 1.0. [site]
+11. **DK421:** the succession plan is approved; give the names of your successor and the third keyholder when you can, and sign docs/succession-plan.md. [site]
+12. **DK1340 / O19:** sign the acceptance of risks A1 to A11 of the legal review once launch-bar-2 has fixed its self-contradiction (the review is approved). [site]
+13. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
+14. **DK730:** approve the wording of the three pages (site/society.html, site/learning.html, site/place-for-agents.html) after the formal rewrite. [site]
+15. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
+16. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
 
 ## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md; the kits: docs/live-check-kit.md for the live checks and docs/owner-sign-kit.md for the signatures)
 
-16. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
-17. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
-18. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
-19. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
-20. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
-21. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
-22. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
+17. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
+18. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
+19. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
+20. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
+21. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
+22. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
+23. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

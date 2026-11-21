@@ -35,7 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
-import { dataHandlingProblem, noticeAckProblem, type DataHandling } from "@agent-social/asp-core";
+import { dataHandlingProblem, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -1499,7 +1499,8 @@ export class EventLog {
   /** Tracks a contract's current Mandate scopes, so a later Action report can be checked against it. */
   /** Approval gates: every scope the Mandate gates (or forbids) must be one it actually grants. */
   private checkMandateGates(r: AspRecord): void {
-    const body = r.body as { scopes: string[]; irreversible?: { scopes?: string[] } };
+    const body = r.body as { scopes: string[]; irreversible?: { scopes?: string[] }; learning?: { private_scopes?: unknown } };
+    if (privateScopesProblem(body.learning?.private_scopes)) throw rule("private_scopes_invalid", "learning.private_scopes is at most 16 distinct names of 1 to 64 characters from a-z 0-9 - _");
     const stray = (body.irreversible?.scopes ?? []).filter((s) => !body.scopes.includes(s));
     if (stray.length) throw rule("gate_not_granted", `irreversible.scopes names scope(s) the Mandate does not grant: ${stray.join(", ")}`);
   }

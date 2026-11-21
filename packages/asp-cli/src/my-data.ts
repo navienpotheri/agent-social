@@ -36,9 +36,9 @@ export function myDataStatement(o: { agent?: string }): string[] {
 
 const hashOf = (lines: string[]) => createHash("sha256").update(lines.join("\n")).digest("hex");
 
-export interface MyDataOptions { home: string; flags: { agent?: string; acknowledge?: boolean; json?: boolean }; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string }
+export interface MyDataOptions { /** Signs and appends the acknowledgement as a `notice_ack` record (spec-delta S1591) and returns its id; absent when no identity is named. */ sign?: (statementSha256: string, agent?: string) => Promise<string>; home: string; flags: { agent?: string; acknowledge?: boolean; json?: boolean }; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string }
 
-export function myDataCmd(o: MyDataOptions): number {
+export async function myDataCmd(o: MyDataOptions): Promise<number> {
   const statement = myDataStatement({ ...(o.flags.agent ? { agent: o.flags.agent } : {}) });
   const file = join(o.home, "data-consent.json");
   const sha = hashOf(statement);
@@ -54,6 +54,8 @@ export function myDataCmd(o: MyDataOptions): number {
     writeFileSync(part, JSON.stringify(rec, null, 2) + "\n");
     renameSync(part, file);
     o.io.out(`Recorded on this machine: you read this statement on ${rec.acknowledged_at} (sha256 ${sha.slice(0, 12)}...).`);
+    if (o.sign) { const id = await o.sign(sha, o.flags.agent); o.io.out(`Signed into the log as the record ${id}: the service and a Court can check which statement you read, and when.`); }
+    else o.io.out("Not signed into the log: name your identity with --by <your did> to sign it (the notice acknowledgement, spec-delta S1591).");
   } else if (prior) {
     o.io.out(prior.statement_sha256 === sha ? `You acknowledged this statement on ${prior.acknowledged_at}.` : `You acknowledged an earlier statement on ${prior.acknowledged_at}; the statement has changed since. Read it again and run asp my-data --acknowledge.`);
   } else {
