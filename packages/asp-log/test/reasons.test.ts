@@ -1,14 +1,15 @@
 /**
  * The reasons for what was done to an agent (register row AG3): a strike, a slash, a Clinic diagnosis and a quarantine each come with what happened, the rule, the records it rests on and what to do next; free text is only in
- * the sponsor view; every act says there is no recorded route to contest it yet; an agent with none has none; and the journey carries them. Synthetic records; fake keys only.
+ * the sponsor view; every act says how it can be contested and where a contest of it stands; an agent with none has none; and the journey carries them. Synthetic records; fake keys only.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AspRecord } from "@agent-social/asp-core";
-import { NO_CONTEST_ROUTE, journeyOf, reasonsFor } from "../src/index.ts";
+import { CONTEST_HOW, journeyOf, reasonsFor } from "../src/index.ts";
 
 let n = 0;
 const R = (type: string, issuer: string, body: Record<string, unknown>, at: string): AspRecord => ({ type: `asp.${type}/v0.2`, id: `sha256:${String(++n).padStart(64, "0")}`, issuer, actor: issuer, subject: null, body, prev: null, issued_at: at, sig: {} as never });
+const at = (d: number, h = 10) => `2026-11-${String(d).padStart(2, "0")}T${String(h).padStart(2, "0")}:00:00Z`;
 const AG = "did:web:example.com:agents:why-a", OTHER = "did:web:example.com:agents:why-b", P = "did:web:example.com:users:why-p";
 const recs: AspRecord[] = [];
 const pass = R("passport", P, { did: AG, kind: "agent", sponsor: P, keys: [], shape: {} }, "2026-11-01T00:00:00Z");
@@ -37,12 +38,26 @@ test("AG3: each adverse act comes with what happened, the rule, the records it r
   assert.deepEqual(reasonsFor(recs, "did:web:example.com:agents:nobody"), []);
 });
 
-test("AG3: free text a Clinic wrote is only in the sponsor view; every act says plainly that no contest route is recorded", () => {
+test("AG3: free text a Clinic wrote is only in the sponsor view; every act says how it can be contested, and a contest shows where it stands", () => {
   const pub = JSON.stringify(reasonsFor(recs, AG, "public")), spon = JSON.stringify(reasonsFor(recs, AG, "sponsor"));
   assert.ok(!pub.includes("private reason") && !pub.includes("private note"));
   assert.ok(spon.includes("private reason") && spon.includes("private note"));
-  for (const x of reasonsFor(recs, AG)) assert.deepEqual(x.contest, { built: false, note: NO_CONTEST_ROUTE });
-  assert.match(NO_CONTEST_ROUTE, /no recorded route to contest/);
+  for (const x of reasonsFor(recs, AG)) assert.deepEqual(x.contest, { built: true, how: CONTEST_HOW });
+  assert.match(CONTEST_HOW, /operator answers within 48 hours.*the Courts decide within a further 72 hours/);
+  // A contest of the quarantine: open, then answered upheld, then at the Courts, then ruled.
+  const q = recs.find((r) => r.type === "asp.quarantine/v0.2")!;
+  const contest = R("court_act", AG, { act: "contest", subject: q.id, statement: "x" }, at(8));
+  const status = () => reasonsFor([...recs, ...more], AG).find((x) => x.kind === "quarantine")!.contest.status;
+  const more: AspRecord[] = [contest];
+  assert.deepEqual([status()!.state, status()!.operatorDueAt, status()!.courtsDueAt], ["open", "2026-11-10T10:00:00Z", null]);
+  more.push(R("court_act", "did:web:asp.local:operator", { act: "contest_answer", contest: contest.id, answer: "upheld", reasons: ["x"] }, at(9)));
+  assert.equal(status()!.state, "upheld");
+  const cs = R("court_act", AG, { act: "contest_case", contest: contest.id }, at(9, 12));
+  more.push(cs);
+  assert.deepEqual([status()!.state, status()!.courtsDueAt], ["in_courts", "2026-11-12T12:00:00Z"]);
+  more.push(R("court_act", "did:web:example.com:users:juror", { act: "contest_ruling", case: cs.id, decision: "reversed", reasons: ["x"] }, at(10)));
+  assert.equal(status()!.state, "reversed");
+  assert.equal(reasonsFor([...recs, ...more], AG).find((x) => x.kind === "slash")!.contest.status, undefined, "another act has no contest");
 });
 
 test("AG3: the journey carries the reasons, in both views, and its text lists them", async () => {
@@ -53,12 +68,13 @@ test("AG3: the journey carries the reasons, in both views, and its text lists th
   const text = renderJourneyText(j).join("\n");
   assert.match(text, /why these things happened \(the rule, the evidence, what to do next\)/);
   assert.match(text, /\[slash\] Your bond was slashed 5 credit\(s\)/);
-  assert.match(text, /no recorded route to contest/);
+  assert.match(text, /contest: The agent or its sponsor can contest this: the operator answers within 48 hours/);
   const { renderJourneyHtml } = await import("../../asp-package/src/journey-pages.ts");
   const page = renderJourneyHtml(j);
   assert.match(page, /Why these things happened/);
   assert.match(page, /Rule: A call whose scope is not in the Mandate/);
-  assert.match(page, /No route to contest an act is recorded yet/);
+  assert.match(page, /how to contest it/);
+  assert.match(page, /the operator answers within 48 hours/);
   const none = journeyOf({ stored: [pass].map((r, i) => ({ seq: i + 1, id: r.id, record: r })) as never, now: "2026-11-10T00:00:00Z" } as never, AG, "public")!;
   assert.deepEqual(none.reasons, []);
 });

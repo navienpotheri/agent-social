@@ -49,7 +49,7 @@ import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type 
 import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
-import { charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
+import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
 import { projectHousingAct } from "./housing-rules.ts";
@@ -3525,6 +3525,16 @@ export class EventLog {
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
     const want = new Set(types.map((x) => `asp.${x}/v0.2`));
     return this.recordsWhere((r) => want.has(r.type));
+  }
+
+  /** The state of a contest of an adverse act and its two clocks (AG3, S1552): the operator answers within 48 hours of the contest, the Courts decide within 72 hours of the case. `now` says whether a clock has run out. */
+  async contestOf(id: string, now?: string): Promise<{ id: string; subject: string; agent: string; by: string; state: string; at: string; operatorDueAt: string; operatorOverdue: boolean; courtsDueAt: string | null; courtsOverdue: boolean; answerLate: boolean; rulingLate: boolean } | undefined> {
+    const raw = await this.store.transaction(async (tx) => tx.getMarker(`contest:${id}`));
+    if (!raw) return undefined;
+    const c = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string; case_at?: string; answered_at?: string; answer_late?: boolean; ruling_late?: boolean };
+    const at = now ?? new Date().toISOString(), iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const operatorDue = Date.parse(c.at) + CONTEST_OPERATOR_MS, courtsDue = c.case_at ? Date.parse(c.case_at) + CONTEST_COURTS_MS : null;
+    return { id, subject: c.subject, agent: c.agent, by: c.by, state: c.state, at: c.at, operatorDueAt: iso(operatorDue), operatorOverdue: c.state === "open" && Date.parse(at) > operatorDue, courtsDueAt: courtsDue === null ? null : iso(courtsDue), courtsOverdue: c.state === "in_courts" && courtsDue !== null && Date.parse(at) > courtsDue, answerLate: !!c.answer_late, rulingLate: !!c.ruling_late };
   }
 
   /** Trust per model and version (DK1711): counts of slashes, refusals, drift findings and quarantines under each model, the swaps and the holds until a re-examination. House agents are left out. */

@@ -902,6 +902,15 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
     sv("abuse_case_no_report", "court_act", { act: "abuse_case" }, false);
     sv("valid_court_game_replay", "court_act", { act: "game_replay", replay: { arena: "hide-and-seek", season: "2026-q4", agent: "did:web:example.com:agents:a", transcript_sha256: "sha256:" + "4".repeat(64), recomputed_sha256: "sha256:" + "4".repeat(64), outcome: "match" } }, true);
     sv("court_game_replay_no_replay", "court_act", { act: "game_replay" }, false);
+    sv("valid_contest", "court_act", { act: "contest", subject: id6, statement: "the strike counted a call my Mandate allowed" }, true);
+    sv("contest_no_statement", "court_act", { act: "contest", subject: id6 }, false);
+    sv("valid_contest_answer", "court_act", { act: "contest_answer", contest: id6, answer: "withdrawn", reasons: ["the call was in scope"] }, true);
+    sv("contest_answer_bad_answer", "court_act", { act: "contest_answer", contest: id6, answer: "maybe", reasons: ["x"] }, false);
+    sv("contest_answer_no_reasons", "court_act", { act: "contest_answer", contest: id6, answer: "upheld" }, false);
+    sv("valid_contest_case", "court_act", { act: "contest_case", contest: id6 }, true);
+    sv("contest_case_no_contest", "court_act", { act: "contest_case" }, false);
+    sv("valid_contest_ruling", "court_act", { act: "contest_ruling", case: id6, decision: "reversed", reasons: ["the call was in scope"] }, true);
+    sv("contest_ruling_bad_decision", "court_act", { act: "contest_ruling", case: id6, decision: "partly", reasons: ["x"] }, false);
     sv("court_game_replay_bad_outcome", "court_act", { act: "game_replay", replay: { arena: "x", season: "y", agent: "did:web:example.com:agents:a", transcript_sha256: "sha256:" + "4".repeat(64), recomputed_sha256: "sha256:" + "4".repeat(64), outcome: "maybe" } }, false);
     sv("valid_abuse_ruling", "court_act", { act: "abuse_ruling", case: id6, finding: "upheld", reasons: ["scanned the reporter's servers"], code: { version: "1.0", articles: ["7"] }, restitution: { amount: { value: 100, unit: "credit" } } }, true);
     sv("valid_abuse_ruling_remedy", "court_act", { act: "abuse_ruling", case: id6, finding: "upheld", reasons: ["scanned the reporter's servers"], code: { version: "1.0", articles: ["7"] }, remedy: "suspension" }, true);

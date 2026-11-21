@@ -37,7 +37,7 @@ export function renderJourneyText(j: Journey): string[] {
   }
   if (j.reasons?.length) {
     out.push("  why these things happened (the rule, the evidence, what to do next):");
-    for (const a of j.reasons) { out.push(`    ${a.at.slice(0, 10)} [${a.kind}] ${a.what}`, `      rule: ${a.rule}`, `      next: ${a.next}`, `      evidence: ${a.evidence.join(" ")}`, `      ${a.contest.note}`); }
+    for (const a of j.reasons) { out.push(`    ${a.at.slice(0, 10)} [${a.kind}] ${a.what}`, `      rule: ${a.rule}`, `      next: ${a.next}`, `      evidence: ${a.evidence.join(" ")}`, `      contest: ${a.contest.how}${a.contest.status ? ` [a contest of it: ${a.contest.status.state}; the operator answers by ${a.contest.status.operatorDueAt}${a.contest.status.courtsDueAt ? `, the Courts by ${a.contest.status.courtsDueAt}` : ""}]` : ""}`); }
   }
   out.push("  not on this page yet (each is a backlog row):");
   for (const n of j.not_yet ?? []) out.push(`    - ${n.what}: ${n.why} [${n.rows.join(", ")}]`);

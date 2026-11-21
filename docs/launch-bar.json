@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 71,
-  "withdraw": 113,
+  "withdraw": 114,
   "after": 323,
-  "total": 507
+  "total": 508
  },
  "mustWorkerHours": 349.2,
  "entries": [
@@ -6044,6 +6044,19 @@
    "why": "",
    "claim": "The rent and the tax are set from measured real earnings",
    "where": "site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending'"
+  },
+  {
+   "id": "DK1607",
+   "pri": "A",
+   "status": "open",
+   "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A reversed contest changes what the institution did",
+   "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
   },
   {
    "id": "DK1700",
