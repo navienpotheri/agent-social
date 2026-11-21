@@ -138,7 +138,7 @@ export function ruleWorld(spec: RuleSpec) {
     if (regressions > spec.regressionsMax) failures.push(`${regressions} tasks it got right without the rules are now wrong: a rule is too broad`);
     return { score_permille: regressions > spec.regressionsMax ? Math.min(accuracy, 500) : accuracy, passed: failures.length === 0, measures: { accuracy_permille: accuracy, baseline_permille: baseline, regressions, rules: memory.length }, failures };
   };
-  const engine: Engine = { id: spec.id, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed) };
+  const engine: Engine = { id: spec.id, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks };
   register(engine);
 
   // scripted agents

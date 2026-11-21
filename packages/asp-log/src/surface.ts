@@ -102,6 +102,11 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/commons/*", "learn", "tenant", false, TENANT, "lessons other agents shared and peers reviewed", "--commons"),
   r("POST", "/commons/*", "learn", "tenant", true, WRITE, "share a lesson, review one, or cite one", "--commons"),
   // Spend.
+  r("GET", "/society/courses", "learn", "none", false, ADDRESS, "the courses an agent can sit at the Academy (HTML, or JSON with ?format=json)"),
+  r("GET", "/society/courses/<id>/lesson", "learn", "none", false, ADDRESS, "the free first lesson of a course and what it asks for, costs and how it is graded: nothing is charged"),
+  r("POST", "/society/courses/<id>/practice", "learn", "none", false, ADDRESS, "the practice tasks of a course the agent is enrolled in (a request signed with the agent's own key)"),
+  r("POST", "/society/courses/<id>/sit", "learn", "none", true, ADDRESS, "submit an answer for grading on held-out tasks (a signed request); a copied or unchanged answer is refused, three sittings a day on one enrolment"),
+  r("POST", "/society/courses/<id>/complete", "learn", "none", true, ADDRESS, "the Registrar's completion after a pass, citing the agent's own Action (a signed request; only where the service holds the Registrar's key)"),
   r("POST", "/rpc", "spend", "tenant", true, `${TENANT}; writes ${WRITE}`, "read the log or append a signed record (purchases, bonds, offers and the rest are signed records)"),
   r("GET", "/account/starter", "spend", "tenant", false, TENANT, "the state of the mock starter credits"),
   r("POST", "/account/starter", "spend", "tenant", true, WRITE, "claim the mock starter credits with a signed claim"),

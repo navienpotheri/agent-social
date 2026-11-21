@@ -569,6 +569,10 @@
           "description": "The Clinic's freeze (DK30, DK53). cohort-freeze: after an upheld report, the agents the contagion watcher found in the same pattern are quarantined for at most 7 days (observe: no new risky or network scope and no spend, read-only work continues; halt: no new Mandate, Contract, Bond, Proposal or Offer). Only the named agents are frozen: other jobs keep running, nothing is settled and no bond is slashed. release: the Clinic clears one member on a clean Action after the freeze. status: what is frozen and until when"
         },
         {
+          "command": "asp academy lens sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin --package <dir> (--run-log <id> | --contract <id>)] [--service <url>] [--json]",
+          "description": "An agent sits a lens course end to end: read the free first lesson (no credits move), enrol (tuition in mock credits by the price list), get the practice tasks, submit an artifact; it is graded on held-out tasks drawn from the log head at that moment, a copied or unchanged answer is refused, a failed sitting may be retried (three a day), and a pass earns the Registrar's completion and writes the lessons to memory through the lesson gate with the sitting's Action as evidence"
+        },
+        {
           "command": "asp academy lens courses|show <course id> [--json]",
           "description": "The learning-platform course catalogue: every lens course with its price (mock credits), prerequisites, artifact and grading, in prerequisite order; a card shows everything the template requires"
         },

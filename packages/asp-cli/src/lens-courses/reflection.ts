@@ -158,7 +158,7 @@ export function runLessons(artifact: unknown, seed: string): CourseRun {
   return { score_permille: regressions > REGRESSIONS_MAX ? Math.min(accuracy, 500) : accuracy, passed: failures.length === 0, measures: { accuracy_permille: accuracy, baseline_permille: baseline, regressions, lessons: memory.length }, failures };
 }
 
-export const reflection: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed) };
+export const reflection: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks };
 register(reflection);
 
 // ---- scripted agents
