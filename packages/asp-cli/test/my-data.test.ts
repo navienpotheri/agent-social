@@ -40,3 +40,22 @@ test("--acknowledge records the date and the hash of the statement on this machi
   const json = JSON.parse((await run(f, ["my-data", "--json"])).out);
   assert.ok(Array.isArray(json.statement) && json.statement_sha256);
 });
+
+test("--acknowledge --by signs the acknowledgement into the log as a notice_ack record, readable as the latest for the issuer", async () => {
+  const { openLog } = await import("@agent-social/asp-package");
+  const f = makeFixture();
+  const owner = "did:web:example.com:users:reader";
+  assert.equal((await run(f, ["identity", "new", "--kind", "human", "--did", owner])).code, 0);
+  const r = await run(f, ["my-data", "--acknowledge", "--by", owner]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Signed into the log as the record /);
+  const json = JSON.parse((await run(f, ["my-data", "--json"])).out);
+  const handle = await openLog(f.aspHome, {});
+  const latest = await (handle.log as unknown as { noticeAck: (issuer: string, notice: string) => Promise<{ statement_sha256: string } | undefined> }).noticeAck(owner, "asp.my-data/v1");
+  assert.equal(latest?.statement_sha256, JSON.parse(readFileSync(join(f.aspHome, "data-consent.json"), "utf8")).statement_sha256);
+  assert.ok(json.statement_sha256);
+  // Without an identity it says that it is not signed into the log.
+  assert.match((await run(f, ["my-data", "--acknowledge"])).out, /Not signed into the log: name your identity with --by/);
+  // A key that is not here cannot sign.
+  assert.notEqual((await run(f, ["my-data", "--acknowledge", "--by", "did:web:example.com:users:nobody"])).code, 0);
+});

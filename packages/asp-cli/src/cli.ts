@@ -211,7 +211,7 @@
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
  *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
- *   asp my-data [--agent <did>] [--acknowledge] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
+ *   asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -1188,7 +1188,17 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
-    if (cmd === "my-data") return myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now });
+    if (cmd === "my-data") {
+      const by = v.by;
+      const sign = v.acknowledge && by ? async (sha: string, agent?: string) => {
+        const signer = new Keystore(home).forDid(by);
+        if (!signer) throw new UsageError(`no key for ${by} here: only its holder can sign (asp my-data --acknowledge --by <your did>)`);
+        const handle = await openLog(home, logEnv);
+        const rec = createRecord({ type: "notice_ack", issuer: by, subject: agent ?? null, prev: null, body: { notice: "asp.my-data/v1", statement_sha256: sha, ...(agent ? { agent } : {}) }, issued_at: now() } as never, signer);
+        return (await handle.append(rec as never)).id;
+      } : undefined;
+      return await myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now, ...(sign ? { sign } : {}) });
+    }
     if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "budget") return await budgetCommand(home, sub, v, io);
     if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
