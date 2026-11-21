@@ -91,3 +91,11 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum 067bc3cc..HEAD (round 8: DK1470, DK1471, DK1355, DK1356 closed; DK1370, DK1379, DK1472, DK1473 partial; DK1601 added: the three approved pages need more work before launch). Gate on 067bc3cc: core 878, log 868, package 435, cli 921 (920 pass, 1 skipped), python 1017. Round 8: typecheck clean, 58 doc/journey tests green; full gate follows.
 
 - 2026-11-21: round 8 full gate on 25a79e39 found two stale assertions (join.test.ts, starter-signed.test.ts) still on the pre-DK1470 starter wording; fixed to the per-identity wording, both pass; core 879, log 871, package 440, cli 921 of 924 before the fix, python 1018. Pushed.
+
+- 2026-11-21: pushed claude/open-forum e81b0445..HEAD (round 9: DK797, DK1412, DK1347, GV3 verified; DK1601 requirements recorded; stray patch-persona.py removed). Typecheck clean, 76 doc/journey/page tests green; full gate on lane-verify go.
+
+- 2026-11-21: pushed claude/open-forum a49380e1..2f1e9d31 (round 10). Full gate green: core 879, log 873, package 440, cli 935 (1 skipped), python 1018.
+
+- 2026-11-21: pushed claude/open-forum 05033a6e..HEAD (rounds 11-12: DK1473 closed as measured, DK1371 and DK1374 and DK1384 partial, DK1650 added, type fix). Full gate green: core 879, log 881, package 440, cli 953 (1 skipped), python 1018.
+
+- 2026-11-21: pushed claude/open-forum f1989d58..HEAD (rounds 13-15: DK1382 closed, DK1360, DK1601 partial, DK1362 partial). Full gate: core 955, log 880 of 881 (DK734 surface test: /telemetry/sharing and /sandbox routes missing from the table, fixed, surface test 41/41), package 443, cli 955 (1 skipped), python 1018.

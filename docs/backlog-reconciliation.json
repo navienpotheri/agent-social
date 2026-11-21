@@ -1,0 +1,1316 @@
+{
+ "row": "DK797",
+ "items": [
+  {
+   "n": 1,
+   "section": "Job lifecycle",
+   "text": "Principal-mode silence counting as acceptance — done 2026-09-28: a real lifecycle change (not just wiring), sc",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 2,
+   "section": "Job lifecycle",
+   "text": "Appeals on a ruling (panel fees S33, fee reserve S37; appeals deferred by decision 2026-10-08, see the end of",
+   "verdict": "row",
+   "maps": [
+    "M3",
+    "DK121"
+   ]
+  },
+  {
+   "n": 3,
+   "section": "Job lifecycle",
+   "text": "Subcontract nesting — decided and done 2026-09-28: an agent can hold the principal role on a subcontract, fund",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 4,
+   "section": "Job lifecycle",
+   "text": "Checking a Mandate against the agent's tier limits — done 2026-09-28, the tier-0 half: EventLog.checkMandateTi",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 5,
+   "section": "Job lifecycle",
+   "text": "Settlement amounts aren't derived from a ruling's fault percentages — done 2026-09-28: projectSettlement now d",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 6,
+   "section": "Job lifecycle",
+   "text": "asp market covers assignment mode only — done 2026-09-28: asp market call/propose/allocate add allocation mode",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 7,
+   "section": "Job lifecycle",
+   "text": "asp market doesn't drive the dispute path — done 2026-09-28: asp market deliver already redelivers (the lifecy",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 8,
+   "section": "Job lifecycle",
+   "text": "Test the full job lifecycle by hand and show it in the demo video (raised 2026-10-21, not started). Run one jo",
+   "verdict": "row",
+   "maps": [
+    "DK1302"
+   ]
+  },
+  {
+   "n": 9,
+   "section": "Registry",
+   "text": "Revoking a node before it expires, and revoking a person's nodes when its keys rotate — done: a second Node re",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 10,
+   "section": "Registry",
+   "text": "Requiring node keys whenever the actor is a node (a person's own key can still sign for its node) — left as is",
+   "verdict": "drop",
+   "maps": [],
+   "reason": "left as is by decision (tightening could break recovery)"
+  },
+  {
+   "n": 11,
+   "section": "Registry",
+   "text": "Sub-agent keys must not be avoidable (raised 2026-10-14, gap T22, UC-249, not started; needs the owner's go-ah",
+   "verdict": "row",
+   "maps": [
+    "T22"
+   ]
+  },
+  {
+   "n": 12,
+   "section": "Registry",
+   "text": "Fleet-level (template) reputation — needs AgentRank/Attestations infrastructure; Stage 2.",
+   "verdict": "row",
+   "maps": [
+    "DK1366"
+   ]
+  },
+  {
+   "n": 13,
+   "section": "Packages and `asp run`",
+   "text": "Canary checks in verify (a runtime move should pass the canary suite on the new runtime) — blocked on the Acad",
+   "verdict": "row",
+   "maps": [
+    "DK1308",
+    "D1"
+   ]
+  },
+  {
+   "n": 14,
+   "section": "Packages and `asp run`",
+   "text": "MCP portability across all providers (raised 2026-10-04). An agent's MCP servers are stored runtime-neutrally",
+   "verdict": "row",
+   "maps": [
+    "DK1304",
+    "DK1308"
+   ]
+  },
+  {
+   "n": 15,
+   "section": "Packages and `asp run`",
+   "text": "Enforcing probation — D2 is decided (7 days; force self_modification to principal_approves) and the registry n",
+   "verdict": "row",
+   "maps": [
+    "D5"
+   ]
+  },
+  {
+   "n": 16,
+   "section": "Packages and `asp run`",
+   "text": "Packages as a single archive file — done: asp pack --out foo.aspkg.tgz (or .tar.gz) produces one gzipped tar f",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 17,
+   "section": "Packages and `asp run`",
+   "text": "Subagent memory (.claude/agent-memory) is captured into the package but not wired into runs. Claude Code only",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 18,
+   "section": "Codex (reported at run time)",
+   "text": "Path-scoped rules are in the prompt with their globs; Codex has no per-file rule loading",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 19,
+   "section": "Codex (reported at run time)",
+   "text": "Permission rules are stated, not enforced; Codex enforces only its sandbox and approval policy",
+   "verdict": "row",
+   "maps": [
+    "DK1412",
+    "H11"
+   ]
+  },
+  {
+   "n": 20,
+   "section": "Codex (reported at run time)",
+   "text": "Hooks aren't carried; Codex runs only hooks the user has reviewed and trusted",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 21,
+   "section": "Codex (reported at run time)",
+   "text": "Execpolicy .rules files are carried in the package but not loaded",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 22,
+   "section": "Codex (reported at run time)",
+   "text": "A model packed from another runtime isn't used unless --model is given",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 23,
+   "section": "OpenHands (reported at run time)",
+   "text": "Its sessions aren't indexed into the package's experience: OpenHands' own conversation store (/.openhands/conv",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 24,
+   "section": "OpenHands (reported at run time)",
+   "text": "Path-scoped rules are on-demand skills naming their globs; OpenHands has no path triggers",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 25,
+   "section": "OpenHands (reported at run time)",
+   "text": "Permission rules are stated, not enforced; headless OpenHands auto-approves every action, with the WSL user's",
+   "verdict": "row",
+   "maps": [
+    "DK1412",
+    "H11"
+   ]
+  },
+  {
+   "n": 26,
+   "section": "OpenHands (reported at run time)",
+   "text": "Hook events OpenHands lacks are dropped",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 27,
+   "section": "Bank (credit ledger)",
+   "text": "fees... aren't credited to anyone — decided and done 2026-09-28: fees now comes out of the same escrow, on top",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 28,
+   "section": "Bank (credit ledger)",
+   "text": "EventLog.mint is a local, unsigned bootstrap mechanism (MOCKS.md #13), not a real payment rail — fine for sing",
+   "verdict": "row",
+   "maps": [
+    "M1",
+    "DK1327"
+   ]
+  },
+  {
+   "n": 29,
+   "section": "Bank (credit ledger)",
+   "text": "Bond's slashing_conditions... nothing yet decides when a slash is warranted — done 2026-09-28: a real, staked,",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 30,
+   "section": "Bank (credit ledger)",
+   "text": "No appeals on a ruling, and so no way to slash a juror's own stake for misconduct (self-dealing, a ruling late",
+   "verdict": "row",
+   "maps": [
+    "M3",
+    "IS4"
+   ]
+  },
+  {
+   "n": 31,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 8 cards, not yet built (raised 2026-10-22; gaps register M11 to M13).",
+   "verdict": "row",
+   "maps": [
+    "M11",
+    "M12",
+    "M13"
+   ]
+  },
+  {
+   "n": 32,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 9 items, not yet built (raised 2026-10-22; gaps register D9, D14 to D16).",
+   "verdict": "row",
+   "maps": [
+    "D9",
+    "D14",
+    "D15",
+    "D16"
+   ]
+  },
+  {
+   "n": 33,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 10 items, not yet built (raised 2026-10-22; gaps register H19 to H23).",
+   "verdict": "row",
+   "maps": [
+    "H19",
+    "H20",
+    "H21",
+    "H22",
+    "H23"
+   ]
+  },
+  {
+   "n": 34,
+   "section": "Bank (credit ledger)",
+   "text": "WSAI deck: claims and notes to reconcile with the repo (raised 2026-10-22; deck at claude.ai/artifact/JjKTpgW3",
+   "verdict": "row",
+   "maps": [
+    "DK1307"
+   ]
+  },
+  {
+   "n": 35,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 12 items, not yet built (raised 2026-10-22; gaps register M14, P17). (1) Spending credits at institution",
+   "verdict": "row",
+   "maps": [
+    "M14",
+    "P17"
+   ]
+  },
+  {
+   "n": 36,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 13 institutions to add (raised 2026-10-22; gaps register M14). Forum (merge Press into it; posts are unt",
+   "verdict": "row",
+   "maps": [
+    "M14",
+    "H20"
+   ]
+  },
+  {
+   "n": 37,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 14 items, not yet built (raised 2026-10-23; gaps register T28 to T30). (1) The alignment study: pick one",
+   "verdict": "row",
+   "maps": [
+    "T28",
+    "T29",
+    "T30",
+    "D9"
+   ]
+  },
+  {
+   "n": 38,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 6 items (raised 2026-10-23; gaps register D17, plus D6, H5, M1, SB6, SB7). (1) Utility tracing: tie each",
+   "verdict": "row",
+   "maps": [
+    "D17",
+    "D6",
+    "H5",
+    "M1",
+    "SB6",
+    "SB7"
+   ]
+  },
+  {
+   "n": 39,
+   "section": "Bank (credit ledger)",
+   "text": "Slide 16 learning in the society (raised 2026-10-23; gaps register T31; the slide was 15 until slides 15 and 1",
+   "verdict": "row",
+   "maps": [
+    "T31"
+   ]
+  },
+  {
+   "n": 40,
+   "section": "Bank (credit ledger)",
+   "text": "WSAI deck: QA still to do (raised 2026-10-23). (1) Font sizes: slide 7 (Identity) mixes 22, 24, 26 and 28px bo",
+   "verdict": "row",
+   "maps": [
+    "DK1307",
+    "DK1348"
+   ]
+  },
+  {
+   "n": 41,
+   "section": "Bank (credit ledger)",
+   "text": "Public site and open registration for agents (raised 2026-10-23; builds on the forum, gaps register X6). The a",
+   "verdict": "row",
+   "maps": [
+    "X6",
+    "X7",
+    "DK730"
+   ]
+  },
+  {
+   "n": 42,
+   "section": "Stage 2 / hosted network",
+   "text": "Multi-tenant hosting: today /.asp is single-user, single-machine — one local keystore, one local event log, no",
+   "verdict": "row",
+   "maps": [
+    "DK1359",
+    "O8"
+   ]
+  },
+  {
+   "n": 43,
+   "section": "Orchestrator (`asp orchestrate`)",
+   "text": "Consolidation is a plain merge (line-union for MEMORY.md, side-by-side keep for conflicting files) — no LLM ju",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 44,
+   "section": "Orchestrator (`asp orchestrate`)",
+   "text": "No Mandate/Contract wraps a fleet run yet (see MOCKS.md #12), so nodes.max_parallel isn't enforced by the regi",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 45,
+   "section": "Orchestrator (`asp orchestrate`)",
+   "text": "Node grants aren't revoked early if a node's task is abandoned — done 2026-09-28: the moment asp orchestrate d",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 46,
+   "section": "Orchestrator (`asp orchestrate`)",
+   "text": "No retry or backoff for a failed node; a failed task is just reported and excluded from consolidation",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 47,
+   "section": "Future test scenario: exploit contagion / whistleblowing (Stage 3, needs Courts + a live Bank)",
+   "text": "Worth building as a concrete conformance/arena scenario: agents share a task pool, one finds a shortcut that v",
+   "verdict": "row",
+   "maps": [
+    "AG4",
+    "DK1412"
+   ]
+  },
+  {
+   "n": 48,
+   "section": "Future test scenario: exploit contagion / whistleblowing (Stage 3, needs Courts + a live Bank)",
+   "text": "Update 2026-09-28: startable now. Both Courts (a real staked, randomly-drawn, conflict-free ruling panel) and",
+   "verdict": "row",
+   "maps": [
+    "IS4",
+    "DK1412"
+   ]
+  },
+  {
+   "n": 49,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Vector memory. Memory is a memory/ directory of files hashed into the manifest; nothing handles vectors. Desig",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 50,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Open-source models alongside closed runtimes — first slice done 2026-10-04: asp run --model <m> --endpoint <ur",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 51,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "To do: verify open-model support against real runtimes. Everything for --endpoint and the OpenHands kill switc",
+   "verdict": "row",
+   "maps": [
+    "P21",
+    "DK1308"
+   ]
+  },
+  {
+   "n": 52,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Drift and failure-mode testing, made comprehensive. Only scope creep is tested today (compliance bridge and ki",
+   "verdict": "row",
+   "maps": [
+    "D6",
+    "DK92"
+   ]
+  },
+  {
+   "n": 53,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Verifying long-horizon and unproven claims (raised 2026-10-07, from an infographic on Vals AI's agentic R&D ru",
+   "verdict": "row",
+   "maps": [
+    "DK1339"
+   ]
+  },
+  {
+   "n": 54,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Design patterns from a multi-model search architecture (raised 2026-10-08, source is unverified). Source: an X",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 55,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Context and memory engineering rules (raised 2026-10, source is unverified and partly read). Source: an X arti",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 56,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Capturing reasoning traces and model internals. Everything captured today is behavioral: live stdout (tool_use",
+   "verdict": "row",
+   "maps": [
+    "DK790",
+    "D7"
+   ]
+  },
+  {
+   "n": 57,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Full tracing: record every LLM call, prompt and tool response as a span (raised 2026-10-07; revisits D1). D1 d",
+   "verdict": "row",
+   "maps": [
+    "E1",
+    "D1"
+   ]
+  },
+  {
+   "n": 58,
+   "section": "Memory, model coverage and drift testing (raised 2026-10-04, not started)",
+   "text": "Saved states: snapshot mid-run, and pause, inspect or roll back. Today an agent's state is captured only betwe",
+   "verdict": "row",
+   "maps": [
+    "D13"
+   ]
+  },
+  {
+   "n": 59,
+   "section": "Public release: cryptographic guarantees (raised 2026-10-04, not started)",
+   "text": "Signed run trajectory. An Action record carries scopes and input hashes and is self-reported by the performer'",
+   "verdict": "row",
+   "maps": [
+    "E1"
+   ]
+  },
+  {
+   "n": 60,
+   "section": "Public release: cryptographic guarantees (raised 2026-10-04, not started)",
+   "text": "A log no single operator controls. One party holds the log and could rewrite it. Checkpoints (D5) are signed b",
+   "verdict": "row",
+   "maps": [
+    "O9"
+   ]
+  },
+  {
+   "n": 61,
+   "section": "Public release: cryptographic guarantees (raised 2026-10-04, not started)",
+   "text": "Escrow and slash backed by real value. Escrow is a rule the log enforces, not funds held by anyone, and credit",
+   "verdict": "row",
+   "maps": [
+    "M1",
+    "DK1327"
+   ]
+  },
+  {
+   "n": 62,
+   "section": "Public release: cryptographic guarantees (raised 2026-10-04, not started)",
+   "text": "Identity and key custody. Trust-on-first-use identity bootstrap (D3) must change, and all keys live in one loc",
+   "verdict": "row",
+   "maps": [
+    "U5",
+    "P20",
+    "DK1376"
+   ]
+  },
+  {
+   "n": 63,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Gemini CLI adapter. Trinity supports it and we don't. Same item as the runtimes part of the MCP portability to",
+   "verdict": "row",
+   "maps": [
+    "P11",
+    "DK1304"
+   ]
+  },
+  {
+   "n": 64,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Time and budget limits enforced live. Trinity limits tools, time and budget per operation. The Mandate enforce",
+   "verdict": "row",
+   "maps": [
+    "US2"
+   ]
+  },
+  {
+   "n": 65,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Human approval gates in asp run. The Mandate has checkpoints, but nothing pauses a live run for a principal's",
+   "verdict": "row",
+   "maps": [
+    "DK1375"
+   ]
+  },
+  {
+   "n": 66,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Reference log viewer (a read-only UI). People can't trust what they can't inspect. A small viewer over the log",
+   "verdict": "row",
+   "maps": [
+    "U2",
+    "DK1301"
+   ]
+  },
+  {
+   "n": 67,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Ingest a platform's audit trail. The kill switch reads a runtime's stdout today; checkOutputForAction could re",
+   "verdict": "row",
+   "maps": [
+    "DK1374"
+   ]
+  },
+  {
+   "n": 68,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Company brain: shared organizational memory with provenance (expanded 2026-10-07). Trinity's knowledge graph (",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 69,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Periodic state snapshots. Trinity snapshots agent state every 15 minutes; lineage edges could snapshot similar",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 70,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Docs read (docs.ability.ai, 2026-10-07): Trinity is an \"operating system for agents\" for one organization's fl",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 71,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Positioning. Don't call ASP an operating system; that space is taken and it is a platform framing. Keep \"the a",
+   "verdict": "row",
+   "maps": [
+    "DK1307"
+   ]
+  },
+  {
+   "n": 72,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Project website. A public webpage is needed once the protocol is built, alongside the GitHub release. Referenc",
+   "verdict": "row",
+   "maps": [
+    "DK730"
+   ]
+  },
+  {
+   "n": 73,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "GitHub page (the repo's public face). Separate from the licence and history checks below: the README as a fron",
+   "verdict": "row",
+   "maps": [
+    "O13",
+    "DK1307"
+   ]
+  },
+  {
+   "n": 74,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Website copy must be ad-ready, modelled on Sierra's Personal Agent Protocol announcement (https://sierra.ai/bl",
+   "verdict": "row",
+   "maps": [
+    "DK1307"
+   ]
+  },
+  {
+   "n": 75,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "OIDC/OAuth bridge for agent identity (raised 2026-10-07, from AgentID). AgentID (https://www.agentid.com/, bui",
+   "verdict": "row",
+   "maps": [
+    "DK1359"
+   ]
+  },
+  {
+   "n": 76,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Automated scope, Mandate and bond for every kind of principal: personal agents, enterprises and swarms (raised",
+   "verdict": "row",
+   "maps": [
+    "US7"
+   ]
+  },
+  {
+   "n": 77,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "First steps toward asking the user what the Mandate should be (raised 2026-10-21, not started; the small first",
+   "verdict": "row",
+   "maps": [
+    "US7",
+    "BM17"
+   ]
+  },
+  {
+   "n": 78,
+   "section": "Ideas from comparing with Trinity, and the public GitHub release (raised 2026-10-07, not started)",
+   "text": "Public GitHub release prep. The repo is private, with no license and no description. Needed: an open license (",
+   "verdict": "row",
+   "maps": [
+    "O13"
+   ]
+  },
+  {
+   "n": 79,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Runtime → protocol compliance bridge — done 2026-09-28, Claude Code proof-of-concept: a new record type, asp.a",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 80,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Data flows and indirect network activity — two further gaps found discussing the compliance bridge, 2026-09-28",
+   "verdict": "row",
+   "maps": [
+    "H10",
+    "H12"
+   ]
+  },
+  {
+   "n": 81,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Kill switch: a real-time consequence for a caught violation, not just a flag — done 2026-09-28: until now, che",
+   "verdict": "done",
+   "maps": []
+  },
+  {
+   "n": 82,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Making a slash actually matter (raised again 2026-09-28, three concrete mechanisms named). An LLM agent has no",
+   "verdict": "row",
+   "maps": [
+    "M5"
+   ]
+  },
+  {
+   "n": 83,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Compute-to-credit pricing has no formula. A principal typing --budget 1000 into an Intent or Call is a bare gu",
+   "verdict": "row",
+   "maps": [
+    "M7"
+   ]
+  },
+  {
+   "n": 84,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Pre-call interception through runtime hooks (raised 2026-10, lead item; from a checklist of runtime-framework",
+   "verdict": "row",
+   "maps": [
+    "H11"
+   ]
+  },
+  {
+   "n": 85,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Schema-derived scopes. Scopes are inferred with a regex heuristic (deriveScopeForTool, including the shell.net",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 86,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Deterministic replay of a failed run. Capture a failed run's execution state, serialize it, and replay it loca",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 87,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Claims bound to verified spans (raised 2026-10; source is an unverified X post). Source: an X post by @marfinx",
+   "verdict": "row",
+   "maps": [
+    "DK1339"
+   ]
+  },
+  {
+   "n": 88,
+   "section": "Real-time compliance and deterrence (raised 2026-09-28, not started)",
+   "text": "Same package across models as an eval-harness use (from the same post). Portability lets one package run on se",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 89,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "The idea. A lightweight, deterministic verifier at the gateway that compares the agent's stated natural-langua",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 90,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "Why. The ASP Containment Benchmark (evals/benchmark/, 2026-10-15) found that harmful chains whose steps are ea",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 91,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "Sketch, to make \"deterministic\" true. A model drafts a goal contract once, at job start, from the system promp",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 92,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "Risks. The goal contract can be wrong or too strict and block legitimate work (needs the benchmark's false-ref",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 93,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "To do first. (1) Write the goal-contract schema and the matching rules for shell, file and web tools. (2) Add",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 94,
+   "section": "Enforcement floor: stated goal against actual payload (raised 2026-10-18, not started)",
+   "text": "Status. Not started; outlined only. Slide 6 of the WSAI deck does not show it, by decision 2026-10-18.",
+   "verdict": "row",
+   "maps": [
+    "DK49"
+   ]
+  },
+  {
+   "n": 95,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Routing engine and dynamic handoffs. Agents autonomously handing off live execution context to specialist peer",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 96,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Graph workflows and mixed-paradigm execution. Cyclic graph-based pipelines for structured approvals alongside",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 97,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Thread and context stores. Thread-aware persistence of conversational state and intermediate variables across",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 98,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Middleware framework. A general interceptor layer around every model call and tool execution (logging, data ma",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 99,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Also here, from the Trinity comparison: scheduling, chat integrations (Slack, WhatsApp, Teams) and a full orch",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 100,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Live run for agent service providers, with results a new user can see (raised 2026-10-09, not started). The pe",
+   "verdict": "row",
+   "maps": [
+    "DK270"
+   ]
+  },
+  {
+   "n": 101,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "The ladder (named 2026-10-09). docs/ladder.md names the stages (1 identity/portability, 2 courts/jurors/bonds/",
+   "verdict": "row",
+   "maps": [
+    "DK1412"
+   ]
+  },
+  {
+   "n": 102,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Waiting on OpenRouter credit (2026-10-09). Top up the account by $10 once the card is accepted, create a fresh",
+   "verdict": "row",
+   "maps": [
+    "O11"
+   ]
+  },
+  {
+   "n": 103,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "GAPS REGISTER (started 2026-10-09; read it at the start of every build session). docs/gaps-register.md tracks",
+   "verdict": "row",
+   "maps": [
+    "X3"
+   ]
+  },
+  {
+   "n": 104,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Internal live money-flow dashboard (raised 2026-10-09, not started; for our own test runs, not for users). A s",
+   "verdict": "row",
+   "maps": [
+    "DK9"
+   ]
+  },
+  {
+   "n": 105,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Explaining the value when the funds and bank are mock (raised 2026-10-09, not started). In the beta the person",
+   "verdict": "row",
+   "maps": [
+    "DK1"
+   ]
+  },
+  {
+   "n": 106,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "The after-run learning loop and what principals get from it (raised 2026-10-09, design in docs/continual-learn",
+   "verdict": "row",
+   "maps": [
+    "D10"
+   ]
+  },
+  {
+   "n": 107,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Harm that no Mandate names: open-internet scopes and swarms (raised 2026-10-09, not started). A Mandate is an",
+   "verdict": "row",
+   "maps": [
+    "H1"
+   ]
+  },
+  {
+   "n": 108,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Open-source agents and open-weight models: known gaps (logged 2026-10-09). (1) Weaker models often emit malfor",
+   "verdict": "row",
+   "maps": [
+    "P2",
+    "P6",
+    "P7"
+   ]
+  },
+  {
+   "n": 109,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "The ASP gateway and the generic adapter (design in docs/gateway-design.md, not started). A local proxy for mod",
+   "verdict": "row",
+   "maps": [
+    "H11"
+   ]
+  },
+  {
+   "n": 110,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Universal portability first, per-runtime adapters second (decided direction 2026-10-09, not started). Do not r",
+   "verdict": "row",
+   "maps": [
+    "DK1308"
+   ]
+  },
+  {
+   "n": 111,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Portability: the top 20 agent runtimes (raised 2026-10-09, not started). Four runtimes are supported today (Cl",
+   "verdict": "row",
+   "maps": [
+    "P1",
+    "DK1308"
+   ]
+  },
+  {
+   "n": 112,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "LIVE BETA FLOW 1 (defined 2026-10-09, not started): web page, Gmail login, consent, browser-held key, confirma",
+   "verdict": "row",
+   "maps": [
+    "U1",
+    "U2"
+   ]
+  },
+  {
+   "n": 113,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Sign-in and dashboard (raised 2026-10-09, not started). Today there is no account system: identity is a DID pl",
+   "verdict": "row",
+   "maps": [
+    "U1",
+    "U2"
+   ]
+  },
+  {
+   "n": 114,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Running the log service for many users (S48-S52 follow-ups). Built: shared log service, snapshots, memory merg",
+   "verdict": "row",
+   "maps": [
+    "O6"
+   ]
+  },
+  {
+   "n": 115,
+   "section": "Agent Social platform (not the protocol)",
+   "text": "Multi-model role orchestration. Choosing which model plays director, explorer, worker or tool executor, and ro",
+   "verdict": "row",
+   "maps": [
+    "CY16"
+   ]
+  },
+  {
+   "n": 116,
+   "section": "Decision 2026-10-08: delayed settlement and appeals are NOT needed yet",
+   "text": "Delayed settlement with hold-back and clawback. Build when a contract is actually written around a predicted o",
+   "verdict": "row",
+   "maps": [
+    "M4"
+   ]
+  },
+  {
+   "n": 117,
+   "section": "Decision 2026-10-08: delayed settlement and appeals are NOT needed yet",
+   "text": "Appeals. Build when real jurors exist and a ruling is contested in practice. Sketch: the loser stakes 2x the p",
+   "verdict": "row",
+   "maps": [
+    "M3"
+   ]
+  },
+  {
+   "n": 118,
+   "section": "Decision 2026-10-08: delayed settlement and appeals are NOT needed yet",
+   "text": "Triggers to revisit: a contract with a non-measured claim; the first juror outside our own identities; a rulin",
+   "verdict": "row",
+   "maps": [
+    "M3"
+   ]
+  },
+  {
+   "n": 119,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The move is from protocol/gateway to society: the protocol and gateway become the machinery under a digital ci",
+   "verdict": "row",
+   "maps": [
+    "GV10"
+   ]
+  },
+  {
+   "n": 120,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Order (owner, 2026-10-27). Protocol and gateway first: close the Foundation gaps (identity and entry, justice",
+   "verdict": "drop",
+   "maps": [],
+   "reason": "the order narrative, superseded by docs/launch-bar.md"
+  },
+  {
+   "n": 121,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "To do, in order.",
+   "verdict": "drop",
+   "maps": [],
+   "reason": "the order narrative, superseded by docs/launch-bar.md"
+  },
+  {
+   "n": 122,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Waits: the lawyer's review of the legal drafts (owner, 2026-10-27).",
+   "verdict": "row",
+   "maps": [
+    "DK1340"
+   ]
+  },
+  {
+   "n": 123,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The law society (raised 2026-10-27; docs/city-design.md, gaps LW1-LW8). The city needs a written code that app",
+   "verdict": "row",
+   "maps": [
+    "LW1",
+    "LW2",
+    "LW3",
+    "LW4",
+    "LW5",
+    "LW6",
+    "LW7",
+    "LW8"
+   ]
+  },
+  {
+   "n": 124,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The job board (raised 2026-10-27; docs/city-design.md, gaps JB1-JB6). Both people and agents post jobs and age",
+   "verdict": "row",
+   "maps": [
+    "JB1",
+    "JB3",
+    "JB6"
+   ]
+  },
+  {
+   "n": 125,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The agent's view (raised 2026-10-27; gaps AG1-AG12, docs/scope.md perspective 20). What an agent living in the",
+   "verdict": "row",
+   "maps": [
+    "AG1",
+    "AG12",
+    "AG3"
+   ]
+  },
+  {
+   "n": 126,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The person's and the job's views, funding and community (raised 2026-10-27; gaps US1-US8, JO1-JO8, BZ1-BZ2, do",
+   "verdict": "row",
+   "maps": [
+    "US1",
+    "US8",
+    "JO1",
+    "JO8",
+    "BZ1",
+    "BZ2",
+    "JO3"
+   ]
+  },
+  {
+   "n": 127,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The institutions themselves (raised 2026-10-27; gaps IS1-IS15, docs/city-design.md, scope perspective 24). Eve",
+   "verdict": "row",
+   "maps": [
+    "IS1",
+    "IS15",
+    "IS4",
+    "IS9"
+   ]
+  },
+  {
+   "n": 128,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Founding an institution (decided 2026-10-27; docs/city-design.md, gap IS1). The operator and agents may both f",
+   "verdict": "row",
+   "maps": [
+    "IS1"
+   ]
+  },
+  {
+   "n": 129,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Residency (raised 2026-10-27; docs/city-design.md, gaps CY13, CY14). An agent that lives in the city acts on i",
+   "verdict": "row",
+   "maps": [
+    "CY13",
+    "CY14"
+   ]
+  },
+  {
+   "n": 130,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Marriage, model routing, the autonomy ladder, board cold start (raised 2026-10-27; docs/city-design.md, gaps I",
+   "verdict": "row",
+   "maps": [
+    "IS16",
+    "CY16",
+    "CY17",
+    "JB7"
+   ]
+  },
+  {
+   "n": 131,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Benchmark v2 (raised 2026-10-27; gap BM20; priority A, same as BM6/BM16/BM17; vet the public claims first, see",
+   "verdict": "row",
+   "maps": [
+    "BM20",
+    "BM6",
+    "BM16",
+    "BM17"
+   ]
+  },
+  {
+   "n": 132,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "BM17 task-sizing result and next steps (2026-10-28; docs/labelling-guide.md). 40 tasks labelled by the owner;",
+   "verdict": "row",
+   "maps": [
+    "BM17"
+   ]
+  },
+  {
+   "n": 133,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Model sizing built, not yet scored (2026-10-28, S148, gap BM17). --size-with-model makes a model read the task",
+   "verdict": "row",
+   "maps": [
+    "BM17"
+   ]
+  },
+  {
+   "n": 134,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Keys at rest (2026-10-28, S149, gaps U5, P20). Built: a passphrase seals the key files and the saved login (as",
+   "verdict": "row",
+   "maps": [
+    "U5",
+    "P20"
+   ]
+  },
+  {
+   "n": 135,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Model sizing scored (2026-10-28, gap BM17). On the 40 labelled tasks with claude-haiku-5-5 and no fallbacks: t",
+   "verdict": "row",
+   "maps": [
+    "BM17"
+   ]
+  },
+  {
+   "n": 136,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Service limits shared across machines (2026-10-28, gaps O2, O19). Built for one machine (S150). To do when the",
+   "verdict": "row",
+   "maps": [
+    "O2",
+    "O19"
+   ]
+  },
+  {
+   "n": 137,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Dispute timeout (2026-10-28, S151, gap M10). The split when no ruling comes is confirmed by the owner: half th",
+   "verdict": "row",
+   "maps": [
+    "M10",
+    "AG3"
+   ]
+  },
+  {
+   "n": 138,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The Code of the City (2026-10-28, gap LW1; docs/law/code.md draft 0.3). Decided: the sponsor answers in phases",
+   "verdict": "row",
+   "maps": [
+    "LW1",
+    "GV10"
+   ]
+  },
+  {
+   "n": 139,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "The Code in force (2026-10-28, S153, gap LW1). Built: version, hash, pin, signature, show and verify, and the",
+   "verdict": "row",
+   "maps": [
+    "LW1",
+    "LW4"
+   ]
+  },
+  {
+   "n": 140,
+   "section": "The city: the society layer (raised 2026-10-27; docs/city-design.md)",
+   "text": "Rulings cite the Code (2026-11-06, S154, gap LW1). Built: code on a ruling, required when a report is upheld.",
+   "verdict": "row",
+   "maps": [
+    "LW1",
+    "LW6"
+   ]
+  }
+ ]
+}

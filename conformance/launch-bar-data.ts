@@ -107,7 +107,6 @@ export const MUST: Record<string, Must> = {
   DK1340: [1, "D", "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"],
   DK1341: [8, "OX", "operations: uptime monitor, status page, on-call, backup restore drill, incident process"],
   GV6: [2, "LO", "runbook exists; the restore drill on the real host is the owner's"],
-  DK797: [6, "", "reconcile the first lists (backlog, triage, owner checklist, gate) against the register"],
   DK794: [1, "", "forum docs and demos exist only as untracked files in an old worktree"],
   DK795: [1, "", "the society design document exists only in a worktree"],
   DK796: [1, "", "treasury wording and test changes not committed"],
@@ -212,6 +211,7 @@ export const WITHDRAW: Record<string, W> = {
   DK61: ["The hosted accountability API, pay per governed run", DECK],
   DK62: ["Enterprise tenancy: private logs, single sign-on, support", DECK],
   DK63: ["Network intelligence data marketplace", DECK],
+  DK1602: ["The cost to the sponsor on the journey was checked on a real model agent", "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"],
   DK1600: ["A real model agent has sat a course live", "site, docs: say 'built and tested; the first live run with a real model agent is pending'"],
   DK81: ["A visible map of the society", "deck (becomes true with DK730 and DK731)"],
 };

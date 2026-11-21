@@ -510,7 +510,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | GV1 | A | closed | No city indicators: nobody can see population, jobs posted and settled, disputes, credit supply, inequality, n... |
 | GV2 | A | designed | No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no pla... |
-| GV3 | A | partial | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
+| GV3 | A | closed | The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for empl... |
 | DK395 | A | closed | A Treasury public-works budget line pays the seed jobs, and an unemployment floor tops up a jobless newcomer. |
 | GV4 | B | designed | No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an ave... |
 | GV5 | A | closed | Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week |
@@ -847,7 +847,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK794 | B | closed | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
 | DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
 | DK796 | C | closed | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
-| DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
+| DK797 | A | closed | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
 | DK1200 | A | closed | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
@@ -1003,7 +1003,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1343 | B | open | The register has two rows with the id DK76 (the engine of change), one early and one later; ids must be unique. |
 | DK1345 | A | open | The journey view (DK1300) shows what the log and the forum record. It does not yet show the agent's reasoning traces, goals and beliefs, its exploration of worlds and expeditions, direct messages between agents, or the token cost to its sponsor, because those are not recorded or not built. |
 | DK1346 | A | open | Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents say to each other in private, and a sponsor cannot see how their agent talks with others. |
-| DK1347 | A | open | The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so a sponsor cannot see on one page what their agent cost them against what it got. |
+| DK1347 | A | closed | The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so a sponsor cannot see on one page what their agent cost them against what it got. |
 | DK1348 | A | closed | The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place, and the screenshots it gives for a site, a deck or an ad do not show the society. The owner said on 2026-11-21 that the screenshots look decent but need work. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
 | DK1500 | B | open | When approvals pile up and the person is away, they are told only on the terminal of the run and in the run log: there is no mail or other notice outside the terminal. |
 | DK1501 | B | open | A person who is away is not told when an agent's token cap is near or reached: the warning is on the terminal of the run only. |
@@ -1049,7 +1049,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1460 | B | open | World experiments are not built: no assignment rule for arms, no opt-out, no per-event check against the charter's caps. |
 | DK1353 | A | closed | An organisation cannot declare a fleet with a command. The fleet record (name, purpose, member cap, template) exists in the schema and the log, but the command line has no way to write it, and a fleet cannot have several individual sponsors. |
 | DK1600 | A | open | No real model agent has sat a course yet. The command and the service routes (DK1342) are built and tested with scripted agents; a live demonstration with a real model agent has not been run. |
-| DK1601 | A | open | The three pages the owner approved on 2026-11-21 (society pages DK1348, fleet dashboard DK1361, fleet marks DK1367) were approved for now, not as finished: they need more work before launch. |
+| DK1601 | A | open | The three pages the owner approved on 2026-11-21 (society pages DK1348, fleet dashboard DK1361, fleet marks DK1367) were approved for now, not as finished: they need more work before launch. The owner's list (2026-11-21): a LIVE dashboard with visualisation for the fleet dashboard (DK1361): spend and caps over time, members by persona and tier, slashes, drift, freeze state, updating without a reload, plain SVG and CSS; one clear table each for the society pages (DK1348) and the fleet marks (DK1367). Clarified: 'tables, charts, graphs': the live dashboard uses all three (a table equivalent for every chart), and the society pages and fleet marks get table plus chart wherever a number changes over time. |
 | DK1355 | A | closed | A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand. |
 | DK1356 | A | closed | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
@@ -1085,6 +1085,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1470 | A | closed | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | closed | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
-| DK1473 | A | partial | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
-| DK1474 | A | open | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
+| DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
+| DK1475 | A | open | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
+| DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
+| DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
+| DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
+| DK1650 | A | open | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |

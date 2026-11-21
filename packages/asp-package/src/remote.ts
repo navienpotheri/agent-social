@@ -52,8 +52,6 @@ export class RemoteLog implements LogHandle {
   }
 
   append(record: AspRecord): Promise<AppendResult> { return this.call("handle", "append", [record]); }
-  /** Many records in one request (DK1362): each is checked as a single append would be, in order; it stops at the first one refused. The most in a batch is the service's answer (a quarter of the tenant's writes a minute, at most 200). */
-  appendBatch(records: AspRecord[]): Promise<{ appended: number; of: number; results: { ok: boolean; result?: AppendResult; error?: { code?: string; message?: string } }[]; stoppedAt?: number }> { return this.call("handle", "appendBatch", [records]); }
   mint(did: string, amount: number): Promise<number> { return this.call("handle", "mint", [did, amount]); }
   importRecords(items: { seq: number; record: AspRecord; appendedAt: string }[], expect?: { seq: number; logHash: string }) {
     return this.call("handle", "importRecords", [items, expect]);

@@ -38,6 +38,10 @@ export function spendOf(stored: StoredRec[], month: string): Map<string, Spend> 
 export interface MemberRow { node: string; persona: string | null; did: string; name: string; tier: number | null; slashes: number; drift: 0 | 1 | 2; credits: number; tokens: number; frozen: boolean; capCredits: number | null; capTokens: number | null; journey: string }
 /** One node of the fleet's tree as the dashboard shows it, depth first: its own members, everyone under it, what they spent this month against the node's budget, and whether it is frozen. */
 export interface TreeRow { node: string; name: string; kind: string; persona: string | null; parent: string | null; depth: number; owner: string; membersHere: number; membersUnder: number; credits: number; tokens: number; budget: { credits: number | null; tokens: number | null }; overBudget: boolean; frozen: boolean }
+/** The last days of the fleet, one number a day (DK1601): members so far, credits and tokens spent that day, slashes and drift diagnoses that day. The graphs and their tables are drawn from it. */
+export interface FleetSeries { days: string[]; members: number[]; credits: number[]; tokens: number[]; slashes: number[]; drift: number[] }
+export interface FleetMix { persona: Record<string, number>; node: Record<string, number>; tier: Record<string, number> }
+export const SERIES_DAYS = 30;
 export interface Alert { kind: string; level: "info" | "warn" | "critical"; subject: string; text: string }
 export interface FleetDashboard {
   ok: true;
@@ -49,6 +53,8 @@ export interface FleetDashboard {
   members: MemberRow[];
   /** The fleet tree (DK1372): the root, departments, teams and personas, with the spend of each against its budget. Just the root when the organisation declared no tree. */
   tree: TreeRow[];
+  series: FleetSeries;
+  mix: FleetMix;
   alerts: Alert[];
   /** What the dashboard does not carry yet, and the rows that will add it. */
   not_yet: string[];
@@ -59,6 +65,8 @@ export const ROOT_NODE = "root";
 const NOT_YET = ["roles for the people of an organisation, single sign-on and provisioning: DK1359", "a token cap enforced at each model call by the gateway (the service refuses a run report past the cap; the gateway's own budget is US2; DK1471)"];
 
 export interface DashboardOptions { month: string; now: string; page?: number; pageSize?: number; /** Every member in one page (the export). */ all?: boolean; controls?: FleetControlState }
+
+const countBy = (xs: string[]): Record<string, number> => { const m: Record<string, number> = {}; for (const x of xs) m[x] = (m[x] ?? 0) + 1; return m; };
 
 export function fleetDashboard(stored: StoredRec[], fleetIdOrName: string, o: DashboardOptions): FleetDashboard | undefined {
   const dir = fleetDirectory(stored);
@@ -95,6 +103,22 @@ if (r.type === T("passport") && members.has(b.did) && b.kind === "agent") { if (
       if ((b.bond_slashed?.value ?? 0) > 0 && now - Date.parse(r.issued_at) <= 30 * DAY) slashes.set(c.performer, (slashes.get(c.performer) ?? 0) + 1);
       if (b.basis === "accepted" && !members.has(c.principal)) { outsideAccepted++; accepted.set(c.principal, (accepted.get(c.principal) ?? 0) + 1); }
     }
+  }
+  // the daily series for the graphs
+  const endDay = o.now.slice(0, 10);
+  const days: string[] = [];
+  for (let i = SERIES_DAYS - 1; i >= 0; i--) days.push(new Date(Date.parse(`${endDay}T00:00:00Z`) - i * DAY).toISOString().slice(0, 10));
+  const idx = new Map(days.map((d, i) => [d, i]));
+  const sCredits = days.map(() => 0), sTokens = days.map(() => 0), sSlashes = days.map(() => 0), sDrift = days.map(() => 0);
+  const sMembers = days.map((d) => f.members.filter((m) => m.joined.slice(0, 10) <= d).length);
+  for (const st of stored) {
+    const r = st.record, i = idx.get(r.issued_at.slice(0, 10));
+    if (i === undefined) continue;
+    const b = r.body as Record<string, any>;
+    if (r.type === T("purchase") && members.has(r.issuer)) sCredits[i]! += Number(b.amount?.value ?? 0);
+    else if (r.type === T("action") && members.has(r.issuer)) sTokens[i]! += Number(b.metrics?.tokens_in ?? 0) + Number(b.metrics?.tokens_out ?? 0);
+    else if (r.type === T("clinic_diagnosis") && members.has(b.agent)) sDrift[i]!++;
+    else if (r.type === T("settlement") && (b.bond_slashed?.value ?? 0) > 0) { const c = contracts.get(b.contract); if (c && members.has(c.performer)) sSlashes[i]!++; }
   }
   const spend = spendOf(stored, o.month);
   const parentOf = (n: string): string | null => nodes.get(n)?.parent ?? null;
@@ -156,7 +180,10 @@ if (r.type === T("passport") && members.has(b.did) && b.kind === "agent") { if (
     controls: { frozen: controls.frozen, caps: { fleet: capF }, capsUsed: { credits: capF.credits ? totalsCredits : null, tokens: capF.tokens ? totalsTokens : null } },
     page: { number, size, pages },
     members: rows.slice((number - 1) * size, number * size),
-    tree, alerts, not_yet: NOT_YET,
+    tree,
+    series: { days, members: sMembers, credits: sCredits, tokens: sTokens, slashes: sSlashes, drift: sDrift },
+    mix: { persona: countBy(rows.map((r) => r.persona ?? "none")), node: countBy(rows.map((r) => r.node)), tier: byTier },
+    alerts, not_yet: NOT_YET,
     note: "From the log's records and this fleet's controls; credits are accounting entries, not money; this service is a beta.",
   };
 }

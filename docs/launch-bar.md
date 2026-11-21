@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 72 (335.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 108 |
+| Must close before launch | 70 (323.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Withdraw the claim until done | 109 |
 | After launch | 322 |
-| Total not closed | 502 |
+| Total not closed | 501 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -76,8 +76,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
-| DK797 | A | open | 6 | M | - | reconcile the first lists (backlog, triage, owner checklist, gate) against the register |
-| GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1360 | ? | partial | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
@@ -229,8 +227,9 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1473 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1474 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1475 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
+| DK1650 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -524,8 +523,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1403 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1411 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1412 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
-| DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
 | DK1500 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1501 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | SO1 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

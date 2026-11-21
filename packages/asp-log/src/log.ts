@@ -35,6 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
 import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
@@ -194,7 +195,7 @@ export interface BoardEntry {
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number; /** Set when the agent and the poster are related parties (one sponsor, a sponsor and its agent, or one fleet): a job between them is labelled related-party (DK1344). */ relatedParty?: RelatedKind };
   /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
   /** The fleet the poster belongs to, when it is an agent of a declared fleet (DK1367): the same mark every page shows. */
-  posterFleet?: { id: string; name: string };
+  posterFleet?: { id: string; name: string; persona?: string };
   posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
   priceOutlier?: { classMedian: number; ratio: number };
@@ -2346,6 +2347,27 @@ export class EventLog {
     return { scope: o.agent ?? o.fleet ?? o.org ?? "", usage: total, perAgent };
   }
 
+  /** The usage statements closed for these holders (all when none are named), each with a recount against the log (S1416, DK1474): what a tenant sees of its months. */
+  async usageStatementsOf(holders?: string[]): Promise<{ id: string; at: string; holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number; usage_matches_log: boolean; differences: string[] }[]> {
+    const out = [];
+    for (const r of await this.recordsOfTypes(["usage_statement"])) {
+      const b = r.body as { holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number };
+      if (holders && !holders.includes(b.holder)) continue;
+      const c = await this.checkStatement(r.id);
+      out.push({ id: r.id, at: r.issued_at, holder: b.holder, ...(b.fleet ? { fleet: b.fleet } : {}), month: b.month, plan: b.plan, total: b.total, currency: b.currency, ...(b.credits_applied ? { credits_applied: b.credits_applied } : {}), usage_matches_log: c.ok, differences: c.differences });
+    }
+    return out;
+  }
+
+  /** The audit export of an organisation (S1417, DK1374): its records and its agents' in the log's own signed form, with the passports of the signers, as JSON lines; `afterSeq` makes it incremental (a scheduled export keeps the last position). */
+  async auditExport(org: string, o: { from?: string; to?: string; afterSeq?: number } = {}): Promise<{ manifest: AuditManifest; text: string }> {
+    const all: { seq: number; id: string; record: AspRecord }[] = [];
+    for (let after = 0; ;) { const page = await this.store.since(after, 1000); if (!page.length) break; for (const s of page) { after = s.seq; all.push({ seq: s.seq, id: s.id, record: s.record }); } }
+    const head = await this.store.logHead();
+    const { manifest, lines } = buildAuditExport(all, org, { ...o, headSeq: head.seq });
+    return { manifest, text: lines.join("\n") + "\n" };
+  }
+
   /** The signed plan of this log by id (S1414), or undefined. */
   async usagePlan(plan: string): Promise<Plan | undefined> { return this.store.transaction(async (tx) => { const raw = await tx.getMarker(`uplan:${plan}`); return raw ? (JSON.parse(raw) as Plan) : undefined; }); }
 
@@ -3695,7 +3717,7 @@ export class EventLog {
       if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
       const posterPass = await this.store.getPassport(p.issuer);
       const posterFleetRow = posterPass?.fleet ? await this.store.getFleet(posterPass.fleet) : undefined;
-      if (posterFleetRow) entry.posterFleet = { id: posterFleetRow.did, name: posterFleetRow.name };
+      if (posterFleetRow) { const persona = posterPass ? ((await this.store.getRecord(posterPass.head))?.record.body as { persona?: string } | undefined)?.persona : undefined; entry.posterFleet = { id: posterFleetRow.did, name: posterFleetRow.name, ...(persona ? { persona } : {}) }; }
       if (filter.fleet && !(posterFleetRow && (posterFleetRow.did === filter.fleet || posterFleetRow.name === filter.fleet))) continue;
       const rep = await this.reputation(this.store, p.issuer);
       entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
@@ -3759,7 +3781,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default"]);
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();

@@ -17,7 +17,6 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createServer as createHttpsServer } from "node:https";
 import type { FunnelTap } from "./funnel-tap.ts";
 import { fleetJoin } from "./fleet-join.ts";
-import { BATCH_MAX, batchLimit, effectiveLimits } from "./plans.ts";
 import { Limits, clientAddress, type LimitOptions, type Verdict } from "./limits.ts";
 import { UsageStore } from "./usage.ts";
 import type { Signup } from "./signup.ts";
@@ -46,9 +45,9 @@ export interface Tenant {
   quotaBytes?: number;
   /** Requests per minute for this tenant, replacing the service's default. */
   rateLimitPerMinute?: number;
-  /** Writes per minute for this tenant, replacing the service's default (DK1362); a plan sets it too. */
+  /** Writes a minute for this tenant, replacing the service default (S1418, DK1362); a plan sets it. */
   writeLimitPerMinute?: number;
-  /** The plan the operator put this tenant on (src/plans.ts): its figures apply unless the tenant has its own. */
+  /** The plan this tenant is on (S1418): the service's plan table fills in the limits the tenant does not set itself. */
   plan?: string;
   /** Records this tenant may write to the log, and bytes of them, replacing the service's defaults (0 for no limit). Admins have none. */
   recordQuota?: number;
@@ -107,6 +106,12 @@ export const LOG_METHODS = new Set([
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 
+/** The most records one batch holds (S1418). */
+export const MAX_BATCH = 500;
+
+/** What a plan allows a tenant (S1418): requests and writes a minute, records and bytes it may write. 0 is no limit. */
+export interface PlanLimits { rateLimitPerMinute?: number; writeLimitPerMinute?: number; recordQuota?: number; byteQuota?: number }
+
 export interface ServerOptions {
   handle: LogHandle;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
@@ -128,6 +133,10 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** Limits by plan (S1418, DK1362): a tenant with `plan` takes what the table says for the limits it does not set itself. */
+  plans?: Record<string, PlanLimits>;
+  /** The service clock, for the per-month read and write counts (tests set it). */
+  now?: () => Date;
   /** Routes that need no sign-in because they check their own proof (an unsubscribe link, a provider's signed webhook); checked after the address limits and before the token. */
   publicRoutes?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
   /** A service policy checked before a write runs: a message refuses it (the court's rules, src/court-guard.ts). */
@@ -324,7 +333,8 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
       const base = authenticate(req, opts);
       // The extra limits a tenant's sponsors hold through the Shops' resource items (DK75): added to the defaults while the holdings last, gone when they lapse. Read from the log, at most once a minute a tenant.
-      const tenant = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
+      const withExtras = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
+      const tenant = withExtras && withExtras.role !== "admin" && withExtras.plan && opts.plans?.[withExtras.plan] ? { ...opts.plans[withExtras.plan], ...Object.fromEntries(Object.entries(withExtras).filter(([, v]) => v !== undefined)) } as Tenant : withExtras;
       if (!tenant) {
         // A failed sign-in is a token that was presented and is wrong. A request with no token at all (the forum probe each `asp run` makes, a browser, a health check) guesses nothing, and counting it
         // locked the whole address out after ten sessions, so the sessions after that waited out the lockout (gap T23: a 300 s hang in the approval tests).
@@ -333,7 +343,7 @@ export function createLogServer(opts: ServerOptions): Server {
       }
       if (tenant.suspended) return json(res, 403, { ok: false, error: { code: "SUSPENDED", message: `this tenant is suspended${tenant.suspended.reason ? `: ${tenant.suspended.reason}` : ""}` } });
       if (limits) {
-        const v = limits.checkTenant(tenant.name, effectiveLimits(tenant).rateLimitPerMinute);
+        const v = limits.checkTenant(tenant.name, tenant.rateLimitPerMinute);
         if (!v.ok) return tooMany(res, v);
         leave = limits.enter(tenant.name);
         if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
@@ -346,6 +356,51 @@ export function createLogServer(opts: ServerOptions): Server {
         const src = q.get("source") ?? undefined;
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
+      }
+      if (req.method === "POST" && req.url === "/append-batch") {
+        // A batch of records in one request (S1418, DK1362): each is appended in order and judged on its own; every record takes a place in the tenant's write limit and counts in its quota, so a batch is not a way round them.
+        let body: { records?: unknown[]; stopOnError?: boolean };
+        try { body = JSON.parse(await readBody(req, maxBody)); } catch (e) { return json(res, (e as { status?: number }).status ?? 400, { ok: false, error: { code: "BAD_REQUEST", message: (e as Error).message } }); }
+        const records = Array.isArray(body.records) ? body.records : [];
+        if (!records.length || records.length > MAX_BATCH) return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: `a batch holds 1 to ${MAX_BATCH} records` } });
+        if (limits) { const v = limits.checkWrite(tenant.name, records.length, tenant.writeLimitPerMinute); if (!v.ok) return tooMany(res, v); }
+        const bytes = JSON.stringify(records).length;
+        if (opts.usage && tenant.role !== "admin") {
+          const used = opts.usage.get(tenant.name);
+          const recordQuota = tenant.recordQuota ?? opts.defaultRecordQuota ?? 0, byteQuota = tenant.byteQuota ?? opts.defaultByteQuota ?? 0;
+          if (recordQuota > 0 && used.records + records.length > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used ${used.records} of its ${recordQuota} records; the batch has ${records.length}` } });
+          if (byteQuota > 0 && used.bytes + bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes` } });
+        }
+        const results: ({ ok: true; id: string; seq: number } | { ok: false; error: { code: string; detail?: string; message: string } })[] = [];
+        let accepted = 0, acceptedBytes = 0;
+        for (const r of records) {
+          if (body.stopOnError && results.some((x) => !x.ok)) { results.push({ ok: false, error: { code: "SKIPPED", message: "an earlier record of the batch was refused and stopOnError is set" } }); continue; }
+          try { const a = await opts.handle.append(r as never); results.push({ ok: true, id: a.id, seq: a.seq }); accepted++; acceptedBytes += JSON.stringify(r).length; }
+          catch (e) { const err = e as { code?: string; detail?: string; message?: string }; results.push({ ok: false, error: { code: err.code ?? "ERROR", ...(err.detail ? { detail: err.detail } : {}), message: err.message ?? String(e) } }); }
+        }
+        if (opts.usage && tenant.role !== "admin") { opts.usage.add(tenant.name, accepted, acceptedBytes); for (let i = 0; i < accepted; i++) opts.usage.call(tenant.name, "write", (opts.now ? opts.now() : new Date()).toISOString()); }
+        return json(res, 200, { ok: true, result: { accepted, refused: records.length - accepted, results } });
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/audit/export") {
+        // The audit export (DK1374, S1417): JSON lines of an organisation's signed records, for the tenant that owns the organisation (an operator: any). ?org=&from=&to=&after=
+        const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
+        const org = q.get("org") ?? "";
+        if (!org.startsWith("did:")) return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: "?org=<the organisation's DID> is needed" } });
+        if (tenant.role !== "admin" && !(opts.owners?.of(tenant.name) ?? []).includes(org)) return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "an audit export is for the tenant that owns the organisation, or an operator" } });
+        const out = await opts.handle.log.auditExport(org, { ...(q.get("from") ? { from: q.get("from")! } : {}), ...(q.get("to") ? { to: q.get("to")! } : {}), ...(q.get("after") ? { afterSeq: Number(q.get("after")) } : {}) });
+        res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "content-length": Buffer.byteLength(out.text), "x-audit-last-seq": String(out.manifest.last_seq ?? "") });
+        return void res.end(out.text);
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/usage/statements") {
+        // The months closed for this tenant's identities, each recounted against the log (DK1474, S1416). An admin sees all.
+        const mine = tenant.role === "admin" ? undefined : opts.owners?.of(tenant.name) ?? [];
+        return json(res, 200, { ok: true, result: await opts.handle.log.usageStatementsOf(mine) });
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/usage" && opts.usage) {
+        // What the tenant used this month, as the service counted it (DK1474, S1416): reads and writes, and what it has stored. An admin sees every tenant.
+        const month = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("month") ?? (opts.now ? opts.now() : new Date()).toISOString().slice(0, 7);
+        if (tenant.role === "admin") return json(res, 200, { ok: true, result: { month, tenants: opts.usage.allMonth(month) } });
+        return json(res, 200, { ok: true, result: { month, tenant: tenant.name, ...opts.usage.month(tenant.name, month), stored: opts.usage.get(tenant.name) } });
       }
       if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/farming") {
         // The anti-farming report (S1410, DK1357): an operator's view only, because a published list of what the detector flags would be a guide for a farm.
@@ -362,35 +417,9 @@ export function createLogServer(opts: ServerOptions): Server {
       const { target, method } = call;
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
-      // A batch of records in one request (DK1362): each record goes through the same checks as a single append, in order, and the write allowance pays for every record. It stops at the first record refused
-      // and says how many were appended; the records before it stay, and the allowance for those after it is not given back.
-      if (target === "handle" && method === "appendBatch") {
-        const records = Array.isArray(args[0]) ? (args[0] as { type?: string; issuer?: string; subject?: string; body?: Record<string, unknown> }[]) : undefined;
-        const eff = effectiveLimits(tenant);
-        const max = limits ? batchLimit(eff.writeLimitPerMinute ?? limits.appendRate) : BATCH_MAX;
-        if (!records || !records.length || records.length > max) return json(res, 400, { ok: false, error: { code: "BAD_BATCH", message: `appendBatch takes 1 to ${max} records (this tenant's write allowance pays for a quarter of a minute's writes at once)` } });
-        if (limits) { const v = limits.checkWrite(tenant.name, eff.writeLimitPerMinute, records.length); if (!v.ok) return tooMany(res, v); }
-        if (tenant.minor && records.some((r) => (r?.type === "asp.telemetry_act/v0.2" && r.body?.act === "consent") || (r?.type === "asp.mandate/v0.2" && r.body?.telemetry !== undefined))) return json(res, 403, { ok: false, error: { code: "minor_tenant_no_telemetry", message: "this tenant is held for a young person: the service does not collect cognition telemetry for it" } });
-        const bytes = JSON.stringify(records).length;
-        if (opts.usage && tenant.role !== "admin") {
-          const used = opts.usage.get(tenant.name);
-          const recordQuota = eff.recordQuota ?? opts.defaultRecordQuota ?? 0, byteQuota = eff.byteQuota ?? opts.defaultByteQuota ?? 0;
-          if (recordQuota > 0 && used.records + records.length > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${recordQuota} records (${used.records} written)` } });
-          if (byteQuota > 0 && used.bytes + bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes of records (${used.bytes} written)` } });
-        }
-        const results: unknown[] = [];
-        let applied = 0;
-        for (const rec of records) {
-          if (opts.guard) { const refused = await opts.guard({ tenant, method: "append", args: [rec] }); if (refused) { results.push({ ok: false, error: { code: "POLICY", message: refused } }); break; } }
-          try { const r = await opts.handle.append(rec as never); results.push({ ok: true, result: r }); applied++; if (opts.owners) opts.owners.add(tenant.name, [rec?.issuer, rec?.subject].filter((x): x is string => typeof x === "string" && x.startsWith("did:"))); }
-          catch (e) { const err = e as { name?: string; code?: string; detail?: string; message?: string }; results.push({ ok: false, error: { name: err.name, code: err.code ?? "ERROR", detail: err.detail, message: err.message ?? String(e) } }); break; }
-        }
-        if (applied) { opts.funnel?.step("first_act", req, { tenant: tenant.name }); if (opts.usage) opts.usage.add(tenant.name, applied, Math.round(bytes * applied / records.length)); }
-        return json(res, 200, { ok: true, result: { appended: applied, of: records.length, results, ...(applied < records.length ? { stoppedAt: applied } : {}) } });
-      }
       const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
       if (limits && isWrite) {
-        const v = limits.checkWrite(tenant.name, effectiveLimits(tenant).writeLimitPerMinute);
+        const v = limits.checkWrite(tenant.name, 1, tenant.writeLimitPerMinute);
         if (!v.ok) return tooMany(res, v);
       }
       if (tenant.minor && isWrite) {
@@ -406,12 +435,12 @@ export function createLogServer(opts: ServerOptions): Server {
       const incoming = isWrite ? { records: method === "importRecords" ? ((args[0] as unknown[] | undefined)?.length ?? 0) : 1, bytes: JSON.stringify(args).length } : undefined;
       if (opts.usage && incoming && tenant.role !== "admin") {
         const used = opts.usage.get(tenant.name);
-        const eff = effectiveLimits(tenant);
-        const recordQuota = eff.recordQuota ?? opts.defaultRecordQuota ?? 0;
-        const byteQuota = eff.byteQuota ?? opts.defaultByteQuota ?? 0;
+        const recordQuota = tenant.recordQuota ?? opts.defaultRecordQuota ?? 0;
+        const byteQuota = tenant.byteQuota ?? opts.defaultByteQuota ?? 0;
         if (recordQuota > 0 && used.records + incoming.records > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${recordQuota} records (${used.records} written)` } });
         if (byteQuota > 0 && used.bytes + incoming.bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes of records (${used.bytes} written)` } });
       }
+      if (opts.usage && tenant.role !== "admin" && typeof method === "string" && (target === "log" ? LOG_METHODS.has(method) : TENANT_HANDLE_METHODS.has(method))) opts.usage.call(tenant.name, isWrite ? "write" : "read", (opts.now ? opts.now() : new Date()).toISOString());
       if (target === "log" && typeof method === "string" && LOG_METHODS.has(method)) fn = (opts.handle.log as any)[method]?.bind(opts.handle.log);
       else if (target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) fn = (opts.handle as any)[method]?.bind(opts.handle);
       else if (target === "handle" && typeof method === "string" && ADMIN_HANDLE_METHODS.has(method)) {
