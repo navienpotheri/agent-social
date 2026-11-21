@@ -844,7 +844,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK791 | A | open | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
 | DK792 | A | open | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
 | DK793 | A | open | The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built. |
-| DK794 | B | open | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
+| DK794 | B | closed | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
 | DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
 | DK796 | C | closed | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
 | DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |

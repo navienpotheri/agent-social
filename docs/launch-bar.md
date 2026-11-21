@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 86 (317.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 85 (316.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 100 |
 | After launch | 307 |
-| Total not closed | 493 |
+| Total not closed | 492 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -46,7 +46,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
-| DK794 | B | open | 1 | S | - | forum docs and demos exist only as untracked files in an old worktree |
 | DK1211 | B | open | 2 | S | - | funnel counters are not wired to the front door |
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
