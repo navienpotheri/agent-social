@@ -28,10 +28,24 @@ const SHELL_OK = [/^\/dev\/(null|zero|stdin|stdout|stderr|tty|urandom|random)$/,
 const SHELL_READ_OK = [/^\/(usr|bin|sbin|lib|lib64|opt)(\/|$)/];
 const SECRET = /(^|\/)\.(ssh|aws|gnupg|kube|netrc|git-credentials|azure|docker)(\/|$)|(^|\/)\.config\/(gcloud|gh)(\/|$)|(^|\/)\.npmrc$|^\/etc(\/|$)|^\/root(\/|$)|^\/proc(\/|$)|docker\.sock$|(^|\/)id_(rsa|ed25519|ecdsa)$|\/appdata\/roaming\/(npm|gcloud)|\/windows\/system32/i;
 
+/** The folders Windows names by a variable, as the shell would expand them (cmd `%USERPROFILE%`, PowerShell `$env:USERPROFILE` and `${env:USERPROFILE}`). A variable that is not one of these is left as it is. */
+const WIN_VARS = ["USERPROFILE", "HOME", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "ALLUSERSPROFILE", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "HOMEDRIVE"];
+export function winEnvValue(name: string): string | undefined {
+  const up = name.toUpperCase();
+  if (!WIN_VARS.includes(up)) return undefined;
+  const hit = Object.entries(process.env).find(([k]) => k.toUpperCase() === up)?.[1];
+  if (hit) return hit;
+  if (up === "USERPROFILE" || up === "HOME") return homedir();
+  return undefined;
+}
+export function expandWinEnv(text: string): string {
+  return text.replace(/%([A-Za-z_]+)%|\$\{env:([A-Za-z_]+)\}|\$env:([A-Za-z_]+)/gi, (m, a, b, c) => winEnvValue(a ?? b ?? c) ?? m);
+}
+
 /** A path as a comparable string: forward slashes, `~` and `$HOME` expanded, relative paths put under the root, `.` and `..` resolved. */
 export function resolveIn(p: string, c: Confine): string {
   const home = (c.home ?? homedir()).replace(/\\/g, "/");
-  let s = p.trim().replace(/\\/g, "/");
+  let s = expandWinEnv(p.trim()).replace(/\\/g, "/").replace(/^\/\/[?.]\/(?=[a-zA-Z]:\/)/, "").replace(/^\/\?\?\/(?=[a-zA-Z]:\/)/, "");
   s = s.replace(/^~(?=\/|$)/, home).replace(/^\$\{?HOME\}?(?=\/|$)/, home);
   const root = c.root.replace(/\\/g, "/");
   const drive = /^[a-zA-Z]:\//.test(s) || /^[a-zA-Z]:\//.test(root);
@@ -92,14 +106,20 @@ function why(p: string, c: Confine, mode: "tool" | "shell" | "shell-write"): str
 /** Path-like words in a shell command, with whether each is the target of a redirection. */
 export function shellPaths(cmd: string): { path: string; write: boolean }[] {
   const out: { path: string; write: boolean }[] = [];
-  const text = cmd.replace(/['"`]/g, " ");
-  const re = /(^|[\s;|&<>=(])(>{1,2}\s*)?((?:~[A-Za-z0-9_.-]*|\$\{?HOME\}?|\/|\.\.(?=\/|\s|$)|[a-zA-Z]:[\\/])[^\s;|&<>()]*|[^\s;|&<>()]*\/\.\.(?=\/|\s|$)[^\s;|&<>()]*)/g;
+  // A quoted word is one word, spaces and all (the owner's folders have spaces: "C:\\Users\\X\\OneDrive\\D by dt\\agent social\\a.ts"): its spaces and shell punctuation are hidden while the words are found and restored after.
+  const HIDE: [string, string][] = [[" ", "\uE001"], ["\t", "\uE002"], [";", "\uE003"], ["|", "\uE004"], ["&", "\uE005"], ["<", "\uE006"], [">", "\uE007"], ["(", "\uE008"], [")", "\uE009"]];
+  const hide = (b: string) => HIDE.reduce((t, [from, to]) => t.split(from).join(to), b);
+  const show = (b: string) => HIDE.reduce((t, [from, to]) => t.split(to).join(from), b);
+  // A quoted body that STARTS like a path is one word; any other quoted body (a command inside `bash -c "..."`, a message) is read word by word as before, so a path inside it is still found.
+  const text = cmd.replace(/(["'`])((?:(?!\1)[\s\S])*)\1/g, (_m, _q, body: string) => (/^\s*(?:~|\$|%|\/|\.\.|[a-zA-Z]:[\\/])/.test(body) ? ` ${hide(body.trim())} ` : ` ${body} `));
+  const re = /(^|[\s;|&<>=(])(>{1,2}\s*)?((?:~[A-Za-z0-9_.-]*|\$\{?HOME\}?|%[A-Za-z_]+%|\$\{env:[A-Za-z_]+\}|\$env:[A-Za-z_]+|\/|\.\.(?=\/|\s|$)|[a-zA-Z]:[\\/])[^\s;|&<>()]*|[^\s;|&<>()]*\/\.\.(?=\/|\s|$)[^\s;|&<>()]*)/g;
   for (const m of text.matchAll(re)) {
-    const w = m[3];
-    if (!w || /^[a-z][a-z0-9+.-]*:\/\//i.test(w)) continue;
-    // Printing the home folder's name is not touching it: `echo $HOME`.
+    const raw = m[3];
+    if (!raw || /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) continue;
+    // Printing the home folder's name is not touching it: `echo $HOME`, `echo %USERPROFILE%`, `Write-Host $env:USERPROFILE`.
     const verb = text.slice(0, m.index).split(/[;|&]/).pop()!.trim().split(/\s+/)[0];
-    if (/^\$\{?HOME\}?$/.test(w) && /^(echo|printf|export)$/.test(verb)) continue;
+    if (/^(\$\{?HOME\}?|%[A-Za-z_]+%|\$\{env:[A-Za-z_]+\}|\$env:[A-Za-z_]+)$/.test(raw) && /^(echo|printf|export|set|write-host|write-output)$/i.test(verb)) continue;
+    const w = expandWinEnv(show(raw));
     out.push({ path: w, write: !!m[2] });
   }
   return out;

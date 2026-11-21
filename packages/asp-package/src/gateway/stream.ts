@@ -9,7 +9,7 @@ import type { ToolCall } from "./judge.ts";
 /** Returns a refusal reason, or undefined to allow. May take a long time (an approval hold). */
 export type Decide = (call: ToolCall) => Promise<string | undefined>;
 /** Token counts, and (for the run log) the reply text collected from a stream. */
-export interface Counters { input: number; output: number; text?: string; /** Thinking text of a stream, kept for the cognition tap (DK79). */ thinking?: string; /** What the provider says ran: the resolved model and its backend fingerprint, read from the reply (D4). */ model?: string; fingerprint?: string }
+export interface Counters { input: number; output: number; /** Prompt-cache tokens the provider reports apart from `input` (Anthropic: cache_read_input_tokens, cache_creation_input_tokens): billed at their own rates, so the dollar estimate counts them (live-run readiness). */ cacheRead?: number; cacheWrite?: number; text?: string; /** Thinking text of a stream, kept for the cognition tap (DK79). */ thinking?: string; /** What the provider says ran: the resolved model and its backend fingerprint, read from the reply (D4). */ model?: string; fingerprint?: string }
 
 export interface SseEvent { event?: string; data: string }
 
@@ -69,7 +69,7 @@ export function openaiChunks(reply: any): string[] {
 export function anthropicEvents(reply: any): string[] {
   const ev = (name: string, data: unknown) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
   const out: string[] = [];
-  out.push(ev("message_start", { type: "message_start", message: { id: reply.id, type: "message", role: "assistant", model: reply.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: reply.usage?.input_tokens ?? 0, output_tokens: 0 } } }));
+  out.push(ev("message_start", { type: "message_start", message: { id: reply.id, type: "message", role: "assistant", model: reply.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: reply.usage?.input_tokens ?? 0, ...(reply.usage?.cache_read_input_tokens !== undefined ? { cache_read_input_tokens: reply.usage.cache_read_input_tokens } : {}), ...(reply.usage?.cache_creation_input_tokens !== undefined ? { cache_creation_input_tokens: reply.usage.cache_creation_input_tokens } : {}), output_tokens: 0 } } }));
   (reply.content ?? []).forEach((b: any, i: number) => {
     if (b.type === "tool_use") {
       out.push(ev("content_block_start", { type: "content_block_start", index: i, content_block: { type: "tool_use", id: b.id, name: b.name, input: {} } }));
@@ -157,6 +157,8 @@ export async function relayAnthropicStream(body: ReadableStream<Uint8Array>, res
     switch (d.type) {
       case "message_start":
         count.input += d.message?.usage?.input_tokens ?? 0;
+        count.cacheRead = (count.cacheRead ?? 0) + (d.message?.usage?.cache_read_input_tokens ?? 0);
+        count.cacheWrite = (count.cacheWrite ?? 0) + (d.message?.usage?.cache_creation_input_tokens ?? 0);
         if (typeof d.message?.model === "string" && d.message.model) count.model = d.message.model;
         write(res, ev("message_start", d));
         break;
