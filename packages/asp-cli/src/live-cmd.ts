@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { createGateway, priceFor, readRunLog, type RunEvent } from "@agent-social/asp-package";
 
 export interface LiveCtx {
@@ -31,7 +31,7 @@ export interface Check { name: string; status: Status; detail: string }
 
 const KEY_ENV: Record<string, string> = { openai: "OPENAI_API_KEY", openrouter: "OPENROUTER_API_KEY", anthropic: "ANTHROPIC_API_KEY" };
 const freePort = () => new Promise<number>((resolve, reject) => { const s = createServer(); s.on("error", reject); s.listen(0, "127.0.0.1", () => { const p = (s.address() as { port: number }).port; s.close(() => resolve(p)); }); });
-const tool = (cmd: string, args: string[]) => { const r = spawnSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32" }); return r.status === 0 ? (r.stdout || r.stderr).trim().split("\n")[0] : undefined; };
+const tool = (cmd: string, args: string[]) => { const r = spawnSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32" && (!isAbsolute(cmd) || /\.(cmd|bat)$/i.test(cmd)) }); return r.status === 0 ? (r.stdout || r.stderr).trim().split("\n")[0] : undefined; };
 
 export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   const out: Check[] = [];
@@ -44,13 +44,18 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
 
   // The home is writable (keys, logs and run records are written there).
   try { mkdirSync(c.home, { recursive: true }); const probe = join(c.home, `.preflight-${process.pid}`); writeFileSync(probe, "ok"); rmSync(probe, { force: true }); add("the ASP home", "ok", `${c.home} is writable`); } catch (e) { add("the ASP home", "fail", `${c.home} is not writable: ${(e as Error).message}`); }
-  // The runtime is installed (asp run starts it by name).
-  if (c.flags.runtime) {
+  // The runtime asp run will start, by the same rule asp run uses (claude-code is the default; ASP_CLAUDE_BIN and ASP_CLAUDE_SCRIPT name the program for Claude Code): installed, and which version.
+  {
+    const runtime = c.flags.runtime ?? "claude-code";
     const bins: Record<string, string> = { "claude-code": "claude", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes", antigravity: "agy", openhands: "openhands" };
-    const bin = bins[c.flags.runtime];
-    if (!bin) add(`runtime ${c.flags.runtime}`, "fail", `asp run does not start ${c.flags.runtime}: one of ${Object.keys(bins).join(", ")}`);
-    else { const ver = tool(bin, ["--version"]); add(`runtime ${c.flags.runtime}`, ver ? "ok" : "fail", ver ? `${bin} ${ver}` : `${bin} was not found on the PATH (or did not answer --version)`); }
-  } else add("the runtime", "warn", "no --runtime given: pass --runtime claude-code (or codex, goose, ...) to check it is installed");
+    const bin = bins[runtime];
+    if (!bin) add(`runtime ${runtime}`, "fail", `asp run does not start ${runtime}: one of ${Object.keys(bins).join(", ")}`);
+    else {
+      const custom = runtime === "claude-code" && c.env.ASP_CLAUDE_BIN ? [c.env.ASP_CLAUDE_BIN, ...(c.env.ASP_CLAUDE_SCRIPT ? [c.env.ASP_CLAUDE_SCRIPT] : [])] : [bin];
+      const ver = tool(custom[0], [...custom.slice(1), "--version"]);
+      add(`runtime ${runtime}`, ver ? "ok" : "fail", ver ? `${custom.join(" ")}: ${ver}${c.flags.runtime ? "" : " (the default runtime; --runtime names another)"}` : `${custom.join(" ")} was not found on the PATH or did not answer --version: install it and sign in once by running it, then run this again`);
+    }
+  }
   try { const p = await freePort(); add("a local port", "ok", `127.0.0.1:${p} can be opened`); } catch (e) { add("a local port", "fail", `no local port could be opened: ${(e as Error).message}`); }
 
   // The key: an environment variable, never printed.

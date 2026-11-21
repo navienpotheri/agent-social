@@ -29,7 +29,7 @@ test("preflight: red without a key, a budget cap and identities; the key is neve
   assert.match(bad.out, /NOT READY: \d+ red/);
   // with a key and a cap: the key line is green and says how long it is, never what it is
   writeFileSync(join(f.aspHome, "config.json"), JSON.stringify({ identities: { me: "did:web:x:u:a", agent: "did:web:x:a:a:b", bank: "did:web:x:u:a:bank" } }));
-  const ok = await asp(f.aspHome, ["live", "preflight", "--model", "claude-haiku-5-5", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET });
+  const ok = await asp(f.aspHome, ["live", "preflight", "--model", "claude-haiku-5-5", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath });
   assert.equal(ok.code, 0, ok.out);
   assert.match(ok.out, /GREEN\s+key in ANTHROPIC_API_KEY\s+set \(53 characters; not shown\)/);
   assert.ok(!ok.out.includes(SECRET) && !ok.err.includes(SECRET), "the key is never printed");
@@ -37,16 +37,27 @@ test("preflight: red without a key, a budget cap and identities; the key is neve
   assert.match(ok.out, /AMBER\s+the log service\s+no service is configured/);
   assert.match(ok.out, /READY/);
   // an unknown model is priced high and says so; a bad cap is red; the real home gets no stop file
-  const unk = await asp(f.aspHome, ["live", "preflight", "--model", "brand-new", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET });
+  const unk = await asp(f.aspHome, ["live", "preflight", "--model", "brand-new", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath });
   assert.match(unk.out, /AMBER\s+the budget cap.*not in the price table/);
-  assert.equal((await asp(f.aspHome, ["live", "preflight", "--budget-usd", "0"], { ANTHROPIC_API_KEY: SECRET })).code, 1);
-  const j = JSON.parse((await asp(f.aspHome, ["live", "preflight", "--json", "--budget-usd", "5", "--model", "claude-haiku-5-5"], { ANTHROPIC_API_KEY: SECRET })).out);
+  assert.equal((await asp(f.aspHome, ["live", "preflight", "--budget-usd", "0"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath })).code, 1);
+  const j = JSON.parse((await asp(f.aspHome, ["live", "preflight", "--json", "--budget-usd", "5", "--model", "claude-haiku-5-5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath })).out);
   assert.equal(j.ready, true);
+});
+
+test("preflight: the runtime asp run will start is checked, with its version; a missing one is red and says what to do", async () => {
+  const f = makeFixture(); mkdirSync(f.aspHome, { recursive: true });
+  const good = await asp(f.aspHome, ["live", "preflight", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath });
+  assert.match(good.out, /GREEN\s+runtime claude-code\s+.*v\d+\.\d+\.\d+ \(the default runtime/);
+  const bad = await asp(f.aspHome, ["live", "preflight", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: "definitely-not-installed-claude" });
+  assert.equal(bad.code, 1);
+  assert.match(bad.out, /RED\s+runtime claude-code\s+definitely-not-installed-claude was not found/);
+  assert.match((await asp(f.aspHome, ["live", "preflight", "--runtime", "nope", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET })).out, /RED\s+runtime nope\s+asp run does not start nope/);
+  assert.match(good.out, /GREEN\s+the ASP home\s+.* is writable/);
 });
 
 test("preflight: a log service that cannot be reached is red", async () => {
   const f = makeFixture(); mkdirSync(f.aspHome, { recursive: true });
-  const r = await asp(f.aspHome, ["live", "preflight", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_LOG_URL: "http://127.0.0.1:9" });
+  const r = await asp(f.aspHome, ["live", "preflight", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath, ASP_LOG_URL: "http://127.0.0.1:9" });
   assert.match(r.out, /RED\s+the log service\s+127\.0\.0\.1:9 was not reachable/);
 });
 
