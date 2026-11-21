@@ -332,7 +332,7 @@
       ]
     },
     "ent_fleet_rule": {
-      "text": "The log keeps a fleet record for an organisation and refuses an agent that names a fleet that was never declared, a member sponsored by another organisation, and a member beyond the fleet's cap.",
+      "text": "The log keeps a fleet record for an organisation. It refuses an agent that names a fleet that was never declared, a member sponsored by another organisation, and a member beyond the cap of the fleet.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -342,7 +342,7 @@
       ]
     },
     "ent_copies": {
-      "text": "One command makes copies of an agent, each with its own identity, and each liable on its own.",
+      "text": "One command makes copies of an agent, each with its own identity and each liable on its own.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -351,7 +351,7 @@
       ]
     },
     "ent_mandate": {
-      "text": "Every agent runs under a Mandate, an explicit grant of what it may do, and the gateway on your machine removes a call outside it before the agent sees it.",
+      "text": "Every agent runs under a Mandate, an explicit grant of what it may do, and the gateway on your machine removes a call outside the Mandate before the agent sees it.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -361,7 +361,7 @@
       ]
     },
     "ent_log": {
-      "text": "Every action, refusal and approval is signed and chained in a log the organisation can verify itself.",
+      "text": "Every action, refusal and approval is signed and chained in a log that the organisation can verify itself.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -371,7 +371,7 @@
       ]
     },
     "ent_dashboard": {
-      "text": "A dashboard on your own machine shows your agents, what each did and was refused, and the copies of an agent.",
+      "text": "A dashboard on your own machine shows your agents, what each agent did and was refused, and the copies of an agent.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -380,7 +380,7 @@
       ]
     },
     "ent_coming": {
-      "text": "Coming, not built: single sign-on and roles for an organisation, provisioning from an organisation's own identity system, keys held in a vault, approval workflows beyond the existing checkpoints, webhooks and a promise of a stable API, a choice of region, a private log of its own, and plans with prices.",
+      "text": "Not built: single sign-on and roles for an organisation, provisioning from an organisation's own identity system, keys held in a vault, approval workflows beyond the existing checkpoints, webhooks and a promise of a stable API, a choice of region, a private log of its own, and plans with prices.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -390,7 +390,7 @@
       ]
     },
     "ent_scale": {
-      "text": "The hosted service has not been shown to carry thousands of agents: a test of the log in one process on a development machine brought in 10,000, and no load test has been run on the hosted service.",
+      "text": "The hosted service has not been shown to carry thousands of agents. A test of the log in one process on a development machine brought in 10,000 agents, and no load test has been run on the hosted service.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -441,7 +441,7 @@
       ]
     },
     "ent_join": {
-      "text": "A fleet joins from a manifest: a plan shows what would be created, an apply writes it and can be resumed or rolled back, and each agent can come in on its own with an invitation it presents itself.",
+      "text": "A fleet joins from a manifest. A plan shows what would be created, an apply writes it and can be resumed or rolled back, and each agent can join on its own with an invitation that it presents itself.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -451,7 +451,7 @@
       ]
     },
     "ent_tree": {
-      "text": "A fleet is a tree of departments, teams and personas: each node can carry a Mandate that may only narrow its parent's, and a monthly budget.",
+      "text": "A fleet is a tree of departments, teams and personas. Each node can carry a monthly budget and a Mandate, which may only narrow the Mandate of its parent.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -461,7 +461,7 @@
       ]
     },
     "ent_starter": {
-      "text": "Every agent of a fleet gets its own starter credits (mock credits); farming is guarded by what agents do, not by a count of how many join.",
+      "text": "Every agent of a fleet receives its own starter credits, which are mock credits. The service guards against farming by what agents do and not by a count of how many join.",
       "pages": [
         "site/enterprise.html"
       ],
@@ -490,7 +490,7 @@
       ]
     },
     "ent_meter": {
-      "text": "Usage is counted from the signed log (active agents, writes, tokens, data stored), and a statement can be priced from a plan the owner signs; no plan is signed and no price is set today.",
+      "text": "Usage is counted from the signed log: active agents, writes, tokens and data stored. A statement can be priced from a plan that the owner signs. No plan is signed and no price is set today.",
       "pages": [
         "site/enterprise.html"
       ],
