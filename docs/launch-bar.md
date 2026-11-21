@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 508 register rows are not closed (231 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 508 register rows are not closed (230 at priority A, 212 at B, 49 at C). Sorted:
 
 - **Must close before launch: 67 rows, 328 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -457,7 +457,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK405 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK406 | A | open | no held-out pool | no claim |
 | DK490 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK491 | A | open | insurer drivers | no insurance claim |
+| DK491 | ? | partial | insurer drivers | no insurance claim |
 | DK662 | A | open | SB2: job tax only for the first season | the job tax only |
 | DK690 | A | open | tier breadth limits are built, off (TB1 undecided) | tier breadth is not limited |
 | DK691 | A | open | abuse intake tested with a fake fetch | an abuse report is a lead and an operator action |

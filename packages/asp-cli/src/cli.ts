@@ -749,6 +749,7 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  multiplier: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
   detection: { type: "string" },
@@ -5162,7 +5163,7 @@ async function insureCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days } });
+    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days, multiplier: v.multiplier } });
   } catch (e) {
     if (e instanceof InsureUsage) throw new UsageError(e.message);
     throw e;

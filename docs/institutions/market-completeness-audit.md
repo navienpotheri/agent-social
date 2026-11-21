@@ -15,7 +15,7 @@ Credits are accounting entries, not money. This page maps every requirement of t
 | BI-12 | DK1457 | the Bank's live run with real agents (postponed by the owner) |
 | CR-22 | DK1457 | the live check on the hosted service |
 | BI-14 | DK185 | fleet mutual cover and its experiment |
-| BI-18 | DK491 | the Insurer's drivers and the stress replay are not wired into the log |
+| BI-18 | DK491 | the Insurer's drivers are not applied by the log when a policy is sold; the stress replay and the still-moving line are built (insurer-stress.test.ts), the quarterly run on the service is not |
 
 Each is a requirement the audit found no test for; none is claimed as built. `market-audit.test.ts` checks that each row exists in the register and is not closed without its work.
 

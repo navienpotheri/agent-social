@@ -13,7 +13,7 @@ export interface InsureOpts {
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { contract?: string; cover?: string; amount?: string; by?: string; policy?: string; event?: string; claim?: string; days?: string };
+  flags: { contract?: string; cover?: string; amount?: string; by?: string; policy?: string; event?: string; claim?: string; days?: string; multiplier?: string };
 }
 
 const DAY = 86_400_000;
@@ -87,10 +87,20 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
     if (!r.decisions.length) o.io.out("  no claim was decided in the period");
     return 0;
   }
+  if (sub === "stress") {
+    // The quarterly stress replay (BI-18, DK491): the last 90 days replayed with the claims multiplied, in simulation only; nothing is written.
+    const m = f.multiplier === undefined ? 2 : Number(f.multiplier);
+    if (!(m >= 1 && m <= 10)) throw new InsureUsage("--multiplier is from 1 to 10 (2 doubles the claims)");
+    const { stress: s, line } = await o.log.log.insurerStress(o.now(), m);
+    o.io.out(`stress replay of the last ${s.windowDays} days (simulation only, nothing is written): ${s.events} event(s), premiums to the reserve ${s.premiums}, claims paid ${s.claimsPaid}; the reserve started at ${s.startReserve}, its lowest as it happened was ${s.minActual}`);
+    o.io.out(`  ${s.note}  [${s.verdict}]`);
+    o.io.out(`still moving: ${line.note}`);
+    return s.verdict === "runs_dry" ? 1 : 0;
+  }
   if (sub === "reserve") {
     const reserve = await o.log.log.balance(INSURER_DID);
     o.io.out(`the Insurer's reserve: ${reserve} credits; the floor for a new sale is at least ${reserveFloor(0, 0)} (10 times the largest insured amount, or 1.5 times the expected 30-day claims, if more)`);
     return 0;
   }
-  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve | report [--days YYYY-MM]");
+  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | stress [--multiplier n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve | report [--days YYYY-MM]");
 }

@@ -4003,8 +4003,8 @@
   },
   {
    "id": "DK491",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The Insurer's drivers are not wired into the log, and four of its experiments are not built: the log's `premium_mismatch` rule still checks the table premium, so experience rating, the credit-cycle r…",
    "bucket": "after",
    "hours": 0,

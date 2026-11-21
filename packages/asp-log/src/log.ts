@@ -15,7 +15,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { COVER_SHARE_PERMILLE, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -42,6 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
+import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
@@ -2526,6 +2527,39 @@ export class EventLog {
     const attemptRuns = Math.min(attemptEvents, trials);
     const s = sizeBondSplit({ trials, attemptRuns, jobValue: o.jobValue, damage: o.damage });
     return { ...s, trials, attemptRuns, modelPremium: modelPremium(s, o.insured, COVER_SHARE_PERMILLE) };
+  }
+
+  /**
+   * The Insurer's quarterly stress replay and its "still moving" line (BI-18, bank-insurer.md 14.1 and 14.4; DK491): the last 90 days of policies and paid claims from the log, replayed with the claims multiplied (default 2:
+   * double the slash rate), IN SIMULATION ONLY: it reads records and writes none.
+   */
+  async insurerStress(at: string, multiplier = 2): Promise<{ stress: StressResult; line: DynamicsLine }> {
+    const recs = await this.recordsOfTypes(["policy", "claim_decision"]);
+    const events: StressEvent[] = [];
+    const rates: { premium: number; insured: number }[] = [];
+    let claims = 0;
+    for (const r of recs) {
+      if (r.type === "asp.policy/v0.2") {
+        const b = r.body as { premium: { value: number }; insured_amount: { value: number } };
+        events.push({ at: r.issued_at, kind: "premium", amount: splitParts(b.premium.value, PREMIUM_SPLIT).payees[0].amount, insured: b.insured_amount.value });
+        rates.push({ premium: b.premium.value, insured: b.insured_amount.value });
+      } else {
+        const b = r.body as { decision: string; amount: { value: number } };
+        if (b.decision !== "denied" && b.amount.value > 0) { events.push({ at: r.issued_at, kind: "claim", amount: b.amount.value }); claims++; }
+      }
+    }
+    const reserveNow = (await this.store.getAccount(INSURER_ACCOUNT))?.balance ?? 0;
+    const stress = stressReplay(events, reserveNow, at, { multiplier });
+    // The reserve week by week, worked back from today, from the first event on, for the "still moving" line.
+    const to = Date.parse(at);
+    const first = events.length ? Math.min(...events.map((e) => Date.parse(e.at))) : to;
+    const weeks: number[] = [];
+    for (let w = 12; w >= 0; w--) {
+      const t = to - w * 7 * 86_400_000;
+      if (t < first - 7 * 86_400_000) continue;
+      weeks.push(reserveNow - events.filter((e) => Date.parse(e.at) > t && Date.parse(e.at) <= to).reduce((n, e) => n + (e.kind === "premium" ? e.amount : -e.amount), 0));
+    }
+    return { stress, line: dynamicsLine(rates, claims, weeks) };
   }
 
   /** The three guard measures the monitor could not compute before (G3, G4, G7; GV2, GV4), from the records: see guard-basket.ts. Reads only. */
