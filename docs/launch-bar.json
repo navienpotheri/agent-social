@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 73,
+  "must": 71,
   "withdraw": 112,
   "after": 323,
-  "total": 508
+  "total": 506
  },
- "mustWorkerHours": 365.2,
+ "mustWorkerHours": 349.2,
  "entries": [
   {
    "id": "D3",
@@ -5972,24 +5972,13 @@
   {
    "id": "DK1477",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nothing breaks a loop between agents or across a fleet: the per-run breaker (DK1230) sees one agent's calls, so an agent-to-agent cycle (A hires B hires A), or a whole fleet draining its budget in a…",
    "bucket": "must",
    "hours": 8,
    "size": "L",
    "flags": "",
    "why": "fleet-wide runaway breaker: agent-to-agent cycles and a fleet spend-rate circuit breaker (owner: loop prevention is must-close)"
-  },
-  {
-   "id": "DK1478",
-   "pri": "A",
-   "status": "open",
-   "gap": "The breaker counts equal calls only: an agent that repeats the same intent with small changes to the arguments (a path with a counter, a retry with a different timestamp) is not seen.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "near-repeat detection with a measured false-halt rate (owner: loop prevention is must-close)"
   },
   {
    "id": "DK1602",
@@ -6089,17 +6078,6 @@
    "why": "drift detection that runs by itself, with unannounced audits and a stated false-flag rate"
   },
   {
-   "id": "DK1713",
-   "pri": "A",
-   "status": "open",
-   "gap": "The containment benchmark is a benchmark, not a gate, and its coverage stops at the classes it has. DK1339 says no benchmark-only claim is made, but new bypass classes have no corpus: injection throu…",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "four new bypass classes with a corpus, a measured block rate and a regression test in the normal run"
-  },
-  {
    "id": "DK1714",
    "pri": "A",
    "status": "open",
@@ -6113,7 +6091,7 @@
   {
    "id": "DK1715",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A sponsor can lose tokens to a runaway agent: the denial-of-wallet guard refuses a wake past a ceiling and a per-agent token budget exists (`asp budget`, US2), but the starter Mandate does not carry…",
    "bucket": "must",
    "hours": 3,
@@ -6124,7 +6102,7 @@
   {
    "id": "DK1716",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Outbound secrets and personal data are not scanned at the gateway by content. What exists: the run log redacts the secrets it writes (`redactSecrets`, E2), the gateway refuses reading or sending a se…",
    "bucket": "must",
    "hours": 5,

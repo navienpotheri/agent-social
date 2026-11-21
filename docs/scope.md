@@ -1088,8 +1088,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
 | DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
-| DK1477 | A | open | Nothing breaks a loop between agents (A hires B hires A) or across a fleet (a spiral draining its budget): cycle detection and a fleet spend-rate circuit breaker that halts a node, as a signed record, are not built. |
-| DK1478 | A | open | The breaker counts equal calls only: a near-repeat (the same intent with small changes) is not detected, and its false-halt rate is not measured. |
+| DK1477 | A | partial | Nothing breaks a loop between agents (A hires B hires A) or across a fleet (a spiral draining its budget): cycle detection and a fleet spend-rate circuit breaker that halts a node, as a signed record, are not built. |
+| DK1478 | A | closed | The breaker counts equal calls only: a near-repeat (the same intent with small changes) is not detected, and its false-halt rate is not measured. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
@@ -1101,8 +1101,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1710 | A | partial | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
 | DK1711 | A | partial | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
 | DK1712 | A | partial | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
-| DK1713 | A | open | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
+| DK1713 | A | closed | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
 | DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
-| DK1715 | A | open | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
-| DK1716 | A | open | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
+| DK1715 | A | partial | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
+| DK1716 | A | partial | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
 | DK1717 | A | open | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |

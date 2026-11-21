@@ -176,6 +176,16 @@ export async function nodeOfMember(tx: LogTx, member: string): Promise<{ fleet: 
   return { fleet: pass.fleet, node: (await tx.getMarker(`fnode_of:${member}`)) ?? ROOT };
 }
 
+/** The members whose node is this node or sits below it (S1423): who a node breaker halts. */
+export async function subtreeMembers(tx: LogTx, fleet: string, node: string): Promise<string[]> {
+  const out: string[] = [];
+  for (const m of await tx.fleetMembers(fleet)) {
+    const at = (await tx.getMarker(`fnode_of:${m.did}`)) ?? ROOT;
+    if (node === ROOT || (await chainOf(tx, fleet, at)).some((n) => n.node === node) || at === node) out.push(m.did);
+  }
+  return out;
+}
+
 const spentKey = (fleet: string, node: string, month: string) => `nspent:${fleet}|${node}|${month}`;
 const tokensKey = (fleet: string, node: string, month: string) => `ntokens:${fleet}|${node}|${month}`;
 
@@ -207,7 +217,7 @@ export async function noteNodeTokens(tx: LogTx, member: string, tokens: number, 
 }
 
 export interface NodeUsage { credits: { spent: number; budget: number | null; left: number | null }; tokens: { used: number; budget: number | null; over: boolean } }
-export interface TreeView { fleet: string; month: string; nodes: (TreeNode & { members: number; subtreeMembers: number; depth: number; usage: NodeUsage })[]; members: number; moves: number }
+export interface TreeView { fleet: string; month: string; nodes: (TreeNode & { members: number; subtreeMembers: number; depth: number; usage: NodeUsage; halt?: { id: string; reason: string; at: string } })[]; members: number; moves: number }
 
 /** The tree of a fleet with member counts and usage, parents before children (S1409): what the dashboard and the journey view read. */
 export async function readTree(tx: LogTx, fleet: string, month: string): Promise<TreeView | undefined> {
@@ -229,7 +239,8 @@ export async function readTree(tx: LogTx, fleet: string, month: string): Promise
     const idx = out.length;
     const spent = Number((await tx.getMarker(spentKey(fleet, id, month))) ?? 0), used = Number((await tx.getMarker(tokensKey(fleet, id, month))) ?? 0);
     const budget = row.budget?.credits ?? null, tb = row.budget?.tokens ?? null;
-    out.push({ ...row, members: direct.get(id) ?? 0, subtreeMembers: 0, depth, usage: { credits: { spent, budget, left: budget === null ? null : Math.max(0, budget - spent) }, tokens: { used, budget: tb, over: tb !== null && used > tb } } });
+    const haltRaw = await tx.getMarker(`node_halt:${fleet}|${id}`);
+    out.push({ ...row, ...(haltRaw ? { halt: JSON.parse(haltRaw) as { id: string; reason: string; at: string } } : {}), members: direct.get(id) ?? 0, subtreeMembers: 0, depth, usage: { credits: { spent, budget, left: budget === null ? null : Math.max(0, budget - spent) }, tokens: { used, budget: tb, over: tb !== null && used > tb } } });
     let sub = direct.get(id) ?? 0;
     for (const c of await childrenOf(tx, fleet, id)) sub += await walk(c.node, depth + 1);
     out[idx].subtreeMembers = sub;

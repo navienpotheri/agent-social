@@ -66,7 +66,7 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
     if has(ceiling.get("loop_limits")):
         c = ceiling["loop_limits"]
         s = m.get("loop_limits") or {}
-        for k in ("equivalent_calls", "depth"):
+        for k in ("equivalent_calls", "depth", "near_repeats"):
             if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
                 out.append("loop_limits")
                 break

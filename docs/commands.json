@@ -523,6 +523,10 @@
           "description": "The city-wide emergency stop with a sunset: while it stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase) and the refusal names the stop, its reason and its end; work under way, appeals and essential services go on; it needs the owner's co-signature and ends by itself within 72 hours"
         },
         {
+          "command": "asp fleet breaker --did <fleet did> [--node <id>] [--window <seconds>] [--multiple <n>] [--halt-runs --by <organisation did>]",
+          "description": "The fleet-wide runaway breaker: what a tree node's members used in the window (model tokens, credits) against its monthly budget prorated to the window at a multiple of its pace (default one hour at four times), and agent-to-agent cycles among the fleet's hires; with `--halt-runs` the sponsor signs a run_halt for each running contract it names, after which that Mandate buys nothing, and `asp fleet tree` shows the halted node"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },
@@ -549,6 +553,10 @@
         {
           "command": "asp treasury draft [--period YYYY-MM] [--out <file>] | sign --draft <file> --id <draft id> --cosign-by <owner did> | list | statement [--since <time>] [--sign [--period YYYY-MM] [--by <treasury did>]] | pay --budget <id> --amount <n> [--memo <text>] | allowance --agent <did> [--yes]",
           "description": "The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules)."
+        },
+        {
+          "command": "asp gateway ... --outbound-scan block|redact",
+          "description": "Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)"
         },
         {
           "command": "asp gateway ... --wake-allow <did>[,<did>...]",

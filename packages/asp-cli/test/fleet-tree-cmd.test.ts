@@ -57,3 +57,22 @@ test("an organisation builds a fleet tree with commands: nodes with a budget and
     assert.notEqual((await asp(f, ["fleet", "node", "set", "--did", FLEET])).code, 0, "a usage line, not a crash");
   } finally { setClock(undefined); }
 });
+
+test("asp fleet breaker reads a quiet fleet as calm, refuses nonsense, and the tree prints no halt", async () => {
+  setClock(() => new Date("2026-11-21T10:00:00Z"));
+  try {
+    const f = makeFixture();
+    const ORG2 = "did:web:example.com:orgs:breaker-co";
+    assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", ORG2])).code, 0);
+    const FLEET2 = `${ORG2}:fleets:all`;
+    assert.equal((await asp(f, ["fleet", "declare", "--org", ORG2, "--name", "All", "--purpose", "every agent"])).code, 0);
+    assert.equal((await asp(f, ["fleet", "node", "set", "--did", FLEET2, "--owner", ORG2, "--node", "root", "--kind", "fleet", "--name", "Acme", "--tokens", "720000"])).code, 0);
+    const r = await asp(f, ["fleet", "breaker", "--did", FLEET2]);
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /node root: in 3600 s its members used 0 token\(s\) and 0 credit\(s\); allowed at 4x its budget's pace: 4000 token\(s\), no credit budget/);
+    assert.match(r.out, /nothing tripped: no spiral and no cycle/);
+    assert.notEqual((await asp(f, ["fleet", "breaker"])).code, 0, "a usage line");
+    assert.notEqual((await asp(f, ["fleet", "breaker", "--did", FLEET2, "--multiple", "0"])).code, 0);
+    assert.doesNotMatch((await asp(f, ["fleet", "tree", FLEET2])).out, /HALTED/);
+  } finally { setClock(undefined); }
+});

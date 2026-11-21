@@ -35,6 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
 import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
@@ -42,7 +43,7 @@ import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
-import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
+import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
 import { JOB_CLASSES } from "./market.ts";
@@ -2316,6 +2317,39 @@ export class EventLog {
     if (![b.agent, sponsor, this.operator].includes(r.issuer)) throw rule("run_halt_wrong_issuer", "a run halt is signed by the agent (its gateway), its sponsor or the operator");
     if (await tx.getMarker(`run_halted:${b.contract}`)) throw rule("run_halt_known", `${b.contract} is halted already`);
     await tx.putMarker(`run_halted:${b.contract}`, r.id);
+    const node = (r.body as { node?: string }).node;
+    const fleet = (await tx.getPassport(b.agent))?.fleet;
+    if (node && fleet) await tx.putMarker(`node_halt:${fleet}|${node}`, JSON.stringify({ id: r.id, reason: (r.body as { reason: string }).reason, at: r.issued_at }));
+  }
+
+  /** The fleet breaker (S1423, DK1477): what a node's members used in the window against the node's monthly budget prorated to it, times `multiple`; the running contracts to halt when it trips; and the agent-to-agent cycles among the fleet's hires in the window. A reading, not an act: halting is signing `run_halt`. */
+  async fleetBreaker(fleet: string, o: { node?: string; at?: string; windowMs?: number; multiple?: number } = {}): Promise<{ node: string; windowMs: number; multiple: number; used: { credits: number; tokens: number }; allowed: { credits?: number; tokens?: number }; reasons: string[]; contracts: { contract: string; agent: string }[]; cycles: { agents: string[]; contracts: string[] }[] }> {
+    const at = Date.parse(o.at ?? this.now().toISOString()), windowMs = o.windowMs ?? 3_600_000, multiple = o.multiple ?? 4, node = o.node ?? "root";
+    const { members, budget } = await this.store.transaction(async (tx) => ({ members: new Set(await subtreeMembers(tx, fleet, node)), budget: (JSON.parse((await tx.getMarker(`fnode:${fleet}|${node}`)) ?? "null") as { budget?: { credits?: number; tokens?: number } } | null)?.budget ?? {} }));
+    const recs = await this.recordsOfTypes(["action", "purchase", "contract"]);
+    const used = { credits: 0, tokens: 0 };
+    const hires: BreakerHire[] = [];
+    const contracts: { contract: string; agent: string }[] = [];
+    const fleetMembers = new Set((await this.store.fleetMembers(fleet)).map((m) => m.did));
+    for (const r of recs) {
+      const t = Date.parse(r.issued_at);
+      if (t > at || t < at - windowMs) {
+        if (r.type === "asp.contract/v0.2" && t <= at) { const b = r.body as { performer: string }; if (members.has(b.performer) && ["Running", "Checkpoint"].includes((await this.chainInfo(r.id))?.state ?? "")) contracts.push({ contract: r.id, agent: b.performer }); }
+        continue;
+      }
+      if (r.type === "asp.action/v0.2" && members.has(r.issuer)) { const m = (r.body as { metrics?: { tokens_in?: number; tokens_out?: number } }).metrics; used.tokens += (m?.tokens_in ?? 0) + (m?.tokens_out ?? 0); }
+      else if (r.type === "asp.purchase/v0.2" && members.has(r.issuer)) used.credits += (r.body as { amount: { value: number } }).amount.value;
+      else if (r.type === "asp.contract/v0.2") {
+        const b = r.body as { principal: string; performer: string };
+        if (fleetMembers.has(b.principal) && fleetMembers.has(b.performer)) hires.push({ principal: b.principal, performer: b.performer, at: t, contract: r.id });
+        if (members.has(b.performer) && ["Running", "Checkpoint"].includes((await this.chainInfo(r.id))?.state ?? "")) contracts.push({ contract: r.id, agent: b.performer });
+      }
+    }
+    const allowed = allowedInWindow({ windowMs, multiple, budget });
+    const halted = new Set<string>();
+    for (const c of contracts) if (await this.runHaltOf(c.contract)) halted.add(c.contract);
+    const reasons = tripped(used, allowed);
+    return { node, windowMs, multiple, used, allowed, reasons, contracts: reasons.length ? contracts.filter((c) => !halted.has(c.contract)) : [], cycles: hireCycles(hires) };
   }
 
   /** The record that halted a contract's run, or undefined (S1422): what a gateway checks at the start of a run, so a halted run is not resumed under the same Mandate. */

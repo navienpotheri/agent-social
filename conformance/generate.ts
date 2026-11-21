@@ -585,6 +585,15 @@ sv("valid_intent", "intent", {
 sv("valid_offer", "offer", { intent: intentId, price: credits(0), plan: "Reproduce, isolate the race, fix, prove 50/50", eta: "2026-10-02T12:00:00Z", bond_offered: credits(0) }, true);
 sv("valid_call", "call", { purpose: "Cut CI time in half", budget: credits(5000), evaluation_criteria: ["median CI minutes"], panel: [panel.did], deadline: "2026-11-01T00:00:00Z" }, true);
 sv("valid_proposal", "proposal", { call: fakeId("call"), plan: "Shard and cache", team: [coder.did], budget_asked: credits(1200), milestones: [{ description: "sharding", due: "2026-10-15T00:00:00Z" }] }, true);
+// the types that had only a valid vector: one invalid case each for what the schema requires and for an extra field
+sv("call_missing_deadline", "call", { purpose: "Cut CI time in half", budget: credits(5000), evaluation_criteria: ["median CI minutes"], panel: [panel.did] }, false);
+sv("call_empty_purpose", "call", { purpose: "", budget: credits(5000), evaluation_criteria: ["median CI minutes"], panel: [panel.did], deadline: "2026-11-01T00:00:00Z" }, false);
+sv("proposal_missing_milestones", "proposal", { call: fakeId("call"), plan: "Shard and cache", team: [coder.did], budget_asked: credits(1200) }, false);
+sv("proposal_empty_plan", "proposal", { call: fakeId("call"), plan: "", team: [coder.did], budget_asked: credits(1200), milestones: [{ description: "sharding", due: "2026-10-15T00:00:00Z" }] }, false);
+sv("bond_missing_escrow", "bond", { contract: fakeId("c"), backer: coder.did, amount: credits(10), slashing_conditions: [] }, false);
+sv("bond_amount_not_an_amount", "bond", { contract: fakeId("c"), backer: coder.did, amount: 10, escrow: {}, slashing_conditions: [] }, false);
+sv("package_missing_lineage_head", "package", { agent: coder.did, memory: { uri: "x", sha256: "sha256:" + "a".repeat(64) } }, false);
+sv("package_agent_not_a_did", "package", { agent: "coder", passport: fakeId("p"), memory: { uri: "x", sha256: "sha256:" + "a".repeat(64) }, experience_store: { uri: "x", sha256: "sha256:" + "a".repeat(64) }, permissions: {}, lineage_head: fakeId("l"), source_runtime: {} }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -723,6 +732,13 @@ sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_ke
 sv("node_without_expiry", "node", (({ expires: _e, ...rest }) => rest)(nodeBody), false);
 sv("node_id_not_did_url", "node", { ...nodeBody, node: coder.did }, false);
 sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
+// juror: self-registration to be drawn onto a Courts panel, with a stake (the schema had no vectors in either SDK)
+sv("valid_juror", "juror", { did: coder.did, stake: credits(50) }, true);
+sv("juror_without_stake", "juror", { did: coder.did }, false);
+sv("juror_without_did", "juror", { stake: credits(50) }, false);
+sv("juror_did_not_a_did", "juror", { did: "juror-1", stake: credits(50) }, false);
+sv("juror_stake_not_an_amount", "juror", { did: coder.did, stake: 50 }, false);
+sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pick me" }, false);
 
 // ---------- credit economy vectors (spec-delta S163: mint, price_list, purchase, receipt) ----------
 {
@@ -1371,7 +1387,7 @@ const worldRules = [
     purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
     irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
     overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
-    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3 }, ...over,
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 12 }, ...over,
   });
   const fl = "did:web:example.com:orgs:acme:fleets:coders";
   sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
@@ -1388,6 +1404,7 @@ const worldRules = [
   sv("valid_mandate_narrowing_token_budget", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { token_budget: { per_run: 10000 } } }, true);
   sv("mandate_template_zero_loop_depth", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 0 } }) }, false);
   sv("mandate_template_one_equivalent_call", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { equivalent_calls: 1 } }) }, false);
+  sv("mandate_template_near_repeats_two", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { near_repeats: 2 } }) }, false);
   sv("mandate_template_unknown_loop_field", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { max_loops: 3 } }) }, false);
   sv("valid_mandate_template_loop_depth_only", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 2 } }) }, true);
   sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
@@ -1509,7 +1526,7 @@ const worldRules = [
     ["no_institution_spend", { institution_spend: [] }],
     ["a_lower_token_budget", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_token_run", { token_budget: { per_run: 60000, per_month: 800000 } }], ["a_higher_token_month", { token_budget: { per_run: 40000, per_month: 2000000 } }],
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
-    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
+    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
   const mt = {
     version: "asp.conformance/v0.2",
