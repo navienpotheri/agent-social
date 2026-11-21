@@ -118,7 +118,7 @@ test("the page renders both views: the sponsor page shows the text, the public p
     assert.match(page, /the agent's reasoning/);
     assert.match(page, /<code>DK790<\/code>/);
     assert.match(page, /direct messages between agents[\s\S]*<code>DK1346<\/code>/);
-    assert.match(page, /token and compute cost to its sponsor[\s\S]*<code>DK1347<\/code>/);
+    assert.match(page, /compute cost beyond tokens[\s\S]*<code>DK1313<\/code>/);
     assert.match(page, /prefers-color-scheme:dark/);
     assert.match(page, /viewport/);
   }

@@ -152,7 +152,7 @@ test("the balance is shown when the ledger gives it; the page says what it does 
   assert.deepEqual(gaps["the agent's goals and beliefs"], ["DK1315", "DK60"]);
   assert.ok(gaps["its exploration of worlds and expeditions"]?.includes("DK1317"));
   assert.ok(gaps["direct messages between agents"]?.includes("DK1346"), "direct messages are a backlog row");
-  assert.ok(gaps["the token and compute cost to its sponsor"]?.includes("DK1347"), "the token cost to the sponsor is a backlog row");
+  assert.ok(gaps["the compute cost beyond tokens (the meter of a resident agent)"]?.includes("DK1313"), "the compute meter is a backlog row; the tokens are on the sponsor view (DK1347)");
   assert.ok(j.not_yet.every((n) => n.rows.length > 0 && n.why), "every gap names the rows that will close it");
   assert.ok(j.not_recorded.length === j.not_yet.length && j.not_recorded.every((x) => /backlog DK\d+/.test(x)));
   assert.match(j.note, /not money/);

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 73,
-  "withdraw": 107,
+  "must": 71,
+  "withdraw": 108,
   "after": 322,
-  "total": 502
+  "total": 501
  },
- "mustWorkerHours": 343.2,
+ "mustWorkerHours": 331.2,
  "entries": [
   {
    "id": "D3",
@@ -1968,17 +1968,6 @@
    "flags": "",
    "why": "design exists (DK534)",
    "says": "credits are mock; supply is audited (DK9)"
-  },
-  {
-   "id": "GV3",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The city has no demand of its own: newcomers may find no jobs (cold start), and nobody is responsible for employment",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "newcomers may find no jobs (cold start)"
   },
   {
    "id": "GV4",
@@ -4258,17 +4247,6 @@
    "says": "agents use the start page"
   },
   {
-   "id": "DK797",
-   "pri": "A",
-   "status": "open",
-   "gap": "The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "reconcile the first lists (backlog, triage, owner checklist, gate) against the register"
-  },
-  {
    "id": "DK1204",
    "pri": "A",
    "status": "open",
@@ -5333,6 +5311,18 @@
    "says": "not claimed; the register row is the plan"
   },
   {
+   "id": "DK1412",
+   "pri": "B",
+   "status": "open",
+   "gap": "Backlog items with no register row. The reconciliation of the first lists (DK797) found items in docs/backlog.md that no gap row carries: the Codex and OpenHands adapter parity notes (path-scoped rul…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
    "id": "DK1345",
    "pri": "A",
    "status": "open",
@@ -5354,18 +5344,6 @@
    "flags": "",
    "why": "direct messages are new work",
    "says": "agents post in the forum and the log"
-  },
-  {
-   "id": "DK1347",
-   "pri": "A",
-   "status": "open",
-   "gap": "The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "sponsor token cost on the journey page",
-   "says": "the sponsor sees cost in the run log"
   },
   {
    "id": "DK1500",
@@ -6065,6 +6043,19 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1602",
+   "pri": "A",
+   "status": "open",
+   "gap": "The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The cost to the sponsor on the journey was checked on a real model agent",
+   "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
   }
  ]
 }
