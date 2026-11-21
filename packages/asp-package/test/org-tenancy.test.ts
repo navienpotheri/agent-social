@@ -183,3 +183,33 @@ test("the audit trail: sign-ins (accepted and refused), role changes, provisioni
     assert.equal(s.audit().verify().ok, false);
   } finally { s.close(); }
 });
+
+test("DK1373: SCIM groups give their members a role, a person who leaves the group goes back to the default, an owner is never changed, and a group that maps to no role is refused", async () => {
+  const s = await setup();
+  try {
+    const scim = (await s.call("POST", "/org/acme/scim-token", "tok-acme", {})).json.token as string;
+    for (const u of ["g1", "g2", "g3"]) await s.call("POST", "/org/acme/scim/Users", scim, { userName: `${u}@acme.example`, externalId: u });
+    const role = async (id: string) => (await s.call("GET", "/org/acme/members", "tok-acme")).json.members.find((m: { id: string }) => m.id === id).role;
+    assert.deepEqual([await role("u:g1"), await role("u:g2")], ["member", "member"]);
+    // a group named for a role
+    assert.equal((await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "auditor", members: [{ value: "u:g1" }, { value: "u:g2" }] })).status, 201);
+    assert.deepEqual([await role("u:g1"), await role("u:g2")], ["auditor", "auditor"]);
+    // the group's members change: g2 leaves and goes back to the default, g3 joins
+    await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "auditor", members: [{ value: "u:g1" }, { value: "u:g3" }] });
+    assert.deepEqual([await role("u:g1"), await role("u:g2"), await role("u:g3")], ["auditor", "member", "auditor"]);
+    // a group mapped by the sign-on's roleMap
+    await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "asp-admins", members: [{ value: "u:g2" }] });
+    assert.equal(await role("u:g2"), "administrator");
+    // the owner is never changed by a group, and a group that maps to nothing (or to owner) is refused
+    assert.equal((await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "auditor", members: [{ value: "tenant:acme" }] })).status, 201);
+    assert.equal(await role("tenant:acme"), "owner");
+    assert.equal((await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "engineering", members: [] })).status, 400);
+    assert.equal((await s.call("POST", "/org/acme/scim/Groups", scim, { displayName: "owner", members: [{ value: "u:g1" }] })).status, 400);
+    assert.equal((await s.call("POST", "/org/acme/scim/Groups", "wrong", { displayName: "auditor", members: [] })).status, 401);
+    // deleting a group returns its people to the default; each change is in the audit trail
+    assert.equal((await s.call("DELETE", "/org/acme/scim/Groups/asp-admins", scim)).status, 200);
+    assert.equal(await role("u:g2"), "member");
+    const actions = (await s.call("GET", "/org/acme/audit", "tok-acme")).json.entries.map((e: { action: string }) => e.action);
+    assert.ok(actions.includes("group.set") && actions.includes("role.change"));
+  } finally { s.close(); }
+});

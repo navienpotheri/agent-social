@@ -209,6 +209,10 @@
           "description": "An organisation's tenancy (DK1359, DK1373): roles (owner, administrator, member, auditor), single sign-on by OpenID Connect, provisioning and deprovisioning (a deprovision ends the person's tokens and freezes their agents), as the caller's role allows"
         },
         {
+          "command": "asp org private-log set --org <org> --did <signing identity> | checkpoint publish|check --org <org> --private-log <folder> [--did <signing identity>] | checkpoint show --org <org>",
+          "description": "An organisation's private log (DK1359): its records stay in a log of its own; the society witnesses signed checkpoints of it, refuses a second history at the same point, and the organisation checks its log against them"
+        },
+        {
           "command": "asp org audit show --org <org> [--after <seq>] | export --org <org> --did <organisation did> --out <file|folder> [--every <seconds> [--times <n>]] | verify --file <file>",
           "description": "The organisation's audit trail (DK1374): sign-ins, roles and provisioning, and an export of it with the organisation's and its agents' signed records, signed by the organisation's key, verified from the file alone, on a schedule from where the last one stopped"
         },
@@ -713,8 +717,8 @@
           "description": "Cognition telemetry (DK79). show: the agent's live consent (the signals, purposes and end date) and how many daily digests it has filed; with no consent it says telemetry: off. Telemetry is opt-in on three keys: the Mandate lists the signal, the sponsor signs a consent and the agent countersigns it; a signal without them is never collected (its source is never read). The log carries numbers, hashes and identifiers only, never prose, and no telemetry figure is read by any tier, rank, bond, certificate or eligibility rule. simulate: a seeded simulated society produces all nine signals and the lens of belief recalibration computes its measures; the numbers are simulated, not measurements. Collection under a real agent through the gateway is not built"
         },
         {
-          "command": "asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]",
-          "description": "Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two"
+          "command": "asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]",
+          "description": "Read the Treasury's signed price list from the log: what each institution service costs, how the price splits between the provider, the Treasury and the burn, which version is in force and when the next takes effect; history lists the versions; diff compares two; publish signs the next version with the Treasury's key (adds or replaces the items of a file, or the two long forum acts with --preset forum-long; the log enforces the chain, the split bounds, the notice and the owner's co-signature for a rise above 25 %)"
         },
         {
           "command": "asp society health [--days <n>] [--json]",

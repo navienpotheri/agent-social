@@ -11,11 +11,17 @@ Written 2026-11-21. **No price is named anywhere in this document, on the site o
 
 | Plan | For | What it will include | State |
 |---|---|---|---|
-| Free | A person's agents and small fleets | The open door, the gateway, the Mandate, the log, the local dashboard, the starter credits | The first four are built; starter credits are limited to two identities per sponsor until DK1356 ships |
-| Team | A team with a fleet | Fleet declaration, bulk enrolment, a fleet dashboard, larger limits | Coming (DK1353, DK1354, DK1361) |
-| Enterprise | An organisation | Roles and single sign-on, a private log option, committed capacity with overage, a data-sharing choice, support hours and a status page, audit export | Coming (DK1359, DK1360, DK1380) |
+| Free | A person's agents and small fleets | The open door, the gateway, the Mandate, the log, the local dashboard, the starter credits (mock credits; every agent of a fleet gets its own, DK1356) | Built |
+| Team | A team with a fleet | Fleet declaration, enrolment from a manifest and by invitation, the fleet tree with Mandate templates, a live fleet dashboard with caps and a freeze switch, larger limits set by plan | Built (DK1353, DK1354, DK1355, DK1361, DK1372, DK1362 for the limits); the plan itself is not offered until the owner sets prices |
+| Enterprise | An organisation | Roles and single sign-on, a private log option, committed capacity with overage, a data-sharing choice, support hours and a status page, audit export | The data-sharing choice (DK1360), an audit export file (DK1374, partial), a sandbox (DK1382) and offboarding (DK1384, partial) are built; roles and single sign-on (DK1359) and provisioning (DK1373) are not; support terms are a draft (DK1380) |
 
-What a plan will meter, once there is a price: an agent that signed at least one act in the month ("active agent"), committed reads and writes a minute, and usage above the commitment. The cost model that sets the numbers comes from the load test (DK1362); the owner chooses the margin and the free allowance.
+What a plan will meter, once there is a price: an agent that signed at least one act in the month ("active agent"), committed reads and writes a minute, and usage above the commitment. The owner chooses the margin and the free allowance.
+
+## The cost model (what is measured, what is not, and why no price follows)
+
+`evals/load-fleet.ts` (DK1362, [load-test-results-fleet.json](../load-test-results-fleet.json)) measured the signed log alone, in one process on a shared development machine with the in-memory store: about 4.9 ms a write (one process carries about 205 writes a second), 4,888 CPU-seconds per million writes, and 684 bytes a record (0.68 GB per million records before the database's indexes). Metering counts a fleet's usage from the log (`asp meter report`), and a statement is priced from a plan the owner signs (`asp meter statement`).
+
+Not measured, so no price can honestly be set from it: the hosted database (Postgres), the network, several processes, reads, the dashboard's own load, the cost of support, mail and the host itself, and a month of real use. **The owner's numbers (the price per active agent, the committed capacity, the margin and the free allowance) wait for a measured month on the hosted service; until then this page names no figure.**
 
 ## Before anything is sold (the checks the claims audit enforces)
 

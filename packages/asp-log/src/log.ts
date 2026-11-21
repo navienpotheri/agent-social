@@ -409,6 +409,7 @@ export class EventLog {
     if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
+    if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
@@ -2151,6 +2152,8 @@ export class EventLog {
     if (!m || m.record.type !== "asp.mandate/v0.2") throw rule("mandate_unknown", `${b.mandate} is not a Mandate in this log`);
     if (m.record.subject !== buyer) throw rule("mandate_not_buyers", `the Mandate ${b.mandate} is for ${m.record.subject}, not ${buyer}`);
     const mb = m.record.body as { expires?: string; institution_spend?: InstitutionSpend[]; remedial?: unknown };
+    const halted = await tx.getMarker(`run_halted:${(m.record.body as { contract?: string }).contract}`);
+    if (halted) throw rule("run_halted", `the run under this Mandate was halted (${halted}): it buys nothing more. A new contract and Mandate are a fresh start`);
     const endedAt = await tx.getMarker(`mandate_ended:${(m.record.body as { contract?: string }).contract}`);
     if (endedAt) throw rule("mandate_revoked", `the Mandate ${b.mandate} ended at ${endedAt}: its contract was revoked, so it lets ${buyer} buy nothing`);
     if (mb.remedial) throw rule("remedial_mandate_buys_remedial_only", `the Mandate ${b.mandate} is a remedial one (a Clinic exam or course): it buys remedial or essential items only`);
@@ -2299,6 +2302,23 @@ export class EventLog {
     await this.credit(tx, BURN_DID, b.amount.value); // the credits leave circulation into the Burn account, which the supply audit counts
     await this.bumpClass(tx, b.act === "expire" ? "pexpired" : "prefunded", b.amount.value);
   }
+
+  /** A halted run (S1422, DK1230): the agent, its sponsor or the operator records that the gateway halted the run; the contract's Mandate then buys nothing. */
+  private async projectRunHalt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string; agent: string };
+    if (r.prev !== null) throw rule("run_halt_not_chained", "a run halt starts its own chain (prev is null)");
+    const contract = await tx.getRecord(b.contract);
+    const cb = contract?.record.body as { performer?: string } | undefined;
+    if (!contract || contract.record.type !== "asp.contract/v0.2") throw rule("run_halt_unknown_contract", `${b.contract} is not a contract in this log`);
+    if (cb?.performer !== b.agent) throw rule("run_halt_not_performer", `${b.agent} does not perform ${b.contract}`);
+    const sponsor = (await tx.getPassport(b.agent))?.sponsor;
+    if (![b.agent, sponsor, this.operator].includes(r.issuer)) throw rule("run_halt_wrong_issuer", "a run halt is signed by the agent (its gateway), its sponsor or the operator");
+    if (await tx.getMarker(`run_halted:${b.contract}`)) throw rule("run_halt_known", `${b.contract} is halted already`);
+    await tx.putMarker(`run_halted:${b.contract}`, r.id);
+  }
+
+  /** The record that halted a contract's run, or undefined (S1422): what a gateway checks at the start of a run, so a halted run is not resumed under the same Mandate. */
+  async runHaltOf(contract: string): Promise<string | undefined> { return this.store.transaction(async (tx) => (await tx.getMarker(`run_halted:${contract}`)) || undefined); }
 
   /** The emergency stop in force at a time (S1420, GV6): undefined when there is none or it has ended. It ends by itself at its sunset. */
   private async liveStop(tx: Pick<LogTx, "getMarker">, at: string): Promise<{ id: string; until: string; reason: string } | undefined> {

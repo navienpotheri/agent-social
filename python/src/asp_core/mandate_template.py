@@ -59,9 +59,16 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
     if has(ceiling.get("token_budget")):
         c = ceiling["token_budget"]
         s = m.get("token_budget") or {}
-        for k in ("per_run", "per_month"):
+        for k in ("per_run", "per_month", "per_day"):
             if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
                 out.append("token_budget")
+                break
+    if has(ceiling.get("loop_limits")):
+        c = ceiling["loop_limits"]
+        s = m.get("loop_limits") or {}
+        for k in ("equivalent_calls", "depth"):
+            if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
+                out.append("loop_limits")
                 break
     if has(ceiling.get("institution_spend")):
         lines = m.get("institution_spend") or []

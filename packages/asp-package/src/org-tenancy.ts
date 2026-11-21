@@ -13,15 +13,17 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { hashToken, type Tenant } from "@agent-social/asp-log";
 import { AdminAudit, type AuditEntry } from "./admin-routes.ts";
+import { appendCheckpoint, findEquivocations, readCheckpoints, verifyCheckpointSignature, type LogCheckpoint } from "./checkpoint.ts";
+import { didOf } from "@agent-social/asp-core";
 
 export type OrgRole = "owner" | "administrator" | "member" | "auditor";
 export const ORG_ROLES: readonly OrgRole[] = ["owner", "administrator", "member", "auditor"];
-export type OrgPermission = "org.read" | "members.manage" | "roles.assign" | "sso.configure" | "audit.read" | "provision";
+export type OrgPermission = "org.read" | "members.manage" | "roles.assign" | "sso.configure" | "audit.read" | "provision" | "checkpoint.publish";
 
 /** What each role may do; the one table every route is checked against. */
 export const PERMISSIONS: Readonly<Record<OrgRole, readonly OrgPermission[]>> = {
-  owner: ["org.read", "members.manage", "roles.assign", "sso.configure", "audit.read", "provision"],
-  administrator: ["org.read", "members.manage", "audit.read", "provision"],
+  owner: ["org.read", "members.manage", "roles.assign", "sso.configure", "audit.read", "provision", "checkpoint.publish"],
+  administrator: ["org.read", "members.manage", "audit.read", "provision", "checkpoint.publish"],
   member: ["org.read"],
   auditor: ["org.read", "audit.read"],
 };
@@ -29,7 +31,7 @@ export const can = (role: OrgRole, p: OrgPermission) => PERMISSIONS[role].includ
 
 export interface OrgMember { id: string; email?: string; sub?: string; role: OrgRole; active: boolean; via: "owner" | "sso" | "scim" | "admin"; createdAt: string; deprovisionedAt?: string; tokens: { hash: string; createdAt: string; expiresAt: string }[]; agents: string[] }
 export interface OidcConfig { issuer: string; audience: string; jwks: { keys: Record<string, unknown>[] }; roleClaim?: string; roleMap?: Record<string, OrgRole>; defaultRole: OrgRole; jit: boolean }
-export interface Org { name: string; ownerTenant: string; createdAt: string; sso?: OidcConfig; scimTokenHash?: string; members: Record<string, OrgMember> }
+export interface Org { /** SCIM groups (DK1373): a group name and the people in it; the group maps to a role by the sign-on's roleMap or by being a role name. */ groups?: Record<string, string[]>; /** The identity whose key signs the checkpoints of the organisation's private log (DK1359). */ privateLog?: { did: string; setAt: string }; name: string; ownerTenant: string; createdAt: string; sso?: OidcConfig; scimTokenHash?: string; members: Record<string, OrgMember> }
 
 const sha = (t: string) => hashToken(t);
 const NAME = /^[a-z][a-z0-9-]{1,38}$/;
@@ -74,6 +76,10 @@ export interface OrgRoutesOptions {
   /** Where each organisation's audit trail is kept: one hash-chained file a name. */
   auditPath: (org: string) => string;
   now: () => string;
+  /** Where each organisation's witnessed checkpoints are kept (an append-only file a name). */
+  checkpointPath?: (org: string) => string;
+  /** The public key of a key id in the society's log (the organisation's passport), or undefined. */
+  keyOf?: (kid: string) => Promise<Uint8Array | undefined>;
   /** Freezes an agent identity (the fleet controls): called for each agent of a person who is deprovisioned. Returns whether it was frozen. */
   freezeAgent?: (did: string, by: string, at: string) => Promise<boolean>;
 }
@@ -174,6 +180,33 @@ export function orgRoutes(o: OrgRoutesOptions) {
       org.scimTokenHash = sha(token); o.store.put(org); log(org.name, by, "scim.token", "scim");
       return send(201, { ok: true, token, note: "Shown once: the identity system's provisioning feed uses it on /org/<name>/scim/Users." });
     }
+    // The organisation's private log (DK1359): its records stay in a log of its own; the society witnesses signed checkpoints of it, so the organisation cannot later show a different history.
+    if (method === "PUT" && rest === "private-log") {
+      if (!need("sso.configure")) return true;
+      const b = await readBody();
+      if (typeof b.did !== "string" || !b.did.startsWith("did:")) return fail(400, "BAD_DID", "did is the identity whose key signs the checkpoints");
+      org.privateLog = { did: b.did, setAt: o.now() }; o.store.put(org); log(org.name, by, "private_log.set", b.did);
+      return send(200, { ok: true, privateLog: org.privateLog });
+    }
+    if (rest === "checkpoints" && o.checkpointPath) {
+      const file = o.checkpointPath(org.name);
+      if (method === "GET") { if (!(caller && (can(caller.role, "audit.read") || can(caller.role, "checkpoint.publish")))) { need("audit.read"); return true; } const all = readCheckpoints(file); return send(200, { ok: true, privateLog: org.privateLog ?? null, checkpoints: all, latest: all.at(-1) ?? null, equivocations: findEquivocations(all).length }); }
+      if (method === "POST") {
+        if (!need("checkpoint.publish")) return true;
+        if (!org.privateLog) return fail(409, "NO_PRIVATE_LOG", "no private log is declared: PUT /org/<name>/private-log { did } first");
+        const cp = (await readBody()) as Partial<LogCheckpoint>;
+        if (!Number.isInteger(cp.seq) || typeof cp.logHash !== "string" || typeof cp.signedAt !== "string" || typeof cp.signer !== "string" || typeof cp.sig !== "string") return fail(400, "BAD_CHECKPOINT", "a checkpoint has seq, logHash, signedAt, signer and sig");
+        if (didOf(cp.signer) !== org.privateLog.did) { log(org.name, by, "checkpoint.refused", String(cp.seq), "signed by another identity"); return fail(403, "WRONG_SIGNER", `checkpoints of this private log are signed by ${org.privateLog.did}`); }
+        const key = o.keyOf ? await o.keyOf(cp.signer) : undefined;
+        if (!key || !verifyCheckpointSignature(cp as LogCheckpoint, key, org.privateLog.did)) { log(org.name, by, "checkpoint.refused", String(cp.seq), "the signature does not verify"); return fail(401, "BAD_SIGNATURE", "the signature does not verify against the key in the society's log"); }
+        const all = readCheckpoints(file);
+        const same = all.find((c) => c.seq === cp.seq);
+        if (same && same.logHash !== cp.logHash) { log(org.name, by, "checkpoint.equivocation", String(cp.seq), "two different hashes at one seq"); return fail(409, "EQUIVOCATION", `the log already has a signed checkpoint at seq ${cp.seq} with a different hash: a private log cannot show two histories`); }
+        if (all.length && (cp.seq as number) < (all.at(-1)?.seq ?? 0)) return fail(409, "BEHIND", `a checkpoint at seq ${cp.seq} is behind the latest (${all.at(-1)!.seq}): a log only grows`);
+        if (!same) { appendCheckpoint(file, cp as LogCheckpoint); log(org.name, by, "checkpoint.publish", String(cp.seq), cp.logHash); }
+        return send(same ? 200 : 201, { ok: true, witnessed: cp.seq, logHash: cp.logHash, total: same ? all.length : all.length + 1 });
+      }
+    }
     const roleM = /^members\/([^/]+)\/role$/.exec(rest);
     if (method === "PUT" && roleM) {
       if (!need("members.manage")) return true;
@@ -216,6 +249,38 @@ export function orgRoutes(o: OrgRoutesOptions) {
       return send(200, { ok: true, organisation: org.name, entries, verify: a.verify(), head: a.read().at(-1)?.hash ?? null });
     }
 
+    // SCIM groups: a group gives its members a role (the roleMap of the sign-on, or the group is named for a role other than owner); a person leaving a group goes back to the default role.
+    if (seg[2] === "scim" && seg[3] === "Groups") {
+      if (!isScim && !need("provision")) return true;
+      const who = isScim ? "scim" : by;
+      const roleOf = (g: string): OrgRole | undefined => { const r = org.sso?.roleMap?.[g] ?? (ORG_ROLES.includes(g as OrgRole) ? (g as OrgRole) : undefined); return r && r !== "owner" ? r : undefined; };
+      const fallback = org.sso?.defaultRole ?? "member";
+      const setGroup = (name: string, members: string[]) => {
+        const role = roleOf(name);
+        if (!role) return false;
+        const before = org.groups?.[name] ?? [];
+        org.groups = { ...(org.groups ?? {}), [name]: members };
+        for (const id of members) { const m = org.members[id]; if (m && m.role !== "owner" && m.active) { if (m.role !== role) log(org.name, who, "role.change", id, `${m.role} to ${role} by group ${name}`); m.role = role; } }
+        for (const id of before.filter((x) => !members.includes(x))) { const m = org.members[id]; if (m && m.role === role) { m.role = fallback; log(org.name, who, "role.change", id, `${role} to ${fallback}: left group ${name}`); } }
+        o.store.put(org); log(org.name, who, "group.set", name, `${members.length} member(s)`);
+        return true;
+      };
+      if ((method === "POST" || method === "PUT") && seg.length === 4) {
+        const b = await readBody();
+        if (typeof b.displayName !== "string" || !b.displayName) return fail(400, "BAD_GROUP", "displayName is needed");
+        const ids = (Array.isArray(b.members) ? b.members : []).map((x: { value?: string } | string) => (typeof x === "string" ? x : String(x?.value ?? ""))).filter(Boolean);
+        if (!setGroup(b.displayName, ids)) return fail(400, "UNMAPPED_GROUP", `the group ${b.displayName} maps to no role: name it for a role (administrator, member, auditor) or map it in the sign-on's roleMap; owner is never given by a group`);
+        return send(201, { id: b.displayName, displayName: b.displayName, members: ids.length, role: roleOf(b.displayName) });
+      }
+      if (method === "DELETE" && seg.length === 5) {
+        const name = decodeURIComponent(seg[4]);
+        if (!org.groups?.[name]) return fail(404, "NO_SUCH_GROUP", "no such group");
+        setGroup(name, []); delete org.groups[name]; o.store.put(org);
+        return send(200, { id: name, deleted: true });
+      }
+      if (method === "GET" && seg.length === 5) { const name = decodeURIComponent(seg[4]); return org.groups?.[name] ? send(200, { id: name, displayName: name, members: org.groups[name] }) : fail(404, "NO_SUCH_GROUP", "no such group"); }
+      return fail(405, "METHOD", "POST /scim/Groups, GET or DELETE /scim/Groups/<name>");
+    }
     // The provisioning feed, SCIM-style: Users with userName, active and optionally a role.
     if (seg[2] === "scim" && seg[3] === "Users") {
       if (!isScim && !need("provision")) return true;
