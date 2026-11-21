@@ -15,6 +15,7 @@
     "spec": "node conformance/generate-spec-doc.ts",
     "commands": "node conformance/generate-command-reference.ts",
     "ai-files": "node conformance/generate-ai-files.ts",
+    "launch-bar": "node conformance/generate-launch-bar.ts",
     "lenses": "node conformance/generate-lens-matrix.ts",
     "pipeline": "node conformance/generate-pipeline-decisions.ts",
     "asp": "node packages/asp-cli/bin/asp.mjs",
