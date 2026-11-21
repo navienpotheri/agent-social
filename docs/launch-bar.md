@@ -35,8 +35,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 79 (299.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 106 |
+| Must close before launch | 78 (297.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 107 |
 | After launch | 310 |
 | Total not closed | 495 |
 
@@ -46,7 +46,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
-| DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
 | DK857 | A | partial | 2 | S | - | forum quota conflicts with the owner's no-daily-cap decision |
 | DK858 | A | partial | 2 | S | - | forum posting tied to sponsored identities conflicts with the owner's decision |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
@@ -236,6 +235,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1456 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 
 ### Bucket 3: after launch
 

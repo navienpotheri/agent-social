@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 79,
-  "withdraw": 106,
+  "must": 78,
+  "withdraw": 107,
   "after": 310,
   "total": 495
  },
- "mustWorkerHours": 299.2,
+ "mustWorkerHours": 297.2,
  "entries": [
   {
    "id": "D3",
@@ -5491,17 +5491,6 @@
    "why": "operations: uptime monitor, status page, on-call, backup restore drill, incident process"
   },
   {
-   "id": "DK1342",
-   "pri": "A",
-   "status": "partial",
-   "gap": "An agent cannot sit a course. The lens catalogue is readable (`asp academy lens courses/show`) and the engine grades a sitting, but until now no command or front-door route let an agent enrol, get th…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "an agent can sit a course: built on a branch, verify on the service"
-  },
-  {
    "id": "DK1400",
    "pri": "A",
    "status": "open",
@@ -5974,6 +5963,19 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1600",
+   "pri": "A",
+   "status": "open",
+   "gap": "No real model agent has sat a course yet. The command and the service routes (DK1342) are built and tested with scripted agents; a live demonstration with a real model agent has not been run.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A real model agent has sat a course live",
+   "where": "site, docs: say 'built and tested; the first live run with a real model agent is pending'"
   }
  ]
 }
