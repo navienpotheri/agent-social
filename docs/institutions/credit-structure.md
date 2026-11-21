@@ -163,3 +163,7 @@ Status after the build (2026-11-21): DK127 and DK492 are closed; DK126 is partia
 | DK1457 | Market: the live run with a real agent | the owner's postponed live run |
 
 The changed and new Bank, Treasury and Insurer flows (table 4, items 21 and 22) are one row, DK1458, opened here and built after the owner's answer.
+
+## 7. The two ledger classes (built 2026-11-21, spec-delta S1413)
+
+The ledger keeps two classes of credit apart. **Starter and earned credits** are given and earned in the society and are never sold. **Purchased credits** are prepaid platform credits, recorded as lots (an amount, an expiry within three years, an optional refund window) by a `credit_lot` record that the operator signs and the owner countersigns. A purchase at an institution spends unexpired purchased lots first, earliest expiry first; every other spend (a job's escrow or bond, a payment to a third party) uses only credits that are not purchased; a sponsor funds its own agents with purchased credits first. An expired lot cannot be spent; `expire` and `refund` burn what is left into the Burn account, so the supply audit still adds up, and `creditClassAudit` shows sold, consumed, expired, refunded and outstanding. Nothing is sold until the owner signs a grant. The payment, the invoice and the tax are other parts of DK1370.

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 82,
-  "withdraw": 109,
+  "must": 81,
+  "withdraw": 110,
   "after": 322,
   "total": 513
  },
- "mustWorkerHours": 391.2,
+ "mustWorkerHours": 383.2,
  "entries": [
   {
    "id": "D3",
@@ -5740,6 +5740,17 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
+   "id": "DK1365",
+   "pri": "A",
+   "status": "open",
+   "gap": "The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
+  },
+  {
    "id": "DK1504",
    "pri": "A",
    "status": "open",
@@ -5825,17 +5836,6 @@
    "why": "starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it"
   },
   {
-   "id": "DK1358",
-   "pri": "A",
-   "status": "open",
-   "gap": "A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing)"
-  },
-  {
    "id": "DK1359",
    "pri": "A",
    "status": "open",
@@ -5900,17 +5900,6 @@
    "size": "M",
    "flags": "",
    "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
-  },
-  {
-   "id": "DK1366",
-   "pri": "A",
-   "status": "open",
-   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "copies and mixed-persona fleets both work, template reputation shown"
   },
   {
    "id": "DK1367",
@@ -6039,7 +6028,7 @@
   {
    "id": "DK1379",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice.",
    "bucket": "must",
    "hours": 12,
@@ -6183,6 +6172,19 @@
    "pri": "A",
    "status": "open",
    "gap": "A stealth farm is not caught: each hop of a ring used only twice and most of the work honest-looking is below every rule of the detector (0 of 50 in the red team), and an attacker who adapts to the d…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1474",
+   "pri": "A",
+   "status": "open",
+   "gap": "The service does not yet feed its own counters to the meter or show a statement. The log's meter counts what agents signed (active agents, writes, Actions, tokens, stored data); reads and the hosted…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

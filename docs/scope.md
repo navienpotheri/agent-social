@@ -1052,14 +1052,15 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1355 | A | partial | A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand. |
 | DK1356 | A | partial | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
-| DK1358 | A | open | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
+| DK1358 | A | closed | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
 | DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
 | DK1360 | A | partial | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
 | DK1361 | A | open | There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend. |
 | DK1362 | A | open | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
 | DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
 | DK1364 | A | open | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
-| DK1366 | A | open | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
+| DK1366 | A | closed | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
+| DK1365 | A | open | The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door must not be gameable either. |
 | DK1367 | A | partial | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. |
 | DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
 | DK1369 | A | open | It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, retention against an append-only log, audit export, billing and service levels have not been checked as a whole. |
@@ -1072,7 +1073,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
 | DK1377 | A | partial | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
 | DK1378 | A | open | Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling. |
-| DK1379 | A | open | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
+| DK1379 | A | partial | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
 | DK1380 | A | partial | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
 | DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |
 | DK1382 | A | open | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
@@ -1085,3 +1086,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1471 | A | open | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | open | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | open | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
+| DK1474 | A | open | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
