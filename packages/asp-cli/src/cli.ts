@@ -606,6 +606,7 @@ const OPTIONS = {
   "outbound-kinds": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
   "agent-runtime": { type: "string" },
+  "untrusted-flow": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -3645,6 +3646,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     confineTo: resolve(io.cwd, v.project ?? "."),
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
+    ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
     // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
     ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).

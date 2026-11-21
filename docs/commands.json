@@ -579,6 +579,10 @@
           "description": "Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it"
         },
         {
+          "command": "asp gateway ... --untrusted-flow",
+          "description": "Hold an outward call (the network, a push, another server's tool) that carries a host, address, email, command line or long opaque string copied from a tool result and not given by the principal or named in the Mandate. It treats every tool result as data (a file, a ticket, a shell's output, a web page) and holds only the calls that copy something out of it, so it costs far fewer harmless calls than holding every outward call after a read; a destination spelled out in pieces, or an attack that copies nothing, is not found (DK1713)"
+        },
+        {
           "command": "asp gateway ... --untrusted-by-type",
           "description": "Treat what a tool brought in from outside the project (a web page, a search, another server's tool) as untrusted by where it came from: the next outward calls are held whether or not the detector finds orders in it; a legitimate push right after a web read waits (off by default; DK1713)"
         },
