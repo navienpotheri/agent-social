@@ -696,6 +696,11 @@ const codeRef = { version: "0.3", sha256: "6e2b9c9d3df853aa0d63e59b5a05b91cdf2ec
 sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: codeRef }, true);
 sv("report_ruling_upheld_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, false);
 sv("valid_report_ruling_dismissed_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "dismissed" }, true);
+sv("valid_ruling_outside_mandate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder"] }, true);
+sv("ruling_outside_mandate_empty", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: [] }, false);
+sv("ruling_outside_mandate_not_a_did", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["the coder"] }, false);
+sv("ruling_outside_mandate_duplicate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder", "did:web:example.com:agents:coder"] }, false);
+sv("acceptance_with_outside_mandate", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "accepted", outside_mandate: ["did:web:example.com:agents:coder"] }, false);
 sv("valid_ruling_citing_code", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split", fault: { "did:web:example.com:agents:coder": 500 }, code: { version: "0.3", articles: ["3"] } }, true);
 sv("code_without_articles", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: [] } }, false);
 sv("code_article_out_of_range", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["13"] } }, false);

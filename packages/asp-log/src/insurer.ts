@@ -8,7 +8,8 @@ import { AspError, type AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID, BURN_DID, institutionDid, splitParts } from "./economy.ts";
 import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 import type { LogTx } from "./store.ts";
-import { effectiveFault } from "./courts-rules.ts";
+import { charterIn, effectiveFault } from "./courts-rules.ts";
+const DAY_MS = 86_400_000;
 import { noteIncome } from "./bank-active.ts";
 import { cyclePermille, experiencePermille, holiday, quotePremium } from "./insurer-dynamics.ts";
 
@@ -326,6 +327,23 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
   const policy = (await readPolicy(tx, policyId))!;
   const settlement = (await tx.getRecord(event))!;
   const sb = settlement.record.body as { bond_slashed: { value: number }; basis: string; cites?: string };
+  // A decision on a claim that rests on a ruling waits for the Courts' appeal window to close and for an open appeal to be decided (S1592, DK402): the ruling may still change the money. With no charter in force there is no appeal route and no hold.
+  let outsideMandate = false;
+  if (sb.basis === "ruling" && sb.cites) {
+    const ruling = await tx.getRecord(sb.cites);
+    const routes = ruling ? await charterIn(tx, ruling.record.issued_at) : null;
+    if (ruling && routes) {
+      const windowEnd = Date.parse(ruling.record.issued_at) + routes.appeal_window_days * DAY_MS;
+      if (Date.parse(r.issued_at) < windowEnd) throw rule("decision_in_appeal_window", `the claim rests on a ruling that can still be appealed until ${new Date(windowEnd).toISOString().replace(/\.\d{3}Z$/, "Z")}: it is decided after the appeal window closes`);
+      const appealId = await tx.getMarker(`appealed:${sb.cites}`);
+      const appeal = appealId ? (JSON.parse((await tx.getMarker(`appeal:${appealId}`)) ?? "null") as { state: string } | null) : null;
+      // No time limit while an appeal is open (unlike a settlement, which waits at most a week): money paid on a ruling that is then reversed would need a clawback, so the claim waits for the appeal ruling and no reversal record is needed.
+      if (appealId && appeal?.state === "open") throw rule("decision_appeal_pending", `the ruling is under appeal (${appealId}): the claim is decided when the appeal is, so that no payment rests on a ruling that is then reversed`);
+    }
+    // The exclusion (bank-insurer.md 5): a ruling may find that the performer acted outside its Mandate; bond-slash cover does not pay for that.
+    const found = (ruling?.record.body as { outside_mandate?: string[] } | undefined)?.outside_mandate ?? [];
+    outsideMandate = policy.cover === "bond_slash" && found.includes((await tx.getRecord(policy.contract))!.record.body.performer as string);
+  }
   const escrow = await tx.getEscrow(policy.contract);
   const contract = (await tx.getRecord(policy.contract))!.record.body as { performer: string; price: { value: number } };
   const slashed = sb.bond_slashed.value;
@@ -333,7 +351,7 @@ export async function projectClaimDecision(tx: LogTx, r: AspRecord, env: Insurer
   if (sb.basis === "ruling" && sb.cites) {
     fault = (await effectiveFault(tx, sb.cites))?.[contract.performer] ?? fault; // the corrected map after an appeal (S1400)
   }
-  const terms = payoutFor(policy.cover, policy.insured, contract.price.value, slashed, fault);
+  const terms = outsideMandate ? { amount: 0, reason: "outside_mandate" } : payoutFor(policy.cover, policy.insured, contract.price.value, slashed, fault);
   const availFirst = policy.mutual ? await mutualAvailable(tx, policy.mutual, r.issued_at) : undefined;
   const reserve = availFirst ? availFirst.pool + availFirst.above : await balanceOf(tx, INSURER_DID);
   const due = Math.min(terms.amount, reserve);
