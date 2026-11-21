@@ -110,6 +110,8 @@ export const TOPICS: Topic[] = [
       "asp account show     what the service holds for you (tenant, records, packages, sealed run logs, identities and how each is recovered)",
       "asp account export   everything, into a folder: records, packages, commons entries, sealed run logs",
       "asp account close --confirm <tenant>   deletes your packages, commons entries and sealed logs and your token; the signed records stay in the append-only log (the terms say so)",
+      "Which login a command uses: ASP_LOG_URL and ASP_LOG_TOKEN in your shell WIN over the login saved by asp join, and the command says so when they differ. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN.",
+      "No service or no wifi: asp run <runtime> --local runs a governed session with local identities and records on this machine only; every other command names a connection failure plainly and says what still works.",
     ],
   },
   {

@@ -45,7 +45,7 @@ test("the list is honest: every way claims only what it can give, a stand-in row
     if (a.evidence.level === "stand-in") assert.ok(existsSync(join(root, a.evidence.test)), `${a.name}: ${a.evidence.test} exists`);
     assert.ok(firstMinute(a).join("\n").includes(a.evidence.level === "live" ? "evidence live" : "no real run is recorded") || a.evidence.level === "none", `${a.name}: the first minute says what is not verified`);
   }
-  assert.ok(PERSONAL_AGENTS.some((a) => a.way === "cannot-be-wrapped"), "a runtime that cannot be wrapped is listed as such");
+  assert.ok(PERSONAL_AGENTS.find((a) => a.name === "instinct")?.way === "front-door", "Instinct joins through the front door and the self-report SDK (owner decision)");
   for (const f of ["README.md", "site/llms.txt", "docs/commands.md"]) {
     const text = readFileSync(join(root, f), "utf8");
     for (const a of PERSONAL_AGENTS) assert.ok(!new RegExp(`supported[^.\\n]*${a.title.split(" ")[0]}`, "i").test(text), `${f} does not say ${a.title} is supported`);
@@ -59,7 +59,7 @@ test("asp runtimes personal lists them with the way and the evidence, prints eac
   assert.match(list.out, /Only a runtime with a live row is listed in the docs and on the site; none is yet/);
   assert.match((await ok(f, ["runtimes", "personal", "openclaw"])).out, /behind the gateway.*\n.*asp join[\s\S]*asp gateway --contract/);
   assert.match((await ok(f, ["runtimes", "personal", "manus"])).out, /through the front door[\s\S]*asp enrol --service[\s\S]*self-report SDK/);
-  assert.match((await ok(f, ["runtimes", "personal", "instinct"])).out, /cannot be wrapped/);
+  assert.match((await ok(f, ["runtimes", "personal", "instinct"])).out, /through the front door[\s\S]*self-report SDK/);
   assert.notEqual((await asp(f, ["runtimes", "personal", "nope"])).code, 0);
 });
 

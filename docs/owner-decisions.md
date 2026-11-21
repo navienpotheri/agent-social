@@ -278,3 +278,27 @@ The owner's words: "there needs to be a town hall in the society, and agents get
 | Approvals | The legal review, its "Selling credits" section, Code draft 0.4, the succession plan, the monetary policy, the decisions log and the enterprise fleets design are approved. The legal review needs its self-contradiction fixed and the three site pages need a formal rewrite (launch-bar-2) | DK1340, O19, DK1370, LW1, DK421, DK1, DK730 |
 | Town Hall scope | Agents vote on policies, courses, learning paths, new institutions and society settings. Reserved to the owner: the Code's articles, the safety floors, money creation and legal matters | DK1720 (flag D cleared), DK1722, DK1723 |
 | Succession | The owner will give the names later; DK421 stays open for them | DK421 |
+
+## Live runs, accounts and outside parties (C1 to C15, 2026-11-21, relayed by the lead)
+
+| # | Decision | Rows |
+|---|---|---|
+| C1 | The owner runs the unsigned-mint adoption and the hosted-database steps once at deployment; exact commands in the deployment kit | DK95, DK9 |
+| C2 | The owner runs suspend, resume, block and unblock on the deployed service and pastes the trail; no worker touches the live service | O18 |
+| C3 | A worker proposes the uptime monitor, status-page host and backup bucket in the owner's cloud account with exact steps; the owner approves; "monitored" and "backed up" stay off the site until then | DK1341 |
+| C4 | The owner checks encryption at rest in the Google Cloud console and sends it; the claim stays off until then | DK1411 |
+| C5 | The forum goes live with the deployment, run by the owner; not before the host and the monitor | DK34, X6, X7 |
+| C6 | The owner publishes the asp-run Action and tests it in his own pipeline | DK64 |
+| C7 | Live real-model runs stay postponed with T15, T22, DK650, P21; the site says "tested with stand-ins" | E5 |
+| C8 | The environment wins over a saved login (stated in the help); a worker may run the offline test | T4 |
+| C9 | Reproduce in CI with ASP_DEBUG_APPROVALS=1; the "two sessions are safe" claim stays off until it passes | T3 |
+| C10 | OpenID Connect only at launch (Google Workspace or Entra ID, a throwaway test tenant held by the owner); SAML on request; the site says "single sign-on: OIDC; SAML on request" | DK1359, DK1373 |
+| C11 | Launch with the signed export; the streaming feed is a later release; a security reviewer checks the format in the first pilot | DK1374 |
+| C12 | Real runs of the personal-agent products stay postponed; Instinct joins through the front door and the self-report SDK at lower assurance | DK1364 |
+| C13 | Show the first-hour checklist and the data-sharing choice on the dashboard, journey view and sign-up page before launch; the owner arranges the timed walkthrough (names the person later) | DK1371, DK1360 |
+| C14 | Build and test the house-agent runner on the test ledger now; the hosted run follows | DK270 |
+| C15 | The owner does both live cases in his two-hour live-check block; the worker prepares exact steps and a list of people to try the commands with | T2, U16 |
+
+## The reading pack (2026-11-21, relayed by the lead)
+
+The owner read items 1 to 8 (the questions index, the launch-bar page, the legal review, the selling-credits section, the site pages, the Code, the succession plan, the monetary policy) and said: "still need editing before they can go live, but they are ok for now, and it depends on what we are going to use them for". Status of each: **approved for now (working drafts), not final for publication.** DK730 (the three pages) is not marked approved: the owner has the rewritten pages. The editorial pass is DK1727 (launch-bar-2): by audience (internal, public site, signed, investor or enterprise), each document gets a read-through for clarity and tone, a claims check, a link check and the owner's last read; the owner confirms each document's audience.
