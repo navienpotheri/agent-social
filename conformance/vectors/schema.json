@@ -3681,6 +3681,356 @@
       "valid": true
     },
     {
+      "name": "valid_recall_petition",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_recall_petition_joining",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for",
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_petition_no_reason",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "recall_petition_officer_not_a_did",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_recall_vote",
+      "schema": "recall_vote",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "choice": "remove"
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_vote_abstain",
+      "schema": "recall_vote",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "choice": "abstain"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_recall_result",
+      "schema": "recall_result",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "removed": true,
+        "remove_milli": 5000,
+        "keep_milli": 2000,
+        "controllers": 8
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_result_negative",
+      "schema": "recall_result",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "removed": false,
+        "remove_milli": -1,
+        "keep_milli": 0,
+        "controllers": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_forum_rank_checkpoint",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_forum_rank_checkpoint_no_votes",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 0,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "forum_rank_checkpoint_bad_period",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-W47",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_short_root",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "abc",
+        "votes": 120,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_no_rank_hash",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_rank_checkpoint_negative_votes",
+      "schema": "forum_rank_checkpoint",
+      "instance": {
+        "period": "2026-11-22",
+        "votes_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "votes": -1,
+        "rank_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_gateway_refusal",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "scope": "fs.write",
+        "rule": "outside_mandate",
+        "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_gateway_refusal_contract",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "scope": "fs.write",
+        "rule": "outside_mandate",
+        "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "at": "2026-11-22T10:00:00Z",
+        "contract": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": true
+    },
+    {
+      "name": "gateway_refusal_no_scope",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "rule": "outside_mandate",
+        "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gateway_refusal_bad_hash",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "scope": "fs.write",
+        "rule": "outside_mandate",
+        "call_sha256": "abc",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gateway_refusal_agent_not_a_did",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "coder-7",
+        "scope": "fs.write",
+        "rule": "outside_mandate",
+        "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "gateway_refusal_call_text",
+      "schema": "gateway_refusal",
+      "instance": {
+        "agent": "did:web:example.com:agents:coder-7",
+        "scope": "fs.write",
+        "rule": "outside_mandate",
+        "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "at": "2026-11-22T10:00:00Z",
+        "call": "rm -rf /"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_season",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "seed-2026-12-a",
+        "rounds": 12
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_season_no_seed",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "rounds": 12
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_season_zero_rounds",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "seed-2026-12-a",
+        "rounds": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_season_short_seed",
+      "schema": "ladder_season",
+      "instance": {
+        "game": "twenty-one",
+        "season": "2026-12",
+        "entry_closes_at": "2026-12-03T00:00:00Z",
+        "ends_at": "2026-12-29T00:00:00Z",
+        "draw_seed": "x",
+        "rounds": 12
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_entry",
+      "schema": "ladder_entry",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_entry_no_season",
+      "schema": "ladder_entry",
+      "instance": {},
+      "valid": false
+    },
+    {
+      "name": "valid_ladder_match",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_ladder_match_draw",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 500,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "ladder_match_score_not_allowed",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 700,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_match_no_transcript",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 0,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000
+      },
+      "valid": false
+    },
+    {
+      "name": "ladder_match_round_out_of_range",
+      "schema": "ladder_match",
+      "instance": {
+        "season": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "round": 60,
+        "a": "did:web:example.com:agents:p1",
+        "b": "did:web:example.com:agents:p2",
+        "score_permille": 1000,
+        "transcript_sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_expedition",
       "schema": "expedition",
       "instance": {
@@ -17566,6 +17916,23 @@
         "opens_at": "2026-12-01T00:00:00Z",
         "closes_at": "2026-12-08T00:00:00Z",
         "thread": "thread-42"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_town_proposal_rank_checkpoint",
+      "schema": "town_proposal",
+      "instance": {
+        "title": "Add a study hour to the Academy",
+        "kind": "policy",
+        "key": "academy.study_hours",
+        "value": {
+          "hours": 2
+        },
+        "opens_at": "2026-12-01T00:00:00Z",
+        "closes_at": "2026-12-08T00:00:00Z",
+        "thread": "thread-42",
+        "rank_checkpoint": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
       },
       "valid": true
     },

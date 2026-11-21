@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:recall_petition",
+  "title": "Recall petition body",
+  "description": "One controller's signature on a petition to recall an elected officer (register row DK1743; spec-delta S1600; docs/institutions/elections.md 5). The first petition for an officer names the election (its `election_result`) and the officer and opens the petition; later ones cite it in `recall`. The log refuses a petition within seven days of the election (recall_grace), against someone who is not an officer elected there (recall_not_an_officer), and two signatures from one controller. When the petition holds the signatures of at least 10 percent of the controllers that voted at the election, and never fewer than five, the recall opens for a seven-day vote. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "election_result",
+    "officer",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "election_result": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "officer": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "recall": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

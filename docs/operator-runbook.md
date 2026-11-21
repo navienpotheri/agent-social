@@ -98,6 +98,7 @@ A passing drill ends `DRILL PASSED`. Record the date, the backup file and the ou
 |---|---|
 | Daily | the checks in section 1; the court's docket if the beta has disputes (`asp court docket`) |
 | Weekly | `asp serve purge` (closed accounts past retention); read the sign-up demand count and set the daily cap from it |
+| Daily | `asp forum rank-checkpoint --by <operator did>` (the operator's machine, with `ASP_LOG_URL` and an admin token): signs the Merkle root of the forum's standing votes into the log; a Town Hall proposal on a forum thread needs one no older than 8 days (DK1768) |
 | Monthly | the restore drill; apply updates by rerunning the setup script (it updates the code and restarts the service and does not recreate the database or secrets) |
 | After any change to the backup job | the restore drill |
 

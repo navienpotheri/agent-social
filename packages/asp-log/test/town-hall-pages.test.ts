@@ -18,8 +18,9 @@ test("DK1724: the page shows the agenda, the live count, the votes by fleet, the
   // before any proposal
   const empty = (await publicReply(k.log, "/society/townhall", true) as { html: string }).html;
   assert.match(empty, /No proposal yet/);
+  const checkpoint = await k.log.append(mk("forum_rank_checkpoint", operator, { period: nowIso().slice(0, 10), votes_root: "a".repeat(64), votes: 4, rank_sha256: "b".repeat(64) }));
   const open = Date.parse(nowIso()) + 60_000;
-  const p = mk("town_proposal", agents[0]!, { title: "Two study hours", kind: "setting", key: "academy.study_hours", value: 2, opens_at: iso(open), closes_at: iso(open + 7 * DAY), thread: "forum:study-hours" });
+  const p = mk("town_proposal", agents[0]!, { title: "Two study hours", kind: "setting", key: "academy.study_hours", value: 2, opens_at: iso(open), closes_at: iso(open + 7 * DAY), thread: "forum:study-hours", rank_checkpoint: checkpoint.id });
   await k.log.append(p);
   let view = await k.log.townHall(iso(open - 1000));
   assert.equal(view.proposals[0]!.state, "upcoming", "before the window opens the vote is upcoming");

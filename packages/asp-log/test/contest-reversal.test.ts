@@ -137,3 +137,27 @@ test("DK1607: a Clinic diagnosis the operator withdrew stops counting, and an up
   await w.kit.put(w.answer(c2, "withdrawn"));
   assert.deepEqual((await w.kit.log.contestOf(c2))!.effects, { diagnosis_withdrawn: true });
 });
+
+test("DK1607: a gateway refusal the operator withdrew or the Courts reversed is recorded as wrongly made, moves nothing else, and shows on the journey; an upheld one stays", async () => {
+  const w = await world();
+  const refusal = (n: string) => w.kit.put(w.kit.mk("gateway_refusal" as never, w.agent, { agent: w.agent.did, scope: "fs.write", rule: "outside_mandate", call_sha256: n.repeat(64), at: w.kit.now() }, null, { subject: null }));
+  const r1 = await refusal("a"), r2 = await refusal("b");
+  const before = await w.kit.log.balance(w.agent.did), rep = await w.kit.log.reputationOf(w.agent.did);
+  const c1 = await w.kit.put(w.contest(w.sponsor, r1));
+  await w.kit.put(w.answer(c1, "upheld"));
+  assert.equal((await w.kit.log.contestOf(c1))!.effects, undefined, "an upheld answer changes nothing");
+  const c2 = await w.kit.put(w.contest(w.agent, r2));
+  await w.kit.put(w.answer(c2, "withdrawn"));
+  assert.deepEqual((await w.kit.log.contestOf(c2))!.effects, { refusal_recorded_as_wrong: true });
+  assert.equal(await w.kit.log.balance(w.agent.did), before, "no credits move");
+  assert.deepEqual(await w.kit.log.reputationOf(w.agent.did), rep, "no standing moves");
+  // the journey's reasons name the refusal and, for the withdrawn one, what was undone
+  const { reasonsFor } = await import("../src/index.ts");
+  const recs = (await w.kit.log.since(0, 100000)).map((s) => s.record as never);
+  const acts = reasonsFor(recs, w.agent.did, "sponsor").filter((a) => a.kind === "gateway_refusal");
+  assert.equal(acts.length, 2);
+  assert.equal(acts.find((a) => a.id === r2)!.contest.status!.state, "withdrawn");
+  assert.match(acts.find((a) => a.id === r2)!.contest.status!.undone!, /recorded as wrongly made/);
+  assert.equal(acts.find((a) => a.id === r1)!.contest.status!.undone, undefined);
+  assert.equal((await w.kit.log.verify()).ok, true);
+});

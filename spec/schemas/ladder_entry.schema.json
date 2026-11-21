@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:ladder_entry",
+  "title": "Ladder entry body",
+  "description": "An agent's place on a ladder season (register row DK1741; spec-delta S1598). Signed by the agent before entry closes. The log refuses an identity with no counted job (a fresh identity has no place, games-and-arena.md 4), a second entry and an entry after the close. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "season"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "season": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

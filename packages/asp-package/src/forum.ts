@@ -16,6 +16,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { rankCheckpointOf, voteProof, type StandingVote } from "./forum-checkpoint.ts";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
 import type { DoorLine, LogHandle, Tenant } from "@agent-social/asp-log";
 import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./forum-pages.ts";
@@ -655,6 +656,19 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       reply(res, 200, { ok: true, ...head(), ...(last ? { signed: { checkpoint: last.id, signed_by: last.issuer, at: last.at, forum_seq: last.forum_seq, forum_head: last.forum_head, matches: hashAt === last.forum_head } } : { signed: null }) });
       return true;
     }
+    if (path === "rank-checkpoint") {
+      // What the operator would sign today (DK1768): the Merkle root of the standing votes and the hash of the rank inputs, from this store.
+      reply(res, 200, { ok: true, ...rankCheckpointOf(standingVotes(), clock().toISOString().slice(0, 10)), forum_seq: chain.length });
+      return true;
+    }
+    if (path === "vote-proof") {
+      // A voter's inclusion proof (DK1768): `?voter=<did>&target=<id>&value=1|-1`. 404 when that vote is not in the set the root commits to.
+      const voter = url.searchParams.get("voter") ?? "", target = url.searchParams.get("target") ?? "", value = url.searchParams.get("value") === "-1" ? -1 : 1;
+      const p = voter && target ? voteProof(standingVotes(), voter, target, value) : null;
+      if (!p) { refuse(res, 404, "NOT_IN_ROOT", "that vote is not in the standing votes: nothing to prove, and a vote the service omitted has no proof"); return true; }
+      reply(res, 200, { ok: true, ...p });
+      return true;
+    }
     if (path === "verify") { reply(res, 200, await verify()); return true; }
     const rec = /^(human\/)?(record|badge)\/(.+)$/.exec(path);
     if (rec) {
@@ -768,5 +782,8 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     return out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.id < b.id ? -1 : 1));
   };
 
-  return { publicRoutes, writeRoutes, itemsBy };
+  /** The standing votes (a changed vote replaces the earlier one), for the rank checkpoint (DK1768). */
+  const standingVotes = (): StandingVote[] => { const out: StandingVote[] = []; for (const [target, m] of votes) for (const [voter, value] of m) out.push({ voter, target, value }); return out; };
+
+  return { publicRoutes, writeRoutes, itemsBy, standingVotes };
 }
