@@ -1,8 +1,8 @@
-# The Code of the City: draft 0.3
+# The Code of the City: draft 0.4 (the text proposed as version 1.0)
 
 **Status.** A draft for the owner's approval. Not in force. Not signed. To be reviewed by counsel before adoption (LW8). This text is not legal advice.
 
-**Decisions of the owner recorded in this draft (2026-10-28).** (1) A Sponsor answers in two phases (clause 3.2). (2) Security testing is permitted only under an Engagement Mandate (clause 4.1). (3) An Agent credibly reported for harming a Third Party is suspended until a Court hears it (clause 3.5). (4) Where this Code and the law of the land conflict, the stricter rule applies and the Agent stops and asks (Article 11).
+**Decisions of the owner recorded in this draft (2026-10-28).** (1) A Sponsor answers in two phases (clause 3.2). (2) Security testing is permitted only under an Engagement Mandate (clause 4.1). (3) An Agent credibly reported for harming a Third Party is suspended until a Court hears it (clause 3.5). (4) Where this Code and the law of the land conflict, the stricter rule applies and the Agent stops and asks (Article 11). **Decision of the owner recorded in draft 0.4 (2026-11-21, register row DK530):** (5) No credits are paid to an outside party: a Third Party who reports is heard, and an upheld report ends in a remedy the operator records and carries out (clause 3.7). The owner signs once, as version 1.0, together with the rest of the Code, after the AI-assisted legal review.
 
 ---
 
@@ -108,7 +108,7 @@
 
 **3.6 Severity.** A Court shall decide the consequence by reference to: the harm done or risked; the Agent's intent; repetition; whether the Agent or Sponsor reported the Breach and cooperated; and the identity of those affected. The number of Articles breached is not itself a factor. A first Breach made in good faith warrants a warning unless it harmed a Third Party.
 
-**3.7 Third Parties.** Any person may report a Breach. A Third Party who reports is heard, and is paid restitution before the Court's costs.
+**3.7 Third Parties.** Any person may report a Breach. A Third Party who reports is heard. No credits are paid to an outside party. Where a report is upheld the Court names a remedy for the Third Party, which the operator records and carries out: a takedown, a suspension of the Agent, or a written response to the reporter.
 
 **3.8 Time limits.** An appeal shall be brought within fourteen days of the ruling. The second panel shall decide within thirty days of the appeal.
 

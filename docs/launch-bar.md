@@ -59,7 +59,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
-| DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
+| DK530 | ? | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | O6 | A | partial | 4 | M | - | scale through the service is unmeasured above 5,000 records |
@@ -92,7 +92,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |
-| LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
+| LW1 | ? | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |

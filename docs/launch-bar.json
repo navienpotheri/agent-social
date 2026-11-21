@@ -2096,7 +2096,7 @@
   },
   {
    "id": "LW1",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised access to any system, no breaking authentication or other controls, no exploiting a grade…",
    "bucket": "must",
@@ -4015,7 +4015,7 @@
   },
   {
    "id": "DK530",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Restitution to an outside victim of an abuse report is paid in mock credits (S502: the accused's balance, then its sponsor's, up to 200 a case), which means nothing to a third party; the owner decide…",
    "bucket": "must",
