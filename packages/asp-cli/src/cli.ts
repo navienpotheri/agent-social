@@ -364,6 +364,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
+import { contestCmd, ContestUsage } from "./contest-cmd.ts";
 import { MessageUsage, messageCmd } from "./message-cmd.ts";
 import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
@@ -778,6 +779,9 @@ const OPTIONS = {
   seed: { type: "string" },
   null: { type: "boolean" },
   "no-intake": { type: "string" },
+  contest: { type: "string" },
+  subject: { type: "string" },
+  answer: { type: "string" },
   "kill-key": { type: "string" },
   effect: { type: "string" },
   value: { type: "string" },
@@ -1329,6 +1333,11 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
       try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, "rank-checkpoint": v["rank-checkpoint"], proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "contest") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await contestCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, subject: v.subject, statement: v.statement, contest: v.contest, answer: v.answer, reason: Array.isArray(v.reason) ? v.reason[0] : v.reason, case: v.case, decision: v.decision, json: v.json } }); } catch (e) { if (e instanceof ContestUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "listen") {
       const local = await openLog(home, logEnv);
