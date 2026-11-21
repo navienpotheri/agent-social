@@ -60,9 +60,20 @@ if (import.meta.url === new URL(process.argv[1] ?? "", "file://").href || proces
     "The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to \"withdraw\". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as \"not open yet\" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.", "",
     "**What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.",
   ].join("\n");
+  // Rows closed on the latest closing date in the register (deterministic: no clock), listed by id so the owner can see what moved.
+  const regText = readRegister(root);
+  const closedOn = [...regText.matchAll(/Closed (2026-\d\d-\d\d)/g)].map((m) => m[1]!).sort();
+  const today = closedOn[closedOn.length - 1] ?? "";
+  const closedIds = new Set<string>();
+  for (const ln of regText.split("\n")) {
+    const m = /^\| ([A-Z]{1,3}\d+[a-z]?) \|/.exec(ln);
+    if (m && ln.includes(`Closed ${today}`) && /\| closed \|\s*$/.test(ln.trimEnd())) closedIds.add(m[1]!);
+  }
+  const closedLine = today ? `\n\n**Closed on ${today}: ${closedIds.size} rows** (the register rows whose status is closed and whose text says closed on that date): ${[...closedIds].sort((a, b) => a.localeCompare(b, "en", { numeric: true })).join(", ")}.\n\n*This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*` : "";
   const path = new URL("docs/launch-bar.md", root);
-  const md = readFileSync(path, "utf8");
-  const out = md.replace(/<!-- BEGIN TABLES -->[\s\S]*<!-- END TABLES -->/, `<!-- BEGIN TABLES -->\n${lines.join("\n")}\n<!-- END TABLES -->`).replace(/<!-- BEGIN SUMMARY -->[\s\S]*<!-- END SUMMARY -->/, `<!-- BEGIN SUMMARY -->\n${summaryText}\n<!-- END SUMMARY -->`);
+  let md = readFileSync(path, "utf8");
+  if (!md.includes("<!-- BEGIN SUMMARY -->")) md = md.replace(/(## 1\. One page for the owner\n)[\s\S]*?(\n## 2\.)/, "$1\n<!-- BEGIN SUMMARY -->\n<!-- END SUMMARY -->\n$2");
+  const out = md.replace(/<!-- BEGIN TABLES -->[\s\S]*<!-- END TABLES -->/, `<!-- BEGIN TABLES -->\n${lines.join("\n")}\n<!-- END TABLES -->`).replace(/<!-- BEGIN SUMMARY -->[\s\S]*<!-- END SUMMARY -->/, `<!-- BEGIN SUMMARY -->\n${summaryText}${closedLine}\n<!-- END SUMMARY -->`);
   writeFileSync(path, out);
   console.log(JSON.stringify({ must: count("must"), withdraw: count("withdraw"), after: count("after"), hours, D: flagN("D"), L: flagN("L"), X: flagN("X"), O: flagN("O") }));
 }
