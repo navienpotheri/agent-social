@@ -1691,9 +1691,26 @@ const worldRules = [
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
     ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
+  {
+    const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };
+    const learn = (over: Record<string, unknown>) => ({ ...TP.learning, ...over });
+    for (const [name, ceiling, learning] of [
+      ["private_scopes_the_same", TP, learn({})], ["private_scopes_a_subset", TP, learn({ private_scopes: ["notes"] })], ["private_scopes_none_left", TP, learn({ private_scopes: [] })],
+      ["private_scopes_a_name_added", TP, learn({ private_scopes: ["notes", "secrets"] })], ["private_scopes_a_different_name", TP, learn({ private_scopes: ["secrets"] })],
+      ["private_scopes_dropped_is_none", TP, (({ private_scopes: _p, ...r }) => r)(TP.learning as Record<string, unknown>)],
+      ["private_scopes_added_to_a_ceiling_with_none", T, { ...(T.learning as object), private_scopes: ["notes"] }], ["private_scopes_none_under_none", T, T.learning],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, learning } });
+  }
   const mt = {
     version: "asp.conformance/v0.2",
     violations: cases.map((c) => ({ ...c, expected: mandateViolations(c.ceiling, c.candidate) })),
+    privateScopes: [
+      ["absent", undefined, null], ["empty", [], null], ["one name", ["notes"], null], ["all the characters", ["a-z_0-9"], null], ["sixteen names", Array.from({ length: 16 }, (_, i) => `s${i}`), null], ["a name of 64 characters", ["a".repeat(64)], null],
+      ["seventeen names", Array.from({ length: 17 }, (_, i) => `s${i}`), "private_scopes_invalid"], ["a duplicate", ["notes", "notes"], "private_scopes_invalid"], ["an empty name", [""], "private_scopes_invalid"],
+      ["a name of 65 characters", ["a".repeat(65)], "private_scopes_invalid"], ["an uppercase name", ["Notes"], "private_scopes_invalid"], ["a name with a space", ["my notes"], "private_scopes_invalid"], ["a name with a slash", ["a/b"], "private_scopes_invalid"],
+      ["a name that is not a string", [7], "private_scopes_invalid"], ["not a list", "notes", "private_scopes_invalid"],
+    ].map(([name, input, problem]) => ({ name, input: input ?? null, problem })),
     derive: [
       { name: "no_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: null },
       { name: "a_valid_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit", per_action_max: 5 } } },

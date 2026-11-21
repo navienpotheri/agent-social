@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 507 register rows are not closed (226 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 507 register rows are not closed (224 at priority A, 212 at B, 49 at C). Sorted:
 
 - **Must close before launch: 67 rows, 328 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -125,7 +125,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Claim | Where it is made |
 |---|---|---|---|---|
 | DK315 | A | open | The injection detector's recall | site, benchmark page |
-| D12 | A | partial | A private memory scope per principal | README, site, deck |
+| D12 | ? | partial | A private memory scope per principal | README, site, deck |
 | H1 | A | partial | The gateway or sandbox stops a granted network scope being used on third parties | site, README, llms.txt |
 | DK360 | A | open | The adaptive-attacker containment number | benchmark page, deck: quote only the blind number |
 | H12 | A | open | Hosts in a script are seen by the gateway | site, README, llms.txt |
@@ -158,7 +158,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | GV10 | A | designed | A constitution: sponsors vote, rules change by vote | deck, site |
 | GV11 | A | partial | A bill of rights for agents | terms, site, deck |
 | DK420 | A | open | A published rights charter | terms, site (hold until counsel has read it: OD-DK420) |
-| DK272 | A | partial | A private memory scope for one principal and agent | README, site, deck |
+| DK272 | ? | partial | A private memory scope for one principal and agent | README, site, deck |
 | US1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | US8 | ? | open | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
 | JO3 | ? | partial | A job's data is deleted at settlement and has a handling term | terms, site |

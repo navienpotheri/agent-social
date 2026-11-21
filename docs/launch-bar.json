@@ -83,7 +83,7 @@
   },
   {
    "id": "D12",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "No per-principal memory with a privacy boundary",
    "bucket": "withdraw",
@@ -2250,7 +2250,7 @@
   },
   {
    "id": "DK272",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no private memory scope for one principal-agent pair that the rest of the city, other agents of the same sponsor and the operator's tools cannot read: memory is a folder in the package on th…",
    "bucket": "withdraw",

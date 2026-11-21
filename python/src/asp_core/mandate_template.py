@@ -5,6 +5,7 @@ Pure and integer-only: the same rules as packages/asp-core/src/mandate-template.
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Any
 
 IRREVERSIBLE_STRICTNESS = {"allow": 0, "checkpoint": 1, "forbid": 2}
@@ -44,7 +45,10 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
         out.append("nodes")
     if has(ceiling.get("learning")):
         c, s = ceiling["learning"], (m.get("learning") or {})
-        if (s.get("share_to_commons") and not c.get("share_to_commons")) or s.get("scope") != c.get("scope"):
+        allowed = c.get("private_scopes") if isinstance(c.get("private_scopes"), list) else []
+        mine = s.get("private_scopes") if isinstance(s.get("private_scopes"), list) else []
+        widened = any(n not in allowed for n in mine)
+        if (s.get("share_to_commons") and not c.get("share_to_commons")) or s.get("scope") != c.get("scope") or widened:
             out.append("learning")
     if has(ceiling.get("self_modification")) and not (SELF_MODIFICATION_LOOSENESS.get(m.get("self_modification"), 99) <= SELF_MODIFICATION_LOOSENESS[ceiling["self_modification"]]):
         out.append("self_modification")
@@ -86,3 +90,18 @@ def derive_mandate(template: dict[str, Any], contract: str, narrowing: dict[str,
     candidate = {**base, **narrowing, "contract": contract}
     widens = mandate_violations(template, candidate)
     return {"widens": widens} if widens else {"mandate": candidate}
+
+
+PRIVATE_SCOPE_NAME = re.compile(r"^[a-z0-9_-]{1,64}$")
+MAX_PRIVATE_SCOPES = 16
+
+
+def private_scopes_problem(value: Any) -> str | None:
+    """The rule a Mandate's `learning.private_scopes` breaks (`private_scopes_invalid`), or None (register rows D12 and DK272; spec-delta S1593)."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) > MAX_PRIVATE_SCOPES:
+        return "private_scopes_invalid"
+    if not all(isinstance(n, str) and PRIVATE_SCOPE_NAME.fullmatch(n) for n in value):
+        return "private_scopes_invalid"
+    return None if len(set(value)) == len(value) else "private_scopes_invalid"

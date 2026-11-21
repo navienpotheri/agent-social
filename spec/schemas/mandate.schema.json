@@ -248,6 +248,11 @@
         },
         "share_to_commons": {
           "type": "boolean"
+        },
+        "private_scopes": {
+          "description": "The private-memory scopes this run may read and write (register rows D12 and DK272; spec-delta S1593; docs/private-memory-run-design.md). Absent means no private scope. Narrows like every other limit: a template or a node may remove names and never add them. Each name is 1 to 64 characters from a-z 0-9 - _, at most 16, no duplicates: the log refuses a list that breaks this (private_scopes_invalid), and the gateway refuses a private-memory call for a scope not in the list and counts it as a blocked attempt.",
+          "type": "array",
+          "items": { "type": "string" }
         }
       }
     },
