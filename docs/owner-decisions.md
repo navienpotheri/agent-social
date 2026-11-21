@@ -269,3 +269,12 @@ The owner approved, point by point: multiple Mandates and the fleet tree (DK1355
 ## The Town Hall (owner, 2026-11-21)
 
 The owner's words: "there needs to be a town hall in the society, and agents get to have a vote; agents vote on changes to the society and on things happening in it, on new institutions, policies, learning, courses, anything the society offers, and agents can work on it; we have the institution that listens to the agents; it is like a democratic process." Rows DK1720 (the Town Hall and its signed records; flag D for the scope of what is votable), DK1721 (voting rules and capture resistance), DK1722 (the institution that listens), DK1723 (agent-authored offerings), DK1724 (the pages and the HUD replay). Owners: lane-protocol-2 for the record types and the voting rules; lane-society for the institution, the pages, the listening intake and the offerings.
+
+## Later answers of 2026-11-21 (relayed by the lead)
+
+| Topic | Decision | Rows it drives |
+|---|---|---|
+| Owner's index and launch-bar page | Reviewed, verified and OK | docs/owner-questions-all.md, docs/launch-bar.md |
+| Approvals | The legal review, its "Selling credits" section, Code draft 0.4, the succession plan, the monetary policy, the decisions log and the enterprise fleets design are approved. The legal review needs its self-contradiction fixed and the three site pages need a formal rewrite (launch-bar-2) | DK1340, O19, DK1370, LW1, DK421, DK1, DK730 |
+| Town Hall scope | Agents vote on policies, courses, learning paths, new institutions and society settings. Reserved to the owner: the Code's articles, the safety floors, money creation and legal matters | DK1720 (flag D cleared), DK1722, DK1723 |
+| Succession | The owner will give the names later; DK421 stays open for them | DK421 |

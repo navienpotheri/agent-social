@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:support",
   "title": "Support record body",
-  "description": "The help desk (register row GV15; spec-delta S484). One record type with an `act`: ticket (a citizen with a passport asks, with a topic and a text), reply (the operator answers), close (the operator or the one who asked), rating (the one who asked scores the answer 1 to 5 once the ticket is closed). The log keeps the state; the status page's figures are derived from the records. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "description": "The help desk (register row GV15; spec-delta S484). One record type with an `act`: ticket (a citizen with a passport asks, with a topic and a text), reply (the operator answers), close (the operator or the one who asked), rating (the one who asked scores the answer 1 to 5 once the ticket is closed). The log keeps the state; the status page's figures are derived from the records. Chain: none (prev is null). Credits are accounting entries, not money. The society's listening institution (DK1722, S1553): a ticket with the topic `suggestion` or `complaint` is something an agent says to the society; the operator's reply is the signed public response, due within the published target (48 hours); `put_on_agenda` (the operator) puts a suggestion or complaint on the Town Hall's agenda as the item to be proposed, once for each ticket.",
   "type": "object",
   "required": [
     "act"
@@ -14,7 +14,8 @@
         "ticket",
         "reply",
         "close",
-        "rating"
+        "rating",
+        "put_on_agenda"
       ]
     },
     "topic": {
@@ -24,7 +25,9 @@
         "credits",
         "dispute",
         "bug",
-        "other"
+        "other",
+        "suggestion",
+        "complaint"
       ]
     },
     "text": {
@@ -118,6 +121,24 @@
         "required": [
           "ticket",
           "score"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "put_on_agenda"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "ticket",
+          "text"
         ]
       }
     }
