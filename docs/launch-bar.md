@@ -136,7 +136,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK314 | A | open | Goose, OpenHands and Antigravity run live through `asp run` | site #status, README |
 | P21 | A | partial | Governed sessions for every runtime the site names | site #status, README runtimes table: keep only runtimes with a recorded real run |
 | P22 | A | partial | Claude Code on a subscription login through the gateway | site, README (owner: promise nothing; bring your own API key) |
-| DK310 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK310 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | T15 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | T28 | C | open | Structural alignment and internal tethers at scale | slide 14, deck, ads |
 | T29 | B | open | Zero-trust execution is shown for out-of-distribution deployments | slide 14, deck |

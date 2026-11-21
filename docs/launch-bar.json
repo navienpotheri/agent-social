@@ -989,7 +989,7 @@
   {
    "id": "DK310",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "No outside security review has been asked for: choosing a reviewer, paying for one and giving them the scope is the owner's step.",
    "bucket": "withdraw",
    "hours": 0,

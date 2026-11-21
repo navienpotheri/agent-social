@@ -426,7 +426,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
 | T7 | A | closed | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
 | T8 | A | closed | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
-| DK310 | A | open | An outside security review is asked for and its report published (the owner chooses and pays for the reviewer; the scope is written). |
+| DK310 | A | partial | An outside security review is asked for and its report published (the owner chooses and pays for the reviewer; the scope is written). |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
