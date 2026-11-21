@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 75,
+  "must": 72,
   "withdraw": 108,
   "after": 322,
-  "total": 505
+  "total": 502
  },
- "mustWorkerHours": 355.2,
+ "mustWorkerHours": 331.2,
  "entries": [
   {
    "id": "D3",
@@ -5368,17 +5368,6 @@
    "says": "the sponsor sees cost in the run log"
   },
   {
-   "id": "DK1348",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place,…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "D",
-   "why": "a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner's approval of the look"
-  },
-  {
    "id": "DK1500",
    "pri": "B",
    "status": "open",
@@ -5815,17 +5804,6 @@
    "why": "the enterprise data-sharing choice, shown before an enterprise joins"
   },
   {
-   "id": "DK1361",
-   "pri": "A",
-   "status": "partial",
-   "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
-   "bucket": "must",
-   "hours": 14,
-   "size": "L",
-   "flags": "",
-   "why": "the fleet dashboard with caps and a freeze switch"
-  },
-  {
    "id": "DK1362",
    "pri": "A",
    "status": "open",
@@ -5857,17 +5835,6 @@
    "size": "M",
    "flags": "",
    "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
-  },
-  {
-   "id": "DK1367",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "fleets are clearly marked in the society (owner request)"
   },
   {
    "id": "DK1368",
