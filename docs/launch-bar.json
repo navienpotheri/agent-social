@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 71,
-  "withdraw": 111,
+  "withdraw": 112,
   "after": 323,
-  "total": 505
+  "total": 506
  },
  "mustWorkerHours": 349.2,
  "entries": [
@@ -6018,6 +6018,19 @@
    "why": "",
    "claim": "The drift scheduler has run on a real agent",
    "where": "site, docs: say 'built and tested on stand-ins; the first live run is pending'"
+  },
+  {
+   "id": "DK1605",
+   "pri": "A",
+   "status": "open",
+   "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A model swap holds the agent in the log, not only in the view",
+   "where": "site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet'"
   },
   {
    "id": "DK1700",

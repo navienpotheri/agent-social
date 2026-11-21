@@ -36,9 +36,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 71 (349.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 111 |
+| Withdraw the claim until done | 112 |
 | After launch | 323 |
-| Total not closed | 505 |
+| Total not closed | 506 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -233,6 +233,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
 | DK1603 | A | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
+| DK1605 | A | open | A model swap holds the agent in the log, not only in the view | site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet' |
 
 ### Bucket 3: after launch
 

@@ -99,6 +99,7 @@ export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";
+export { modelTrust, MIN_RUNS_FOR_RATE, type ModelTrust, type ModelRow, type ModelSwap, type ModelHold } from "./model-trust.ts";
 export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
 export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
