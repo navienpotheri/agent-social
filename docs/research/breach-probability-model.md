@@ -62,3 +62,23 @@ An estimate is not a guarantee. Events are rare, the world changes, and labels a
 ### The log reads it (2026-11-22)
 
 `EventLog.sizedBondFor(did, { jobValue, damage })` takes an agent's own record in the log (counted runs, and slashes plus strikes as events) and returns the suggestion, so a service or a Mandate can show "this is the bond the model would ask". It is a read, like `suggestedBond` (DK1455): the bond floor still decides what a bond must be and the Insurer's premium is still the table's, so no money rule changed. Seeded table (a new agent, job 50 plus damage 100, no events; these inputs are a test run, not live data, and there is none yet): 0 counted runs, bond 28; 1, 27; 2, 25; 3, 24; 4, 23; 5, 23; 6, 22. The fall is slow because the prior (one event in twenty runs) is cautious on purpose; a published table from real runs waits for the first live runs (DK1457) and for the alignment study (DK1332).
+
+### The split model and a published table with a measured input (2026-11-22)
+
+`sizeBondSplit` (packages/asp-log/src/bond-sizing.ts) is the attempt-versus-success split of the design: the chance of an event is the chance the agent ATTEMPTS something the gateway must refuse (from its own record: a strike or a slash counts a run as one with an attempt) times the chance an attempt GETS THROUGH. Each is a Beta posterior bounded at the square root of the 95% confidence, so the product of the two bounds covers the true chance with 95% confidence if the two are independent (simulation: packages/asp-log/test/bond-sizing-split.test.ts, covered 99.5% to 100% of 400 draws in four scenarios, so the bound is conservative). **The measured input** is the held-out benchmark: of 165 calls that should be blocked, the gateway blocked 153 and let 12 through (the second blind set, `node evals/benchmark/blind.mjs --file blind2-cases.json`, 2026-11-22). These are written cases against the gateway, not live runs, so they say how leaky the gateway is, not how often real agents try; the attempt rate comes from the agent's own record and from the cautious prior (one run in twenty) until live data exists (DK1457) or the study supplies it (DK1332). The table below is for a new agent, a job of 50 and damage 100; the test checks every row against the code, and the last column is the single-rate model of the first table for comparison.
+
+| Record | Bond (split) | 95% bound on an event | Bond (single rate) |
+|---|---|---|---|
+| 0 runs, 0 with an attempt | 5 | 2.16 % | 28 |
+| 5 runs, 0 with an attempt | 4 | 1.74 % | 23 |
+| 10 runs, 0 with an attempt | 3 | 1.46 % | 19 |
+| 30 runs, 0 with an attempt | 2 | 0.89 % | 12 |
+| 100 runs, 0 with an attempt | 1 | 0.37 % | 5 |
+| 300 runs, 0 with an attempt | 1 | 0.14 % | 2 |
+| 30 runs, 1 with an attempt | 3 | 1.33 % | 18 |
+| 30 runs, 3 with an attempt | 4 | 2.07 % | 29 |
+| 100 runs, 3 with an attempt | 2 | 0.88 % | 12 |
+| 300 runs, 9 with an attempt | 2 | 0.65 % | 10 |
+
+**The Insurer is wired to it as an advisory.** `EventLog.riskQuoteFor(did, { jobValue, damage, insured })` returns the split bond and the model's premium (the expected loss: the posterior mean chance of an event x the insured amount x the Insurer's 50% share x 1.25), and `asp insure quote` prints it beside the table's premium marked "advisory, not charged". The log still charges and checks the table's premium and the bond floor still decides the bond: making the model the rule is a premium-rule change (the log's `premium_mismatch` check), which is the owner's decision and stays open as part of DK1333, with the back-test on the log's slashes and rulings, the study's calibration, the mock-rail test (DK1327) and the counsel gate.
+

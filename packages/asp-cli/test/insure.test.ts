@@ -46,6 +46,7 @@ test("cover is bought before the job and a covered failure is paid by the terms 
     const contract = await job();
     const quoted = await ok(f, ["insure", "quote", "--contract", contract, "--cover", "bond_slash", "--by", AGENT, "--amount", "20"]);
     assert.match(quoted.out, /premium 2 credits/);
+    assert.match(quoted.out, /risk model \(advisory, not charged\): \d+ credits for this cover, from \d+ runs with an attempt in \d+ and 12 of 165 measured attempts getting through; the table's 2 is what is charged/, "DK1333: the model premium is shown beside the table's and the table's is what is charged");
     tick();
     const bought = await ok(f, ["insure", "buy", "--contract", contract, "--cover", "bond_slash", "--by", AGENT, "--amount", "20"]);
     const policy = /^policy (\S+):/.exec(bought.out)![1];

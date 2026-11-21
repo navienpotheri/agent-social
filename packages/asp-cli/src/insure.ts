@@ -3,7 +3,7 @@
  * terms. The Insurer's key is the operator's during the beta; the holder countersigns a policy and signs its own claim. Credits are accounting entries, not money; this is not insurance in a legal sense.
  */
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { INSURER_DID, payoutFor, premiumFor, reserveFloor, type Cover } from "@agent-social/asp-log";
+import { INSURER_DID, MEASURED_THROUGH, payoutFor, premiumFor, reserveFloor, type Cover } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class InsureUsage extends Error {}
@@ -38,6 +38,8 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
   if (sub === "quote") {
     const q = await quote(o);
     o.io.out(`${q.cover} cover for ${q.holder} on ${f.contract}: insured ${q.insured} credits, premium ${q.premium} credits (split 800 reserve, 150 Treasury, 50 burned); pays ${q.cover === "bond_slash" ? "50 % of a slash after a 20 % deductible, nothing for fraud (fault 800 or more)" : "up to 30 % of the price when the job fails"}`);
+    const risk = await o.log.log.riskQuoteFor(q.holder, { jobValue: q.price, damage: 0, insured: q.insured });
+    if (risk) o.io.out(`risk model (advisory, not charged): ${risk.modelPremium} credits for this cover, from ${risk.attemptRuns} runs with an attempt in ${risk.trials} and ${MEASURED_THROUGH.through} of ${MEASURED_THROUGH.attempts} measured attempts getting through; the table's ${q.premium} is what is charged`);
     return 0;
   }
   if (sub === "buy") {

@@ -15,7 +15,7 @@ import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./d
 import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
-import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
+import { COVER_SHARE_PERMILLE, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
   AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
@@ -42,7 +42,7 @@ import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type L
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
-import { sizeBond, type BondSuggestion } from "./bond-sizing.ts";
+import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
 import { DEFAULT_TOWN_RULES, VOTABLE_KINDS, countVotes, type TownHallView, type TownRules, type Voter } from "./town-hall.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { subtreeMembers, chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
@@ -2503,6 +2503,20 @@ export class EventLog {
     const events = rep.slashCount + rep.strikeLog.reduce((n, s) => n + s.count, 0);
     const trials = Math.max(rep.acceptedJobs, rep.qualifyingJobs) + rep.slashCount;
     return { ...sizeBond({ trials, events: Math.min(events, trials), ...o }), trials, events: Math.min(events, trials) };
+  }
+
+  /**
+   * The split model read from an agent's own record (DK1333): runs counted, the runs with an attempt (a strike or a slash), and the measured through rate; the bond the model would ask and the premium it would charge for `insured`
+   * credits of cover. A read like `sizedBondFor`: the bond floor and the table's premium still decide, so no money rule changed.
+   */
+  async riskQuoteFor(did: string, o: { jobValue: number; damage: number; insured: number }): Promise<(SplitSuggestion & { trials: number; attemptRuns: number; modelPremium: number }) | null> {
+    const rep = await this.reputation(this.store, did);
+    if (!rep) return null;
+    const attemptEvents = rep.slashCount + rep.strikeLog.reduce((n, s) => n + s.count, 0);
+    const trials = Math.max(rep.acceptedJobs, rep.qualifyingJobs) + rep.slashCount;
+    const attemptRuns = Math.min(attemptEvents, trials);
+    const s = sizeBondSplit({ trials, attemptRuns, jobValue: o.jobValue, damage: o.damage });
+    return { ...s, trials, attemptRuns, modelPremium: modelPremium(s, o.insured, COVER_SHARE_PERMILLE) };
   }
 
   /** The live count of a proposal's votes (S1428), whether or not it was tallied yet. */
