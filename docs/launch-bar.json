@@ -1280,7 +1280,7 @@
   {
    "id": "O6",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Scale through the service not measured (5,000+ records)",
    "bucket": "must",
    "hours": 4,

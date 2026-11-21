@@ -457,7 +457,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
-| O6 | A | open | Scale through the service not measured (5,000+ records) |
+| O6 | A | partial | Scale through the service not measured (5,000+ records) |
 | O7 | B | open | Only one machine has played every client; no real second machine |
 | O8 | C | open | Gateway is a single local process; no shared or enterprise deployment |
 | O9 | C | open | Log custody by third parties: witnesses and feeds exist but few outside parties |
