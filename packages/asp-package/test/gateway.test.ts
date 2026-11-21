@@ -561,3 +561,20 @@ test("DK92: a refused call's target and the targets of the calls that ran are dr
   assert.deepEqual(b!.targets, ["cmd:git/push"], "the call that was refused");
   assert.deepEqual(g.drain().targets, [], "drained once");
 });
+
+test("T21: the time a run waits for its principal is recorded apart in the Action's metrics and is not part of its working seconds", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-approvals-"));
+  const up = await fakeUpstream([openaiToolReply([{ name: "bash", args: { command: "node deploy.js" } }])]);
+  const { g, url } = await gateway(up, { scopes: ["repo.read", "shell.exec"], gate: { scopes: ["shell.exec"], mode: "ask", waitSeconds: 10, approvalsDir: dir } });
+  const pending = post(`${url}/v1/chat/completions`, { model: "m", messages: [] }).then((r) => r.json());
+  for (let i = 0; i < 200 && !readdirSync(dir).some((x) => x.endsWith(".request.json")); i++) await new Promise((r) => setTimeout(r, 20));
+  const id = readdirSync(dir).find((x) => x.endsWith(".request.json"))!.replace(".request.json", "");
+  await new Promise((r) => setTimeout(r, 1600));                                  // the principal is slow
+  writeFileSync(join(dir, `${id}.decision.json`), JSON.stringify({ approved: true }));
+  const reply: any = await pending;
+  assert.equal(reply.choices[0].message.tool_calls.length, 1);
+  const m = g.drain().metrics;
+  assert.ok((m.approval_wait_seconds ?? 0) >= 1, `the wait is recorded (${m.approval_wait_seconds})`);
+  assert.ok(m.seconds <= 1, `the working seconds leave the wait out (${m.seconds})`);
+  assert.equal(g.drain().metrics.approval_wait_seconds, undefined, "counted once, then it starts again");
+});

@@ -2062,6 +2062,37 @@
       "valid": true
     },
     {
+      "name": "valid_action_approval_wait",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "shell.exec"
+        ],
+        "metrics": {
+          "requests": 4,
+          "tool_calls": 9,
+          "seconds": 40,
+          "approval_wait_seconds": 120
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "invalid_action_approval_wait_negative",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "shell.exec"
+        ],
+        "metrics": {
+          "approval_wait_seconds": -1
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_mandate_network_hosts",
       "schema": "mandate",
       "instance": {
