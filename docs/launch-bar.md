@@ -96,7 +96,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | open | 12 | L | - | metering, plan prices and invoicing |
 | DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
-| DK1361 | A | open | 14 | L | - | the fleet dashboard with caps and a freeze switch |
+| DK1361 | A | partial | 14 | L | - | the fleet dashboard with caps and a freeze switch |
 | DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
