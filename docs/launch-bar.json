@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 86,
+  "must": 88,
   "withdraw": 104,
   "after": 315,
-  "total": 505
+  "total": 507
  },
- "mustWorkerHours": 327.2,
+ "mustWorkerHours": 339.2,
  "entries": [
   {
    "id": "D3",
@@ -5910,6 +5910,28 @@
    "size": "L",
    "flags": "",
    "why": "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"
+  },
+  {
+   "id": "DK1355",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand.",
+   "bucket": "must",
+   "hours": 8,
+   "size": "L",
+   "flags": "",
+   "why": "one Mandate template per fleet or persona; without it a fleet is 10,000 hand-made Mandates"
+  },
+  {
+   "id": "DK1356",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it"
   },
   {
    "id": "DK1357",
