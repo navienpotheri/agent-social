@@ -97,3 +97,12 @@ test("the limits of a run are the Mandate's and the fleet ceiling's, whichever i
   assert.deepEqual(loopLimitsFrom({ loop_limits: { equivalent_calls: 8 } }, { loop_limits: { equivalent_calls: 5, depth: 2 }, token_budget: { per_day: 100000 } }), { equivalentCalls: 5, depth: 2, dailyTokens: 100000 }, "the ceiling is lower, or the only one that states it");
   assert.deepEqual(loopLimitsFrom({ loop_limits: { equivalent_calls: 4 } }, { loop_limits: { equivalent_calls: 9 } }), { equivalentCalls: 4 });
 });
+
+test("a near-repeat loop (a counter in a URL) escapes the exact rule and is halted by the near rule at its limit on the real gateway", async () => {
+  const up = await upstream((n) => ({ name: "Read", args: { file_path: `https://api.example.com/items/${1000 + n}/status` } }));
+  const { url, halts } = await gateway(up, { equivalentCalls: 8, nearRepeats: 12 });
+  const ran = []; for (let i = 0; i < 16; i++) ran.push(ranCall(await post(url)));
+  assert.equal(ran.slice(0, 11).every(Boolean), true, "eleven near-equal calls run");
+  assert.ok(ran.slice(11).every((x) => !x), "the twelfth and every later one is refused");
+  assert.deepEqual([halts[0].reason, halts[0].count, halts[0].limit], ["near_repeat", 12, 12]);
+});

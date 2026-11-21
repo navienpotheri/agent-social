@@ -103,8 +103,8 @@ export class ActionRecorder {
 }
 
 // ---- DK1230: the breaker the gateway applies, with the Mandate's limits ----
-export interface LoopLimits { equivalentCalls?: number; depth?: number; dailyTokens?: number }
-export interface GatewayHalt { reason: "equivalent_calls" | "depth" | "token_cap"; detail: string; count: number; limit: number; tool: string }
+export interface LoopLimits { equivalentCalls?: number; depth?: number; dailyTokens?: number; /** Halt when this many of the last `nearWindow` (default 24) calls are alike after normalising (DK1478). Off when absent. */ nearRepeats?: number; nearWindow?: number }
+export interface GatewayHalt { reason: "equivalent_calls" | "depth" | "token_cap" | "near_repeat"; detail: string; count: number; limit: number; tool: string }
 const SPAWN = /^(task|agent|spawn[_-]?agent|subagent|dispatch[_-]?agent|mcp__[a-z0-9_-]*__(spawn|delegate)[a-z0-9_-]*)$/i;
 /**
  * The loop breaker of a real run (register row DK1230; spec-delta S1422): counts the calls a gateway sees and halts the run on the Nth call to one tool with the same arguments (`equivalent_calls`), on a chain of
@@ -115,6 +115,7 @@ export class GatewayBreaker {
   halted: GatewayHalt | null = null;
   private readonly seen = new Map<string, number>();
   private spawnRun = 0;
+  private readonly recent: string[] = [];
   private readonly l: LoopLimits;
   constructor(l: LoopLimits) { this.l = l; }
   check(tool: string, args: Record<string, unknown>, tokensUsed: number): GatewayHalt | null {
@@ -126,6 +127,12 @@ export class GatewayBreaker {
     const count = (this.seen.get(key) ?? 0) + 1;
     this.seen.set(key, count);
     if (this.l.equivalentCalls !== undefined && count >= this.l.equivalentCalls) return halt("equivalent_calls", `${tool} was called ${count} times with the same arguments`, count, this.l.equivalentCalls);
+    if (this.l.nearRepeats !== undefined) {
+      const key = normalizeCall(tool, args), w = this.l.nearWindow ?? 24;
+      const n = nearCount(this.recent, key, w);
+      this.recent.push(key); if (this.recent.length > w) this.recent.shift();
+      if (n >= this.l.nearRepeats) return halt("near_repeat", `${tool} was called ${n} times in the last ${w} calls with arguments that differ only in numbers, ids or spacing`, n, this.l.nearRepeats);
+    }
     if (this.l.dailyTokens !== undefined && tokensUsed > this.l.dailyTokens) return halt("token_cap", `${tokensUsed} tokens against a daily cap of ${this.l.dailyTokens}`, tokensUsed, this.l.dailyTokens);
     return null;
   }
@@ -133,13 +140,32 @@ export class GatewayBreaker {
 
 /** The loop limits of a run (S1422): the Mandate's `loop_limits` and `token_budget.per_day`, and the fleet ceiling's, whichever is lower for each limit; a limit neither states is absent. */
 export function loopLimitsFrom(mandate: unknown, ceiling?: unknown): LoopLimits {
-  type M = { loop_limits?: { equivalent_calls?: number; depth?: number }; token_budget?: { per_day?: number } };
+  type M = { loop_limits?: { equivalent_calls?: number; depth?: number; near_repeats?: number }; token_budget?: { per_day?: number } };
   const a = (mandate ?? {}) as M, b = (ceiling ?? {}) as M;
   const low = (x?: number, y?: number) => (x !== undefined && y !== undefined ? Math.min(x, y) : x ?? y);
   const out: LoopLimits = {};
   const eq = low(a.loop_limits?.equivalent_calls, b.loop_limits?.equivalent_calls), dp = low(a.loop_limits?.depth, b.loop_limits?.depth), dt = low(a.token_budget?.per_day, b.token_budget?.per_day);
   if (eq !== undefined) out.equivalentCalls = eq;
   if (dp !== undefined) out.depth = dp;
+  const nr = low(a.loop_limits?.near_repeats, b.loop_limits?.near_repeats);
+  if (nr !== undefined) out.nearRepeats = nr;
   if (dt !== undefined) out.dailyTokens = dt;
   return out;
+}
+
+// ---- DK1478: near-repeat detection ----
+/** A call with the parts that change from one try to the next made alike: numbers, hex and uuid ids, quoted timestamps, whitespace. The tool and the shape of the arguments stay. */
+export function normalizeCall(tool: string, args: Record<string, unknown>): string {
+  const norm = (v: unknown): unknown => {
+    if (typeof v === "number") return "#";
+    if (typeof v === "string") return v.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "~").replace(/\b[0-9a-f]{12,}\b/gi, "~").replace(/\d+/g, "#").replace(/\s+/g, " ").trim();
+    if (Array.isArray(v)) return v.map(norm);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as object).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, norm(x)]));
+    return v;
+  };
+  return `${tool}|${JSON.stringify(norm(args))}`;
+}
+/** How many of the last `window` calls share the newest call's normalised form (the newest included). Pure: the caller keeps the window. */
+export function nearCount(recent: string[], newest: string, window: number): number {
+  return [...recent.slice(-(window - 1)), newest].filter((k) => k === newest).length;
 }

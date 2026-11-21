@@ -1369,7 +1369,7 @@ const worldRules = [
     purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
     irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
     overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
-    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3 }, ...over,
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 12 }, ...over,
   });
   const fl = "did:web:example.com:orgs:acme:fleets:coders";
   sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
@@ -1386,6 +1386,7 @@ const worldRules = [
   sv("valid_mandate_narrowing_token_budget", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { token_budget: { per_run: 10000 } } }, true);
   sv("mandate_template_zero_loop_depth", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 0 } }) }, false);
   sv("mandate_template_one_equivalent_call", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { equivalent_calls: 1 } }) }, false);
+  sv("mandate_template_near_repeats_two", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { near_repeats: 2 } }) }, false);
   sv("mandate_template_unknown_loop_field", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { max_loops: 3 } }) }, false);
   sv("valid_mandate_template_loop_depth_only", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 2 } }) }, true);
   sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
@@ -1507,7 +1508,7 @@ const worldRules = [
     ["no_institution_spend", { institution_spend: [] }],
     ["a_lower_token_budget", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_token_run", { token_budget: { per_run: 60000, per_month: 800000 } }], ["a_higher_token_month", { token_budget: { per_run: 40000, per_month: 2000000 } }],
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
-    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
+    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
   const mt = {
     version: "asp.conformance/v0.2",

@@ -63,7 +63,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -126,7 +127,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -193,7 +195,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -254,7 +257,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -321,7 +325,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -383,7 +388,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -450,7 +456,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -512,7 +519,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -581,7 +589,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -644,7 +653,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -711,7 +721,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -774,7 +785,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -843,7 +855,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -906,7 +919,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -975,7 +989,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1037,7 +1052,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -1106,7 +1122,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1167,7 +1184,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -1236,7 +1254,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1300,7 +1319,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -1367,7 +1387,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1430,7 +1451,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -1497,7 +1519,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1560,7 +1583,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -1629,7 +1653,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1692,7 +1717,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -1759,7 +1785,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1822,7 +1849,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -1891,7 +1919,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -1953,7 +1982,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -2020,7 +2050,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2083,7 +2114,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -2152,7 +2184,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2215,7 +2248,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -2282,7 +2316,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2345,7 +2380,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -2412,7 +2448,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2475,7 +2512,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -2544,7 +2582,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2607,7 +2646,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -2674,7 +2714,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2737,7 +2778,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -2806,7 +2848,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2870,7 +2913,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -2937,7 +2981,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -2998,7 +3043,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -3067,7 +3113,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3130,7 +3177,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -3197,7 +3245,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3260,7 +3309,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -3329,7 +3379,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3391,7 +3442,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -3458,7 +3510,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3520,7 +3573,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -3589,7 +3643,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3649,7 +3704,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -3718,7 +3774,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3781,7 +3838,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -3848,7 +3906,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -3911,7 +3970,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -3980,7 +4040,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4043,7 +4104,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4112,7 +4174,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4175,7 +4238,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4244,7 +4308,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4298,7 +4363,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": []
@@ -4365,7 +4431,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4427,7 +4494,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4496,7 +4564,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4558,7 +4627,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4627,7 +4697,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4689,7 +4760,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4758,7 +4830,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4819,7 +4892,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -4888,7 +4962,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -4950,7 +5025,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -5019,7 +5095,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5082,7 +5159,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -5151,7 +5229,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5214,7 +5293,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 5,
-          "depth": 2
+          "depth": 2,
+          "near_repeats": 9
         }
       },
       "expected": []
@@ -5281,7 +5361,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5344,7 +5425,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 9,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -5413,7 +5495,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5476,7 +5559,275 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 4
+          "depth": 4,
+          "near_repeats": 12
+        }
+      },
+      "expected": [
+        "loop_limits"
+      ]
+    },
+    {
+      "name": "more_near_repeats",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 13
+        }
+      },
+      "expected": [
+        "loop_limits"
+      ]
+    },
+    {
+      "name": "a_dropped_near_limit",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -5545,7 +5896,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5607,7 +5959,8 @@
           "per_day": 300000
         },
         "loop_limits": {
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -5676,7 +6029,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5804,7 +6158,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "candidate": {
@@ -5862,7 +6217,8 @@
         ],
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "expected": [
@@ -5933,7 +6289,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -5999,7 +6356,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
@@ -6067,7 +6425,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -6140,7 +6499,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
@@ -6208,7 +6568,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -6291,7 +6652,8 @@
         },
         "loop_limits": {
           "equivalent_calls": 8,
-          "depth": 3
+          "depth": 3,
+          "near_repeats": 12
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -6357,7 +6719,8 @@
           },
           "loop_limits": {
             "equivalent_calls": 8,
-            "depth": 3
+            "depth": 3,
+            "near_repeats": 12
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }

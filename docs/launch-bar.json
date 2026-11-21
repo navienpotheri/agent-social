@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 67,
+  "must": 66,
   "withdraw": 109,
   "after": 322,
-  "total": 498
+  "total": 497
  },
- "mustWorkerHours": 311.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -6001,17 +6001,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1478",
-   "pri": "A",
-   "status": "open",
-   "gap": "The breaker counts equal calls only: an agent that repeats the same intent with small changes to the arguments (a path with a counter, a retry with a different timestamp) is not seen.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "near-repeat detection with a measured false-halt rate (owner: loop prevention is must-close)"
   },
   {
    "id": "DK1602",
