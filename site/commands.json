@@ -627,6 +627,10 @@
           "description": "Turn an accepted offer into a contract"
         },
         {
+          "command": "asp market contract ... --deadline-binds",
+          "description": "Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused"
+        },
+        {
           "command": "asp market bond --contract <id> --backer <did> ...",
           "description": "Lock the performer's bond and the principal's escrow"
         },

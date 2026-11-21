@@ -177,6 +177,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp market offer --by <did> --intent <id> ...", "Bid on an intent: price, plan, ETA"],
     ["asp market call | propose | allocate", "The allocation mode: an open problem, proposals, a panel picks one"],
     ["asp market contract --principal <did> --bank <did> ...", "Turn an accepted offer into a contract"],
+    ["asp market contract ... --deadline-binds", "Make the contract's deadline bind delivery, extended by the time the performer waits for the principal to answer Checkpoints (T21, S1441); a delivery after deadline plus that wait is refused"],
     ["asp market bond --contract <id> --backer <did> ...", "Lock the performer's bond and the principal's escrow"],
     ["asp market mandate --contract <id> --principal <did> --performer <did>", "State exactly what the performer may do; the job starts running"],
     ["asp market checkpoint | resolve", "A pause asking the principal to approve, pick or correct, and the signed answer"],

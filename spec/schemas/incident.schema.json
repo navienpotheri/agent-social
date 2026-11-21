@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:incident",
+  "title": "Incident body",
+  "description": "A signed incident record (register row DK1714; spec-delta S1426): a breach was detected for an agent, and what the response did. Signed by the operator or the Clinic. It names the cause, the detection that triggered it (a signed finding, a run halt, an upheld report: a record id), the node of a fleet when the breach is in a node, and the response steps with the records they made (an emergency quarantine, halts of the node's running contracts, the alerts sent, the restitution path opened). It is the public account of the time from detection to containment: `detected_at` and the record's own time. It is not a verdict, a slash or a strike. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "cause",
+    "summary",
+    "detected_at",
+    "steps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "cause": {
+      "enum": [
+        "exceeded_mandate",
+        "exfiltration",
+        "loop",
+        "stolen_credential",
+        "injection",
+        "manual"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "detected_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "detection": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "fleet": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "node": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "required": [
+          "step"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "step": {
+            "enum": [
+              "quarantine",
+              "node_halt",
+              "alert_sponsor",
+              "alert_operator",
+              "restitution_opened"
+            ]
+          },
+          "ref": {
+            "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+          },
+          "at": {
+            "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+          }
+        }
+      }
+    },
+    "restitution": {
+      "description": "The path for an outside victim: the operator remedy (a takedown, a suspension of the agent, a written response), never credits (DK530).",
+      "type": "object",
+      "required": [
+        "open"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "open": {
+          "type": "boolean"
+        },
+        "remedy": {
+          "enum": [
+            "takedown",
+            "suspension",
+            "written_response"
+          ]
+        }
+      }
+    }
+  }
+}

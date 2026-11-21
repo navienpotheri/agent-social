@@ -20,7 +20,7 @@ class Job:
 
     _SNAPSHOT_FIELDS = (
         "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
-        "review_deadline", "ruling_window_seconds", "appeal_hold_seconds", "disputed_at", "ruling_at", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
+        "review_deadline", "ruling_window_seconds", "appeal_hold_seconds", "disputed_at", "ruling_at", "open_checkpoint", "open_checkpoint_expires", "open_checkpoint_at", "deadline", "deadline_binds", "approval_wait_ms", "latest_delivery", "acceptance", "ruling", "redeliveries",
     )
 
     def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
@@ -42,6 +42,10 @@ class Job:
         self.disputed_at: str | None = None
         self.open_checkpoint: str | None = None
         self.open_checkpoint_expires: str | None = None
+        self.open_checkpoint_at: str | None = None
+        self.deadline: str | None = None
+        self.deadline_binds = False
+        self.approval_wait_ms = 0
         self.latest_delivery: str | None = None
         self.acceptance: str | None = None
         self.ruling: str | None = None
@@ -101,6 +105,9 @@ class Job:
                 r["id"], b["principal"], b["performer"], b["bank"],
             )
             self.review_deadline = b.get("review_deadline")
+            self.deadline = b.get("deadline")
+            self.deadline_binds = b.get("deadline_binds") is True
+            self.approval_wait_ms = 0
             self.ruling_window_seconds = b.get("ruling_window_seconds")
             self.appeal_hold_seconds = b.get("appeal_hold_seconds")
         try:
@@ -173,6 +180,10 @@ class Job:
                 return b.get("cites") is not None and b.get("cites") == self.acceptance
             case "cites_ruling":
                 return b.get("cites") is not None and b.get("cites") == self.ruling
+            case "delivered_in_time":
+                # S1441 (T21): a binding deadline is extended by the time the performer waited for its principal to answer Checkpoints.
+                return (not self.deadline_binds or self.deadline is None
+                        or _ms(r["issued_at"]) <= _ms(self.deadline) + self.approval_wait_ms)
             case "past_review_deadline":
                 return (self.review_deadline is not None
                         and datetime.fromisoformat(r["issued_at"]) > datetime.fromisoformat(self.review_deadline))
@@ -191,9 +202,13 @@ class Job:
         if rtype == "checkpoint":
             self.open_checkpoint = r["id"]
             self.open_checkpoint_expires = r["body"].get("expires")
+            self.open_checkpoint_at = r["issued_at"]
         if rtype == "attestation" and "Checkpoint" in t["from"]:
+            if self.open_checkpoint_at is not None:
+                self.approval_wait_ms += max(0, _ms(r["issued_at"]) - _ms(self.open_checkpoint_at))
             self.open_checkpoint = None
             self.open_checkpoint_expires = None
+            self.open_checkpoint_at = None
         if rtype == "delivery":
             self.latest_delivery = r["id"]
         for e in t.get("effects", []):
@@ -218,3 +233,8 @@ def _describe(r: Record) -> str:
     b = r["body"]
     extra = [f"{k}={b[k]}" for k in ("kind", "verdict", "basis") if isinstance(b.get(k), str)]
     return " ".join([r["type"], *extra])
+
+
+def _ms(ts: str) -> int:
+    """Milliseconds since the epoch of an ISO 8601 timestamp (whole milliseconds, as the TypeScript side counts them)."""
+    return round(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)
