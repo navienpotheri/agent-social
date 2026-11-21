@@ -380,11 +380,7 @@ import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { jobDataDelete, readJobDataLines, verifyJobDataLines } from "./job-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
-<<<<<<< HEAD
-import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify } from "@agent-social/asp-core";
-=======
-import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
->>>>>>> claude/sad-shannon-1be729
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify, type DataHandling } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
