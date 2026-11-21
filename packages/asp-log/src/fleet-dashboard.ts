@@ -37,7 +37,7 @@ export function spendOf(stored: StoredRec[], month: string): Map<string, Spend> 
 
 export interface MemberRow { node: string; persona: string | null; did: string; name: string; tier: number | null; slashes: number; drift: 0 | 1 | 2; credits: number; tokens: number; frozen: boolean; capCredits: number | null; capTokens: number | null; journey: string }
 /** One node of the fleet's tree as the dashboard shows it, depth first: its own members, everyone under it, what they spent this month against the node's budget, and whether it is frozen. */
-export interface TreeRow { node: string; name: string; kind: string; persona: string | null; parent: string | null; depth: number; owner: string; membersHere: number; membersUnder: number; credits: number; tokens: number; budget: { credits: number | null; tokens: number | null }; overBudget: boolean; frozen: boolean }
+export interface TreeRow { node: string; name: string; kind: string; persona: string | null; parent: string | null; depth: number; owner: string; membersHere: number; membersUnder: number; credits: number; tokens: number; budget: { credits: number | null; tokens: number | null }; overBudget: boolean; frozen: boolean; /** The node's breaker halted runs here (a signed run_halt, reason cycle, fleet_spend or breach): the latest, and how many runs. */ halted: { reason: string; at: string; runs: number } | null }
 /** The last days of the fleet, one number a day (DK1601): members so far, credits and tokens spent that day, slashes and drift diagnoses that day. The graphs and their tables are drawn from it. */
 export interface FleetSeries { days: string[]; members: number[]; credits: number[]; tokens: number[]; slashes: number[]; drift: number[] }
 export interface FleetMix { persona: Record<string, number>; node: Record<string, number>; tier: Record<string, number> }
@@ -160,17 +160,28 @@ if (r.type === T("passport") && members.has(b.did) && b.kind === "agent") { if (
   const kids = new Map<string | null, string[]>();
   for (const [id, n] of nodes) { if (id === ROOT_NODE) continue; const k = n.parent ?? ROOT_NODE; (kids.get(k) ?? kids.set(k, []).get(k)!).push(id); }
   for (const list of kids.values()) list.sort((a, b) => ((nodes.get(a)!.name < nodes.get(b)!.name) ? -1 : 1));
+  // halted nodes (DK1477): the signed run_halt records of the fleet's members that name a breaker reason, counted by the node they name, else the member's own node
+  const halts = new Map<string, { reason: string; at: string; runs: number }>();
+  const nodeOfMember = new Map(rows.map((r) => [r.did, r.node]));
+  for (const x of stored) {
+    if (x.record.type !== "asp.run_halt/v0.2") continue;
+    const hb = x.record.body as { agent: string; reason: string; node?: string };
+    if (!["cycle", "fleet_spend", "breach"].includes(hb.reason) || !nodeOfMember.has(hb.agent)) continue;
+    const at = hb.node ?? nodeOfMember.get(hb.agent)!, cur = halts.get(at);
+    halts.set(at, { reason: hb.reason, at: x.record.issued_at, runs: (cur?.runs ?? 0) + 1 });
+  }
   const tree: TreeRow[] = [];
   const walk = (id: string, depth: number) => {
     const n = nodes.get(id) ?? { version: 1, kind: "fleet", name: f.name, parent: null, owner: f.org, persona: null, budget: { credits: null, tokens: null } };
     const c = cr.get(id) ?? 0, t = tk.get(id) ?? 0;
-    tree.push({ node: id, name: n.name, kind: n.kind, persona: n.persona, parent: n.parent, depth, owner: n.owner, membersHere: own.get(id) ?? 0, membersUnder: under.get(id) ?? 0, credits: c, tokens: t, budget: n.budget, overBudget: (n.budget.credits !== null && c > n.budget.credits) || (n.budget.tokens !== null && t > n.budget.tokens), frozen: controls.frozen || nodeFrozen(id) });
+    tree.push({ node: id, name: n.name, kind: n.kind, persona: n.persona, parent: n.parent, depth, owner: n.owner, membersHere: own.get(id) ?? 0, membersUnder: under.get(id) ?? 0, credits: c, tokens: t, budget: n.budget, overBudget: (n.budget.credits !== null && c > n.budget.credits) || (n.budget.tokens !== null && t > n.budget.tokens), frozen: controls.frozen || nodeFrozen(id), halted: halts.get(id) ?? null });
     if (depth < 8) for (const k of kids.get(id) ?? []) walk(k, depth + 1);
   };
   walk(ROOT_NODE, 1);
   const capF = controls.caps.fleet;
   const alerts: Alert[] = [];
   if (controls.frozen) alerts.push({ kind: "fleet_frozen", level: "critical", subject: f.name, text: `The fleet ${f.name} is frozen: writes by its agents are refused until it is unfrozen.` });
+  for (const t of tree) if (t.halted) alerts.push({ kind: "node_halted", level: "critical", subject: t.name, text: `The ${t.kind} ${t.name} was halted by the fleet breaker (${t.halted.reason.replace("_", " ")}) on ${t.halted.at.slice(0, 10)}: ${t.halted.runs} run(s) were stopped, and the rest of the tree is untouched.` });
   for (const t of tree) if (!controls.frozen && t.node !== ROOT_NODE && frozenNodes.has(t.node)) alerts.push({ kind: "node_frozen", level: "warn", subject: t.name, text: `The ${t.kind} ${t.name} is frozen: its ${t.membersUnder} member${t.membersUnder === 1 ? "" : "s"} cannot write until it is unfrozen.` });
   for (const t of tree) { if (t.budget.credits !== null && t.credits >= t.budget.credits * 0.8) alerts.push({ kind: t.credits > t.budget.credits ? "node_over_budget" : t.credits === t.budget.credits ? "node_budget_reached" : "node_budget_near", level: t.credits >= t.budget.credits ? "critical" : "warn", subject: t.name, text: `${t.name} has used ${t.credits} of its ${t.budget.credits}-credit budget this month.` }); if (t.budget.tokens !== null && t.tokens >= t.budget.tokens) alerts.push({ kind: "node_tokens_reached", level: "critical", subject: t.name, text: `${t.name} has used ${t.tokens} of its ${t.budget.tokens}-token budget this month.` }); }
   for (const r of rows) if (!controls.frozen && r.frozen && !(frozenNodes.size && nodeFrozen(r.node)) ) alerts.push({ kind: "member_frozen", level: "warn", subject: r.name, text: `${r.name} is frozen.` });
