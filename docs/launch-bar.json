@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 73,
-  "withdraw": 110,
+  "withdraw": 111,
   "after": 323,
-  "total": 506
+  "total": 507
  },
  "mustWorkerHours": 365.2,
  "entries": [
@@ -6018,6 +6018,19 @@
    "where": "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"
   },
   {
+   "id": "DK1604",
+   "pri": "A",
+   "status": "open",
+   "gap": "The drift scheduler (DK1712) has not run on a real agent: it is built and tested with scripted stand-ins.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The drift scheduler has run on a real agent",
+   "where": "site, docs: say 'built and tested on stand-ins; the first live run is pending'"
+  },
+  {
    "id": "DK1700",
    "pri": "B",
    "status": "open",
@@ -6054,7 +6067,7 @@
   {
    "id": "DK1712",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Drift detection does not run by itself. The Clinic's checkups and the canary probes (DK28, CM1, DK210) are run by a person or on a hand-started schedule, probes have run only on scripted agents, and…",
    "bucket": "must",
    "hours": 10,
