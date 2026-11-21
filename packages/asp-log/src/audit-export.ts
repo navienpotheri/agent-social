@@ -16,16 +16,25 @@ export interface Stored { seq: number; id: string; record: AspRecord }
 const FIELDS = ["agent", "member", "performer", "principal", "holder", "buyer", "fleet", "to", "contract_party"];
 const NOTE = "Every record is the log's own signed form. Check each signature and this manifest with `asp audit-export verify`. Sign-ins and roles are not in the log (DK1359). Credits are accounting entries, not money.";
 
-/** The identities that count as the organisation's: itself, the agents it sponsors, its fleets and the agents in them. */
-export function orgScope(all: Stored[], org: string): Set<string> {
-  const mine = new Set<string>([org]);
+/**
+ * THE one reader of an organisation's signed records (S1417; shared by `asp audit-export` and `asp offboard`): the identities that are the organisation's (itself and every agent it sponsors, found in log order, so an
+ * agent sponsored by a sponsored identity counts), its fleets, and the records that belong to it. Two modes: `signed` is every record one of its identities signed (what an offboarding hands over); `involving` adds every
+ * record that is about them (a contract, a Mandate or a settlement that names one as performer, principal, agent, holder or member, or a fleet of theirs): the audit view. Pure: records in, records out.
+ */
+export function readOrgRecords(all: Stored[], org: string, mode: "signed" | "involving"): { identities: string[]; fleets: string[]; records: Stored[] } {
+  const ids = new Set<string>([org]);
+  const fleets = new Set<string>();
   for (const s of all) {
     const r = s.record;
-    if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; sponsor?: string }; if (b.sponsor === org) mine.add(b.did); }
-    else if (r.type === "asp.fleet/v0.2") { const b = r.body as { did: string; org: string }; if (b.org === org) mine.add(b.did); }
+    if (r.type === "asp.passport/v0.2") { const b = r.body as { did: string; sponsor?: string }; if (ids.has(String(b.sponsor)) || ids.has(r.issuer)) ids.add(b.did); }
+    else if (r.type === "asp.fleet/v0.2") { const b = r.body as { did: string; org: string }; if (b.org === org) fleets.add(b.did); }
   }
-  return mine;
+  const mine = new Set<string>([...ids, ...fleets]);
+  const records = all.filter((s) => (mode === "signed" ? ids.has(s.record.issuer) : touches(s.record, mine)));
+  return { identities: [...ids], fleets: [...fleets], records };
 }
+/** The identities and fleets of the organisation (kept for callers that want the scope alone). */
+export function orgScope(all: Stored[], org: string): Set<string> { const r = readOrgRecords(all, org, "signed"); return new Set([...r.identities, ...r.fleets]); }
 
 const touches = (r: AspRecord, mine: Set<string>): boolean => {
   if (mine.has(r.issuer) || (r.subject && mine.has(r.subject))) return true;
@@ -36,9 +45,8 @@ const touches = (r: AspRecord, mine: Set<string>): boolean => {
 
 /** The records of the organisation in a range of times (ISO strings, inclusive from, exclusive to) and after a sequence number, with the passports of everyone who signed them. */
 export function buildAuditExport(all: Stored[], org: string, o: { from?: string; to?: string; afterSeq?: number; headSeq: number }): { manifest: AuditManifest; lines: string[] } {
-  const mine = orgScope(all, org);
   const inRange = (s: Stored) => s.seq > (o.afterSeq ?? 0) && (!o.from || s.record.issued_at >= o.from) && (!o.to || s.record.issued_at < o.to);
-  const picked = all.filter((s) => inRange(s) && touches(s.record, mine));
+  const picked = readOrgRecords(all, org, "involving").records.filter(inRange);
   const signers = new Set<string>();
   for (const s of picked) { signers.add(s.record.issuer); for (const sig of [s.record.sig, ...(s.record.cosigs ?? [])]) signers.add(sig.kid.split("#")[0]); }
   const have = new Set(picked.map((s) => s.id));

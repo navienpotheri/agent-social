@@ -46,4 +46,4 @@ The Terms of Use sections 8, 9 and 12 apply: the service is as is; the operator'
 
 ## 8. Ending
 
-Either side may end the pilot at any time by email. The organisation may export its account; the operator deletes the organisation's tenant data (not the signed log) within 30 days of the end on request, and backups clear within 35 days (Privacy Notice, section 5).
+Either side may end the pilot at any time by email. The organisation may export its account and import it into another service (`asp account export`, `asp account import`; see the [retention and erasure policy](retention-and-erasure.md)), and receives a closure certificate when it closes the account; the operator deletes the organisation's tenant data (not the signed log) within 30 days of the end on request, and backups clear within 35 days (Privacy Notice, section 5).

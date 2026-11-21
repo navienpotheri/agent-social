@@ -97,3 +97,16 @@ test("GET /audit/export serves the owning tenant and an operator, and refuses an
   assert.equal((await get("ta", "")).status, 400);
   void credit;
 });
+
+test("one reader serves both the audit export and the offboarding export: the signed records are a subset of the audit view, and both see the same identities", async () => {
+  const { readOrgRecords } = await import("../src/audit-export.ts");
+  const w = await world();
+  const all = (await w.log.since(0, 100000)).map((s) => ({ seq: s.seq, id: s.id, record: s.record }));
+  const signed = readOrgRecords(all, w.org.did, "signed"), involving = readOrgRecords(all, w.org.did, "involving");
+  assert.deepEqual(signed.identities, involving.identities, "the same identities");
+  assert.deepEqual(signed.fleets, [w.FLEET]);
+  const inv = new Set(involving.records.map((r) => r.id));
+  assert.ok(signed.records.length > 0 && signed.records.every((r) => inv.has(r.id)), "everything the organisation's identities signed is in the audit view");
+  assert.ok(involving.records.length > signed.records.length, "the audit view also holds what names them (the client's contracts and settlements)");
+  assert.ok(signed.records.every((r) => signed.identities.includes(r.record.issuer)));
+});

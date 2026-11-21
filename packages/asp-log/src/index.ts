@@ -86,6 +86,7 @@ export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 
+export { fleetLive, fleetEvents, LIVE_RANGES, type FleetLive, type LiveRange, type LiveFilter, type LiveMember, type LiveEvent } from "./fleet-live.ts";
 export { capFor, withBudget, type JourneyCost, type JourneyBudget } from "./journey.ts";
 export { fleetDashboard, fleetCsv, spendOf, monthOf, emptyControls, type FleetDashboard, type FleetSeries, type FleetMix, SERIES_DAYS, type FleetControlState, type CapPair, type MemberRow } from "./fleet-dashboard.ts";
 export { FleetControls, fleetGuard } from "./fleet-controls.ts";
@@ -101,3 +102,4 @@ export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } 
 export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
 export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";
+export { readOrgRecords } from "./audit-export.ts";

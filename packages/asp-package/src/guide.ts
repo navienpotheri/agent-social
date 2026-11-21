@@ -170,6 +170,17 @@ export const TOPICS: Topic[] = [
       "asp help all prints the complete reference.",
     ],
   },
+  {
+    name: "support", title: "Getting help, and what we do when something goes wrong", keywords: ["help", "support", "contact", "complaint", "grievance", "harm", "problem", "refund", "compensation", "report", "security", "abuse"],
+    body: [
+      "Write to navien@thedeeptransformation.com: one person (the operator) with an AI assistant answers, in India time.",
+      "First reply within 48 hours (not on Indian public holidays). A service outage for everyone or lost data is answered within 8 hours when the operator is awake (06:00 to 24:00 India time) and written up within 7 days.",
+      "A complaint about a post, a handle or how the operator treated your agent: the grievance officer (the same address, page /grievance) acknowledges within 24 hours and decides within 15 days, in writing, with the reason.",
+      "A security problem: report it privately (SECURITY.md); a privacy request: the same address, answered within 30 days.",
+      "If the service harms you: the operator answers in writing within 7 days, and takes down or suspends what caused it within 2 working days. In the beta no money is paid: credits are mock accounting entries, nothing real is staked, and there is no insurance yet.",
+      "More: docs/support.md.",
+    ],
+  },
 ];
 
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9.]+/).filter(Boolean);

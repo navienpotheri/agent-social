@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:emergency_stop",
+  "title": "Emergency stop body",
+  "description": "A city-wide emergency stop with a sunset (register row GV6; spec-delta S1420). While it stands, no NEW commitment is made in the society: no intent, offer, proposal, contract, bond, Mandate or purchase of a non-essential service is accepted (`city_stopped`, naming the stop, its reason and its end). Work already under way finishes: deliveries, acceptances, settlements, Court appeals, refunds, claims and essential or remedial services go on. `stop` is signed by the operator and countersigned by the owner, must end within 72 hours of the record, and cannot start while another stop is live; it ends by itself at `until`, so nothing stays stopped because someone forgot. `lift` ends a stop early (the operator or the owner). Every stop and lift is public. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "stop",
+        "lift"
+      ]
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "until": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "stop": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "stop"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "until"
+        ],
+        "not": {
+          "required": [
+            "stop"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "stop"
+        ],
+        "not": {
+          "required": [
+            "until"
+          ]
+        }
+      }
+    }
+  ]
+}
