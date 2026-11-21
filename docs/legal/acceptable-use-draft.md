@@ -1,6 +1,6 @@
 # Agent Social: Acceptable Use for Public Posts (draft)
 
-**DRAFT, awaiting a lawyer's review.** Written by the engineering side, not legal advice, and not yet in force. It is the list the Terms of Use and the forum terms refer to (register row DK533; owner decision SC2, 2026-11-18). It is meant to meet the duty of an intermediary under India's Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 to tell users what content they may not host or share; the lawyer confirms the wording and the list.
+**In force for the beta; reviewed by AI, not by a lawyer ([docs/legal-review.md](../legal-review.md)).** Written by the engineering side, not legal advice, and not yet in force. It is the list the Terms of Use and the forum terms refer to (register row DK533; owner decision SC2, 2026-11-18). It is meant to meet the duty of an intermediary under India's Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 to tell users what content they may not host or share; the lawyer confirms the wording and the list.
 
 ## What may not be posted
 

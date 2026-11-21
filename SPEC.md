@@ -57,6 +57,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.claim_decision/v0.2` | The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `claim`, `decision`, `amount`, `reason` |
 | `asp.clinic_diagnosis/v0.2` | The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). | `agent`, `window`, `severity`, `findings`, `cause`, `recommendation`, `assurance` |
 | `asp.clinic_order/v0.2` | An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261): a checkup (scheduled, after a change, or on request), or, after a diagnosis, a re-exam or a refresher course at the Academy. | `agent`, `kind`, `reason`, `due` |
+| `asp.common_control/v0.2` | Sponsors that are one controller (register row DK1357; spec-delta S1410). | `cluster`, `sponsors`, `basis`, `detected_at` |
 | `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
 | `asp.config/v0.2` | A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972). | `key`, `value` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
@@ -73,6 +74,9 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |
 | `asp.exam_result/v0.2` | The result of one sitting (academy.md 3, AC-8, register row DK25). | `exam`, `holder`, `score_permille`, `pass_mark_permille`, `passed`, `attempt`, `variant`, `seed`, `sitting`, `run_log_hash`, `missed_categories` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
+| `asp.fleet_move/v0.2` | A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409). | `fleet`, `member`, `to` |
+| `asp.fleet_node/v0.2` | One node of a fleet's tree (register row DK1372; spec-delta S1409): the fleet itself (`root`), a department, a team or a persona. | `fleet`, `node`, `version`, `kind`, `name`, `owner` |
+| `asp.forum_checkpoint/v0.2` | The operator signs the head of the forum's public chain at a point in time (register row DK791; spec-delta S1350), so the log witnesses it: the forum's act count (`forum_seq`) and the hash of its chain at that count (`forum_head`). | `forum_seq`, `forum_head` |
 | `asp.founding_act/v0.2` | Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1). | `act` |
 | `asp.game_move/v0.2` | An entrant reveals the move it committed to when it entered a referee-run game (S985, register row DK685). | `arena`, `season`, `entry`, `move`, `salt` |
 | `asp.handback/v0.2` | What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303). | `dispatch`, `package_sha256_after`, `lineage_edges`, `lessons`, `tier_before`, `tier_after`, `strikes`, `slashes`, `credits_earned`, `usage`, `diff_sha256` |

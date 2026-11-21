@@ -268,3 +268,17 @@ test("DK1301: on a seeded real log the figure of an agent that did a job stands 
   walkKeys(feed);
   for (const secret of ["sponsor", "token", "private_key", "email", "keys", "public_key", "purpose", "temperament"]) assert.ok(!keys.has(secret), `${secret} is not a feed field`);
 });
+
+test("DK1367: a fleet's district is drawn on the map and its members stand in it at rest; the picked figure offers a link to the fleet's page", async () => {
+  const base = simulatedFeed(1, 2, 0);
+  const mark = { id: "did:web:example.com:fleets:payments", name: "Payments" };
+  const agents = base.agents.map((a, i) => ({ ...a, tier: 0, house: false, ...(i === 0 ? { fleet: mark } : {}) }));
+  const feed: MapFeed = { ...base, agents, places: [...base.places, { id: `fleet:${mark.id}`, name: "Fleet: Payments", fleet: true }], flows: [] };
+  const fleetIndex = feed.places.length - 1;
+  const r = await frames(() => feed);
+  const calls = r.step();
+  assert.ok(r.b.texts.includes("Fleet: Payments"), "the fleet district is labelled");
+  const figures = calls.filter((c) => c.fn === "arc" && c.args[2] === 3).slice(-2).map((c) => ({ x: (c.args as number[])[0], y: (c.args as number[])[1] }));
+  const members = figures.filter((f) => inside(f, block(calls, fleetIndex)));
+  assert.equal(members.length, 1, "exactly the fleet's member stands in the fleet district; the other stays at home");
+});

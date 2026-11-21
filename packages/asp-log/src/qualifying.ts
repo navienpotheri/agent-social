@@ -54,7 +54,7 @@ export function moreUnderCap(recent: RecentJob[], principalKey: string, at: stri
 }
 
 /** The sponsor-level facts about one party to a job, read from the passport (a person with no passport is their own sponsor). */
-export interface PartyFacts { did: string; sponsor: string; fleet: string | null }
+export interface PartyFacts { did: string; /** The controller of the sponsor: its own DID, or the id of the common-control cluster it belongs to (DK1357). */ sponsor: string; fleet: string | null; /** The sponsor the passport names, when `sponsor` was replaced by its cluster (DK1357). */ rawSponsor?: string }
 
 /**
  * credits.md 5.4 independence rule, the parts the log can read: (1) same DID, same sponsor, or one sponsors the other;
@@ -74,10 +74,10 @@ export function independent(principal: PartyFacts, other: PartyFacts): boolean {
  * the two cannot disagree (a pair is related exactly when `independent` is false for two different identities). `same_identity` is a self-hire, which the log refuses at contract time (the `self_hire` rule); it is named here so a
  * reader of old data can label it. A label for the board and the journey view; it grants nothing and removes nothing, and the qualifying rule is unchanged.
  */
-export type RelatedKind = "same_identity" | "same_sponsor" | "sponsor_of_the_other" | "same_fleet";
+export type RelatedKind = "same_identity" | "same_sponsor" | "common_control" | "sponsor_of_the_other" | "same_fleet";
 export function relatedKind(a: PartyFacts, b: PartyFacts): RelatedKind | null {
   if (a.did === b.did) return "same_identity";
-  if (a.sponsor === b.sponsor) return "same_sponsor";
+  if (a.sponsor === b.sponsor) return (a.rawSponsor ?? a.sponsor) === (b.rawSponsor ?? b.sponsor) ? "same_sponsor" : "common_control";
   if (a.sponsor === b.did || b.sponsor === a.did) return "sponsor_of_the_other";
   if (a.fleet && a.fleet === b.fleet) return "same_fleet";
   return null;

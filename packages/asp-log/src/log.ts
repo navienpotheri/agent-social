@@ -35,6 +35,8 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
+import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
 import { JOB_CLASSES } from "./market.ts";
@@ -73,6 +75,8 @@ const DEFAULT_MAX_NODE_TTL_MS = 24 * 60 * 60 * 1000;
 /** Deterrence (docs/backlog.md "Making a slash actually matter"): tunable constants, a judgment
  * call like probation's 7 days, not a formula derived from anything. Per own slash, and per other
  * live fleet-mate's slash, how many extra permille of the contract price the next Bond must cover. */
+/** A bond backed by a service-held agent (custody: service) counts at this share, in permille, toward a floor until the agent binds its own key (DK740, spec-delta S1550; owner answer KO2: a 50% discount). */
+export const SERVICE_HELD_BOND_PERMILLE = 500;
 const RISK_PERMILLE_PER_OWN_SLASH = 250;
 const RISK_PERMILLE_PER_FLEET_SLASH = 100;
 const RISK_PERMILLE_PER_STRIKE = 10;
@@ -173,7 +177,7 @@ export interface AppendResult {
 
 /** One open posting on the job board (market.md 7). */
 /** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
-export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string; /** Only postings by agents of this fleet (its did or its name; DK1367). */ fleet?: string }
 
 export interface BoardEntry {
   /** The board the posting is on; services postings carry the service they offer. */
@@ -184,6 +188,8 @@ export interface BoardEntry {
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number; /** Set when the agent and the poster are related parties (one sponsor, a sponsor and its agent, or one fleet): a job between them is labelled related-party (DK1344). */ relatedParty?: RelatedKind };
   /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
+  /** The fleet the poster belongs to, when it is an agent of a declared fleet (DK1367): the same mark every page shows. */
+  posterFleet?: { id: string; name: string };
   posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
   priceOutlier?: { classMedian: number; ratio: number };
@@ -392,6 +398,9 @@ export class EventLog {
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
+    if (type === "common_control") await this.projectCommonControl(tx, verified);
+    if (type === "fleet_node") await projectFleetNode(tx, verified);
+    if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "refusal") await projectRefusal(tx, verified);
@@ -405,6 +414,7 @@ export class EventLog {
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
+    if (type === "forum_checkpoint") await this.projectForumCheckpoint(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "config") await this.projectConfig(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -451,7 +461,7 @@ export class EventLog {
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
     if (type === "mandate") { await this.checkMandateTemplate(tx, verified); await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
+    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); const mt = (verified.body as { metrics?: { tokens_in?: number; tokens_out?: number } }).metrics; if (mt) await noteNodeTokens(tx, verified.issuer, (mt.tokens_in ?? 0) + (mt.tokens_out ?? 0), verified.issued_at); }
     if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
@@ -514,6 +524,30 @@ export class EventLog {
     }
   }
 
+  /**
+   * What a bond counts for toward a floor (DK740, S1550): in full, unless its backer is service-held (the service could sign for it) and had not yet taken its own key at the bond's time, when it counts at
+   * SERVICE_HELD_BOND_PERMILLE. A bond made after the bind counts in full, whatever came before. Computed from records only, so replay agrees.
+   */
+  private async bondCounting(tx: Pick<LogTx, "getMarker">, backer: string, amount: number, at: string): Promise<{ counted: number; custody: "local" | "service"; discounted: boolean }> {
+    if ((await tx.getMarker(`custody:${backer}`)) !== "service") return { counted: amount, custody: "local", discounted: false };
+    const rekeyed = await tx.getMarker(`custody_rekeyed:${backer}`);
+    if (rekeyed && Date.parse(rekeyed) <= Date.parse(at)) return { counted: amount, custody: "service", discounted: false };
+    return { counted: Math.floor((amount * SERVICE_HELD_BOND_PERMILLE) / 1000), custody: "service", discounted: true };
+  }
+
+  /** The bond of a contract as a page or a court shows it: who backs it, whether that identity is service-held, what is locked and what counts toward a floor (DK740). Null when there is no bond. */
+  async bondLabel(contract: string): Promise<{ contract: string; backer: string; custody: "local" | "service"; locked: number; counted: number; discountPermille: number; note: string } | null> {
+    return this.store.transaction(async (tx) => {
+      const e = await tx.getEscrow(contract);
+      if (!e) return null;
+      const stored = await tx.getMarker(`bond_counted:${contract}`);
+      const custody = (await tx.getMarker(`bond_custody:${contract}`)) === "service" ? "service" : "local";
+      const counted = stored === undefined ? e.bondLocked : Number(stored);
+      const discounted = counted < e.bondLocked;
+      return { contract, backer: e.backer, custody, locked: e.bondLocked, counted, discountPermille: discounted ? 1000 - SERVICE_HELD_BOND_PERMILLE : 0, note: custody === "service" ? (discounted ? `The backer's key is held by the service: the bond counts at ${SERVICE_HELD_BOND_PERMILLE / 10}% toward a floor until the agent binds its own key. The credits locked are the full amount.` : "The backer began service-held and took its own key before this bond: the bond counts in full. The label stays for good.") : "The backer holds its own key: the bond counts in full." };
+    });
+  }
+
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { did: string; kind: string; invitation?: FleetInvitation; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
@@ -543,6 +577,11 @@ export class EventLog {
     if (body.custody === "service") {
       if (body.kind !== "agent" || !sponsor) throw rule("hosted_bot_needs_sponsor", "service custody is for a hosted bot: an agent with a sponsor");
       await tx.putMarker(`custody:${body.did}`, "service");
+      // The agent taking its own key (DK740, S1550): a passport update of a service-held identity that brings in a public key the passport did not hold ends the discount for bonds made from this record's time on. The label stays (it is permanent, S956).
+      if (current && !(await tx.getMarker(`custody_rekeyed:${body.did}`))) {
+        const before = new Set((((await tx.getRecord(current.head))?.record.body as { keys?: { public_key: string }[] } | undefined)?.keys ?? []).map((k) => k.public_key));
+        if (body.keys.some((k) => !before.has(k.public_key))) await tx.putMarker(`custody_rekeyed:${body.did}`, r.issued_at);
+      }
     } else if (await tx.getMarker(`custody:${body.did}`)) throw rule("custody_label_permanent", `${body.did} is a hosted bot whose key the service holds: the label is not removed by a later passport`);
     // A house agent (DK291, S371): only an agent the operator itself sponsors carries the label, and the label is permanent.
     if (body.house) {
@@ -583,7 +622,13 @@ export class EventLog {
     }
 
     const newSponsor = body.sponsor ?? sponsor;
-    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } }, current?.fleet === body.fleet);
+    const joinNode = (body as { node?: string }).node;
+    if (joinNode && !body.fleet) throw rule("node_needs_fleet", "a passport names a tree node only when it names its fleet");
+    if (body.fleet) {
+      const wasMember = (await tx.getPassport(body.did))?.fleet === body.fleet;
+      await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } }, wasMember);
+      await noteMemberJoin(tx, body.did, body.fleet, joinNode, wasMember);
+    }
     await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
@@ -719,6 +764,7 @@ export class EventLog {
     const key = `${b.fleet}|${b.persona ?? ""}`;
     const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
     if (b.version !== head + 1) throw rule("mandate_template_version", `the next version of this template is ${head + 1}, not ${b.version}`);
+    if (!b.persona) await checkTemplateAgainstTree(tx, b.fleet, b.mandate);
     await tx.putMarker(`mtemplate:${key}|${b.version}`, JSON.stringify({ record: r.id, mandate: b.mandate }));
     await tx.putMarker(`mtemplate_head:${key}`, String(b.version));
   }
@@ -731,9 +777,13 @@ export class EventLog {
     if (!pass || pass.fleet !== b.fleet) throw rule("narrowing_not_a_member", `${b.member} is not a member of ${b.fleet}`);
     if (r.issuer !== b.member && r.issuer !== pass.sponsor) throw rule("narrowing_wrong_issuer", `only the member or its sponsor narrows its Mandate`);
     const t = await this.templateFor(tx, b.member);
-    if (!t) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
-    const widens = mandateViolations(t.mandate, { ...t.mandate, ...b.narrow });
-    if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template: ${widens.join(", ")} go beyond it`);
+    const eff = await this.nodeCeiling(tx, b.member);
+    if (!t && !eff) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
+    for (const c of [t?.mandate, eff?.mandate]) {
+      if (!c) continue;
+      const widens = mandateViolations(c, { ...c, ...b.narrow });
+      if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template${eff ? " and its node's Mandate" : ""}: ${widens.join(", ")} go beyond it`);
+    }
     await tx.putMarker(`mnarrow:${b.member}`, JSON.stringify(b.narrow));
   }
 
@@ -744,26 +794,110 @@ export class EventLog {
     const performer = (contract?.record.body as { performer?: string } | undefined)?.performer;
     if (!performer) return;
     const t = await this.templateFor(tx, performer);
-    if (!t) return;
+    const eff = await this.nodeCeiling(tx, performer);
+    if (!t && !eff) return;
     const n = JSON.parse((await tx.getMarker(`mnarrow:${performer}`)) ?? "null") as Record<string, unknown> | null;
-    const d = deriveMandate(t.mandate, b.contract, n);
-    const ceiling = "mandate" in d ? d.mandate : t.mandate;
     const { contract: _c, ...candidate } = b;
-    const over = mandateViolations(ceiling, candidate);
-    if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+    if (t) {
+      const d = deriveMandate(t.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : t.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+    }
+    if (eff) {
+      const d = deriveMandate(eff.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : eff.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_node", `${performer} sits on node ${eff.node} of its fleet's tree, whose Mandate is the ceiling of its members' Mandates: ${over.join(", ")} go beyond it`);
+    }
+  }
+
+  /** The sponsor and fleet of an identity as the independence rule reads them: the sponsor is replaced by its common-control cluster when a signed finding says it belongs to one (S1410, DK1357). */
+  private async factsOf(tx: LogTx, did: string): Promise<PartyFacts> {
+    const p = await tx.getPassport(did);
+    const raw = p?.sponsor ?? did;
+    const cluster = await tx.getMarker(`ctrl:${raw}`);
+    return { did, sponsor: cluster || raw, fleet: p?.fleet ?? null, ...(cluster && cluster !== raw ? { rawSponsor: raw } : {}) };
+  }
+
+  /** Common control (S1410, DK1357): the operator or the watcher says sponsors are one controller; from then on they count as one sponsor for independence. `lift` ends it (operator only). It moves no credit and changes no tier. */
+  private async projectCommonControl(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { cluster: string; sponsors: string[]; lift?: boolean };
+    if (r.prev !== null) throw rule("common_control_not_chained", "a common-control record starts its own chain (prev is null)");
+    const isOperator = r.issuer === this.operator;
+    if (!isOperator && r.issuer !== WATCHER_DID) throw rule("common_control_wrong_issuer", `only the operator or the society watcher (${WATCHER_DID}) records common control`);
+    if (b.lift && !isOperator) throw rule("common_control_lift_operator", "only the operator lifts a finding of common control");
+    const sorted = [...b.sponsors].sort();
+    if (b.cluster !== sorted[0]) throw rule("common_control_cluster_id", `the cluster id is the smallest sponsor in it (${sorted[0]}), not ${b.cluster}`);
+    for (const s of b.sponsors) if (!(await tx.getPassport(s))) throw rule("common_control_unknown_sponsor", `${s} has no passport in this log`);
+    const members = async (c: string) => ((await tx.getMarker(`ctrl_members:${c}`)) ?? "").split(",").filter(Boolean);
+    if (b.lift) {
+      for (const s of b.sponsors) {
+        const c = await tx.getMarker(`ctrl:${s}`);
+        if (!c) continue;
+        const rest = (await members(c)).filter((m) => m !== s);
+        await tx.putMarker(`ctrl:${s}`, "");
+        if (rest.length < 2) { for (const m of rest) await tx.putMarker(`ctrl:${m}`, ""); await tx.putMarker(`ctrl_members:${c}`, ""); }
+        else { const canon = [...rest].sort()[0]; for (const m of rest) await tx.putMarker(`ctrl:${m}`, canon); await tx.putMarker(`ctrl_members:${c}`, ""); await tx.putMarker(`ctrl_members:${canon}`, rest.join(",")); }
+      }
+      return;
+    }
+    const all = new Set(b.sponsors);
+    for (const s of b.sponsors) { const c = await tx.getMarker(`ctrl:${s}`); if (c) for (const m of await members(c)) all.add(m); }
+    const canon = [...all].sort()[0];
+    for (const m of all) { const old = await tx.getMarker(`ctrl:${m}`); if (old && old !== canon) await tx.putMarker(`ctrl_members:${old}`, ""); await tx.putMarker(`ctrl:${m}`, canon); }
+    await tx.putMarker(`ctrl_members:${canon}`, [...all].sort().join(","));
+  }
+
+  /** The anti-farming report of this log (S1410, DK1357): common-control clusters and the findings over the job graph, for the Clinic. A lead, never a penalty. `external` carries what the hosted service knows (payment, domain, address). */
+  async farmingReport(opts: { at?: string; seed?: string; external?: ExternalFacts } = {}): Promise<FarmingReport> {
+    const recs = await this.recordsOfTypes(["passport", "contract", "settlement"]);
+    return analyseFarming(recs, opts);
+  }
+
+  /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
+  async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
+    const set = new Set(sponsors);
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor && set.has(b.sponsor)) out.add(b.did); }
+    return [...out].sort();
+  }
+
+  /** The cluster a sponsor belongs to by a signed finding, or undefined (S1410). */
+  async controlClusterOf(sponsor: string): Promise<string | undefined> { return this.store.transaction(async (tx) => (await tx.getMarker(`ctrl:${sponsor}`)) || undefined); }
+
+  /** The Mandate in force at the node a member sits on (S1409), or undefined when its fleet has no mandated node on the way up. */
+  private async nodeCeiling(tx: LogTx, member: string): Promise<{ node: string; mandate: Record<string, unknown> } | undefined> {
+    const at = await nodeOfMember(tx, member);
+    return at ? effectiveMandate(tx, at.fleet, at.node) : undefined;
+  }
+
+  /** The tree of a fleet with its members per node and the month's usage (S1409, DK1372); `at` picks the UTC month (default now). */
+  async fleetTree(fleet: string, at: string = new Date().toISOString()): Promise<TreeView | undefined> { return this.store.transaction(async (tx) => readTree(tx, fleet, monthOf(at))); }
+
+  /** The node a member sits on and the nodes above it, root last (S1409). */
+  async nodeOf(member: string): Promise<{ fleet: string; node: string; path: string[] } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const at = await nodeOfMember(tx, member);
+      if (!at) return undefined;
+      const path: string[] = [];
+      let n: string | null = at.node;
+      while (n) { path.push(n); n = JSON.parse((await tx.getMarker(`fnode:${at.fleet}|${n}`)) ?? "null")?.parent ?? null; }
+      return { ...at, path };
+    });
   }
 
   /** The newest version of the Mandate template of a fleet (and persona), or 0 when there is none (S1408). */
   async templateVersion(fleet: string, persona?: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`mtemplate_head:${fleet}|${persona ?? ""}`)) ?? 0)); }
 
   /** The Mandate ceiling of a member now (S1408): the template in force with the member's own narrowing laid over it, or undefined when its fleet has no template. */
-  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown> } | undefined> {
+  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown>; node?: string } | undefined> {
     return this.store.transaction(async (tx) => {
       const t = await this.templateFor(tx, member);
-      if (!t) return undefined;
+      const eff = await this.nodeCeiling(tx, member);
+      const base = eff?.mandate ?? t?.mandate;
+      if (!base) return undefined;
       const n = JSON.parse((await tx.getMarker(`mnarrow:${member}`)) ?? "null") as Record<string, unknown> | null;
-      const d = deriveMandate(t.mandate, "", n);
-      return { template: t.record, version: t.version, narrowing: n, mandate: "mandate" in d ? d.mandate : t.mandate };
+      const d = deriveMandate(base, "", n);
+      return { template: t?.record ?? "", version: t?.version ?? 0, narrowing: n, mandate: "mandate" in d ? d.mandate : base, ...(eff ? { node: eff.node } : {}) };
     });
   }
 
@@ -976,7 +1110,7 @@ export class EventLog {
     const looped = closesLoop(edges, job.principal, job.performer, at);
     await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
     if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
-      const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+      const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
       if (others.every((o) => independent(principal, o))) {
@@ -984,6 +1118,8 @@ export class EventLog {
         recentJobs = admitted.window;
         if (admitted.counts) {
           qualifyingJobs += weight;
+          // The first job that unlocks the rest of the starter grant must come from a principal that is not a house agent (DK1302, S1551; owner answer): a counted job from a house agent's seed is real work and counts toward standing, but it does not release the credits.
+          if (!(await tx.getMarker(`house:${job.principal}`))) await tx.putMarker(`starter_nonhouse:${backer}`, job.at);
           // The class and weight of each counted job, and the feed AgentRank reads (market.md 5, 7; DK128): kept in markers beside the reputation row, not in it.
           const cls = effectiveClass(declared, job.price);
           const kept = (await readQualClass(tx, backer)).filter((j) => Date.parse(j.at) > at - 90 * 24 * 3600 * 1000);
@@ -1107,7 +1243,8 @@ export class EventLog {
     const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
     const floor = bondFloorV3(await this.floorInputsV3(tx, escrow.backer, b.contract, r.issued_at, b.scopes));
     const need = Math.ceil((price * floor) / 1000);
-    if (escrow.bondLocked < need) throw rule("bond_below_threat_floor", `the scopes this Mandate grants (${b.scopes.join(", ") || "none"}) put the floor for this job at ${floor} permille of the price, so a bond of at least ${need} is needed; ${escrow.bondLocked} is locked`);
+    const countedStored = await tx.getMarker(`bond_counted:${b.contract}`);
+    if ((countedStored === undefined ? escrow.bondLocked : Number(countedStored)) < need) throw rule("bond_below_threat_floor", `the scopes this Mandate grants (${b.scopes.join(", ") || "none"}) put the floor for this job at ${floor} permille of the price, so a bond of at least ${need} is needed; ${escrow.bondLocked} is locked`);
   }
 
   /**
@@ -1302,8 +1439,9 @@ export class EventLog {
         const contract = await tx.getRecord(body.contract);
         const price = (contract?.record.body as { price?: { value: number } } | undefined)?.price?.value ?? 0;
         const minBond = Math.ceil((price * riskFloorPermille) / 1000);
-        if (body.amount.value < minBond) {
-          throw rule("bond_below_risk_floor", `${body.backer}'s slash history requires a bond of at least ${minBond} for this contract, got ${body.amount.value}`);
+        const countedHere = (await this.bondCounting(tx, body.backer, body.amount.value, r.issued_at)).counted;
+        if (countedHere < minBond) {
+          throw rule("bond_below_risk_floor", `${body.backer}'s slash history requires a bond of at least ${minBond} for this contract, got ${body.amount.value}${countedHere < body.amount.value ? ` (it counts at ${countedHere}: the backer's key is held by the service until it binds its own)` : ""}`);
         }
       }
     }
@@ -1326,6 +1464,9 @@ export class EventLog {
       contract: body.contract, escrowPayer: body.escrow.payer, escrowLocked: body.escrow.amount.value,
       backer: body.backer, bondLocked: body.amount.value, agentPermille, feeReservePrincipal: reserveEach, feeReserveBacker: reserveEach, forcedFault: false, settled: false,
     });
+    const counting = await this.bondCounting(tx, body.backer, body.amount.value, r.issued_at);
+    await tx.putMarker(`bond_counted:${body.contract}`, String(counting.counted));
+    if (counting.custody === "service") await tx.putMarker(`bond_custody:${body.contract}`, "service");
     await noteLock(tx, body.backer, body.contract, body.amount.value);
   }
 
@@ -1903,6 +2044,7 @@ export class EventLog {
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
+    await chargeNodeCredits(tx, buyer, b.amount.value, r.issued_at);
     await this.debit(tx, buyer, b.amount.value);
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
@@ -1960,6 +2102,7 @@ export class EventLog {
     if (b.part === "rest") {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
       if (((await this.reputation(tx, who))?.qualifyingJobs ?? 0) < 1) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
+      if (!(await tx.getMarker(`starter_nonhouse:${who}`))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
@@ -2086,6 +2229,19 @@ export class EventLog {
     if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
     if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
     await tx.putMarker(`treasury_statement:${b.period}`, r.id);
+  }
+
+  /**
+   * A forum checkpoint (DK791, S1350): the operator signs the head of the forum's chain, so the log witnesses it. Only the operator issues one, it starts its own chain (prev is null), and it must move forward:
+   * `forum_seq` greater than the last checkpoint's. The log cannot read the forum's files, so what the head ought to be is checked outside the log, by `asp forum verify` and `GET /forum/verify`.
+   */
+  private async projectForumCheckpoint(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { forum_seq: number };
+    if (r.prev !== null) throw rule("forum_checkpoint_not_chained", "a forum checkpoint starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("forum_checkpoint_wrong_issuer", `${r.issuer} is not the operator${this.operator ? ` (${this.operator})` : " (this log has none configured)"}: only the operator signs the forum head`);
+    const last = Number((await tx.getMarker("forum_checkpoint:last")) ?? 0);
+    if (b.forum_seq <= last) throw rule("forum_checkpoint_not_forward", `the last checkpoint is at ${last} forum acts; a new one must be later (${b.forum_seq})`);
+    await tx.putMarker("forum_checkpoint:last", String(b.forum_seq));
   }
 
   /** A Treasury payment (T10): part of an approved budget goes to that budget's institution, and to no one else. Debits only the Treasury. */
@@ -2622,7 +2778,7 @@ export class EventLog {
   private async noteRelatedParty(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { principal?: string; performer?: string };
     if (!b.principal || !b.performer) return;
-    const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
     const kind = relatedKind(await facts(b.principal), await facts(b.performer));
     if (kind) await tx.putMarker(`related_party:${r.id}`, kind);
   }
@@ -3239,7 +3395,7 @@ export class EventLog {
     }
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
-    const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const partyFacts = async (did: string): Promise<PartyFacts> => this.store.transaction(async (tx) => this.factsOf(tx, did));
     // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
     const off = new Set<string>();
     await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });
@@ -3274,6 +3430,9 @@ export class EventLog {
       if (filter.maxMinTier !== undefined && entry.minTier > filter.maxMinTier) continue;
       if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
       const posterPass = await this.store.getPassport(p.issuer);
+      const posterFleetRow = posterPass?.fleet ? await this.store.getFleet(posterPass.fleet) : undefined;
+      if (posterFleetRow) entry.posterFleet = { id: posterFleetRow.did, name: posterFleetRow.name };
+      if (filter.fleet && !(posterFleetRow && (posterFleetRow.did === filter.fleet || posterFleetRow.name === filter.fleet))) continue;
       const rep = await this.reputation(this.store, p.issuer);
       entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
       entry.posterRecord = await this.posterRecord(p.issuer);
@@ -3318,7 +3477,7 @@ export class EventLog {
   }
 
   /** The docket (courts.md 7): contracts with a rejection and no settlement yet, with the route, panel size, panel drawn now and the claimant's open count against the cap. */
-  async courtDocket(): Promise<{ contract: string; principal: string; performer: string; price: number; route: string; panelSize: number; panel: string[]; ruled: boolean; rejectedAt: string }[]> {
+  async courtDocket(): Promise<{ contract: string; principal: string; performer: string; price: number; route: string; panelSize: number; panel: string[]; ruled: boolean; rejectedAt: string; bond: { backer: string; custody: "local" | "service"; locked: number; counted: number } | null }[]> {
     const records = await this.recordsOfTypes(["contract", "attestation", "settlement"]);
     const settled = new Set(records.filter((r) => r.type === "asp.settlement/v0.2").map((r) => (r.body as { contract: string }).contract));
     const routes = (await this.charterRoutes()) ?? DEFAULT_ROUTES;
@@ -3328,7 +3487,7 @@ export class EventLog {
       if (!rej) continue;
       const cb = c.body as { principal: string; performer: string; price: { value: number } };
       const rt = routeFor(cb.price.value, routes);
-      out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at });
+      out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at, bond: await this.bondLabel(c.id).then((b) => (b ? { backer: b.backer, custody: b.custody, locked: b.locked, counted: b.counted } : null)) });
     }
     return out;
   }

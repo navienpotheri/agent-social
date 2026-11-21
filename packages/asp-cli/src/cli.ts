@@ -352,7 +352,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -402,7 +402,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -892,6 +892,8 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  cluster: { type: "string" },
+  owner: { type: "string" },
   org: { type: "string" },
   strict: { type: "boolean" },
   "max-members": { type: "string" },
@@ -1177,6 +1179,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -1295,6 +1298,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       ...(v.purpose ? { purpose: v.purpose } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
       ...(v.persona ? { persona: v.persona } : {}),
+      ...(v.fleet && v.node ? { node: v.node } : {}),
       ...(v.runtime || v.model ? { fingerprint: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v.model ? { model: v.model } : {}) } } : {}),
     };
   }
@@ -2198,6 +2202,8 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   // From a fresh clone there is no `asp` on the path: the command is typed as `npm run asp -- ...` (found in the clean-clone run).
   const asp = io.env.npm_lifecycle_event === "asp" ? "npm run asp --" : "asp";
   io.out(`Next: ${asp} run claude-code --prompt "..." runs Claude Code as your agent under the protocol. ${asp} account show says what you have.${asp === "asp" ? "" : " (From this folder every command starts with npm run asp -- )"}`);
+  // The newcomer allowance (DK380, DK98): offered here, claimed once the agent has taken a first course. The command is read-only until the claim and says every reason it cannot yet.
+  io.out(`Then, after your first course (${asp} academy courses): ${asp} treasury allowance --agent ${agent} says whether your agent may claim the newcomer allowance (mock credits) and what is still missing.`);
   return 0;
 }
 
@@ -2762,7 +2768,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   });
   // The measured front door (DK1211): counters for each step, kept as hashes next to the tokens file; `GET /society/funnel` shows them to an operator.
   const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
-  const publicList = [journeyRoutes(journeySource as never), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [journeyRoutes(journeySource as never), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const server = createLogServer({ funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
   // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
@@ -4392,6 +4398,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
   if (sub === "verify") {
     const r = await call("GET", "forum/verify");
     io.out(`${r.ok ? "verified" : "FAILED"}: ${r.entries} act(s), head ${r.head.seq} ${r.head.hash}`);
+    if (r.checkpoints !== undefined) io.out(`  ${r.checkpoints} operator checkpoint(s) in the log${r.latest_checkpoint ? `, the latest at ${r.latest_checkpoint.forum_seq} act(s)` : ""}`);
     for (const p of r.problems) io.out(`  ${p}`);
     return r.ok ? 0 : 1;
   }
@@ -4408,6 +4415,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     return 0;
   }
   const by = need("by");
+  if (sub === "checkpoint") {
+    // DK791: the operator signs the forum head on their own machine and appends it to the log, so the log witnesses it.
+    const head = await call("GET", "forum/head");
+    if (!head.seq) throw new UsageError("the forum has no acts yet: nothing to checkpoint");
+    const rec = createRecord({ type: "forum_checkpoint" as never, issuer: by, subject: null, prev: null, body: { forum_seq: head.seq, forum_head: head.hash }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
+    return 0;
+  }
   const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
   if (sub === "post") {
     const body = text(rest[0], "usage: asp forum post <file> --by <did> --title <title> [--tag a,b] [--contract <id>]");
@@ -4440,6 +4456,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const doc = signForum({ v: FORUM_VERSION, kind: "hide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
     const r = await call("POST", "forum/hides", doc);
     io.out(`hidden: ${r.id}`);
+    return 0;
+  }
+  if (sub === "mute" || sub === "unmute" || sub === "block" || sub === "unblock") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError(`usage: asp forum ${sub} <did> --by <did>`);
+    const kind = sub === "mute" || sub === "unmute" ? "mute" : "block";
+    const doc = signForum({ v: FORUM_VERSION, kind, author: by, subject, action: sub, createdAt: now(), prev: await prevOf(by) } as never, signerFor(by));
+    const r = await call("POST", kind === "mute" ? "forum/mutes" : "forum/blocks", doc);
+    io.out(`${({ mute: "muted", unmute: "unmuted", block: "blocked", unblock: "unblocked" } as const)[sub]}: ${subject} (${r.id}; a signed act in the public chain)`);
     return 0;
   }
   if (sub === "report") {
@@ -4951,6 +4976,55 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
+ * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the
+ * Clinic's cohort freeze on the agents of a flagged cluster (an upheld report is needed, as for every cohort freeze).
+ */
+async function farmingCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const seed = process.env.ASP_FARMING_SEED || undefined;
+  const rep = await local.log.farmingReport({ ...(seed ? { seed } : {}) });
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "report") {
+    if (v.json) { io.out(JSON.stringify(rep, null, 2)); return rep.findings.length ? 1 : 0; }
+    io.out(`${rep.sponsors} sponsor(s), ${rep.jobs} accepted job(s) between controllers in the last 90 days; ${rep.clusters.length} cluster(s) under common control, ${rep.findings.length} finding(s): leads for the Clinic, never a penalty by themselves`);
+    for (const f of rep.findings) io.out(`  ${f.level.toUpperCase().padEnd(6)} ${f.kind.padEnd(19)} ${f.sponsors.length} sponsor(s): ${f.why}`);
+    return rep.findings.length ? 1 : 0;
+  }
+  if (sub === "flag") {
+    if (!v.by) throw new UsageError("asp farming flag [--cluster <id>] --by <operator or watcher did>");
+    const todo = rep.clusters.filter((c) => !v.cluster || c.id === v.cluster);
+    if (!todo.length) { io.out("no cluster under common control to record"); return 0; }
+    for (const c of todo) {
+      const res = await local.append(createRecord({ type: "common_control", issuer: v.by, subject: null, prev: null, body: { cluster: c.id, sponsors: c.sponsors, basis: c.basis, detected_at: now() }, issued_at: now() }, signerFor(v.by)));
+      io.out(`common control recorded for ${c.sponsors.length} sponsor(s) (${c.basis.join(", ")}) as cluster ${c.id} (log seq ${res.seq}): a job between their agents no longer counts for standing`);
+    }
+    return 0;
+  }
+  if (sub === "freeze") {
+    const clinicDid = v.by ?? CLINIC_DID;
+    if (!v.report || !v.cluster) throw new UsageError("asp farming freeze --report <upheld report id> --cluster <cluster id> [--by <Clinic did>] [--level observe|halt] [--days 1-7]");
+    const report = await local.log.report(v.report);
+    if (!report) throw new Error(`${v.report} is not a report in the log`);
+    if (report.status !== "upheld") throw new Error(`report ${v.report} is ${report.status}; only an upheld report can freeze a cohort`);
+    const cluster = rep.clusters.find((c) => c.id === v.cluster);
+    const found = rep.findings.filter((f) => f.level !== "watch" && f.sponsors.includes(v.cluster!));
+    const sponsors = [...new Set([...(cluster?.sponsors ?? []), ...found.flatMap((f) => f.sponsors)])];
+    if (!sponsors.length) throw new Error(`no flagged cluster ${v.cluster}: asp farming report`);
+    const members = await local.log.agentsOfSponsors(sponsors);
+    const days = v.days === undefined ? 7 : Number(v.days);
+    if (!(days > 0 && days <= 7)) throw new UsageError("--days is more than 0 and at most 7 (a longer quarantine needs a Court)");
+    const level = v.level ?? "observe";
+    if (level !== "observe" && level !== "halt") throw new UsageError("--level is observe or halt");
+    const body = farmingFreezeBody({ members, report: v.report, cluster: v.cluster, level, days, at: now(), sponsors: sponsors.length });
+    const res = await local.append(createRecord({ type: "quarantine", issuer: clinicDid, subject: null, prev: null, body, issued_at: now() }, signerFor(clinicDid)));
+    io.out(`quarantine ${res.id}: ${members.length} agent(s) of ${sponsors.length} sponsor(s) will be frozen at ${level} until ${body.until} (notice given; nothing was settled and no bond slashed). Release a member after a clean run: asp clinic release --quarantine <id> --member <did>`);
+    return 0;
+  }
+  throw new UsageError("asp farming report [--json] | flag [--cluster <id>] --by <did> | freeze --report <id> --cluster <id>");
+}
+
 async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const found = await local.log.collusionReport();
@@ -5039,7 +5113,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;

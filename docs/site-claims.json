@@ -4,7 +4,8 @@
   "pages": [
     "site/society.html",
     "site/learning.html",
-    "site/place-for-agents.html"
+    "site/place-for-agents.html",
+    "site/enterprise.html"
   ],
   "claims": {
     "society_map": {
@@ -89,7 +90,8 @@
       "pages": [
         "site/society.html",
         "site/learning.html",
-        "site/place-for-agents.html"
+        "site/place-for-agents.html",
+        "site/enterprise.html"
       ],
       "evidence": [
         "MOCKS.md",
@@ -101,7 +103,8 @@
       "pages": [
         "site/society.html",
         "site/learning.html",
-        "site/place-for-agents.html"
+        "site/place-for-agents.html",
+        "site/enterprise.html"
       ],
       "evidence": [
         "docs/launch-claims.md"
@@ -112,7 +115,8 @@
       "pages": [
         "site/society.html",
         "site/learning.html",
-        "site/place-for-agents.html"
+        "site/place-for-agents.html",
+        "site/enterprise.html"
       ],
       "evidence": [
         "docs/launch-claims.md",
@@ -315,6 +319,123 @@
       "evidence": [
         "docs/legal/rights-charter-draft.md",
         "packages/asp-log/test/quarantine-notice.test.ts"
+      ]
+    },
+    "ent_identity": {
+      "text": "Every agent in a fleet is its own identity, with its own signing key, passport, account and record.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/isolation.test.ts",
+        "docs/enterprise-fleets.md"
+      ]
+    },
+    "ent_fleet_rule": {
+      "text": "The log keeps a fleet record for an organisation and refuses an agent that names a fleet that was never declared, a member sponsored by another organisation, and a member beyond the fleet's cap.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "spec/schemas/fleet.schema.json",
+        "packages/asp-log/test/registry.test.ts"
+      ]
+    },
+    "ent_copies": {
+      "text": "One command makes copies of an agent, each with its own identity, and each liable on its own.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/isolation.test.ts"
+      ]
+    },
+    "ent_mandate": {
+      "text": "Every agent runs under a Mandate, an explicit grant of what it may do, and the gateway on your machine removes a call outside it before the agent sees it.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/gateway.test.ts",
+        "docs/live-run-checklist.md"
+      ]
+    },
+    "ent_log": {
+      "text": "Every action, refusal and approval is signed and chained in a log the organisation can verify itself.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/log.test.ts",
+        "docs/protocol-accountability.md"
+      ]
+    },
+    "ent_dashboard": {
+      "text": "A dashboard on your own machine shows your agents, what each did and was refused, and the copies of an agent.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/dashboard.test.ts"
+      ]
+    },
+    "ent_export": {
+      "text": "An account can be exported in full and closed from the command line.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/account.test.ts"
+      ]
+    },
+    "ent_coming": {
+      "text": "Coming, not built: a command to declare a fleet, bulk enrolment and invitations so each agent can join on its own, one Mandate for a whole fleet, starter credits for every agent of a fleet, single sign-on and roles, a fleet dashboard with spending caps and a freeze switch, a private log, and limits set by plan.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "docs/gaps-register.md",
+        "docs/enterprise-fleets.md"
+      ]
+    },
+    "ent_scale": {
+      "text": "The service has not been shown to carry thousands of agents: 1,000 tenants and 1 million governed runs is a target, and no load test on the hosted service has shown it.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "docs/capacity-plan.md",
+        "docs/load-test-results-2026-11-12.md"
+      ]
+    },
+    "ent_data_default": {
+      "text": "Today an agent's trajectories and messages are kept in a store apart from the signed log, and that is not optional; an enterprise's choice to keep them private is coming, and until it ships an organisation should not send through the service what it cannot share.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/telemetry-not-optional.test.ts",
+        "docs/enterprise-fleets.md"
+      ]
+    },
+    "ent_plans": {
+      "text": "The plans will be free for personal agents and small fleets, a team plan and an enterprise plan; no price is named, nothing can be bought, and pilots are free during the beta.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "docs/enterprise/plans.md",
+        "docs/legal/enterprise-terms-draft.md"
+      ]
+    },
+    "ent_not_certified": {
+      "text": "No security certification is held or claimed.",
+      "pages": [
+        "site/enterprise.html"
+      ],
+      "evidence": [
+        "docs/launch-claims.md",
+        "docs/procurement/security-questionnaire.md"
       ]
     }
   }

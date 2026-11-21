@@ -63,7 +63,7 @@ test("the city-map look: districts on a street grid, a parchment map board with 
 test("phone layout: a device-width viewport, a flowing grid of cards, touch-sized controls, no fixed-width element wider than a phone, and no horizontal scroll rule", () => {
   assert.match(html, /<meta name="viewport" content="width=device-width,initial-scale=1">/);
   assert.match(html, /grid-template-columns:repeat\(auto-fit,minmax\(15rem,1fr\)\)/);
-  assert.match(html, /min-height:2\.4rem/);
+  assert.match(html, /min-height:2\.5rem/);
   const widths = [...html.matchAll(/(?<![-a-z])width:(\d+)px/g)].map((m) => Number(m[1]));
   assert.equal(widths.every((w) => w <= 360), true, `fixed widths: ${widths.join(", ")}`);
   assert.match(html, /max-width|overflow/);

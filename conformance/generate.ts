@@ -1100,6 +1100,13 @@ sv("node_short_key", "node", { ...nodeBody, public_key: "abc" }, false);
   sv("standing_order_cancel_no_order", "standing_order", { act: "cancel" }, false);
   sv("standing_order_extra_field", "standing_order", { ...so, price: 10 }, false);
   sv("valid_purchase_run_of_standing_order", "purchase", { service: "academy.course.foundations", institution: "did:web:asp.local:academy", price_list: "sha256:" + "b".repeat(64), quantity: 1, amount: { value: 10, unit: "credit" }, idempotency: "week-1", standing_order: "sha256:" + "a".repeat(64) }, true);
+  const fcp = { forum_seq: 120, forum_head: "sha256:" + "6".repeat(64) };
+  sv("valid_forum_checkpoint", "forum_checkpoint", fcp, true);
+  sv("forum_checkpoint_no_head", "forum_checkpoint", { ...fcp, forum_head: undefined }, false);
+  sv("forum_checkpoint_no_seq", "forum_checkpoint", { ...fcp, forum_seq: undefined }, false);
+  sv("forum_checkpoint_seq_zero", "forum_checkpoint", { ...fcp, forum_seq: 0 }, false);
+  sv("forum_checkpoint_bad_hash", "forum_checkpoint", { ...fcp, forum_head: "abc" }, false);
+  sv("forum_checkpoint_extra_field", "forum_checkpoint", { ...fcp, note: "x" }, false);
   const tstmt = { period: "2026-11", balance: { value: 1000, unit: "credit" }, reconciles: true, unexplained: 0, statement_sha256: "sha256:" + "5".repeat(64) };
   sv("valid_treasury_statement", "treasury_statement", tstmt, true);
   sv("valid_treasury_statement_for_a_period", "treasury_statement", { ...tstmt, since: "2026-11-01T00:00:00Z", reconciles: false, unexplained: undefined }, true);
@@ -1378,6 +1385,44 @@ const worldRules = [
   sv("mandate_narrowing_unknown_field", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { privileges: ["root"] } }, false);
   sv("mandate_narrowing_bad_scope", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["Repo Read"] } }, false);
   sv("valid_passport_persona", "passport", { did: "did:web:example.com:agents:coder-7", kind: "agent", sponsor: "did:web:example.com:orgs:acme", persona: "coder", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-7#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  // ---------- the fleet tree (spec-deltas S1409): schema cases ----------
+  const owner = "did:web:example.com:users:dept-lead";
+  const nodeBody = (over: Record<string, unknown> = {}) => ({ fleet: fl, node: "engineering", version: 1, kind: "department", name: "Engineering", parent: "root", owner, ...over });
+  sv("valid_fleet_node_root", "fleet_node", { fleet: fl, node: "root", version: 1, kind: "fleet", name: "Acme", owner }, true);
+  sv("valid_fleet_node_department", "fleet_node", nodeBody(), true);
+  sv("valid_fleet_node_budget_and_mandate", "fleet_node", nodeBody({ node: "platform", kind: "team", parent: "engineering", budget: { credits: 400, tokens: 2000000 }, mandate: tmplMandate() }), true);
+  sv("valid_fleet_node_persona", "fleet_node", nodeBody({ node: "coder", kind: "persona", parent: "platform", persona: "coder" }), true);
+  sv("fleet_node_no_owner", "fleet_node", (({ owner: _o, ...r }) => r)(nodeBody()), false);
+  sv("fleet_node_root_with_parent", "fleet_node", nodeBody({ node: "root", kind: "fleet", parent: "root" }), false);
+  sv("fleet_node_root_named_otherwise", "fleet_node", nodeBody({ node: "top", kind: "fleet", parent: undefined }), false);
+  sv("fleet_node_department_without_parent", "fleet_node", (({ parent: _p, ...r }) => r)(nodeBody()), false);
+  sv("fleet_node_department_named_root", "fleet_node", nodeBody({ node: "root" }), false);
+  sv("fleet_node_unknown_kind", "fleet_node", nodeBody({ kind: "division" }), false);
+  sv("fleet_node_negative_budget", "fleet_node", nodeBody({ budget: { credits: -1 } }), false);
+  sv("fleet_node_empty_budget", "fleet_node", nodeBody({ budget: {} }), false);
+  sv("fleet_node_budget_in_dollars", "fleet_node", nodeBody({ budget: { dollars: 5 } }), false);
+  sv("fleet_node_bad_slug", "fleet_node", nodeBody({ node: "Engineering Dept" }), false);
+  sv("fleet_node_mandate_missing_field", "fleet_node", nodeBody({ mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }), false);
+  sv("fleet_node_version_zero", "fleet_node", nodeBody({ version: 0 }), false);
+  // ---------- common control (spec-deltas S1410): schema cases ----------
+  const spA = "did:web:example.com:users:sponsor-a", spB = "did:web:example.com:users:sponsor-b";
+  const ccBody = (over: Record<string, unknown> = {}) => ({ cluster: spA, sponsors: [spA, spB], basis: ["payment"], detected_at: "2026-11-21T10:00:00Z", ...over });
+  sv("valid_common_control", "common_control", ccBody(), true);
+  sv("valid_common_control_lift", "common_control", ccBody({ lift: true }), true);
+  sv("valid_common_control_evidence", "common_control", ccBody({ basis: ["key_lineage", "domain", "address"], evidence: "sha256:" + "4".repeat(64) }), true);
+  sv("common_control_one_sponsor", "common_control", ccBody({ sponsors: [spA] }), false);
+  sv("common_control_duplicate_sponsor", "common_control", ccBody({ sponsors: [spA, spA] }), false);
+  sv("common_control_no_basis", "common_control", ccBody({ basis: [] }), false);
+  sv("common_control_unknown_basis", "common_control", ccBody({ basis: ["vibes"] }), false);
+  sv("common_control_no_cluster", "common_control", (({ cluster: _c, ...r }) => r)(ccBody()), false);
+  sv("common_control_unknown_field", "common_control", ccBody({ penalty: 100 }), false);
+  sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
+  sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
+  sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);
+  sv("fleet_move_bad_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "Platform Team" }, false);
+  sv("fleet_move_unknown_field", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform", force: true }, false);
+  sv("valid_passport_node", "passport", { did: "did:web:example.com:agents:coder-8", kind: "agent", sponsor: "did:web:example.com:orgs:acme", fleet: fl, node: "platform", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-8#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  sv("passport_bad_node", "passport", { did: "did:web:example.com:agents:coder-8", kind: "agent", sponsor: "did:web:example.com:orgs:acme", fleet: fl, node: "Platform Team", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-8#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, false);
   const T = tmplMandate();
   const cases: { name: string; ceiling: Record<string, unknown>; candidate: Record<string, unknown> }[] = [
     ["the_same_mandate_is_within", {}], ["fewer_scopes", { scopes: ["repo.read"] }], ["a_scope_under_a_wildcard", { scopes: ["pr.open", "pr.merge"] }], ["a_scope_outside", { scopes: ["repo.read", "shell.exec"] }],

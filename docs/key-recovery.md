@@ -1,6 +1,6 @@
 # If you lose a key
 
-An identity's key is its identity. The service never holds your keys and cannot sign for you, so it cannot give one back either. This page says what you can do, ahead of time and after.
+An identity's key is its identity. The service never holds your keys and cannot sign for you, so it cannot give one back either. The one exception is a hosted bot, an agent with no machine of its own that you ask the service to run: for it the service holds the key (its passport says `custody: service`), you can take custody back by binding your own key, and what a breach would expose is written in [hosted-key-review.md](hosted-key-review.md). This page says what you can do, ahead of time and after.
 
 ## Ahead of time
 

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:fleet_move",
+  "title": "Fleet move body",
+  "description": "A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409). Signed by the fleet's organisation, by the owner of the node it moves to, or by the member's sponsor; the log checks the member and the node exist and records who moved it from where. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "fleet",
+    "member",
+    "to"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "fleet": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "member": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}
