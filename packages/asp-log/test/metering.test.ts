@@ -79,6 +79,15 @@ describe("a plan and a statement in the log", () => {
     const m = (await w.log.meter({ fleet: w.FLEET, month })).usage;
     const build = w.stated(month);
     assert.equal(await refusedBy(w.log.append(await build(m, [{ name: "GST", rate_bp: 1800 }], { total: 1 }))), "usage_statement_arithmetic", "a total that does not follow from the usage");
+    // each part of a statement is checked on its own: a line, the subtotal and the tax altered with the total left as it should be
+    const u2 = { ...m, activeAgents: m.activeAgents + 3, writes: m.writes + 100 };
+    const honest = await build(u2, [{ name: "GST", rate_bp: 1800 }]);
+    const hb = honest.body as { lines: { description?: string; item?: string; name?: string }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[] };
+    assert.ok(hb.lines.length > 0 && hb.tax.length > 0, "the honest statement has lines and tax");
+    const relabelled = hb.lines.map((l, i) => (i === 0 ? { ...l, ...(l.item !== undefined ? { item: l.item + " (relabelled)" } : l.name !== undefined ? { name: l.name + " (relabelled)" } : { description: String(l.description) + " (relabelled)" }) } : l));
+    assert.equal(await refusedBy(w.log.append(await build(u2, [{ name: "GST", rate_bp: 1800 }], { lines: relabelled }))), "usage_statement_arithmetic", "a line that is not the plan's line for this usage");
+    assert.equal(await refusedBy(w.log.append(await build(u2, [{ name: "GST", rate_bp: 1800 }], { subtotal: hb.subtotal + 1 }))), "usage_statement_arithmetic", "a subtotal that does not follow");
+    assert.equal(await refusedBy(w.log.append(await build(u2, [{ name: "GST", rate_bp: 1800 }], { tax: hb.tax.map((t) => ({ ...t, amount: t.amount + 1 })) }))), "usage_statement_arithmetic", "a tax amount that does not follow, the total left as it should be");
     assert.equal(await refusedBy(w.log.append(await build(m, [{ name: "GST", rate_bp: 1800 }], { plan: "no-such-plan" }))), "usage_plan_unknown");
     assert.equal(await refusedBy(w.log.append(await build(m, [{ name: "GST", rate_bp: 1800 }], { currency: "EUR" }))), "usage_statement_currency");
     assert.equal(await refusedBy(w.log.append(await build({ ...m, activeAgents: m.activeAgents + 1 }))), undefined, "a statement priced from its own stated usage is accepted (the recount below checks it against the log)");
