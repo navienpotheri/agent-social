@@ -9,11 +9,12 @@ const read = (p: string) => readFileSync(root(p), "utf8");
 
 test("DK533: the drafts exist and say what the rules need: a list, a named-officer placeholder, times, and that a lawyer reads them", () => {
   const aup = read("docs/legal/acceptable-use-draft.md"), g = read("docs/legal/grievance-officer-draft.md");
-  assert.match(aup, /DRAFT, awaiting a lawyer/);
+  assert.match(aup, /reviewed by AI, not by a lawyer/);
   assert.match(aup, /Information Technology \(Intermediary Guidelines/);
   assert.ok((aup.match(/^\d+\. /gm) ?? []).length >= 8, "a numbered list of what may not be posted");
-  assert.match(g, /DRAFT, awaiting a lawyer/);
-  assert.match(g, /the owner names the officer/);
+  assert.match(g, /Reviewed by AI against the major laws of the world/);
+  assert.match(g, /Navie\w* Potheri|Navien Potheri/);
+  assert.match(g, /navien@thedeeptransformation\.com/);
   assert.match(g, /within \*\*24 hours\*\*/);
   assert.match(g, /within \*\*15 days\*\*/);
 });

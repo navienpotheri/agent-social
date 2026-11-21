@@ -11,7 +11,7 @@ const LIMITS: [string, RegExp][] = [
   ["credits are not money", /credits are not money/i],
   ["it is a beta", /beta/i],
   ["no outside security review", /no outside (security )?review/i],
-  ["the legal documents are drafts", /legal documents are drafts/i],
+  ["the legal documents have had an AI-assisted review, not a lawyer", /legal documents have had an AI-assisted review, not a lawyer/i],
   ["the gateway does not see what an agent's own code does outside the model loop", /outside the model loop/i],
   ["key files are plain text unless a passphrase is set", /plain text unless you set .?ASP_KEY_PASSPHRASE/i],
   ["the dashboard is local only", /dashboard runs on your machine only/i],

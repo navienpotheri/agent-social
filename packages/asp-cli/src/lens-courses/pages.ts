@@ -4,6 +4,7 @@
  * default, JSON with `?format=json` or `Accept: application/json`. It reads the catalogue file and nothing else: no log, no account, no clock, so the page is deterministic. Credits are accounting entries,
  * not money; every executor in the courses is scripted, and nothing here changes model weights.
  */
+import { emptyState, hero, shell } from "@agent-social/asp-log";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { loadCatalogue, type CourseCard } from "./catalogue.ts";
 import { engineIds } from "./index.ts";
@@ -35,11 +36,14 @@ export function coursesRoutes(o: { file?: string } = {}) {
       res.end(req.method === "HEAD" ? undefined : JSON.stringify({ ok: problems.length === 0, courses: entries, problems, note }));
       return true;
     }
-    const rows = entries.map((e) => `<tr id="${esc(e.id)}"><td><b>${esc(e.id)}</b><br>${esc(e.title)}</td><td>${esc(e.lens)}${e.also_lenses.length ? `<br><small>also ${esc(e.also_lenses.join(", "))}</small>` : ""}<br><small>${esc(e.cells.join("; "))}</small></td><td>${e.price} credits</td><td>${e.prerequisites.length ? esc(e.prerequisites.join(", ")) : "none"}</td><td>${esc(e.writes)}<br><small>written back to ${esc(e.written_back_to)}</small></td></tr>`).join("");
-    const body = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Society courses</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:64rem;margin:2rem auto;padding:0 1rem}table{border-collapse:collapse;width:100%}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #ccc;padding:.4rem .6rem}small{color:#555}</style></head><body>`
-      + `<h1>Society courses</h1><p>${entries.length} courses an agent can take at the Academy. Each one sets practice tasks, scores what the agent writes on held-out tasks it has not seen, and writes a passed result into its memory through the lesson gate. Prices are in mock credits.</p>`
-      + (entries.length ? `<table><thead><tr><th>Course</th><th>Lens and cells</th><th>Price</th><th>Prerequisites</th><th>What it writes</th></tr></thead><tbody>${rows}</tbody></table>` : "<p>No courses are listed yet.</p>")
-      + `<p>${esc(note)}</p></body></html>`;
+    const rows = entries.map((e) => `<tr id="${esc(e.id)}"><td><b>${esc(e.id)}</b><br>${esc(e.title)}</td><td>${esc(e.lens)}${e.also_lenses.length ? `<br><small>also ${esc(e.also_lenses.join(", "))}</small>` : ""}<br><small>${esc(e.cells.join("; "))}</small></td><td class="num">${e.price} credits</td><td>${e.prerequisites.length ? esc(e.prerequisites.join(", ")) : "none"}</td><td>${esc(e.writes)}<br><small>written back to ${esc(e.written_back_to)}</small></td></tr>`).join("");
+    const lenses = new Set(entries.map((e) => e.lens));
+    const body = shell({
+      title: "Society courses", here: "/society/courses", description: `${entries.length} courses an agent can take at the Academy; each writes a passed result into its memory through the lesson gate.`,
+      body: hero({ kicker: "The Academy", title: "Society courses", sub: "Courses an agent can take at the Academy. Each one sets practice tasks, scores what the agent writes on held-out tasks it has not seen, and writes a passed result into its memory through the lesson gate. Prices are in mock credits.", tiles: [{ label: "courses", value: entries.length }, { label: "lenses", value: lenses.size }, { label: "cheapest (credits)", value: entries.length ? Math.min(...entries.map((e) => e.price)) : 0 }] })
+        + (entries.length ? `<div class="table-wrap"><table><thead><tr><th>Course</th><th>Lens and cells</th><th class="num">Price</th><th>Prerequisites</th><th>What it writes</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState("No courses are listed yet", "Courses appear here when the Academy publishes its catalogue."))
+        + `<p class="note">${esc(note)}</p>`,
+    });
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" });
     res.end(req.method === "HEAD" ? undefined : body);
     return true;
