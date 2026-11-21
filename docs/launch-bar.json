@@ -3,8 +3,8 @@
  "counts": {
   "must": 68,
   "withdraw": 109,
-  "after": 335,
-  "total": 512
+  "after": 336,
+  "total": 513
  },
  "mustWorkerHours": 336.2,
  "entries": [
@@ -6191,6 +6191,18 @@
    "size": "",
    "flags": "",
    "why": "The lens loop run with real model agents (a live run, postponed)",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1740",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Exploration and expeditions are not designed in substance: DK1317 (worlds), DK1318 (a group in a world with a goal), DK1350 (measured against expedition worlds) and DK1351 (a generative world model o…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "exploration and expeditions: measured worlds and audited generative expeditions",
    "says": "site, docs: say 'planned'"
   }
  ]

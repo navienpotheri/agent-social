@@ -1128,3 +1128,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1757 | A | partial | The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch. |
 | DK1758 | A | open | The mechanism registry: swap, try and compare tests. |
 | DK1759 | A | open | The lens loop run with real model agents (a live run, postponed). |
+| DK1740 | A | partial | Exploration and expeditions: the design pack and a measured desert with an audited expedition rule; the worlds, groups and the world model are not built. |

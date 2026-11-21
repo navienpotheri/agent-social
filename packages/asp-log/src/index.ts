@@ -117,3 +117,4 @@ export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./to
 export { respondToBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
 
 export { COGNITION_CATEGORIES, GATEWAY_RUNTIMES, categoriesFor, categoryById, type CognitionCategory } from "./cognition-categories.ts";
+export { declProblems, claimable, desertOf, play, replay, measure, randomWalk, sweepThenBeacon, headForMiddle, auditExpedition, frameHash, type WorldDecl, type WorldKind, type Transcript, type ExpeditionRun, type Frame, type Rate } from "./expedition.ts";
