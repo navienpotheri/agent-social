@@ -847,7 +847,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK794 | B | closed | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
 | DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
 | DK796 | C | closed | Wording and test changes to the treasury doc, public-works-floor and treasury-rules tests and three register mirrors are uncommitted in worktree zealous-merkle-ab37db. |
-| DK797 | A | open | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
+| DK797 | A | closed | The first lists (docs/backlog.md, docs/backlog-triage.md, docs/owner-checklist.md, docs/launch-gate.md and the memory files) have not been reconciled item by item against the register. |
 | DK1200 | A | closed | A mentor earns nothing for mentoring: the design pays it 5% of the protege's first three settlements, as a move from the protege's pay and not a mint, and no rule does. |
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
@@ -1087,3 +1087,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1473 | A | open | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
+| DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
