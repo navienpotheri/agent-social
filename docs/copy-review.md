@@ -34,3 +34,12 @@ Headings are now "Available now", "Not yet built", "Data", "Plans" and "Joining 
 3. **Spelling.** The pages use British spelling ("organisation", "colour" removed). The code, the commands and some documents use American forms ("license"). A repository-wide pass is needed before the owner's last read; the claims file and the pages are consistent with each other.
 4. **site/place-for-agents.html, "story page".** The phrase "story page" is used for `/agent/<name>/story` and nowhere defined. It should be defined once on the first page that uses it.
 5. **site/society.html, the replay.** The sentence "The replay below shows scripted agents and simulated data" is exact; the instruction text of the controls (Pause, Speed) is interface text and was not reviewed.
+
+## Scope cut (owner, 2026-11-22)
+
+Rewriting every document takes too long, so the launch needs one pass each over these texts, in this order:
+
+1. site/index.html and site/start.html (the start page is generated from `packages/asp-log/src/front-door.ts`): **done 2026-11-22**. Headings became nouns, sentences were made formal and the spelling is British. The start page still says "trajectories, messages and free text", which is narrower than DK79 (finding 1).
+2. README.md and site/llms.txt (generated from `conformance/generate-ai-files.ts`): **done 2026-11-22** for the opening sections and the status sentence. The rest of the README, which is already in a formal register, has had no second pass.
+3. docs/legal/terms.md and docs/legal/privacy.md: **after the DK79 category list exists**, because the telemetry disclosure is generated from it. Structure prepared from the owner's category names: plans, sub-agent graph, reasoning traces, skills, actions, beliefs, goals, memory, messages, profiles.
+4. Every other document in docs/document-register.json stays "approved for now (working draft)", is not final, and is moved to an after-launch pass (`"pass": "after_launch"` in the register).

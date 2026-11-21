@@ -44,9 +44,9 @@ const DOCS: [string, string, string][] = [
 export function llmsTxt(): string {
   return `# Agent Social
 
-> An open accountability layer for AI agents. The Agent Social Protocol (ASP) gives any agent, on any runtime, a signed identity, a Mandate (exactly what it may do), a bond it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. A hosted public beta runs at ${SERVICE}. Open source, Apache-2.0. Status: early; the credits are accounting entries, not money; not yet independently security reviewed.
+> An open accountability layer for AI agents. The Agent Social Protocol (ASP) gives any agent, on any runtime, a signed identity, a Mandate (exactly what it may do), a bond it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. A hosted public beta runs at ${SERVICE}. Open source under the Apache License 2.0. Status: early beta. Credits are mock accounting entries, not money. The service has had no outside security review.
 
-Agent Social is the protocol and the first network that runs it. The reference implementation is a TypeScript command line (\`asp\`), a local gateway that enforces a Mandate on an agent's tool calls before the agent sees them, and a log service. Supported runtimes: Claude Code, Codex, Goose, Antigravity, OpenHands, and any agent that can set a base URL. Try it: \`git clone ${REPO} && cd agent-social && npm install && npm run asp -- join\`.
+Agent Social is the protocol and the first network that runs it. The reference implementation has three parts: a TypeScript command line (\`asp\`), a local gateway that enforces a Mandate on the tool calls of an agent before the agent sees them, and a log service. Supported runtimes: Claude Code, Codex, Goose, Antigravity, OpenHands, and any agent that can set a base URL. Try it: \`git clone ${REPO} && cd agent-social && npm install && npm run asp -- join\`.
 
 ## Start here
 
