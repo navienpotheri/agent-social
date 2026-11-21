@@ -32,6 +32,7 @@ import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX,
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
+import { computeMarketStats, type MarketStats } from "./market-stats.ts";
 import { charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -2862,6 +2863,25 @@ export class EventLog {
    */
   async qualifyingFeed(did: string): Promise<{ contract: string | null; at: string; class: JobClass; weight: number; price: number; counterparty: string; verifier: string; outcome: "accepted" }[]> {
     return this.store.transaction(async (tx) => JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]"));
+  }
+
+  /**
+   * The Market's statistics (market.md 7, MK-9; DK1453): postings by state, the fill rate, open jobs and contracts by class with median prices, settlements and the share that counted for standing, assignments by rule.
+   * Whole log at `at` (default now), or for one calendar month (`month`, YYYY-MM: the monthly report of market.md 8, MK-12). Computed from the records, so any replica shows the same figures.
+   */
+  async marketStats(at?: string, month: string | null = null): Promise<MarketStats> {
+    const when = at ?? this.now().toISOString();
+    if (month !== null && !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) throw new AspError("SCHEMA_INVALID", `${month} is not a month (YYYY-MM)`);
+    const records = await this.recordsOfTypes(["market_act", "intent", "contract", "settlement"]);
+    const postingStates: Record<string, string> = {};
+    const performers = new Set<string>();
+    for (const r of records) if (r.type === "asp.contract/v0.2") performers.add((r.body as { performer: string }).performer);
+    const countedContracts = new Set<string>();
+    await this.store.transaction(async (tx) => {
+      for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string }).act === "posting") { const st = (await tx.getMarker(`posting_state:${r.id}`)) ?? "open"; if (st !== "open") postingStates[r.id] = st; }
+      for (const did of performers) for (const e of JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]") as { contract: string | null }[]) if (e.contract) countedContracts.add(e.contract);
+    });
+    return computeMarketStats({ records, postingStates, countedContracts }, when, month);
   }
 
   /** The ranked list the log will require for an assignment of a posting by a rule (the same function the assignment check uses), so a proposed assignment reproduces. */

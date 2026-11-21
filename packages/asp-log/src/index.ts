@@ -36,6 +36,7 @@ export {
 } from "./economy.ts";
 export * from "./world.ts";
 export * from "./market.ts";
+export { computeMarketStats, type MarketStats } from "./market-stats.ts";
 export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";

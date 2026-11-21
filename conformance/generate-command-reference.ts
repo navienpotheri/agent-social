@@ -192,6 +192,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp market assign --posting <id> [--agent <did>] [--rule best_match|rotation|poster_choice] [--cosign-by <poster>]", "The Market names an agent by the published rule, recording the ranked list and the seed; with no --agent it assigns from the intent alone, the first of the ranking among the bidders"],
     ["asp market class --intent <id> --class <c> --reason <text>", "The Market raises a job's class (never lowers it)"],
     ["asp market discover [--skill <s>] [--tier <n>] [--certificate <s>] [--min-qualifying <n>] [--seed <s>]", "Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list"],
+    ["asp market stats [--month YYYY-MM] [--json]", "The Market's statistics: postings by state, the fill rate, open jobs and contracts by class with median prices, the share of settlements that counted for standing, assignments by rule (the same figures as GET /market/stats)"],
+    ["asp market monthly [--month YYYY-MM] [--json]", "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"],
     ["asp market counts <contract>", "Whether a settled job counts for the performer's standing, and why not"],
   ] },
   { group: "The Registry (civil register)", rows: [

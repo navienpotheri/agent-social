@@ -58,6 +58,8 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/bank/reserve") { const b = await log.bankPage(); return wantsHtml ? { status: 200, html: bankHtml(b) } : { status: 200, json: { ok: true, result: b } }; }
   if (path === "/insurer/reserve") { const i = await log.insurerPage(); return wantsHtml ? { status: 200, html: insurerHtml(i, []) } : { status: 200, json: { ok: true, result: i } }; }
   if (path === "/insurer/claims") { const c = await log.insurerClaims(); return wantsHtml ? { status: 200, html: insurerHtml(await log.insurerPage(), c) } : { status: 200, json: { ok: true, result: c } }; }
+  if (path === "/market/stats") return { status: 200, json: { ok: true, result: await log.marketStats() } };
+  if (path === "/market/report") { const month = url.searchParams.get("month"); if (!month) return { status: 400, json: { ok: false, error: "name a month: /market/report?month=YYYY-MM" } }; try { return { status: 200, json: { ok: true, result: await log.marketStats(undefined, month) } }; } catch { return { status: 400, json: { ok: false, error: `${month} is not a month (YYYY-MM)` } }; } }
   if (path === "/market/cold-start") return { status: 200, json: { ok: true, result: await log.coldStart() } };
   if (path === "/treasury/statement") {
     // The Treasury statement as the log computes it now, and the signed copies (DK381, S960): a signed record names the hash of the statement of its day, so a page saved then can be checked against it.

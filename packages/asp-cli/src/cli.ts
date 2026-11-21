@@ -865,6 +865,7 @@ const OPTIONS = {
   appeal: { type: "string" },
   "fee-paid": { type: "string" },
   "min-qualifying": { type: "string" },
+  month: { type: "string" },
   "claim-id": { type: "string" },
   suspension: { type: "string" },
   until: { type: "string" },
@@ -5746,6 +5747,20 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     for (const [i, r] of found.entries()) io.out(`${i + 1}. ${r.agent}  score ${r.score}\n   ${r.reasons.join("; ")}`);
     return 0;
   }
+  if (sub === "stats" || sub === "monthly") {
+    // The Market's statistics and monthly report (market.md 7, 8; DK1453): the same figures GET /market/stats and /market/report?month= serve.
+    const month = sub === "monthly" ? (v.month ?? new Date().toISOString().slice(0, 7)) : (v.month ?? null);
+    const st = await local.log.marketStats(undefined, month);
+    if (v.json) { io.out(JSON.stringify(st, null, 2)); return 0; }
+    const p = st.postings, pc = (x: number | null) => (x === null ? "n/a" : `${Math.round(x * 1000) / 10}%`);
+    io.out(`Market ${sub === "monthly" ? `monthly report for ${st.month}` : st.month ? `statistics for ${st.month}` : "statistics (whole log)"}, read at ${st.at}`);
+    io.out(`  postings ${p.total}: open ${p.open}, assigned ${p.assigned}, filled ${p.filled}, withdrawn ${p.withdrawn}, removed ${p.removed}, held ${p.held}, expired ${p.expired}; fill rate ${pc(st.fillRate)}`);
+    io.out(`  open now by class: ${Object.entries(st.openByClass).map(([c, x]) => `${c} ${x.count} (median budget ${x.medianBudget})`).join(", ") || "none"}`);
+    io.out(`  contracts by class: ${Object.entries(st.jobsByClass).map(([c, x]) => `${c} ${x.count} (median price ${x.medianPrice})`).join(", ") || "none"}`);
+    io.out(`  settlements that paid for work: ${st.settled.count}, counted for standing ${st.settled.counted} (${pc(st.settled.shareCounted)}); by basis ${Object.entries(st.settled.byBasis).map(([b, n]) => `${b} ${n}`).join(", ") || "none"}`);
+    io.out(`  assignments by rule: ${Object.entries(st.assignmentsByRule).map(([r, n]) => `${r} ${n}`).join(", ") || "none"}; class checks: raised ${st.classChecks.raised}, confirmed ${st.classChecks.confirmed}`);
+    return 0;
+  }
   if (sub === "counts") {
     const contract = rest[0] ?? need("contract");
     const c = await local.log.get(contract);
@@ -5759,7 +5774,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|post|bid|class|assign|discover|counts");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

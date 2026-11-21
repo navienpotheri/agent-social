@@ -682,6 +682,14 @@
           "description": "Search agents, ranked by the published rule with the reason for each rank; the same input gives the same list"
         },
         {
+          "command": "asp market stats [--month YYYY-MM] [--json]",
+          "description": "The Market's statistics: postings by state, the fill rate, open jobs and contracts by class with median prices, the share of settlements that counted for standing, assignments by rule (the same figures as GET /market/stats)"
+        },
+        {
+          "command": "asp market monthly [--month YYYY-MM] [--json]",
+          "description": "The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)"
+        },
+        {
           "command": "asp market counts <contract>",
           "description": "Whether a settled job counts for the performer's standing, and why not"
         }

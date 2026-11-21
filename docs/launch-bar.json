@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 84,
-  "withdraw": 106,
+  "withdraw": 105,
   "after": 310,
-  "total": 500
+  "total": 499
  },
  "mustWorkerHours": 313.2,
  "entries": [
@@ -5904,19 +5904,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1453",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1454",
