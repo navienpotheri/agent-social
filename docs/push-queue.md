@@ -95,3 +95,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum e81b0445..HEAD (round 9: DK797, DK1412, DK1347, GV3 verified; DK1601 requirements recorded; stray patch-persona.py removed). Typecheck clean, 76 doc/journey/page tests green; full gate on lane-verify go.
 
 - 2026-11-21: pushed claude/open-forum a49380e1..2f1e9d31 (round 10). Full gate green: core 879, log 873, package 440, cli 935 (1 skipped), python 1018.
+
+- 2026-11-21: pushed claude/open-forum 05033a6e..HEAD (rounds 11-12: DK1473 closed as measured, DK1371 and DK1374 and DK1384 partial, DK1650 added, type fix). Full gate green: core 879, log 881, package 440, cli 953 (1 skipped), python 1018.
