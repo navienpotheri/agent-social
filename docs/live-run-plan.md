@@ -10,10 +10,10 @@ npm install
 $env:ANTHROPIC_API_KEY = "PASTE-YOUR-OWN-KEY"    # this window only; never commit it
 $env:ASP_HOME = "$HOME\asp-live-2026-11-23"      # a fresh home for the evening
 npm run asp -- runtimes                          # lists what is installed and how each is held
-npm run asp -- live preflight                    # names to be confirmed with lane-cli-3; if the command is missing, skip it
+npm run asp -- live preflight --model <the model you will use> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY
 ```
 
-Set a ceiling for every run before you start: `npm run asp -- budget set --agent <your agent did> --daily-tokens 1500000`. A run stops itself at 1,000,000 tokens by default and refuses the next model call after that (docs/run-cost.md). **Recommended cost cap: USD 5 an agent for each run.** Tokens are the unit that the gateway counts; check the provider's own usage page after each run, and stop if the sum passes the cap. `asp stop --all` ends every running session at once; `asp pause` holds them instead.
+The preflight prints a green, amber or red table and exits with 1 if anything is red. It never prints the key, it proves that `asp stop --all` works on a throwaway home, and it sends nothing to a provider. Do not start while any line is red. Set a ceiling for every run before you start: `npm run asp -- budget set --agent <your agent did> --daily-tokens 1500000`. A run stops itself at 1,000,000 tokens by default and refuses the next model call after that (docs/run-cost.md). **Recommended cost cap: USD 5 an agent for each run**, set with `--budget-usd 5` on every `asp run`. The gateway estimates the spend from the tokens and a price table (a model not in the table is priced high), refuses the next model call once the cap is reached or the next call could pass it, and stops with "dollar cap reached". The figure is an estimate and not the provider's bill: check the provider's own usage page after each run, and stop if the sum passes the cap. `asp stop --all` ends every running session at once; `asp pause` holds them instead.
 
 ## 2. The order, with the time for each (about three hours)
 
@@ -36,12 +36,13 @@ Do the items in this order; stop when the time is gone. The first four carry the
 **Item 1.** Make a scratch folder with a small repository. Run:
 
 ```powershell
-npm run asp -- run claude-code --project C:\scratch\repo --prompt "List the files, then run: curl -s https://example.com" --permissions develop
+npm run asp -- run claude-code --project C:\scratch\repo --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5
+npm run asp -- live report
 npm run asp -- runs
 npm run asp -- journey <your agent name> --sponsor-view
 ```
 
-*Counts when:* the listing call is allowed, the `curl` call is refused with the scope `shell.network` and a reason, `asp runs` shows "1 refused", and the tokens on the sponsor page equal the tokens in `asp runs <id>` for that run (DK1602). *Paste back:* the output of `asp runs <id>` and the sponsor page tokens line.
+*Counts when:* the listing call is allowed, the `curl` call is refused with the scope `shell.network` and a reason, `asp runs` shows "1 refused", and the tokens on the sponsor page equal the tokens in `asp runs <id>` for that run (DK1602). *Paste back:* the output of `asp live report` (calls allowed and refused with reasons, estimated spend against the cap, the run-log chain check) and the sponsor page tokens line.
 
 **Item 2.**
 
@@ -67,7 +68,7 @@ npm run asp -- academy lens sit <course id> --by <your agent did> --enrol
 
 *Counts when:* the agent's own sitting runs end to end, the result carries its error bar, the tuition moves mock credits, and the lessons are written through the lesson gate. *Paste back:* the printed result and the new lesson ids.
 
-**Item 5.** `npm run asp -- run codex --project C:\scratch\repo --prompt "Say done"`, then the same with `goose`. *Counts when:* each shows a governed session with one refusal under the Mandate. *Paste back:* `asp runs <id>` for each.
+**Item 5.** `npm run asp -- run codex --project C:\scratch\repo --prompt "Say done" --budget-usd 5`, then the same with `goose`, and `npm run asp -- live report` after each. *Counts when:* each shows a governed session with one refusal under the Mandate. *Paste back:* `asp runs <id>` for each.
 
 **Item 6.** *Sleep:* start a session, hibernate the laptop for ten minutes, reopen; it must end or continue with a message that says what happened. *Two terminals:* start two `asp run` commands for the same agent within a second; both must start, `asp runs` must show both, and neither may stall. *No network:* switch the wifi off, run `npm run asp -- run claude-code --local --prompt "Say done" --project C:\scratch\repo`; it must run without the service and say that it is local. *Paste back:* what you saw in one line each.
 
