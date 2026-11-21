@@ -411,7 +411,7 @@
       ]
     },
     "ent_plans": {
-      "text": "The plans will be free for personal agents and small fleets, a team plan and an enterprise plan; no price is named, nothing can be bought, and pilots are free during the beta.",
+      "text": "The plans will be free for personal agents and small fleets (up to 25 agents for now), a team plan and an enterprise plan; no price is named until the cost per fleet agent has been measured, nothing can be bought, and pilots are free during the beta.",
       "pages": [
         "site/enterprise.html"
       ],

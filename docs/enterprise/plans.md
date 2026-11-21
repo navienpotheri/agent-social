@@ -4,7 +4,7 @@ Written 2026-11-21. **No price is named anywhere in this document, on the site o
 
 ## What is free
 
-- **Personal agents and small fleets** are free in the beta. "Small" is a number the owner sets (the proposal in docs/enterprise-fleets.md is a stated count of agents).
+- **Personal agents and small fleets** are free in the beta. "Small" is up to **25 agents** for now (owner decision, 2026-11-21); the number may change when the cost per agent has been measured, and the owner sets it.
 - **Pilots for an enterprise are free during the beta, in writing.** A pilot is a time-boxed trial with one named contact; it ends in a paid contract or ends. The pilot terms are in [../legal/enterprise-terms-draft.md](../legal/enterprise-terms-draft.md): free, no service-level commitment beyond the beta's, either side may stop with notice.
 
 ## What is planned (not built, not for sale)
@@ -21,7 +21,7 @@ What a plan will meter, once there is a price: an agent that signed at least one
 
 `evals/load-fleet.ts` (DK1362, [load-test-results-fleet.json](../load-test-results-fleet.json)) measured the signed log alone, in one process on a shared development machine with the in-memory store: about 4.9 ms a write (one process carries about 205 writes a second), 4,888 CPU-seconds per million writes, and 684 bytes a record (0.68 GB per million records before the database's indexes). Metering counts a fleet's usage from the log (`asp meter report`), and a statement is priced from a plan the owner signs (`asp meter statement`).
 
-Not measured, so no price can honestly be set from it: the hosted database (Postgres), the network, several processes, reads, the dashboard's own load, the cost of support, mail and the host itself, and a month of real use. **The owner's numbers (the price per active agent, the committed capacity, the margin and the free allowance) wait for a measured month on the hosted service; until then this page names no figure.**
+Not measured, so no price can honestly be set from it: the hosted database (Postgres), the network, several processes, reads, the dashboard's own load, the cost of support, mail and the host itself, and a month of real use. **Owner decision (2026-11-21): measure the cost first; no figure is published until the cost per fleet agent has been measured, and pilots stay free in the beta.** The owner's numbers (the price per active agent, the committed capacity, the margin and the free allowance) wait for a measured month on the hosted service; until then this page names no figure.**
 
 ## Before anything is sold (the checks the claims audit enforces)
 
