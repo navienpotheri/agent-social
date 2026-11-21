@@ -15,6 +15,7 @@ import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
+import { KNOWN_NOTICES } from "../packages/asp-core/src/notice-ack.ts";
 import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
@@ -729,6 +730,34 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- the notice acknowledgement (spec-deltas S1591, register row US8): schema cases and the shared validation ----------
+const ackBody = (over: Record<string, unknown> = {}) => ({ notice: "asp.my-data/v1", statement_sha256: "a".repeat(64), ...over });
+sv("valid_notice_ack", "notice_ack", ackBody(), true);
+sv("valid_notice_ack_privacy", "notice_ack", ackBody({ notice: "asp.privacy/v1" }), true);
+sv("valid_notice_ack_terms_for_an_agent", "notice_ack", ackBody({ notice: "asp.terms/v1", agent: "did:web:example.com:agents:coder-7" }), true);
+sv("notice_ack_no_hash", "notice_ack", (({ statement_sha256: _h, ...r }) => r)(ackBody()), false);
+sv("notice_ack_no_notice", "notice_ack", (({ notice: _n, ...r }) => r)(ackBody()), false);
+sv("notice_ack_agent_not_a_did", "notice_ack", ackBody({ agent: "coder-7" }), false);
+sv("notice_ack_extra_field", "notice_ack", ackBody({ read_at: "2026-11-22T00:00:00Z" }), false);
+{
+  const nk = (b: Record<string, unknown>, rule: string | null, name: string) => ({ name, input: b, problem: rule });
+  (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors = {
+    notices: KNOWN_NOTICES,
+    cases: [
+      nk(ackBody(), null, "the statement of the data"),
+      nk(ackBody({ notice: "asp.privacy/v1" }), null, "the privacy notice"),
+      nk(ackBody({ notice: "asp.terms/v1" }), null, "the terms"),
+      nk(ackBody({ statement_sha256: "0123456789abcdef".repeat(4) }), null, "a mixed hexadecimal hash"),
+      nk(ackBody({ notice: "asp.cookies/v1" }), "notice_ack_unknown_notice", "an unknown notice"),
+      nk(ackBody({ notice: 7 }), "notice_ack_unknown_notice", "a notice that is not a string"),
+      nk(ackBody({ statement_sha256: "A".repeat(64) }), "notice_ack_bad_hash", "an uppercase hash"),
+      nk(ackBody({ statement_sha256: "a".repeat(63) }), "notice_ack_bad_hash", "a hash one character short"),
+      nk(ackBody({ statement_sha256: "a".repeat(65) }), "notice_ack_bad_hash", "a hash one character long"),
+      nk(ackBody({ statement_sha256: "g".repeat(64) }), "notice_ack_bad_hash", "a hash with a character that is not hexadecimal"),
+      nk(ackBody({ statement_sha256: "sha256:" + "a".repeat(57) }), "notice_ack_bad_hash", "a prefixed hash"),
+    ],
+  };
+}
 // ---------- the job-data term (spec-deltas S1569, register row JO3): schema cases and the shared reading and validation ----------
 sv("valid_contract_data_handling_defaults", "contract", contractBody({ data_handling: {} }), true);
 sv("valid_contract_data_handling_explicit", "contract", contractBody({ data_handling: { term: "asp.job-data/v1", commons_sharing: false, retention: "delete_at_settlement", personal_data: "none" } }), true);
@@ -1758,6 +1787,7 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("notice-ack.json", (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors);
 write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

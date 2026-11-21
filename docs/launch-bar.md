@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 508 register rows are not closed (228 at priority A, 212 at B, 49 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 508 register rows are not closed (227 at priority A, 212 at B, 49 at C). Sorted:
 
 - **Must close before launch: 67 rows, 328 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 114 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -160,7 +160,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK420 | A | open | A published rights charter | terms, site (hold until counsel has read it: OD-DK420) |
 | DK272 | A | partial | A private memory scope for one principal and agent | README, site, deck |
 | US1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| US8 | A | open | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
+| US8 | ? | open | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
 | JO3 | ? | partial | A job's data is deleted at settlement and has a handling term | terms, site |
 | IS3 | A | designed | Bank, treasury and central bank as running institutions | deck, site |
 | IS4 | A | open | Courts as an institution with jurors and a small-claims track | deck, site, terms (the operator's court only) |

@@ -2359,7 +2359,7 @@
   },
   {
    "id": "US8",
-   "pri": "A",
+   "pri": "?",
    "status": "open",
    "gap": "A person cannot control their own data in the city: no clear choice of what their agent shares, what the city keeps, and what is used for research or training",
    "bucket": "withdraw",

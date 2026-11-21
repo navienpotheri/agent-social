@@ -141,6 +141,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/usage/statements", "your account", "tenant", false, TENANT, "the months closed for your identities, each with its total and a recount of its usage against the log"),
   r("GET", "/account", "your account", "tenant", false, TENANT, "what the service holds about this tenant"),
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
+  r("GET", "/notices/ack", "your account", "tenant", false, TENANT, "the acknowledgement in force for one of your own identities and a notice (?issuer=<did>&notice=asp.my-data/v1): the record, the hash of the text read and when (US8)"),
   r("GET", "/account/journey/<name>", "your account", "tenant", false, TENANT, "the sponsor view of the journey of an agent you own: every step with the text its records and forum posts carry"),
   r("GET", "/fleet/<fleet>/dashboard", "your account", "tenant", false, TENANT, "the dashboard of a fleet for the tenant that owns its organisation: members, spend, caps, alerts, audit trail (HTML, or JSON with ?format=json)"),
   r("GET", "/fleet/<fleet>/summary", "your account", "tenant", false, TENANT, "the live dashboard's numbers for a time range (?range=1h|24h|7d|30d) and filters (?persona=&node=&tier=), aggregated on the server"),

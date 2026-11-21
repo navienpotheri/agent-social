@@ -167,3 +167,18 @@ def test_data_handling_constants():
 def test_data_handling(case):
     assert data_handling_problem(case["input"]) == case["problem"]
     assert read_data_handling(case["input"]) == case["reading"]
+
+
+# ---- the notice acknowledgement (docs/spec-deltas.md S1591, register row US8) ----
+from asp_core.notice_ack import KNOWN_NOTICES, notice_ack_problem  # noqa: E402
+
+NA = load("vectors/notice-ack.json")
+
+
+def test_known_notices():
+    assert list(KNOWN_NOTICES) == NA["notices"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in NA["cases"]])
+def test_notice_ack(case):
+    assert notice_ack_problem(case["input"]) == case["problem"]
