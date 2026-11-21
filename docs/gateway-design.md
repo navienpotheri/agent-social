@@ -69,3 +69,7 @@ Levels can be combined (gateway plus hook). A Court and a principal see the leve
 
 ## 8. How this serves the "top 20" goal
 One gateway plus the generic adapter puts every agent that can set a base URL or an MCP server at level 3 immediately. Per-runtime work is then chosen by value: deeper capture and memory routing for the few runtimes with the most users, and hook enforcement where a runtime offers hooks.
+
+## 9. Fleet tree and token budgets (record shape for DK1471, spec-delta S1409)
+
+For a member of a fleet the gateway reads, at the start of a run, `EventLog.mandateCeiling(member)`: the Mandate in force at the member's node (its own, else the nearest ancestor's, else the fleet's template) with the member's narrowing laid over it, and `EventLog.nodeOf(member)` / `fleetTree(fleet)` for the path to the root. A call outside that ceiling is refused naming the node. A node's token budget is per UTC month and the log reports `usage.tokens.over` for each node; the gateway refuses the next model call while any node on the member's path is over. Credit budgets are enforced by the log on purchases (`node_budget_exceeded`).

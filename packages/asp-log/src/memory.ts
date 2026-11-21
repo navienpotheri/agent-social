@@ -145,6 +145,15 @@ class MemoryTx implements LogTx {
     return v === undefined ? undefined : copy(v);
   }
 
+  /** The rows of a table that match, copied after the filter so a scan over thousands of rows copies only the few it returns (the fleet and key lookups of a 10,000-agent log). */
+  private where<K extends keyof Tables>(name: K, keep: (v: Tables[K] extends Map<string, infer V> ? V : never) => boolean): (Tables[K] extends Map<string, infer V> ? V : never)[] {
+    const merged = new Map(this.b.tables[name] as Map<string, unknown>);
+    for (const [k, v] of this.staged[name] as Map<string, unknown>) merged.set(k, v);
+    const out: unknown[] = [];
+    for (const v of merged.values()) if (keep(v as never)) out.push(copy(v));
+    return out as never;
+  }
+
   private all<K extends keyof Tables>(name: K): Tables[K] extends Map<string, infer V> ? V[] : never {
     const merged = new Map(this.b.tables[name] as Map<string, unknown>);
     for (const [k, v] of this.staged[name] as Map<string, unknown>) merged.set(k, v);
@@ -158,11 +167,11 @@ class MemoryTx implements LogTx {
   }
   async getChain(root: string) { return this.read("chains", root) as ChainRow | undefined; }
   async getKey(kid: string) { return this.read("keys", kid) as KeyRow | undefined; }
-  async keysForDid(did: string) { return this.all("keys").filter((k) => k.did === did); }
-  async nodeKeysForMandate(mandate: string) { return this.all("keys").filter((k) => k.kind === "node" && k.mandate === mandate); }
+  async keysForDid(did: string) { return this.where("keys", (k) => k.did === did); }
+  async nodeKeysForMandate(mandate: string) { return this.where("keys", (k) => k.kind === "node" && k.mandate === mandate); }
   async getPassport(did: string) { return this.read("passports", did) as PassportRow | undefined; }
   async getFleet(did: string) { return this.read("fleets", did) as FleetRow | undefined; }
-  async fleetMembers(fleet: string) { return this.all("passports").filter((p) => p.fleet === fleet); }
+  async fleetMembers(fleet: string) { return this.where("passports", (p) => p.fleet === fleet); }
   async getProbation(did: string) { return this.read("probations", did) as ProbationRow | undefined; }
   async getAccount(did: string) { return this.read("accounts", did) as AccountRow | undefined; }
   async getEscrow(contract: string) { return this.read("escrows", contract) as EscrowRow | undefined; }

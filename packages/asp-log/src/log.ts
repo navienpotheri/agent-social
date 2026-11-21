@@ -34,6 +34,8 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
+import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
 import { JOB_CLASSES } from "./market.ts";
@@ -395,6 +397,9 @@ export class EventLog {
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
+    if (type === "common_control") await this.projectCommonControl(tx, verified);
+    if (type === "fleet_node") await projectFleetNode(tx, verified);
+    if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "refusal") await projectRefusal(tx, verified);
@@ -455,7 +460,7 @@ export class EventLog {
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
     if (type === "mandate") { await this.checkMandateTemplate(tx, verified); await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
+    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); const mt = (verified.body as { metrics?: { tokens_in?: number; tokens_out?: number } }).metrics; if (mt) await noteNodeTokens(tx, verified.issuer, (mt.tokens_in ?? 0) + (mt.tokens_out ?? 0), verified.issued_at); }
     if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
@@ -613,7 +618,13 @@ export class EventLog {
     }
 
     const newSponsor = body.sponsor ?? sponsor;
-    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } });
+    const joinNode = (body as { node?: string }).node;
+    if (joinNode && !body.fleet) throw rule("node_needs_fleet", "a passport names a tree node only when it names its fleet");
+    if (body.fleet) {
+      const wasMember = (await tx.getPassport(body.did))?.fleet === body.fleet;
+      await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } });
+      await noteMemberJoin(tx, body.did, body.fleet, joinNode, wasMember);
+    }
     await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
@@ -723,6 +734,7 @@ export class EventLog {
     const key = `${b.fleet}|${b.persona ?? ""}`;
     const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
     if (b.version !== head + 1) throw rule("mandate_template_version", `the next version of this template is ${head + 1}, not ${b.version}`);
+    if (!b.persona) await checkTemplateAgainstTree(tx, b.fleet, b.mandate);
     await tx.putMarker(`mtemplate:${key}|${b.version}`, JSON.stringify({ record: r.id, mandate: b.mandate }));
     await tx.putMarker(`mtemplate_head:${key}`, String(b.version));
   }
@@ -735,9 +747,13 @@ export class EventLog {
     if (!pass || pass.fleet !== b.fleet) throw rule("narrowing_not_a_member", `${b.member} is not a member of ${b.fleet}`);
     if (r.issuer !== b.member && r.issuer !== pass.sponsor) throw rule("narrowing_wrong_issuer", `only the member or its sponsor narrows its Mandate`);
     const t = await this.templateFor(tx, b.member);
-    if (!t) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
-    const widens = mandateViolations(t.mandate, { ...t.mandate, ...b.narrow });
-    if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template: ${widens.join(", ")} go beyond it`);
+    const eff = await this.nodeCeiling(tx, b.member);
+    if (!t && !eff) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
+    for (const c of [t?.mandate, eff?.mandate]) {
+      if (!c) continue;
+      const widens = mandateViolations(c, { ...c, ...b.narrow });
+      if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template${eff ? " and its node's Mandate" : ""}: ${widens.join(", ")} go beyond it`);
+    }
     await tx.putMarker(`mnarrow:${b.member}`, JSON.stringify(b.narrow));
   }
 
@@ -748,26 +764,110 @@ export class EventLog {
     const performer = (contract?.record.body as { performer?: string } | undefined)?.performer;
     if (!performer) return;
     const t = await this.templateFor(tx, performer);
-    if (!t) return;
+    const eff = await this.nodeCeiling(tx, performer);
+    if (!t && !eff) return;
     const n = JSON.parse((await tx.getMarker(`mnarrow:${performer}`)) ?? "null") as Record<string, unknown> | null;
-    const d = deriveMandate(t.mandate, b.contract, n);
-    const ceiling = "mandate" in d ? d.mandate : t.mandate;
     const { contract: _c, ...candidate } = b;
-    const over = mandateViolations(ceiling, candidate);
-    if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+    if (t) {
+      const d = deriveMandate(t.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : t.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+    }
+    if (eff) {
+      const d = deriveMandate(eff.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : eff.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_node", `${performer} sits on node ${eff.node} of its fleet's tree, whose Mandate is the ceiling of its members' Mandates: ${over.join(", ")} go beyond it`);
+    }
+  }
+
+  /** The sponsor and fleet of an identity as the independence rule reads them: the sponsor is replaced by its common-control cluster when a signed finding says it belongs to one (S1410, DK1357). */
+  private async factsOf(tx: LogTx, did: string): Promise<PartyFacts> {
+    const p = await tx.getPassport(did);
+    const raw = p?.sponsor ?? did;
+    const cluster = await tx.getMarker(`ctrl:${raw}`);
+    return { did, sponsor: cluster || raw, fleet: p?.fleet ?? null, ...(cluster && cluster !== raw ? { rawSponsor: raw } : {}) };
+  }
+
+  /** Common control (S1410, DK1357): the operator or the watcher says sponsors are one controller; from then on they count as one sponsor for independence. `lift` ends it (operator only). It moves no credit and changes no tier. */
+  private async projectCommonControl(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { cluster: string; sponsors: string[]; lift?: boolean };
+    if (r.prev !== null) throw rule("common_control_not_chained", "a common-control record starts its own chain (prev is null)");
+    const isOperator = r.issuer === this.operator;
+    if (!isOperator && r.issuer !== WATCHER_DID) throw rule("common_control_wrong_issuer", `only the operator or the society watcher (${WATCHER_DID}) records common control`);
+    if (b.lift && !isOperator) throw rule("common_control_lift_operator", "only the operator lifts a finding of common control");
+    const sorted = [...b.sponsors].sort();
+    if (b.cluster !== sorted[0]) throw rule("common_control_cluster_id", `the cluster id is the smallest sponsor in it (${sorted[0]}), not ${b.cluster}`);
+    for (const s of b.sponsors) if (!(await tx.getPassport(s))) throw rule("common_control_unknown_sponsor", `${s} has no passport in this log`);
+    const members = async (c: string) => ((await tx.getMarker(`ctrl_members:${c}`)) ?? "").split(",").filter(Boolean);
+    if (b.lift) {
+      for (const s of b.sponsors) {
+        const c = await tx.getMarker(`ctrl:${s}`);
+        if (!c) continue;
+        const rest = (await members(c)).filter((m) => m !== s);
+        await tx.putMarker(`ctrl:${s}`, "");
+        if (rest.length < 2) { for (const m of rest) await tx.putMarker(`ctrl:${m}`, ""); await tx.putMarker(`ctrl_members:${c}`, ""); }
+        else { const canon = [...rest].sort()[0]; for (const m of rest) await tx.putMarker(`ctrl:${m}`, canon); await tx.putMarker(`ctrl_members:${c}`, ""); await tx.putMarker(`ctrl_members:${canon}`, rest.join(",")); }
+      }
+      return;
+    }
+    const all = new Set(b.sponsors);
+    for (const s of b.sponsors) { const c = await tx.getMarker(`ctrl:${s}`); if (c) for (const m of await members(c)) all.add(m); }
+    const canon = [...all].sort()[0];
+    for (const m of all) { const old = await tx.getMarker(`ctrl:${m}`); if (old && old !== canon) await tx.putMarker(`ctrl_members:${old}`, ""); await tx.putMarker(`ctrl:${m}`, canon); }
+    await tx.putMarker(`ctrl_members:${canon}`, [...all].sort().join(","));
+  }
+
+  /** The anti-farming report of this log (S1410, DK1357): common-control clusters and the findings over the job graph, for the Clinic. A lead, never a penalty. `external` carries what the hosted service knows (payment, domain, address). */
+  async farmingReport(opts: { at?: string; seed?: string; external?: ExternalFacts } = {}): Promise<FarmingReport> {
+    const recs = await this.recordsOfTypes(["passport", "contract", "settlement"]);
+    return analyseFarming(recs, opts);
+  }
+
+  /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
+  async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
+    const set = new Set(sponsors);
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor && set.has(b.sponsor)) out.add(b.did); }
+    return [...out].sort();
+  }
+
+  /** The cluster a sponsor belongs to by a signed finding, or undefined (S1410). */
+  async controlClusterOf(sponsor: string): Promise<string | undefined> { return this.store.transaction(async (tx) => (await tx.getMarker(`ctrl:${sponsor}`)) || undefined); }
+
+  /** The Mandate in force at the node a member sits on (S1409), or undefined when its fleet has no mandated node on the way up. */
+  private async nodeCeiling(tx: LogTx, member: string): Promise<{ node: string; mandate: Record<string, unknown> } | undefined> {
+    const at = await nodeOfMember(tx, member);
+    return at ? effectiveMandate(tx, at.fleet, at.node) : undefined;
+  }
+
+  /** The tree of a fleet with its members per node and the month's usage (S1409, DK1372); `at` picks the UTC month (default now). */
+  async fleetTree(fleet: string, at: string = new Date().toISOString()): Promise<TreeView | undefined> { return this.store.transaction(async (tx) => readTree(tx, fleet, monthOf(at))); }
+
+  /** The node a member sits on and the nodes above it, root last (S1409). */
+  async nodeOf(member: string): Promise<{ fleet: string; node: string; path: string[] } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const at = await nodeOfMember(tx, member);
+      if (!at) return undefined;
+      const path: string[] = [];
+      let n: string | null = at.node;
+      while (n) { path.push(n); n = JSON.parse((await tx.getMarker(`fnode:${at.fleet}|${n}`)) ?? "null")?.parent ?? null; }
+      return { ...at, path };
+    });
   }
 
   /** The newest version of the Mandate template of a fleet (and persona), or 0 when there is none (S1408). */
   async templateVersion(fleet: string, persona?: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`mtemplate_head:${fleet}|${persona ?? ""}`)) ?? 0)); }
 
   /** The Mandate ceiling of a member now (S1408): the template in force with the member's own narrowing laid over it, or undefined when its fleet has no template. */
-  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown> } | undefined> {
+  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown>; node?: string } | undefined> {
     return this.store.transaction(async (tx) => {
       const t = await this.templateFor(tx, member);
-      if (!t) return undefined;
+      const eff = await this.nodeCeiling(tx, member);
+      const base = eff?.mandate ?? t?.mandate;
+      if (!base) return undefined;
       const n = JSON.parse((await tx.getMarker(`mnarrow:${member}`)) ?? "null") as Record<string, unknown> | null;
-      const d = deriveMandate(t.mandate, "", n);
-      return { template: t.record, version: t.version, narrowing: n, mandate: "mandate" in d ? d.mandate : t.mandate };
+      const d = deriveMandate(base, "", n);
+      return { template: t?.record ?? "", version: t?.version ?? 0, narrowing: n, mandate: "mandate" in d ? d.mandate : base, ...(eff ? { node: eff.node } : {}) };
     });
   }
 
@@ -980,7 +1080,7 @@ export class EventLog {
     const looped = closesLoop(edges, job.principal, job.performer, at);
     await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
     if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
-      const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+      const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
       if (others.every((o) => independent(principal, o))) {
@@ -1914,6 +2014,7 @@ export class EventLog {
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
+    await chargeNodeCredits(tx, buyer, b.amount.value, r.issued_at);
     await this.debit(tx, buyer, b.amount.value);
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
@@ -2647,7 +2748,7 @@ export class EventLog {
   private async noteRelatedParty(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { principal?: string; performer?: string };
     if (!b.principal || !b.performer) return;
-    const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
     const kind = relatedKind(await facts(b.principal), await facts(b.performer));
     if (kind) await tx.putMarker(`related_party:${r.id}`, kind);
   }
@@ -3264,7 +3365,7 @@ export class EventLog {
     }
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
-    const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const partyFacts = async (did: string): Promise<PartyFacts> => this.store.transaction(async (tx) => this.factsOf(tx, did));
     // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
     const off = new Set<string>();
     await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });

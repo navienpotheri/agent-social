@@ -88,3 +88,4 @@ export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep
 
 export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView } from "./fleets.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
+export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";

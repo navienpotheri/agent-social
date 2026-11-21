@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:common_control",
+  "title": "Common control body",
+  "description": "Sponsors that are one controller (register row DK1357; spec-delta S1410). Signed by the operator or the society watcher after a finding of shared control (a shared key or lineage edge in the log, or a payment instrument, a verified domain or an address cluster the service holds). While it stands, the sponsors count as ONE sponsor for independence: a job between their agents is not a qualifying job, exactly like work inside one sponsor. `lift` ends it (operator only) for a false finding. It changes no balance and no tier, and never slashes. `basis` names what was shared, never the value. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "cluster",
+    "sponsors",
+    "basis",
+    "detected_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "cluster": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did",
+      "description": "The cluster's id: the smallest sponsor DID in it."
+    },
+    "sponsors": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 500,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "basis": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "key_lineage",
+          "payment",
+          "domain",
+          "address"
+        ]
+      }
+    },
+    "lift": {
+      "description": "True to end the common control of these sponsors (a false finding).",
+      "type": "boolean"
+    },
+    "evidence": {
+      "description": "The hash of the finding the signer relied on.",
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "detected_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}
