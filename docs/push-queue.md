@@ -115,3 +115,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum 03ec32b1..HEAD (round 28: T21 deadline rule partial, contest route rows, Code draft 0.4 with Article 3.7, tagline change). Full gate: cli 1024 of 1026 (1 skipped, 1 failure: law-cmd test expected draft 0.3; now any draft number), core 965, log 932, package 477, python 1102.
 
 - 2026-11-21: pushed claude/open-forum e8516454..HEAD (rounds 30-35: Town Hall records, rules and page, DK1715 closed, DK1721 closed, DK1722, rewritten site pages, legal review consistency, owner answers B and C recorded). Full gate on rounds 30-33: cli 1032 of 1034, log 940 of 941, core 985, package 477, python 1122; the two failures (telemetry wording test, surface table) fixed and re-run green; round 34-35 targeted only.
+
+- 2026-11-21: pushed claude/open-forum ff812b41..HEAD (rounds 36-37: launch bar page generated and tested, DK1349 closed, DK1477 closed, DK1713 follow-up numbers, document register, owner decisions on flagged rows). Full gate green: cli 1046 (1 skipped), core 985, log 944, package 482, python 1122.
