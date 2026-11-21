@@ -49,6 +49,7 @@ export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./ada
 export { fetchRetry } from "./http-retry.ts";
 export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, type AlertsView, type DashboardLog, type FlowEntry, type HomeView, type InboxView, type JobView, type MoneyView } from "./dashboard.ts";
 export { packageMeta, packageMetaOf, scanPackages, type FoundPackage, type PackageMeta } from "./package-meta.ts";
+export { rankCheckpointOf, rankInputs, voteLeaf, voteProof, type StandingVote, type RankCheckpoint } from "./forum-checkpoint.ts";
 export { messageRoutes, MessageTextStore, type MessageRouteOptions } from "./message-routes.ts";
 export { EXPORT_VERSION, RETAIN_MONTHS, accountData, accountRoutes, ME_MAX_BYTES, meView, closeAccount, tombstoneOf, type AccountOptions } from "./account.ts";
 export { commonsOfDids, purgeCommons } from "./commons.ts";

@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 107,
+  "withdraw": 106,
   "after": 336,
-  "total": 508
+  "total": 507
  },
  "mustWorkerHours": 308.2,
  "entries": [
@@ -6132,19 +6132,6 @@
    "flags": "",
    "why": "the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice",
    "says": "site, docs: say 'planned'"
-  },
-  {
-   "id": "DK1768",
-   "pri": "A",
-   "status": "open",
-   "gap": "The forum's rank checkpoints are not produced: the log refuses a forum-thread proposal without a current `forum_rank_checkpoint` (S1599), but nothing in the service computes the day's vote set, its M…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

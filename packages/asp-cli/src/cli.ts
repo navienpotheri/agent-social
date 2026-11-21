@@ -378,7 +378,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
-import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem } from "@agent-social/asp-core";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -4842,6 +4842,25 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const res = await (await openLog(home, logEnv)).append(rec);
     io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
     return 0;
+  }
+  if (sub === "rank-checkpoint") {
+    // DK1742 and DK1768: the operator signs, on their own machine, the Merkle root of the forum's standing votes and the hash of the rank inputs, and appends it to the log.
+    const c = await call("GET", "forum/rank-checkpoint");
+    const rec = createRecord({ type: "forum_rank_checkpoint" as never, issuer: by, subject: null, prev: null, body: { period: c.period, votes_root: c.votes_root, votes: c.votes, rank_sha256: c.rank_sha256 }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`rank checkpoint ${res.id}: ${c.votes} standing vote(s) for ${c.period}, root ${c.votes_root} (log seq ${res.seq}); a voter can now check its vote against it: asp forum vote-prove`);
+    return 0;
+  }
+  if (sub === "vote-prove") {
+    // A voter's check (DK1768): is my vote in the root the operator signed? Asks the service for the proof and compares the root with the latest rank checkpoint in the log.
+    const target = rest[0] ?? need("target"), value = v.value === "-1" || v.value === "down" ? -1 : 1;
+    const p = await call("GET", `forum/vote-proof?voter=${encodeURIComponent(by)}&target=${encodeURIComponent(target)}&value=${value}`);
+    const ok = merkleVerify(p.root, p.leaf, p.proof);
+    const latest = await (await openLog(home, logEnv)).log.latestRankCheckpoint();
+    const signed = latest ? (await (await openLog(home, logEnv)).log.get(latest.id))?.record.body as { votes_root?: string } | undefined : undefined;
+    io.out(`${ok ? "the proof checks" : "the proof does NOT check"} against the service's current root ${p.root}`);
+    io.out(signed?.votes_root === p.root ? `and that root is the one the operator signed (${latest!.period}, record ${latest!.id.slice(0, 19)}): your vote is in what was committed` : latest ? `but the latest signed root (${latest.period}) is a different one: your vote came after it, or was left out of it; ask for the next checkpoint` : "but no rank checkpoint has been signed yet");
+    return ok && signed?.votes_root === p.root ? 0 : 1;
   }
   const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
   if (sub === "post") {
