@@ -698,6 +698,18 @@ sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
 sv("envelope_bad_did", "envelope", { ...h[0], issuer: "alice" }, false);
 sv("fleet_without_org", "fleet", (({ org: _o, ...rest }) => rest)(fleetBody), false);
 sv("fleet_zero_members", "fleet", { ...fleetBody, max_members: 0 }, false);
+// S1407 (DK1353): co-sponsors, a binding template and closing
+const coA = "did:web:example.com:users:co-sponsor-a", coB = "did:web:example.com:users:co-sponsor-b";
+sv("valid_fleet_co_sponsors", "fleet", { ...fleetBody, co_sponsors: [coA, coB] }, true);
+sv("valid_fleet_no_co_sponsors", "fleet", { ...fleetBody, co_sponsors: [] }, true);
+sv("valid_fleet_strict", "fleet", { ...fleetBody, strict: true }, true);
+sv("valid_fleet_closed", "fleet", { ...fleetBody, closed: true }, true);
+sv("fleet_co_sponsors_duplicate", "fleet", { ...fleetBody, co_sponsors: [coA, coA] }, false);
+sv("fleet_co_sponsors_not_a_did", "fleet", { ...fleetBody, co_sponsors: ["not-a-did"] }, false);
+sv("fleet_co_sponsors_not_an_array", "fleet", { ...fleetBody, co_sponsors: coA }, false);
+sv("fleet_strict_not_boolean", "fleet", { ...fleetBody, strict: "yes" }, false);
+sv("fleet_closed_not_boolean", "fleet", { ...fleetBody, closed: 1 }, false);
+sv("fleet_co_sponsors_over_a_thousand", "fleet", { ...fleetBody, co_sponsors: Array.from({ length: 1001 }, (_, i) => `did:web:example.com:users:cs-${i}`) }, false);
 sv("valid_node_residency", "node", { ...nodeBody, purpose: "residency", host: "did:web:asp.local:host", mandate: "sha256:" + "a".repeat(64) }, true);
 sv("node_host_not_a_did", "node", { ...nodeBody, purpose: "residency", host: "the city" }, false);
 sv("node_minimal", "node", { node: nodeBody.node, public_key: nodeBody.public_key, expires: nodeBody.expires }, true);

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 87,
   "withdraw": 103,
   "after": 315,
-  "total": 506
+  "total": 505
  },
- "mustWorkerHours": 341.2,
+ "mustWorkerHours": 335.2,
  "entries": [
   {
    "id": "D3",
@@ -5899,17 +5899,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1353",
-   "pri": "A",
-   "status": "open",
-   "gap": "An organisation cannot declare a fleet with a command. The fleet record (name, purpose, member cap, template) exists in the schema and the log, but the command line has no way to write it, and a flee…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "the fleet declaration command, co-sponsors and the template; an enterprise cannot start without it"
   },
   {
    "id": "DK1354",

@@ -238,6 +238,9 @@ const after = (a: string, b: string) => Date.parse(a) > Date.parse(b);
  * linear (one successor per record); job chains must follow the ASP lifecycle; passport, fleet
  * and node records maintain the registry. A running hash over record ids makes the order tamper-evident.
  */
+/** What a fleet declaration states beyond its row (S1407, DK1353). */
+export interface FleetDecl { purpose?: string; template?: { runtime?: string; model?: string; harness?: unknown; skills?: unknown[] }; co_sponsors?: string[]; strict?: boolean; closed?: boolean }
+
 /** The Market's dynamics as `marketDynamics` returns them (S1403). */
 export interface MarketDynamics { version: string; at: string; halted: boolean; seed: string | null; season: Season; demand: Demand[]; guides: Guide[]; waves: Wave[]; monitor: Dynamics }
 
@@ -573,7 +576,7 @@ export class EventLog {
     }
 
     const newSponsor = body.sponsor ?? sponsor;
-    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet);
+    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } });
     await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
@@ -636,20 +639,34 @@ export class EventLog {
   }
 
   /** An agent joins a fleet by naming it; the fleet must be declared, share the agent's sponsor and have room. */
-  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string): Promise<void> {
+  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string, passport?: { fingerprint?: { runtime?: string; model?: string } }): Promise<void> {
     if (kind !== "agent") throw rule("fleet_member_kind", `only agents join fleets, not a ${kind}`);
     const fleet = await tx.getFleet(fleetDid);
     if (!fleet) throw rule("fleet_unknown", `fleet ${fleetDid} is not declared`);
-    if (sponsor !== fleet.org) throw rule("fleet_sponsor_mismatch", `fleet ${fleetDid} belongs to ${fleet.org}; ${did} is sponsored by ${sponsor}`);
+    const d = JSON.parse((await tx.getMarker(`fleet_decl:${fleetDid}`)) ?? "{}") as FleetDecl;
+    // The organisation, or an individual sponsor it named in its own signed declaration (S1407, DK1353), may sponsor a member.
+    if (sponsor !== fleet.org && !(sponsor && (d.co_sponsors ?? []).includes(sponsor))) throw rule("fleet_sponsor_mismatch", `fleet ${fleetDid} belongs to ${fleet.org}${(d.co_sponsors ?? []).length ? ` and its named sponsors` : ""}; ${did} is sponsored by ${sponsor}`);
+    const already = (await tx.getPassport(did))?.fleet === fleetDid;
+    if (d.closed && !already) throw rule("fleet_closed", `fleet ${fleetDid} is closed to new members`);
     if (fleet.maxMembers !== null) {
       const others = (await tx.fleetMembers(fleetDid)).filter((m) => m.did !== did);
       if (others.length >= fleet.maxMembers) throw rule("fleet_full", `fleet ${fleetDid} has ${fleet.maxMembers} members`);
     }
+    // The template is read (S1407): a member that declares a different runtime or model is labelled, or refused when the fleet is strict. A member that declares nothing is labelled `undeclared`, never refused.
+    const t = d.template ?? {};
+    const diffs: string[] = [];
+    for (const k of ["runtime", "model"] as const) {
+      const want = t[k], have = passport?.fingerprint?.[k];
+      if (want && have && want !== have) diffs.push(k);
+    }
+    if (diffs.length && d.strict) throw rule("fleet_template_mismatch", `fleet ${fleetDid} is strict: its template names ${diffs.map((k) => `${k} ${t[k as "runtime" | "model"]}`).join(" and ")}, and ${did} declares a different ${diffs.join(" and ")}`);
+    const undeclared = (["runtime", "model"] as const).filter((k) => t[k] && !passport?.fingerprint?.[k]);
+    await tx.putMarker(`fleet_label:${did}`, diffs.length ? `differs: ${diffs.join(", ")}` : undeclared.length ? `undeclared: ${undeclared.join(", ")}` : "matches");
   }
 
-  /** One declaration chain per fleet, issued by its org, which never changes. */
+  /** One declaration chain per fleet, issued by its org, which never changes. An update restates the declaration (S1407): the cap may not fall below the members, and the co-sponsors may be changed without unseating a member. */
   private async projectFleet(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; org: string; name: string; max_members?: number };
+    const body = r.body as unknown as FleetDecl & { did: string; org: string; name: string; max_members?: number };
     const current = await tx.getFleet(body.did);
     if ((current?.head ?? null) !== r.prev) {
       throw new AspError("BAD_PREV", current
@@ -658,8 +675,30 @@ export class EventLog {
     }
     if (r.issuer !== body.org) throw new AspError("WRONG_ISSUER", `fleet ${body.did} must be declared by its org ${body.org}`);
     if (current && current.org !== body.org) throw rule("fleet_org_change", `fleet ${body.did} belongs to ${current.org}`);
+    if (current && body.max_members !== undefined) {
+      const members = (await tx.fleetMembers(body.did)).length;
+      if (body.max_members < members) throw rule("fleet_cap_below_members", `fleet ${body.did} has ${members} members: the cap cannot be ${body.max_members}`);
+    }
+    if ((body.co_sponsors ?? []).includes(body.org)) throw rule("fleet_co_sponsor_is_org", "the organisation is the fleet's sponsor already: co_sponsors names the others");
     await tx.putFleet({ did: body.did, head: r.id, org: body.org, name: body.name, maxMembers: body.max_members ?? null });
+    await tx.putMarker(`fleet_decl:${body.did}`, JSON.stringify({ purpose: (body as { purpose?: string }).purpose, template: body.template, co_sponsors: body.co_sponsors ?? [], strict: !!body.strict, closed: !!body.closed } satisfies FleetDecl));
+    const list = ((await tx.getMarker("fleets_of:" + body.org)) ?? "").split(",").filter(Boolean);
+    if (!list.includes(body.did)) await tx.putMarker("fleets_of:" + body.org, [...list, body.did].join(","));
   }
+
+  /** A fleet as the log holds it (S1407, DK1353): the declaration, its co-sponsors and template, and each member with its sponsor and whether it matches the template. */
+  async fleetDetails(fleetDid: string): Promise<{ did: string; org: string; name: string; purpose?: string; template: FleetDecl["template"]; maxMembers: number | null; coSponsors: string[]; strict: boolean; closed: boolean; members: { did: string; sponsor: string | null; label: string }[] } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const f = await tx.getFleet(fleetDid);
+      if (!f) return undefined;
+      const d = JSON.parse((await tx.getMarker(`fleet_decl:${fleetDid}`)) ?? "{}") as FleetDecl;
+      const members = await Promise.all((await tx.fleetMembers(fleetDid)).map(async (m) => ({ did: m.did, sponsor: m.sponsor, label: (await tx.getMarker(`fleet_label:${m.did}`)) ?? "matches" })));
+      return { did: f.did, org: f.org, name: f.name, purpose: d.purpose, template: d.template, maxMembers: f.maxMembers, coSponsors: d.co_sponsors ?? [], strict: !!d.strict, closed: !!d.closed, members };
+    });
+  }
+
+  /** The fleets an organisation has declared, oldest first (S1407). */
+  async fleetsOf(org: string): Promise<string[]> { return this.store.transaction(async (tx) => ((await tx.getMarker("fleets_of:" + org)) ?? "").split(",").filter(Boolean)); }
 
   /**
    * A person delegates a short-lived key to one node, optionally under a Mandate whose max_parallel

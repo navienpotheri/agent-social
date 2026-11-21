@@ -332,6 +332,7 @@ import { claimStanding, readStanding, standingPath, writeStanding, type Standing
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
+import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
@@ -869,6 +870,12 @@ const OPTIONS = {
   "fee-paid": { type: "string" },
   "min-qualifying": { type: "string" },
   month: { type: "string" },
+  org: { type: "string" },
+  strict: { type: "boolean" },
+  "max-members": { type: "string" },
+  "co-sponsor": { type: "string", multiple: true },
+  "harness-sha": { type: "string" },
+  "harness-uri": { type: "string" },
   halt: { type: "string" },
   "claim-id": { type: "string" },
   suspension: { type: "string" },
@@ -1004,6 +1011,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
+    if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
@@ -1160,7 +1168,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1253,6 +1261,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
+      ...(v.runtime || v.model ? { fingerprint: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v.model ? { model: v.model } : {}) } } : {}),
     };
   }
   const issuer = kind === "human" ? did : need("sponsor");
@@ -4923,6 +4932,17 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
     return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function fleetCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
+  try {
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+  } catch (e) {
+    if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;
   }
 }

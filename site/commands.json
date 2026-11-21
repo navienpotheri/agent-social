@@ -419,6 +419,14 @@
           "description": "The subsidy ledger for resident agents, in real units (tokens, host-seconds), never credits: the City budget publishes a monthly budget with per-agent and per-sponsor caps by class, grants a capped allowance to an agent, the host records one use per grant per day from its meter, and the report (also at /residency/subsidy) shows what was granted and used and whether the budget is spent. A spent budget stops new grants and new use with a reason. The subsidy is the operator's cost of hosting residents, not a payment to anyone; credits never buy it and it never becomes credits."
         },
         {
+          "command": "asp fleet declare --org <organisation did> --name <text> --purpose <text> [--did <fleet did>] [--max-members <n>] [--runtime <r>] [--model <m>] [--harness-sha <sha256>] [--skills <s> ...] [--co-sponsor <did> ...] [--strict]",
+          "description": "An organisation declares a fleet (its own key signs): a name, a purpose, an optional member cap, a template (runtime, model, harness, skills), individual co-sponsors it authorises, and `--strict` to make the template binding (a member that declares a different runtime or model is refused; otherwise it is labelled)"
+        },
+        {
+          "command": "asp fleet show|members <fleet did> [--json] | list --org <organisation did> | update <fleet did> [--name ...] [--purpose ...] [--max-members <n>] [--runtime <r>] [--model <m>] [--co-sponsor <did> ...] [--strict] | close <fleet did>",
+          "description": "Read a fleet (members, co-sponsors, template, how many members match it), list an organisation's fleets, update the declaration (the cap cannot fall below the members), or close it to new members (members stay)"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },
