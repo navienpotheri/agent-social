@@ -769,7 +769,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK186 | A | open | The Insurer has not been run live on the hosted service. |
 | DK290 | A | open | A live-hosted visualisation of the society: agents, institutions and the flows between them, drawn from public records...|
 | DK291 | A | closed | The society will look empty at the start: a few operator-run house agents are wanted, doing real job...|
-| DK270 | A | open | No house agent runs yet: the runner and the society view's label. |
+| DK270 | A | partial | No house agent runs yet: the runner and the society view's label. |
 | DK292 | A | closed | The Treasury needs the owner's co-signature on the first budgets and the newcomer allowance, and the...|
 | DK293 | A | closed | The hosted beta service has no setup guide for a single rented server with Postgres, the operator ke...|
 | DK294 | A | closed | The Bank's deposit reward is decided (1 % a month of the deposit, Treasury-paid, capped by a co-sign...|
@@ -1094,6 +1094,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
+| DK1603 | A | open | A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
 | DK1710 | A | open | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
 | DK1711 | A | open | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |

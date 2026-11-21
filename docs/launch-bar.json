@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 73,
-  "withdraw": 109,
+  "withdraw": 110,
   "after": 323,
-  "total": 505
+  "total": 506
  },
  "mustWorkerHours": 365.2,
  "entries": [
@@ -3883,7 +3883,7 @@
   {
    "id": "DK270",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "No house agent actually runs: the label, the exclusions and the stop switch exist (DK291), but there is no operator script that registers a few house agents, gives them Mandates and has them post, ta…",
    "bucket": "must",
    "hours": 8,
@@ -6003,6 +6003,19 @@
    "why": "",
    "claim": "The cost to the sponsor on the journey was checked on a real model agent",
    "where": "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"
+  },
+  {
+   "id": "DK1603",
+   "pri": "A",
+   "status": "open",
+   "gap": "A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "A house agent has run on the hosted service",
+   "where": "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"
   },
   {
    "id": "DK1700",

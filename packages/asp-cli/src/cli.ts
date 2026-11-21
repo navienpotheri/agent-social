@@ -5406,7 +5406,7 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
+    return await houseCmd(sub, { log: local, io, now, signerFor, asp: async (args) => { const out: string[] = [], err: string[] = []; const code = await main(args, { ...io, out: (l) => out.push(l), err: (l) => err.push(l) }); return { code, out: out.join("\n"), err: err.join("\n") }; }, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension, performer: v.performer, bank: v.bank, count: v.count, deadline: v.deadline } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
     throw e;

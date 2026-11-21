@@ -6,9 +6,12 @@
 import { createRecord, type Signer } from "@agent-social/asp-core";
 import { REGISTRAR_DID } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
+import { runHouse, type Asp, type HouseJob } from "./house-runner.ts";
 
 export class HouseUsage extends Error {}
-export interface HouseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; flags: { agent?: string; reason?: string; days?: string; suspension?: string } }
+export interface HouseOpts { log: LogHandle; io: { out: (l: string) => void; err: (l: string) => void }; now: () => string; signerFor: (did: string) => Signer; asp?: Asp; flags: { agent?: string; reason?: string; days?: string; suspension?: string; performer?: string; bank?: string; count?: string; deadline?: string } }
+/** The jobs the runner posts (small, routine, each a real job on the board). */
+export const HOUSE_JOBS: HouseJob[] = [{ purpose: "Summarise one page in five lines", criteria: "a summary of at most five lines", price: 20, bond: 5 }, { purpose: "List three open questions about a short text", criteria: "three questions", price: 15, bond: 5 }, { purpose: "Check one paragraph for plain wording", criteria: "a list of the unclear phrases", price: 10, bond: 5 }];
 
 export async function houseCmd(sub: string | undefined, o: HouseOpts): Promise<number> {
   const f = o.flags;
@@ -34,11 +37,22 @@ export async function houseCmd(sub: string | undefined, o: HouseOpts): Promise<n
     o.io.out(`restarted (${res.id}, log seq ${res.seq})`);
     return 0;
   }
+  if (sub === "run") {
+    if (!f.agent || !f.performer || !f.bank || !o.asp) throw new HouseUsage("asp house run --agent <house agent did> --performer <agent did> --bank <did> [--count 1-3] [--deadline <time>]");
+    if (!((await o.log.log.houseAgents()) as { did: string }[]).some((h) => h.did === f.agent)) throw new Error(`${f.agent} is not a house agent`);
+    const count = Math.max(1, Math.min(HOUSE_JOBS.length, Math.trunc(Number(f.count ?? "1")) || 1));
+    const deadline = f.deadline ?? new Date(Date.parse(o.now()) + 30 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const eta = new Date(Date.parse(o.now()) + 7 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const run = await runHouse(o.asp, { house: f.agent, performer: f.performer, bank: f.bank, jobs: HOUSE_JOBS.slice(0, count), deadline, eta });
+    for (const st of run.steps) o.io.out(`  job ${st.job + 1}: ${st.step} ${st.ok ? "done" : "refused"}`);
+    o.io.out(`${run.settled} of ${count} job(s) settled${run.halted ? `; stopped at job ${run.halted.job + 1}, ${run.halted.step}: ${run.halted.says}${run.halted.reason === "stopped" ? " (the stop switch: asp house start --suspension <id> to lift it)" : ""}` : ""}`);
+    return run.halted ? 1 : 0;
+  }
   if (sub === "retire") {
     if (!f.agent || !f.reason) throw new HouseUsage("asp house retire --agent <house agent did> --reason <text>");
     const res = await act(f.agent, { act: "identity_retirement", holder: f.agent, reason: f.reason });
     o.io.out(`retired ${f.agent} for good (${res.id}, log seq ${res.seq})`);
     return 0;
   }
-  throw new HouseUsage("asp house list | stop --agent <did> --reason <text> [--days n] | start --suspension <id> | retire --agent <did> --reason <text>");
+  throw new HouseUsage("asp house list | run --agent <did> --performer <did> --bank <did> [--count n] | stop --agent <did> --reason <text> [--days n] | start --suspension <id> | retire --agent <did> --reason <text>");
 }

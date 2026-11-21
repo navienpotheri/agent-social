@@ -219,6 +219,7 @@ export const WITHDRAW: Record<string, W> = {
   DK61: ["The hosted accountability API, pay per governed run", DECK],
   DK62: ["Enterprise tenancy: private logs, single sign-on, support", DECK],
   DK63: ["Network intelligence data marketplace", DECK],
+  DK1603: ["A house agent has run on the hosted service", "site, docs: say 'built and tested on a test ledger; the first hosted run is pending'"],
   DK1602: ["The cost to the sponsor on the journey was checked on a real model agent", "site, docs: say 'built and tested on records; the first live run with a real model agent is pending'"],
   DK1600: ["A real model agent has sat a course live", "site, docs: say 'built and tested; the first live run with a real model agent is pending'"],
   DK81: ["A visible map of the society", "deck (becomes true with DK730 and DK731)"],
