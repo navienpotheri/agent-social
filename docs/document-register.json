@@ -208,7 +208,7 @@
       "path": "docs/procurement/security-questionnaire.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
