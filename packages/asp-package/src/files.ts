@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { canonicalBytes } from "@agent-social/asp-core";
 
 export const toPosix = (p: string) => p.split(sep).join("/");
@@ -30,7 +30,10 @@ export function listFiles(dir: string): string[] {
  */
 export function treeHash(path: string): string {
   if (existsSync(path) && statSync(path).isFile()) return sha256File(path);
-  const entries = listFiles(path).map((p) => ({ path: p, sha256: sha256File(join(path, p)) }));
+  // A memory folder's `private/` subfolder holds sealed private scopes (DK272, D12): they are written during a run, authenticated by their own encryption and never part of the signed manifest, so the
+  // package still verifies after a private write. (Only a folder named `memory` is read this way.)
+  const isMemory = basename(path.replace(/[\/]+$/, "")) === "memory";
+  const entries = listFiles(path).filter((p) => !(isMemory && /^private[\/]/.test(p))).map((p) => ({ path: p, sha256: sha256File(join(path, p)) }));
   return `sha256:${createHash("sha256").update(canonicalBytes(entries)).digest("hex")}`;
 }
 
