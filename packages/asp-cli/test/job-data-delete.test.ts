@@ -75,3 +75,23 @@ test("a contract that allows retention keeps the copies until the day it names, 
   assert.ok(existsSync(work), "the copies stay inside the retention period");
   assert.match(readFileSync(join(f.aspHome, "job-data.ndjson"), "utf8"), /"kind":"data_retained"/);
 });
+
+test("with --by the performer cites the chain head in a late Action and the log reads the job data as confirmed; without it, unconfirmed", async () => {
+  const f = makeFixture();
+  await ok(f, ["identity", "new", "--kind", "human", "--did", ALICE]);
+  await ok(f, ["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Work"]);
+  await ok(f, ["identity", "new", "--kind", "human", "--did", BANK]);
+  await ok(f, ["credits", "grant", "--to", ALICE, "--amount", "1000"]);
+  await ok(f, ["credits", "grant", "--to", CODER, "--amount", "200"]);
+  const contract = await job(f);
+  await settle(f, contract);
+  assert.match((await ok(f, ["job-data", "show", "--contract", contract])).out, /job data as: unconfirmed/, "a settlement that cites no chain is data_unconfirmed");
+  const work = join(f.root, "confirm-copy"); mkdirSync(work, { recursive: true }); writeFileSync(join(work, "a.txt"), "x");
+  const r = await ok(f, ["job-data", "delete", "--contract", contract, "--path", work, "--by", CODER]);
+  assert.match(r.out, /confirmed: the Action /);
+  const show = (await ok(f, ["job-data", "show", "--contract", contract])).out;
+  assert.match(show, /job data as: confirmed \(chain head [0-9a-f]{64}\)/);
+  const head = /head ([0-9a-f]{64})/.exec(show)![1];
+  assert.match(show, new RegExp(`chain head ${head}`), "the log holds the head that the local chain printed");
+  assert.equal((await asp(f, ["market", "action", "--contract", contract, "--by", CODER, "--job-data-chain", "XYZ"])).code, 2, "a bad hash is refused");
+});

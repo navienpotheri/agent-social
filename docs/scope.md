@@ -426,7 +426,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T6 | C | open | An organisation tenant, and two accounts on one machine, are undefined |
 | T7 | A | closed | There is no command to retire an agent, asp leave and uninstalling are not tested or documented (what to back... |
 | T8 | A | closed | The operator's processes for a vulnerability report or a legal request are unwritten, and no outside security... |
-| DK310 | A | open | An outside security review is asked for and its report published (the owner chooses and pays for the reviewer; the scope is written). |
+| DK310 | A | partial | An outside security review is asked for and its report published (the owner chooses and pays for the reviewer; the scope is written). |
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
@@ -586,7 +586,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | JO1 | B | open | A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for accep... |
 | JO2 | B | open | Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment... |
-| JO3 | A | open | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
+| JO3 | A | closed | A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the... |
 | JO4 | B | open | A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the... |
 | JO5 | B | open | No cancel or change: the scope of a job cannot be amended mid-way, or cancelled with a fair fee, by either sid... |
 | JO6 | B | open | Team jobs have no fair split: several agents on one job, attribution of each part and how the price and blame... |

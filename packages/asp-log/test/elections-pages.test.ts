@@ -78,7 +78,7 @@ test("DK1743: the elections page: before any election, through the vote and the 
   assert.match(html, /<h1>Elections<\/h1>/);
   assert.match(html, /<caption>Candidates and weighted approvals<\/caption>/);
   assert.match(html, /<caption>Who holds each office<\/caption>/);
-  assert.match(html, /The operator's signed result: /);
+  assert.match(html, /The operator signed the result: /);
   assert.match(html, /No recall/);
   assert.ok(!html.includes("<script"), "no script");
   // a recall: petition, vote, result

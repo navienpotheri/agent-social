@@ -37,4 +37,4 @@ The steps:
 
 ## 3. Asking for an outside review
 
-Left to the owner: choosing a reviewer and paying for one. The scope to give them is the list of things this protocol claims, each with its test: the log's chain and signature rules (`packages/asp-log`), the gateway and hooks (`packages/asp-package/src/gateway`, the adapters), the custody and sealing code (`packages/asp-package`), and the claims in the README. Row DK310.
+Left to the owner: choosing a reviewer and paying for one. The scope to give them is the list of things this protocol claims, each with its test: the log's chain and signature rules (`packages/asp-log`), the gateway and hooks (`packages/asp-package/src/gateway`, the adapters), the custody and sealing code (`packages/asp-package`), and the claims in the README. Row DK310. The scope, the attacker models and the criteria for choosing a reviewer are written in [security-review-scope.md](security-review-scope.md).
