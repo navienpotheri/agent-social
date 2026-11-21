@@ -38,3 +38,29 @@ test("asp market mandate carries --loop-equivalent, --loop-depth and --tokens-pe
     assert.deepEqual(stored.token_budget, { per_run: 50000, per_day: 300000 });
   } finally { setClock(undefined); }
 });
+
+test("DK1716: asp market mandate carries --outbound-scan and --outbound-kinds into the Mandate, and refuses a mode or kind that does not exist", async () => {
+  setClock(() => new Date("2026-11-21T10:00:00Z"));
+  try {
+    const f = makeFixture();
+    for (const d of [P, BANK]) assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", d])).code, 0);
+    assert.equal((await asp(f, ["identity", "new", "--kind", "agent", "--did", A, "--sponsor", P])).code, 0);
+    for (const d of [P, A]) assert.equal((await asp(f, ["credits", "grant", "--to", d, "--amount", "300"])).code, 0);
+    const intent = /^intent (\S+)/.exec((await asp(f, ["market", "intent", "--by", P, "--purpose", "loop test", "--budget", "100", "--deadline", "2027-01-01T00:00:00Z"])).out)![1];
+    const offer = /^offer (\S+)/.exec((await asp(f, ["market", "offer", "--by", A, "--intent", intent, "--price", "100", "--plan", "go", "--eta", "2026-12-01T00:00:00Z"])).out)![1];
+    const contract = /^contract (\S+):/.exec((await asp(f, ["market", "contract", "--principal", P, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
+    assert.equal((await asp(f, ["market", "bond", "--contract", contract, "--backer", A, "--amount", "10", "--escrow-payer", P, "--escrow-amount", "100"])).code, 0);
+    const mandate = (extra: string[]) => asp(f, ["market", "mandate", "--contract", contract, "--principal", P, "--performer", A, "--scopes", "repo.read", ...extra]);
+    for (const bad of [["--outbound-scan", "off"], ["--outbound-scan", "mask"], ["--outbound-kinds", "passport"]]) {
+      const r = await mandate(bad);
+      assert.notEqual(r.code, 0, bad.join(" "));
+      assert.match(r.err + r.out, /--outbound-scan is block or redact|--outbound-kinds is a list of/);
+    }
+    const ok = await mandate(["--outbound-scan", "block", "--outbound-kinds", "secret,card number,iban"]);
+    assert.equal(ok.code, 0, ok.err + ok.out);
+    const { openLog } = await import("@agent-social/asp-package");
+    const local = await openLog(f.aspHome, {});
+    const stored = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)!.record.body as unknown as { outbound_scan?: unknown };
+    assert.deepEqual(stored.outbound_scan, { mode: "block", kinds: ["secret", "card number", "iban"] });
+  } finally { setClock(undefined); }
+});
