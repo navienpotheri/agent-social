@@ -9,7 +9,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FleetControls, fleetCsv, fleetDashboard, fleetGuard, monthOf } from "../../asp-log/src/index.ts";
+import { FleetControls, emptyControls, fleetCsv, fleetDashboard, fleetGuard, monthOf } from "../../asp-log/src/index.ts";
 import { fleetDashboardRoutes } from "../../asp-package/src/fleet-dashboard-routes.ts";
 import { credit, keysOf, kit, mk, party } from "../../asp-log/test/society-kit.ts";
 
@@ -360,6 +360,7 @@ test("DK1361: the guard refuses a write by a member under a frozen node and lets
   assert.equal(await ask(dids[5]), undefined);
   const html = await (await fetch(`${base}/fleet/Big/dashboard`, { headers: { accept: "text/html" } })).text();
   assert.match(html, /<h2>Fleet tree<\/h2>/);
+  assert.match(html, /<h2>First hour<\/h2>[\s\S]*of 7 done/, "the first-hour checklist is on the page (DK1371)");
   assert.match(html, /Department 0/);
   assert.match(html, /<th>Node<\/th>/);
   assert.ok(controls.get(FLEET).audit.some((a) => a.act === "freeze_node" && a.target === "team-5"), "a node freeze is in the audit trail");
@@ -375,4 +376,20 @@ test("DK1361: a tree of 10,000 members (10 departments, 100 teams, a persona) is
   assert.equal(d.members.length, 100);
   assert.ok(ms < 1500, `the dashboard with its tree took ${Math.round(ms)} ms`);
   console.log(`DK1361 timing, tree of 10,000: ${Math.round(ms)} ms`);
+});
+
+test("DK1371: the first-hour checklist is on the dashboard, read from the log: what is done, and what to do next for what is not", () => {
+  const { stored } = synthetic(5);
+  const d = fleetDashboard(stored, "Big", { month: MONTH, now: NOW })!;
+  const done = (step: RegExp) => d.firstHour.items.find((i) => step.test(i.step))!;
+  assert.equal(done(/fleet is declared/).done, true);
+  assert.equal(done(/first agent has joined/).done, true);
+  assert.equal(done(/Mandate template/).done, false, "no template is in these records");
+  assert.match(done(/Mandate template/).next, /asp fleet template set/);
+  assert.equal(done(/spending cap/).done, false);
+  assert.equal(done(/first job/).done, true, "the fleet spent this month");
+  assert.equal(d.firstHour.of, 7);
+  const withCap = fleetDashboard(stored, "Big", { month: MONTH, now: NOW, controls: { ...emptyControls(), caps: { fleet: { credits: 100 }, members: {} } } })!;
+  assert.equal(withCap.firstHour.items.find((i) => /spending cap/.test(i.step))!.done, true);
+  assert.equal(withCap.firstHour.done, d.firstHour.done + 1);
 });
