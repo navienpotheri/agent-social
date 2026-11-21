@@ -424,7 +424,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -3733,6 +3733,16 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const stopQuarantineWatch = watchQuarantine(local, by, mandate0.scopes, mandate.scopes, pollSeconds * 1000, now, (l) => io.err(l));
   // The cognition tap (DK79): always on for an open or personal agent; a gateway that is not told the runtime reads the command's name. Items are scrubbed in the tap and go to the telemetry store at the end of the run.
   const cognition = new CognitionTap({ runtime: v["agent-runtime"] ?? runtimeNameOf(command) });
+  // Every call the gateway removes is recorded in the log as a refusal signed with the agent's own key, so the agent or its sponsor can contest it (DK1607, S1601). The record holds the scope, a rule class and the hash
+  // of the call, never the call; a storm is bounded (10 a minute, 50 a run) and what is not recorded is counted in the run log and the summary.
+  const refusalKey = new Keystore(home).forDid(by);
+  if (!refusalKey) io.err("  warning  no key for this agent here: its refusals are not recorded in the log");
+  const refusals = new RefusalRecorder({
+    agent: by, ...(contract ? { contract } : {}),
+    append: async (body) => { if (!refusalKey) return; await local.append(createRecord({ type: "gateway_refusal", issuer: by, subject: null, prev: null, body: { ...body }, issued_at: now() }, refusalKey)); },
+    onOverflow: (e) => runLog?.event("gateway_refusal_overflow", { scope: e.scope, rule: e.rule, why: e.reason, not_recorded: e.skipped }),
+    onError: (e) => { if (!/gateway_refusal_duplicate/.test(e.message)) runLog?.event("gateway_refusal_not_recorded", { reason: e.message.slice(0, 200) }); },
+  });
   const gw = createGateway({
     cognition,
     ...(runLog ? { runLog } : {}),
@@ -3787,6 +3797,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     onBudgetAlert: (e) => io.err(`  budget   ${alertLine(e)}`),
     pauseFile: join(home, "paused"),
     onCall: (e) => {
+      if (!e.allowed && e.rule && e.callSha256) refusals.record({ tool: e.tool, scope: e.scope, rule: e.rule, callSha256: e.callSha256 });
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
       if (!e.allowed && v["widen-hint"] && /is not granted/.test(e.reason ?? "")) io.err(`  hint     this session's permissions were sized to your task; to allow ${e.scope}, run again with --allow ${e.scope === "repo.write.protected" ? "protected" : v["widen-hint"]} (or --allow all)`);
@@ -4003,7 +4014,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), spend_usd: sum0.spendUsd, ...(sum0.usdCap !== undefined ? { cap_usd: sum0.usdCap } : {}), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  await refusals.flush();
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), refusals: refusals.summary(), spend_usd: sum0.spendUsd, ...(sum0.usdCap !== undefined ? { cap_usd: sum0.usdCap } : {}), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
