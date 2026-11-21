@@ -6032,10 +6032,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1473",
+   "id": "DK1475",
    "pri": "A",
-   "status": "partial",
-   "gap": "A stealth farm is not caught: each hop of a ring used only twice and most of the work honest-looking is below every rule of the detector (0 of 50 in the red team), and an attacker who adapts to the d…",
+   "status": "open",
+   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

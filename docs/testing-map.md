@@ -919,3 +919,4 @@ The P0 rows above, in the order to do them: redeploy (UC-90) and re-run the live
 | UC-1778 | [operator] the farming report is for an operator token only, and a tenant is refused | packages/asp-log/test/farming-route.test.ts | no | none | none | P1 |
 | UC-1779 | [tenant] I see the reads and writes my tenant made this month, counted by the service, and they survive a restart | packages/asp-log/test/usage-reads.test.ts | no | none | none | P1 |
 | UC-1780 | [tenant] I see the months closed for my identities, each recounted against the log; another tenant sees none of them | packages/asp-log/test/usage-reads.test.ts,packages/asp-log/test/metering.test.ts | no | none | none | P1 |
+| UC-1781 | [operator] what a drip farm (a ring of five, each hop once) earns is measured in a real log: four counted jobs and 2,100 starter credits for five identities, and the books balance | packages/asp-log/test/farming-log.test.ts | no | none | none | P1 |
