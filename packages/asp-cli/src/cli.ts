@@ -357,7 +357,8 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ApprovalPile } from "@agent-social/asp-package";
+import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { MentorUsage, mentorCmd } from "./mentor.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
@@ -611,6 +612,8 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   "daily-tokens": { type: "string" },
+  "monthly-tokens": { type: "string" },
+  "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
@@ -1056,6 +1059,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
     if (cmd === "trend") return todayCmd(home, v, io, true);
+    if (cmd === "budget") return await budgetCommand(home, sub, v, io);
+    if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
@@ -3186,12 +3191,15 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens"), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const standing = new Budgets(join(home, "budgets.json")).get(by);
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...(standing.monthlyTokens !== undefined ? { monthTokens: standing.monthlyTokens } : {}), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
+  // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
+  for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
@@ -3525,7 +3533,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
+  const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
+  { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
@@ -4913,6 +4924,15 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
     return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function budgetCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  try {
+    return await budgetCmd(sub, { home, io, now, log: () => openLog(home, logEnv), flags: { agent: v.agent, "daily-tokens": v["daily-tokens"], "monthly-tokens": v["monthly-tokens"], "warn-at": v["warn-at"], json: v.json } });
+  } catch (e) {
+    if (e instanceof BudgetUsage) throw new UsageError(e.message);
     throw e;
   }
 }

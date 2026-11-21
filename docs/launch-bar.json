@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 84,
+  "must": 83,
   "withdraw": 98,
-  "after": 290,
+  "after": 291,
   "total": 472
  },
- "mustWorkerHours": 306.2,
+ "mustWorkerHours": 302.2,
  "entries": [
   {
    "id": "D3",
@@ -2428,17 +2428,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "US2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agent, no alert before a limit",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no cost forecast or per-agent cap for the person; ads will promise control"
   },
   {
    "id": "US3",
@@ -5679,6 +5668,18 @@
    "pri": "B",
    "status": "open",
    "gap": "When approvals pile up and the person is away, they are told only on the terminal of the run (and in the run log): there is no mail or other notice outside the terminal.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1501",
+   "pri": "B",
+   "status": "open",
+   "gap": "A person who is away is not told when an agent's token cap is near or reached: the warning is on the terminal of the run only.",
    "bucket": "after",
    "hours": 0,
    "size": "",
