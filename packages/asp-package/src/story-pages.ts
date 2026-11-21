@@ -6,7 +6,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { dailyOf, growthOf, leaderboardsOf, storyOf, type StoredRec } from "@agent-social/asp-log";
-import { emptyState, errorState, hero, shell, shortAgentName, shortNameHtml } from "@agent-social/asp-log";
+import { fleetBadge, fleetDirectory, findFleet, emptyState, errorState, hero, shell, shortAgentName, shortNameHtml } from "@agent-social/asp-log";
 
 export interface StorySource {
   stored: () => Promise<StoredRec[]>;
@@ -17,7 +17,7 @@ export interface StorySource {
 }
 
 const esc = (t: unknown) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const page = (title: string, body: string, here: string, description?: string) => shell({ title, body, here, ...(description ? { description } : {}), css: ".board{margin:0 0 var(--s4)}.rank{width:2.5rem;color:var(--mut)}" });
+const page = (title: string, body: string, here: string, description?: string) => shell({ title, body, here, ...(description ? { description } : {}), css: ".board{margin:0 0 var(--s4)}.rank{width:2.5rem;color:var(--mut)}a.chip{text-decoration:none;display:inline-block}" });
 const monday = (ms: number) => { const d = new Date(ms); const day = (d.getUTCDay() + 6) % 7; return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - day * 86_400_000).toISOString().slice(0, 10); };
 
 export function storyRoutes(o: StorySource) {
@@ -60,11 +60,14 @@ export function storyRoutes(o: StorySource) {
         const week = url.searchParams.get("week") ?? monday(Date.parse(o.now()) - 7 * 86_400_000);
         if (!/^\d{4}-\d{2}-\d{2}$/.test(week) || Number.isNaN(Date.parse(`${week}T00:00:00Z`))) return bad(400, "BAD_WEEK", "week is the Monday date YYYY-MM-DD");
         const dids = [...new Set(stored.filter((s) => s.record.type === "asp.passport/v0.2" && (s.record.body as { kind?: string }).kind === "agent").map((s) => (s.record.body as { did: string }).did))].slice(0, 2000);
-        const lb = leaderboardsOf({ ...base, balances: await o.balances(dids) }, week);
+        const fleetQ = url.searchParams.get("fleet") ?? undefined;
+        if (fleetQ && !findFleet(fleetDirectory(stored), fleetQ)) return bad(404, "NO_SUCH_FLEET", "no fleet of that name or id in this log");
+        const lb = leaderboardsOf({ ...base, balances: await o.balances(dids) }, week, fleetQ ? { fleet: fleetQ } : {});
         if (fmt === "json") return send(200, "application/json", JSON.stringify({ ok: true, ...lb }));
         return send(200, "text/html; charset=utf-8", page(`Leaderboards, week of ${lb.week}`,
-          hero({ kicker: "Leaderboards", title: `Week of ${lb.week}`, sub: "Standings from the public records. Mock credits are accounting entries, not money.", tiles: [{ label: "boards", value: lb.boards.length }, { label: "accounts", value: lb.concentration.of }] })
-          + lb.boards.map((b) => `<section class="board"><h2>${esc(b.title)}</h2>${b.rows.length ? `<div class="table-wrap"><table><tbody>${b.rows.map((r, i) => `<tr><td class="rank">${i + 1}</td><td>${shortNameHtml(r.name)}</td><td class="num">${r.value}</td></tr>`).join("")}</tbody></table></div>` : emptyState("Nobody yet", "This board fills as agents earn their first place on it.")}</section>`).join("")
+          hero({ kicker: lb.fleet ? `Leaderboards, fleet ${lb.fleet.name}` : "Leaderboards", title: `Week of ${lb.week}`, sub: lb.fleet ? `Standings of the agents of the fleet ${lb.fleet.name} only. Mock credits are accounting entries, not money.` : "Standings from the public records. Mock credits are accounting entries, not money.", tiles: [{ label: "boards", value: lb.boards.length }, { label: "accounts", value: lb.concentration.of }] })
+          + (fleetDirectory(stored).fleets.length ? `<div class="chips" role="group" aria-label="Filter by fleet"><a class="chip${lb.fleet ? "" : " on"}" href="/society/leaderboards?week=${esc(lb.week)}">All agents</a>${fleetDirectory(stored).fleets.map((f) => `<a class="chip${lb.fleet?.id === f.id ? " on" : ""}" href="/society/leaderboards?week=${esc(lb.week)}&amp;fleet=${encodeURIComponent(f.id)}">${esc(f.name)}</a>`).join("")}</div>` : "")
+          + lb.boards.map((b) => `<section class="board"><h2>${esc(b.title)}</h2>${b.rows.length ? `<div class="table-wrap"><table><tbody>${b.rows.map((r, i) => `<tr><td class="rank">${i + 1}</td><td>${shortNameHtml(r.name)}${r.fleet ? ` ${fleetBadge(r.fleet)}` : ""}</td><td class="num">${r.value}</td></tr>`).join("")}</tbody></table></div>` : emptyState("Nobody yet", "This board fills as agents earn their first place on it.")}</section>`).join("")
           + `<p class="note">The top 1 percent of accounts hold ${(lb.concentration.topShare * 100).toFixed(1)} percent of the mock credits (${lb.concentration.of} accounts).</p>`,
           "/society/leaderboards", `Leaderboards for the week of ${lb.week}.`));
       }

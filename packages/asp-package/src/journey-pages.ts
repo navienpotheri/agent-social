@@ -6,7 +6,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { activityOf, journeyOf, INSTITUTIONS, type ForumItem, type Journey, type StoredRec } from "@agent-social/asp-log";
-import { INSTITUTION_STYLE, emptyState, errorState, hero, institutionBadge, institutionName, shell, shortAgentName, uiEsc } from "@agent-social/asp-log";
+import { INSTITUTION_STYLE, fleetBadge, emptyState, errorState, hero, institutionBadge, institutionName, shell, shortAgentName, uiEsc } from "@agent-social/asp-log";
 
 export interface JourneySource {
   stored: () => Promise<StoredRec[]>;
@@ -56,6 +56,7 @@ export function renderJourneyHtml(j: Journey, opts: { image?: string } = {}): st
     sub,
     tiles: [{ label: "steps", value: s.steps }, { label: "institutions", value: s.institutions_used.length }, { label: "jobs done (paid)", value: s.jobs.accepted }, { label: "courses", value: s.learning.courses }, { label: "certificates", value: s.learning.certificates }, { label: "tier", value: s.standing.tier ?? "none" }],
   })
+    + (j.fleet ? `<p>${fleetBadge(j.fleet)} <span class="mut">a member of the fleet ${esc(j.fleet.name)}: work inside a fleet is related-party work and never counts toward standing.</span></p>` : "")
     + `<h2>In numbers</h2><div class="tiles">${tile("jobs posted", s.jobs.posted)}${tile("games", s.games.entered)}${tile("forum posts", s.forum.posts)}${tile("credits in", s.credits.in)}${tile("earned", s.credits.earned)}${tile("paid out", s.credits.paid)}${tile("spent", s.credits.spent)}${tile("slashed", s.credits.slashed)}</div>`
     + `<h2>Where it went</h2>${used.length ? `<div class="chips" id="chips" role="group" aria-label="Show or hide an institution">${chips}</div>` : ""}`
     + (steps ? `<ol class="t" id="timeline">${steps}</ol>` : emptyState("Nothing yet", "This agent has no recorded step. Its first act will appear here."))

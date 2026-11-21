@@ -31,14 +31,14 @@ export function shortAgentName(name: string): string {
 export const shortNameHtml = (name: string): string => { const s = shortAgentName(name); return s === name ? esc(name) : `<span title="${esc(name)}">${esc(s)}</span>`; };
 
 export const NAV: { href: string; label: string }[] = [
-  { href: "/society/map", label: "Map" }, { href: "/society/daily", label: "Daily" }, { href: "/society/leaderboards", label: "Leaderboards" }, { href: "/society/courses", label: "Courses" },
+  { href: "/society/map", label: "Map" }, { href: "/society/daily", label: "Daily" }, { href: "/society/leaderboards", label: "Leaderboards" }, { href: "/society/courses", label: "Courses" }, { href: "/society/fleets", label: "Fleets" },
 ];
 
 /** The stylesheet. One set of tokens; `data-theme` forces a scheme, otherwise the reader's setting decides. */
 export const UI_CSS = `
-:root{--bg:#f7f6f2;--fg:#1d2230;--mut:#555e70;--card:#ffffff;--line:#dcd9cf;--acc:#1b6a66;--acc-bg:#e3eeed;--warn:#8a3b12;--warn-bg:#fbeee6;--ok:#17603a;--shadow:0 1px 2px rgba(20,24,35,.06),0 4px 16px rgba(20,24,35,.05);--r:12px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;--fs-s:.8rem;--fs-b:1rem;--fs-l:1.2rem;--fs-xl:clamp(1.55rem,4.6vw,2.2rem)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;color-scheme:dark}
+:root{--bg:#f7f6f2;--fg:#1d2230;--mut:#555e70;--card:#ffffff;--line:#dcd9cf;--acc:#1b6a66;--acc-bg:#e3eeed;--warn:#8a3b12;--warn-bg:#fbeee6;--ok:#17603a;--shadow:0 1px 2px rgba(20,24,35,.06),0 4px 16px rgba(20,24,35,.05);--fleet-bg:#fdf1d8;--fleet-fg:#7a4b00;--r:12px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:40px;--fs-s:.8rem;--fs-b:1rem;--fs-l:1.2rem;--fs-xl:clamp(1.55rem,4.6vw,2.2rem)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;--fleet-bg:#33260d;--fleet-fg:#f2c777;color-scheme:dark}}
+:root[data-theme="dark"]{--fleet-bg:#33260d;--fleet-fg:#f2c777;--bg:#10141b;--fg:#e8ebf1;--mut:#a3acbb;--card:#181e28;--line:#2a3240;--acc:#6fd0c8;--acc-bg:#1b2a2b;--warn:#f0b08a;--warn-bg:#2b1f18;--ok:#7bd9a2;--shadow:none;color-scheme:dark}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:var(--fs-b)/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:var(--acc)}a:focus-visible,button:focus-visible,.chip:focus-visible{outline:3px solid var(--acc);outline-offset:2px;border-radius:6px}
@@ -59,6 +59,7 @@ h1{margin:0 0 var(--s1);font-size:var(--fs-xl);line-height:1.15;text-wrap:balanc
 .inst{display:inline-block;font-size:var(--fs-s);font-weight:600;border-radius:6px;padding:1px 8px;white-space:nowrap;background:hsl(var(--h) 60% 91%);color:hsl(var(--h) 60% 24%);border:1px solid hsl(var(--h) 45% 80%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .inst{background:hsl(var(--h) 32% 20%);color:hsl(var(--h) 70% 80%);border-color:hsl(var(--h) 30% 32%)}}
 :root[data-theme="dark"] .inst{background:hsl(var(--h) 32% 20%);color:hsl(var(--h) 70% 80%);border-color:hsl(var(--h) 30% 32%)}
+.fleet{display:inline-block;font-size:var(--fs-s);font-weight:600;border-radius:6px;padding:1px 8px;white-space:nowrap;text-decoration:none;background:var(--fleet-bg);color:var(--fleet-fg);border:1px dashed var(--fleet-fg)}
 .card,.note,.hero,ul.plain li{overflow-wrap:anywhere}
 .card,.note{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4)}.note{color:var(--mut)}
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--r);padding:var(--s5);text-align:center;color:var(--mut)}.empty b{display:block;color:var(--fg);font-size:var(--fs-l);margin-bottom:var(--s1)}
@@ -114,6 +115,9 @@ export function hero(o: { kicker?: string; title: string; badges?: string[]; sub
     + (o.sub ? `<p class="sub">${esc(o.sub)}</p>` : "")
     + (o.tiles?.length ? `<div class="tiles">${o.tiles.map((t) => `<div class="tile"><b>${esc(t.value)}</b><span>${esc(t.label)}</span></div>`).join("")}</div>` : "") + `</section>`;
 }
+
+/** The fleet mark: the same badge wherever an agent of a fleet is shown, linking to the fleet's page. The name is always in the badge; the colour never carries meaning alone. */
+export const fleetBadge = (m: { id: string; name: string }): string => `<a class="fleet" href="/society/fleets/${encodeURIComponent(m.id)}" title="${esc(`A member of the fleet ${m.name}`)}">fleet: ${esc(m.name.length > 24 ? `${m.name.slice(0, 23)}…` : m.name)}</a>`;
 
 /** An empty state: what is missing and what makes it fill. */
 export const emptyState = (title: string, hint: string): string => `<div class="empty" role="status"><b>${esc(title)}</b>${esc(hint)}</div>`;

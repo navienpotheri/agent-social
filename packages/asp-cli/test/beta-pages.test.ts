@@ -95,7 +95,7 @@ test("DK1348: contrast: every text and background pair of the tokens, and every 
   const scheme = (block: RegExp) => { const m = block.exec(UI_CSS)!; const t: Record<string, string> = {}; for (const x of m[1].matchAll(/--([a-z-]+):(#[0-9a-f]{6})/g)) t[x[1]] = x[2]; return t; };
   const light = scheme(/^:root\{([^}]*)\}/m), dark = scheme(/^:root\[data-theme="dark"\]\{([^}]*)\}/m);
   for (const [label, t] of [["light", light], ["dark", dark]] as const) {
-    for (const [fg, bg] of [["fg", "bg"], ["fg", "card"], ["mut", "bg"], ["mut", "card"], ["acc", "bg"], ["acc", "card"], ["acc", "acc-bg"], ["warn", "warn-bg"]] as const)
+    for (const [fg, bg] of [["fg", "bg"], ["fg", "card"], ["mut", "bg"], ["mut", "card"], ["acc", "bg"], ["acc", "card"], ["acc", "acc-bg"], ["warn", "warn-bg"], ["fleet-fg", "fleet-bg"]] as const)
       assert.ok(ratio(hex(t[fg]), hex(t[bg])) >= 4.5, `${label}: ${fg} on ${bg} is ${ratio(hex(t[fg]), hex(t[bg])).toFixed(2)}`);
   }
   // the institution badge: text hsl(h 60% 24%) on hsl(h 60% 91%) in light; hsl(h 70% 80%) on hsl(h 32% 20%) in dark

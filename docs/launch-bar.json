@@ -6101,7 +6101,7 @@
   {
    "id": "DK1367",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
    "bucket": "must",
    "hours": 4,

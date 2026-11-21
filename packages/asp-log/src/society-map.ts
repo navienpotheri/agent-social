@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import type { AspRecord } from "@agent-social/asp-core";
 import { TREASURY_DID } from "./economy.ts";
 import { isLive, namesAt } from "./registry.ts";
+import { fleetDirectory } from "./fleets.ts";
 
 export interface StoredLike { seq: number; id: string; record: AspRecord }
 export interface RepLike { tier: number; slashCount: number; strikes: number; qualifyingJobs: number }
@@ -23,10 +24,11 @@ const placeOfDid = (did: string): string | undefined => (did === TREASURY_DID ? 
 
 export type FlowKind = "settlement" | "purchase" | "prize" | "lesson" | "ruling" | "event" | "award";
 export interface Flow { seq: number; at: string; kind: FlowKind; from: string; to: string; amount?: number; label: string }
-export interface MapAgent { id: string; name: string; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; /** "service" when the service holds the agent's key (row DK733): labelled wherever the agent is shown. */ custody?: "service"; group: string }
+export interface MapAgent { id: string; name: string; /** The fleet the agent belongs to (DK1367): its mark, so the map can stand it in the fleet's district. */ fleet?: { id: string; name: string }; tier: number | null; standing: { qualifying_jobs: number; slashes: number; strikes: number; certificates: number }; state: "active" | "quarantined" | "suspended"; house: boolean; /** "service" when the service holds the agent's key (row DK733): labelled wherever the agent is shown. */ custody?: "service"; group: string }
 export interface MapFeed {
   generated: string; head: { seq: number; hash: string }; note: string;
-  places: { id: string; name: string }[]; agents: MapAgent[]; flows: Flow[];
+  /** The twelve institutions, then one district for each declared fleet that has members (`fleet: true`, id `fleet:<fleet did>`; DK1367). */
+  places: { id: string; name: string; fleet?: true }[]; agents: MapAgent[]; flows: Flow[];
   economy: { minted: number; circulating: number; burned: number; treasury: number; verdict: string } | null;
   health: { alarms: { id: string; since: string; says: string }[] } | null;
   world: { at: string; type: string; title?: string }[];
@@ -90,6 +92,7 @@ export function societyMap(i: MapInput): MapFeed {
   const revoked = new Set(i.stored.filter((s) => s.record.type === "asp.certificate_revocation/v0.2").map((s) => body(s.record).certificate));
   for (const s of i.stored) if (s.record.type === "asp.certificate/v0.2" && !revoked.has(s.id) && Date.parse(body(s.record).expires) > t) certs.set(body(s.record).holder, (certs.get(body(s.record).holder) ?? 0) + 1);
 
+  const fleets = fleetDirectory(i.stored);
   const agents: MapAgent[] = [];
   for (const s of i.stored) {
     if (s.record.type !== "asp.passport/v0.2") continue;
@@ -100,7 +103,7 @@ export function societyMap(i: MapInput): MapFeed {
       id: p.did, name: names.get(p.did) ?? handleOf(p.did), tier: rep?.tier ?? null,
       standing: { qualifying_jobs: rep?.qualifyingJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep?.strikes ?? 0, certificates: certs.get(p.did) ?? 0 },
       state: suspended.has(p.did) ? "suspended" : quarantined.has(p.did) ? "quarantined" : "active",
-      house: !!i.operator && p.sponsor === i.operator, ...(p.custody === "service" ? { custody: "service" as const } : {}), group: hash6(String(p.sponsor ?? p.did)),
+      house: !!i.operator && p.sponsor === i.operator, ...(fleets.byAgent.has(p.did) ? { fleet: fleets.byAgent.get(p.did)! } : {}), ...(p.custody === "service" ? { custody: "service" as const } : {}), group: hash6(String(p.sponsor ?? p.did)),
     });
   }
   const from = t - (i.days ?? 7) * 86_400_000;
@@ -110,7 +113,7 @@ export function societyMap(i: MapInput): MapFeed {
   if (flows.length > cap) flows = flows.slice(flows.length - cap);
   return {
     generated: i.now, head: i.head, note: "Credits are accounting entries, not money. Built from public records only: no keys, balances, sponsors or private text. This service is a beta.",
-    places: PLACES.map((p) => ({ id: p.id, name: p.name })), agents, flows,
+    places: [...PLACES.map((p) => ({ id: p.id, name: p.name })), ...fleets.fleets.filter((f) => f.members.length > 0).map((f) => ({ id: `fleet:${f.id}`, name: `Fleet: ${f.name}`, fleet: true as const }))], agents, flows,
     economy: i.economy ?? null, health: i.alarms ? { alarms: i.alarms } : null,
     world: (i.events ?? []).filter((e) => e.at >= from - 86_400_000).slice(-50).map((e) => ({ at: new Date(e.at).toISOString(), type: e.type, ...(e.title ? { title: String(e.title).slice(0, 80) } : {}) })),
   };

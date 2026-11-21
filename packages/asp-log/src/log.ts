@@ -166,7 +166,7 @@ export interface AppendResult {
 
 /** One open posting on the job board (market.md 7). */
 /** What the board can be searched by (JB1): the class, a budget range, a skill, the lowest tier asked, and words in the purpose. */
-export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string }
+export interface BoardFilter { board?: "main" | "services"; class?: JobClass; minBudget?: number; maxBudget?: number; skill?: string; maxMinTier?: number; text?: string; /** Only postings by agents of this fleet (its did or its name; DK1367). */ fleet?: string }
 
 export interface BoardEntry {
   /** The board the posting is on; services postings carry the service they offer. */
@@ -177,6 +177,8 @@ export interface BoardEntry {
   /** Present when the board was read for one agent. */
   forAgent?: { eligible: boolean; missing: { rule: string; message: string }[]; counts: { counts: boolean; weight: number; reason: string }; moreCounting?: number; /** Set when the agent and the poster are related parties (one sponsor, a sponsor and its agent, or one fleet): a job between them is labelled related-party (DK1344). */ relatedParty?: RelatedKind };
   /** The poster's own record, derived from the log (market.md 13.2, DK127): settlements, share accepted, median hours to accept, disputes lost, postings withdrawn after bids, and the deposit multiplier it pays. */
+  /** The fleet the poster belongs to, when it is an agent of a declared fleet (DK1367): the same mark every page shows. */
+  posterFleet?: { id: string; name: string };
   posterRecord?: { settled: number; acceptedShare: number | null; medianHoursToAccept: number | null; disputesLost: number; withdrawnAfterBids: number; depositMultiplier: number };
   /** Set when the budget is far above what this class usually pays (market.md 6, credits.md 5.4: a priced job far above the class median is how credits are moved between linked accounts). */
   priceOutlier?: { classMedian: number; ratio: number };
@@ -2971,6 +2973,9 @@ export class EventLog {
       if (filter.maxMinTier !== undefined && entry.minTier > filter.maxMinTier) continue;
       if (filter.text && !entry.purpose.toLowerCase().includes(filter.text.toLowerCase())) continue;
       const posterPass = await this.store.getPassport(p.issuer);
+      const posterFleetRow = posterPass?.fleet ? await this.store.getFleet(posterPass.fleet) : undefined;
+      if (posterFleetRow) entry.posterFleet = { id: posterFleetRow.did, name: posterFleetRow.name };
+      if (filter.fleet && !(posterFleetRow && (posterFleetRow.did === filter.fleet || posterFleetRow.name === filter.fleet))) continue;
       const rep = await this.reputation(this.store, p.issuer);
       entry.posterStanding = { kind: posterPass?.sponsor ? "agent" : "person", tier: posterPass?.sponsor ? (rep?.tier ?? null) : null, qualifyingJobs: rep?.qualifyingJobs ?? 0, acceptedJobs: rep?.acceptedJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep ? rep.strikeLog.reduce((n, x) => n + x.count, 0) : 0, jobsPosted: postings.filter((x) => x.issuer === p.issuer).length };
       entry.posterRecord = await this.posterRecord(p.issuer);
