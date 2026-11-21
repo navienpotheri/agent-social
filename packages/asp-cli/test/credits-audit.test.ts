@@ -38,9 +38,10 @@ test("asp credits audit: balanced over every account, with the figures; --json a
   assert.match(flows.out, /not available from the log yet:/);
   assert.match(flows.out, /Bank \(DK1452\): reserve 0; 0 credit line\(s\) opened for 0/, "the Bank, deposits, Insurer and Courts lines are in the report (DK1452)");
   assert.match(flows.out, /Deposits: 0 made for 0/);
+  assert.match(flows.out, /Active Bank \(DK1458\): 0 deposit\(s\) for 0/);
   assert.match(flows.out, /Insurer: reserve 0; 0 policy\(ies\)/);
   assert.match(flows.out, /Courts: 0 appeal\(s\) filed/);
-  assert.match(flows.out, /interest and the Bank holding agents' credits/, "what is not built is named: the owner's target (DK1458)");
+  assert.match(flows.out, /the old locked deposit and the active Bank \(S1405\) are both listed/, "the report names nothing as not built about the Bank");
 
   const since = JSON.parse((await asp(home, ["credits", "audit", "--by-flow", "--since", "2026-01-01T00:00:00Z", "--json"])).out);
   assert.equal(since.flows.since, "2026-01-01T00:00:00Z");

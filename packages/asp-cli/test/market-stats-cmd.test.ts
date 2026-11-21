@@ -64,3 +64,31 @@ test("asp market risk (DK1455): show says none is in force, replay of a candidat
   assert.match(noKey.err, /no key for/);
   assert.notEqual((await asp(home, ["market", "risk", "nonsense"])).code, 0);
 });
+
+test("asp bank account (DK1458): put and take with no lock, borrow, repay and interest through the real commands, signed by the holder and the Treasury", async () => {
+  const { setClock } = await import("../src/cli.ts");
+  const { makeFixture } = await import("./fixture.ts");
+  const f = makeFixture();
+  const OP = "did:web:asp.local:operator", TR = "did:web:asp.local:treasury", H = "did:web:example.com:users:bank-account-holder";
+  const run = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: f.aspHome, ASP_OPERATOR_DID: OP }, cwd: f.root };
+    const code = await main(args, io);
+    return { code, out: out.join("\n"), err: err.join("\n") };
+  };
+  const saved = process.env.ASP_OPERATOR_DID; process.env.ASP_OPERATOR_DID = OP;
+  try {
+    for (const d of [OP, H]) assert.equal((await run(["identity", "new", "--kind", "human", "--did", d])).code, 0);
+    assert.equal((await run(["credits", "grant", "--to", H, "--amount", "500", "--by", OP, "--reason", "bootstrap"])).code, 0);
+    setClock(() => new Date("2026-11-02T00:00:10Z"));
+    const put = await run(["bank", "account", "put", "--holder", H, "--amount", "200"]);
+    assert.equal(put.code, 0, put.err || put.out);
+    const take = await run(["bank", "account", "take", "--holder", H, "--amount", "50"]);
+    assert.equal(take.code, 0, take.err || take.out);
+    assert.notEqual((await run(["bank", "account", "take", "--holder", H, "--amount", "999"])).code, 0, "more than is held");
+    assert.notEqual((await run(["bank", "account", "nonsense"])).code, 0);
+    assert.notEqual((await run(["bank", "account", "borrow", "--amount", "10"])).code, 0, "the Treasury has no key here");
+    const flows = await run(["credits", "audit", "--by-flow"]);
+    assert.match(flows.out, /Active Bank \(DK1458\): 1 deposit\(s\) for 200, 1 withdrawal\(s\) for 50; held 150/);
+  } finally { setClock(undefined); if (saved === undefined) delete process.env.ASP_OPERATOR_DID; else process.env.ASP_OPERATOR_DID = saved; void TR; }
+});

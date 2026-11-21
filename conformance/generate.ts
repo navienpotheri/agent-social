@@ -1339,6 +1339,27 @@ const worldRules = [
   rule("resume_ok", "did:web:example.com:operator", "2026-11-20T06:00:00Z", { kind: "resume", halt: haltId, reason: "fixed" }, "ok"),
 ];
 
+// ---------- the active Bank (spec-deltas S1405): schema cases ----------
+{
+  const h = "did:web:example.com:users:bank-holder";
+  const amt = (v: number) => ({ value: v, unit: "credit" });
+  sv("valid_bank_deposit", "bank_act", { act: "deposit", holder: h, amount: amt(300) }, true);
+  sv("valid_bank_withdraw", "bank_act", { act: "withdraw", holder: h, amount: amt(100) }, true);
+  sv("valid_bank_borrow", "bank_act", { act: "borrow", amount: amt(500) }, true);
+  sv("valid_bank_repay", "bank_act", { act: "repay", amount: amt(200) }, true);
+  sv("valid_bank_interest", "bank_act", { act: "interest", week: "2026-W46" }, true);
+  sv("valid_bank_interest_week_53", "bank_act", { act: "interest", week: "2026-W53" }, true);
+  sv("bank_unknown_act", "bank_act", { act: "lend", amount: amt(5) }, false);
+  sv("bank_deposit_no_holder", "bank_act", { act: "deposit", amount: amt(5) }, false);
+  sv("bank_deposit_no_amount", "bank_act", { act: "deposit", holder: h }, false);
+  sv("bank_withdraw_no_amount", "bank_act", { act: "withdraw", holder: h }, false);
+  sv("bank_borrow_names_a_holder", "bank_act", { act: "borrow", holder: h, amount: amt(5) }, false);
+  sv("bank_interest_no_week", "bank_act", { act: "interest" }, false);
+  sv("bank_interest_bad_week", "bank_act", { act: "interest", week: "2026-W54" }, false);
+  sv("bank_interest_week_zero", "bank_act", { act: "interest", week: "2026-W00" }, false);
+  sv("bank_interest_names_an_amount", "bank_act", { act: "interest", week: "2026-W46", amount: amt(5) }, false);
+  sv("bank_repay_extra_field", "bank_act", { act: "repay", amount: amt(5), rate: 25 }, false);
+}
 // ---------- the Market's risk model (spec-deltas S1404): schema cases and the suggestion, identical in both SDKs ----------
 const riskTerms = (over: Record<string, unknown> = {}) => ({
   class_permille: { trivial: -50, routine: 0, skilled: 50, critical: 150 }, verification_permille: { deterministic: -80, principal: 0, arbiter: 40 }, poster_permille: 120, escrow_share_permille: 800, ...over,

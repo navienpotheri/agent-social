@@ -1128,7 +1128,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
-    if (cmd === "bank") return await bankCommand(home, sub, v, io);
+    if (cmd === "bank") return await bankCommand(home, sub, rest, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
     if (cmd === "prizes") return await prizesCommand(home, v, io);
@@ -4746,6 +4746,8 @@ async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string):
     const bk = flows.bank, dp = flows.deposits, ins = flows.insurer, ct = flows.courts;
     io.out(`  Bank (DK1452): reserve ${n(bk.reserve)}; ${n(bk.linesOpened.count)} credit line(s) opened for ${n(bk.linesOpened.amount)}, ${n(bk.lent.count)} drawn (lent ${n(bk.lent.amount)}), ${n(bk.returned)} returned, ${n(bk.outstanding)} still owed; ${n(bk.defaults.count)} default(s) of ${n(bk.defaults.unpaid)}, ${n(bk.debtCleared.count)} debt payment(s) of ${n(bk.debtCleared.amount)}`);
     io.out(`  Deposits: ${n(dp.made.count)} made for ${n(dp.made.amount)}, ${n(dp.withdrawn.count)} withdrawn for ${n(dp.withdrawn.amount)}, ${n(dp.rewards.count)} Treasury reward(s) of ${n(dp.rewards.amount)}; the deposit account holds ${n(dp.held)}`);
+    const ab = flows.activeBank;
+    io.out(`  Active Bank (DK1458): ${n(ab.deposits.count)} deposit(s) for ${n(ab.deposits.amount)}, ${n(ab.withdrawals.count)} withdrawal(s) for ${n(ab.withdrawals.amount)}; held ${n(ab.held)}, waiting to be paid ${n(ab.waiting)}; the Treasury borrowed ${n(ab.treasuryBorrowed.amount)} and repaid ${n(ab.treasuryRepaid.amount)} (owes ${n(ab.principal)}, carried interest ${n(ab.carry)}); interest for ${n(ab.interest.weeks)} week(s): due ${n(ab.interest.due)}, paid ${n(ab.interest.paid)}, Bank's share ${n(ab.interest.bankShare)}, depositors' ${n(ab.interest.depositorShare)}`);
     io.out(`  Insurer: reserve ${n(ins.reserve)}; ${n(ins.policies.count)} policy(ies) for ${n(ins.policies.premiums)} in premiums, ${n(ins.claims)} claim(s): paid ${n(ins.decisions.paid.count)} (${n(ins.decisions.paid.amount)}), reduced ${n(ins.decisions.reduced.count)} (${n(ins.decisions.reduced.amount)}), denied ${n(ins.decisions.denied.count)}`);
     io.out(`  Courts: ${n(ct.appealsFiled)} appeal(s) filed; decided affirmed ${n(ct.appealRulings.affirmed)}, reversed ${n(ct.appealRulings.reversed)}, varied ${n(ct.appealRulings.varied)}; appeal jurors paid ${n(ct.jurorsPaid)} (unpaid ${n(ct.jurorShortfall)}); ${n(ct.penalties.count)} juror penalt(ies) of ${n(ct.penalties.amount)} to the Treasury`);
     io.out("  not available from the log yet:");
@@ -4921,11 +4923,11 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
   }
 }
 
-async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+async function bankCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget } });
+    return await bankCmd(sub, { log: local, io, now, signerFor, rest, flags: { week: v.week, contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget } });
   } catch (e) {
     if (e instanceof BankUsage) throw new UsageError(e.message);
     throw e;

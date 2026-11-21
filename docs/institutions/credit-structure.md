@@ -88,7 +88,7 @@ flowchart LR
 
 None of this conflicts with the supply rule if interest is paid from income: the Treasury's balance falls, the Bank's and the depositors' rise, and the total is unchanged. A loan is a transfer with an obligation attached; the obligation is a record, not credits.
 
-**The one question for the owner** is in [../owner-questions.md](../owner-questions.md) (block DK1349): the numbers (the Treasury's borrowing rate, the Bank's share of interest, the depositors' share, the share of deposits the Bank may lend, whether the Insurer keeps its reserve at the Bank and whether the Treasury lends to it) and whether to build them. The changed and new flows are **not built** until the owner answers; every other gap below is built first; the register shows which rows are closed.
+**The owner answered on 2026-11-21 (docs/owner-questions.md, docs/owner-decisions.md): everything accepted, with a **weekly** cycle. The target structure is now built as the record `bank_act` (spec-delta S1405, row DK1458): no deposit lock, the Bank lends at most 70 % of what it holds, the Treasury may owe at most 50 % of what it holds, interest every Monday week at 0.25 % of what the Treasury owes, paid only from that week's Treasury income (the unpaid part carries, nothing is minted), the Bank keeps 20 % and pays 80 % by balance and days held. The Insurer's reserve stays in its own account and earns interest as a depositor (the Bank does not lend it, so claims stay payable). The older locked deposit (`deposit_act`) still replays as it did.
 
 ## 4. Every flow, with its status and its evidence
 
@@ -116,8 +116,8 @@ Status: **built and tested** (a test exercises it and the audit balances); **bui
 | 18 | Juror stake | `projectJuror` | courts tests | built and tested |
 | 19 | Arena entry fee, prize | `projectPrize`, arena rules | arena-runner.test.ts | built, tested in a unit test only |
 | 20 | Shops, housing rent, events prizes, research grants, founding stakes | `shops-rules`, `housing`, `events-rules`, `research-rules`, `founding.ts` | shops.test.ts, housing.test.ts, events.test.ts, research.test.ts, founding.test.ts | built, tested in a unit test only |
-| 21 | Bank lends to the Treasury; Treasury pays interest; Bank pays depositors a share; agents' credits held at the Bank; Insurer reserve at the Bank | none | none | **not built: the owner's target, waiting for the answer** |
-| 22 | Treasury lends to the Insurer | none | none | **not built: waiting for the answer** |
+| 21 | Bank lends to the Treasury; Treasury pays interest weekly from its income; Bank pays depositors 80 %; agents' credits held at the Bank with no lock; Insurer reserve earns interest as a depositor | `bank-active.ts` (S1405) | bank-active.test.ts, conservation-bank.property.test.ts | built and tested |
+| 22 | Treasury lends to the Insurer | none | none | not built, by the owner's decision (the Treasury does not lend to the Insurer) |
 | 23 | Credit-flow report for the Bank, deposits, Insurer and the Courts | `creditFlowsOf` (DK1452) | credit-flows-report.test.ts | built and tested |
 | 24 | Random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | conservation-bank.property.test.ts (DK1451) | the same | built and tested |
 

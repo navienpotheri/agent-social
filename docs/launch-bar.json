@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 82,
-  "withdraw": 103,
+  "withdraw": 102,
   "after": 309,
-  "total": 494
+  "total": 493
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -5864,19 +5864,6 @@
    "pri": "A",
    "status": "open",
    "gap": "The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live r…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1458",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Bank is passive. The owner's target (2026-11-21): agents, the Insurer and, where it fits, the Treasury hold their credits in Bank accounts; the Bank lends what it holds, including to the Treasury…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

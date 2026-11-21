@@ -11243,6 +11243,181 @@
       "valid": false
     },
     {
+      "name": "valid_bank_deposit",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 300,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_withdraw",
+      "schema": "bank_act",
+      "instance": {
+        "act": "withdraw",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_borrow",
+      "schema": "bank_act",
+      "instance": {
+        "act": "borrow",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_repay",
+      "schema": "bank_act",
+      "instance": {
+        "act": "repay",
+        "amount": {
+          "value": 200,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_interest",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W46"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_interest_week_53",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W53"
+      },
+      "valid": true
+    },
+    {
+      "name": "bank_unknown_act",
+      "schema": "bank_act",
+      "instance": {
+        "act": "lend",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_deposit_no_holder",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_deposit_no_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:users:bank-holder"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_withdraw_no_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "withdraw",
+        "holder": "did:web:example.com:users:bank-holder"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_borrow_names_a_holder",
+      "schema": "bank_act",
+      "instance": {
+        "act": "borrow",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_no_week",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_bad_week",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W54"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_week_zero",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W00"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_names_an_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W46",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_repay_extra_field",
+      "schema": "bank_act",
+      "instance": {
+        "act": "repay",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "rate": 25
+      },
+      "valid": false
+    },
+    {
       "name": "valid_market_risk_model",
       "schema": "market_act",
       "instance": {

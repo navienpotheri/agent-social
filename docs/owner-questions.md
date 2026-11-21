@@ -2,13 +2,17 @@
 
 One block per register row. Each question is the exact decision needed; the work that does not depend on the answer is built and tested already. A block is deleted when the owner answers it and the answer is recorded in [owner-decisions.md](owner-decisions.md).
 
-## DK121 (built, closed): the share of a juror's stake lost on a reversal
+## DK121 (ANSWERED 2026-11-21, closed): the share of a juror's stake lost on a reversal
+
+**Answer (the lead, delegated by the owner):** keep the share at 20 %; revisit with real reversal data. Nothing to change in the code.
 
 - **Asked:** a first-panel juror whose ruling is reversed on appeal loses 20 % of its stake to the Treasury (at least 1 credit, at most its stake). Courts.md proposed 20 %; no decision records it. Keep 20 %, or choose another number between 0 and 100 %?
 - **Why it matters:** the share is `JUROR_PENALTY_PERMILLE` in `packages/asp-log/src/courts-rules.ts`; changing it after the beta opens changes how a replayed log treats old reversals, so a change needs a date from which it applies (the same pattern as the bond floor cutover).
 - **Default in force:** 20 %.
 
-## DK1349: the numbers for an active Bank (one question; nothing that changes a flow is built until it is answered)
+## DK1349: the numbers for an active Bank (ANSWERED 2026-11-21; built as DK1458, S1405)
+
+**Answer (the owner, relayed by the lead):** everything accepted with one change: the cycle is weekly, not monthly. Interest is paid every week (Monday); the Treasury's borrowing rate is 0.25 % a week of what it owes (about 1.1 % a month), paid only from that week's Treasury income (job tax and fees), the unpaid part carrying to the next week and nothing minted; the Bank keeps 20 % and pays 80 % to depositors by balance and days held; no deposit lock; the Bank lends at most 70 % of what it holds; the Insurer's reserve is a Bank deposit and the Treasury does not lend to it; the Treasury may borrow up to 50 % of what the Bank holds for its own budget lines. The table below is the question as asked.
 
 The structure is drawn, today and as you want it, in [institutions/credit-structure.md](institutions/credit-structure.md). Everything that does not change a flow is built first (rows DK1451 to DK1456; the register shows which are closed). To build the active Bank (row DK1458) one decision is needed: **do you accept these numbers, or give others?**
 

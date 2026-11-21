@@ -17,8 +17,9 @@ async function world() {
   await kit.mint(TREASURY_DID, 5000);
   const holders: Party[] = [];
   for (const n of ["a", "b", "c", "d"]) { const p = await kit.person(`ba-${n}`); await kit.mint(p.did, 6000); holders.push(p); }
-  const buyer = await kit.agent("ba-buyer", await kit.person("ba-buyer-sponsor"), 1);
-  await kit.mint(buyer.did, 2000);
+  const buyer = await kit.agent("ba-buyer", await kit.person("ba-buyer-sponsor"), 3);
+  await kit.mint(buyer.did, 3000);
+  await kit.job(buyer, 5000);
   const bal = (d: string) => kit.log.balance(d);
   const audit = async (why: string) => { const a = await kit.log.creditAudit(); assert.equal(a.verdict, "balanced", `${why}: ${a.problems.join("; ")}`); return a; };
   const bank = (by: Party, body: Record<string, unknown>) => kit.mk("bank_act" as never, by, body, null, { subject: null });
@@ -44,7 +45,7 @@ describe("deposits at the Bank have no lock", () => {
     assert.equal(await w.bal(BANK_DID), 400, "the Bank holds it");
     assert.equal(await refused(w.kit.put(w.withdraw(a, 100, b))), "bank_not_the_holder");
     assert.equal(await refused(w.kit.put(w.withdraw(a, 401))), "withdraw_exceeds_deposit");
-    assert.equal(await refused(w.kit.put(w.deposit(b, 0))), "amount_not_positive" === "x" ? "" : await refused(w.kit.put(w.deposit(b, 0))));
+    assert.ok(await refused(w.kit.put(w.deposit(b, 0))), "a deposit of nothing is refused");
     await w.kit.put(w.withdraw(a, 400));
     assert.equal(await w.bal(a.did), start, "whole, the same minute: no lock");
     assert.equal(await w.bal(BANK_DID), 0);
@@ -169,9 +170,9 @@ describe("the weekly interest", () => {
     kit.at("2026-11-02T00:00:10Z");
     await kit.put(w.deposit(a, 3000));
     await kit.put(w.borrow(1500));
-    // the Insurer holds 1000 (a Treasury budget payment, as always)
-    const b = await kit.put(kit.mk("budget", treasury, { institution: INSURER_DID, period: "2026-11", amount: credit(1000), purpose: "charter" }, null, { cosigners: [(await import("./academy-kit.ts")).owner] }));
-    await kit.put(kit.mk("treasury_payment", treasury, { budget: b, to: INSURER_DID, amount: credit(1000) }, null));
+    // the Insurer holds 3000 (a Treasury budget payment, as always)
+    const b = await kit.put(kit.mk("budget", treasury, { institution: INSURER_DID, period: "2026-11", amount: credit(3000), purpose: "charter" }, null, { cosigners: [(await import("./academy-kit.ts")).owner] }));
+    await kit.put(kit.mk("treasury_payment", treasury, { budget: b, to: INSURER_DID, amount: credit(3000) }, null));
     kit.at("2026-11-11T12:00:00Z"); await w.earn(); await w.earn();
     kit.at("2026-11-16T00:10:00Z");
     const insurer0 = await w.bal(INSURER_DID);
@@ -179,7 +180,7 @@ describe("the weekly interest", () => {
     const n = (await w.note("2026-W46"))!;
     const got = (await w.bal(INSURER_DID)) - insurer0;
     assert.equal(got, n.payouts.find((p) => p.did === INSURER_DID)?.amount ?? 0);
-    assert.ok(got >= 1, `the Insurer was paid ${got} as a depositor of 1000 beside 3000`);
+    assert.ok(got >= 1, `the Insurer was paid ${got} as a holder of 3000 beside a depositor of 3000`);
     await w.audit("insurer interest");
   });
 });
@@ -220,6 +221,29 @@ describe("a run on the Bank", () => {
     assert.equal((await kit.log.creditAudit()).minted, supply, "a run delays payment; it creates and loses nothing");
     await w.audit("run, all paid");
     assert.equal((await kit.log.verify()).ok, true, "a replica replays the run the same way");
+  });
+});
+
+describe("the 70 % lending ceiling covers credit lines too", () => {
+  test("once the Bank holds deposits a credit line that would take what is lent and promised above 70 % of what it holds is refused, naming the reserve", async () => {
+    const { cosign } = await import("@agent-social/asp-core");
+    const { bankP, hashOf, owner } = await import("./academy-kit.ts");
+    void owner;
+    const w = await world();
+    const kit = w.kit;
+    await kit.put(w.deposit(w.holders[0], 100)); // the Bank holds 100: it may lend or promise 70
+    const principal = await kit.person("cl-principal"); await kit.mint(principal.did, 1000);
+    const sponsor = await kit.person("cl-sponsor"); await kit.mint(sponsor.did, 200);
+    const line = async (name: string, amount: number) => {
+      const agent = await kit.agent(name, sponsor, 1);
+      const c = cosign(kit.mk("contract", principal, { principal: principal.did, performer: agent.did, bank: bankP.did, purpose: `job ${name}`, price: credit(100), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: hashOf("0"), offer: hashOf("1") } }, null, { subject: agent.did }), agent);
+      await kit.put(c);
+      return kit.mk("credit_line", bankP, { borrower: agent.did, guarantor: sponsor.did, contract: c.id, amount: credit(amount), fee: 0, due: new Date(Date.parse(kit.now()) + 7 * DAY).toISOString().replace(/\.\d{3}Z$/, "Z") }, null, { subject: agent.did, cosigners: [agent, sponsor] });
+    };
+    await kit.put(await line("cl-first", 60));
+    assert.equal(await refused(kit.put(await line("cl-second", 20))), "bank_liquidity", "60 promised and 20 more is 80 of the 100 held: over 70");
+    await kit.put(await line("cl-third", 10)); // 70 of 100: exactly the ceiling
+    await w.audit("lines under the ceiling");
   });
 });
 void at;
