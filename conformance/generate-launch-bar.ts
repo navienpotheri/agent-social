@@ -40,9 +40,29 @@ if (import.meta.url === new URL(process.argv[1] ?? "", "file://").href || proces
   lines.push("", `### Bucket 3: after launch`, "", `| ID | Pri | Status | Why it can wait | What the beta says meanwhile |`, `|---|---|---|---|---|`);
   for (const e of entries.filter((x) => x.bucket === "after")) lines.push(`| ${e.id} | ${e.pri} | ${e.status} | ${short(e.why, 120)} | ${short(e.says!, 100)} |`);
 
+  // The page header for the owner: every number here is computed, so it cannot go stale.
+  const pri = (x: string) => entries.filter((e) => e.pri === x).length;
+  const CORE = ["DK1312", "DK1340", "DK1341", "O12", "O13", "O11", "O2", "T12", "T3", "T4", "U16", "DK64", "E10", "E11", "E8", "DK530", "H4", "M2", "US4", "CY12"];
+  const REDUCED = [...CORE, "DK733", "DK854", "DK546", "DK740", "LW1", "DK1344", "DK1342", "P29", "T26", "T21", "O18", "E2", "E5", "U9", "U1", "T1", "T2", "GV6", "E9", "O19", "U8", "DK1348", "DK1204"];
+  const hoursOf = (ids: string[]) => entries.filter((e) => e.bucket === "must" && ids.includes(e.id)).reduce((a, e) => a + e.hours, 0);
+  const dateAfter = (h: number) => { const d = new Date(Date.UTC(2026, 10, 21)); d.setUTCDate(d.getUTCDate() + Math.ceil(h / 10)); return d.toISOString().slice(0, 10); };
+  const coreH = hoursOf(CORE), redH = hoursOf(REDUCED);
+  const summaryText = [
+    `**The date 25 to 26 November cannot hold.** ${entries.length} register rows are not closed (${pri("A")} at priority A, ${pri("B")} at B, ${pri("C")} at C). Sorted:`, "",
+    `- **Must close before launch: ${count("must")} rows, ${hours.toFixed(0)} worker-hours.** ${flagN("D")} need your decision, ${flagN("L")} a live run, ${flagN("X")} an outside party and ${flagN("O")} an action only you can take (GitHub settings, the deployed start line, a Mac).`,
+    `- **Withdraw the claim until done: ${count("withdraw")} rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.`,
+    `- **After launch: ${count("after")} rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.`, "",
+    "Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):", "",
+    "| Bar | Worker-hours | Earliest date |", "|---|---|---|",
+    `| **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (${CORE.length} rows, section 4) | ${coreH.toFixed(0)} | **${dateAfter(coreH)}** |`,
+    `| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (${REDUCED.length} rows) | ${redH.toFixed(0)} | ${dateAfter(redH)} |`,
+    `| **Full**: all ${count("must")} must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | ${hours.toFixed(0)} | ${dateAfter(hours)} |`, "",
+    "The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to \"withdraw\". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as \"not open yet\" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.", "",
+    "**What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.",
+  ].join("\n");
   const path = new URL("docs/launch-bar.md", root);
   const md = readFileSync(path, "utf8");
-  const out = md.replace(/<!-- BEGIN TABLES -->[\s\S]*<!-- END TABLES -->/, `<!-- BEGIN TABLES -->\n${lines.join("\n")}\n<!-- END TABLES -->`);
+  const out = md.replace(/<!-- BEGIN TABLES -->[\s\S]*<!-- END TABLES -->/, `<!-- BEGIN TABLES -->\n${lines.join("\n")}\n<!-- END TABLES -->`).replace(/<!-- BEGIN SUMMARY -->[\s\S]*<!-- END SUMMARY -->/, `<!-- BEGIN SUMMARY -->\n${summaryText}\n<!-- END SUMMARY -->`);
   writeFileSync(path, out);
   console.log(JSON.stringify({ must: count("must"), withdraw: count("withdraw"), after: count("after"), hours, D: flagN("D"), L: flagN("L"), X: flagN("X"), O: flagN("O") }));
 }
