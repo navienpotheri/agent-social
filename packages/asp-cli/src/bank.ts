@@ -2,6 +2,7 @@
  * `asp bank line | default | statement | show` (bank-insurer.md; register row DK19; spec-delta S280): a credit line for a newcomer's first bond, the Bank's signed default against the guarantor, a statement, and
  * what a holder owes. The Bank's key is the operator's during the beta; the borrower and the guarantor countersign the line with their own keys. Credits are accounting entries, not money.
  */
+import { readFileSync, writeFileSync } from "node:fs";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { BANK_DID, TREASURY_DID, rewardFor } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
@@ -14,7 +15,7 @@ export interface BankOpts {
   now: () => string;
   rest?: string[];
   signerFor: (did: string) => Signer;
-  flags: { week?: string; deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string };
+  flags: { week?: string; deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string; mentor?: string; protege?: string; note?: string; out?: string; file?: string; /** The words after the subcommand (`asp bank mentor offer`: ["offer"]). */ rest?: string[] };
 }
 
 const DAY = 86_400_000;
@@ -152,6 +153,30 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     o.io.out(off.eligible ? `${f.agent}: the Bank would lend up to ${off.limit} credits, guaranteed by ${off.guarantor} (who must hold ${off.guarantorNeeds}); ${off.reserveFree} free in the reserve` : `${f.agent}: no line now: ${off.reasons.join("; ")}`);
     return 0;
   }
+  if (sub === "mentor") {
+    // The mentorship (DK392, DK1220): the protege proposes and signs, the mentor countersigns, and the log checks the mentor's tier, sponsor, record and number of proteges.
+    const act = f.rest?.[0];
+    if (act === "offer") {
+      if (!f.protege || !f.mentor) throw new BankUsage("asp bank mentor offer --protege <your did> --mentor <the mentor's did> [--note <what you want help with>] [--out <offer.json>]");
+      if (f.protege === f.mentor) throw new BankUsage("a mentor is another agent, not the protege itself");
+      const rec = createRecord({ type: "mentorship", issuer: f.protege, subject: f.protege, prev: null, body: { mentor: f.mentor, protege: f.protege, ...(f.note ? { note: f.note.slice(0, 300) } : {}) }, issued_at: o.now() }, o.signerFor(f.protege));
+      const text = JSON.stringify(rec);
+      if (f.out) { writeFileSync(f.out, text + "\n", { mode: 0o600 }); o.io.out(`mentorship offer from ${f.protege} to ${f.mentor} signed by the protege and written to ${f.out}; the mentor runs: asp bank mentor accept --file ${f.out} --by ${f.mentor}`); } else o.io.out(text);
+      return 0;
+    }
+    if (act === "accept") {
+      if (!f.file || !f.by) throw new BankUsage("asp bank mentor accept --file <offer.json> --by <the mentor's did>");
+      let rec: AspRecord;
+      try { rec = JSON.parse(readFileSync(f.file, "utf8")) as AspRecord; } catch { throw new BankUsage(`${f.file} is not a mentorship offer (asp bank mentor offer writes one)`); }
+      const b = rec?.body as { mentor?: string; protege?: string } | undefined;
+      if (rec?.type !== "asp.mentorship/v0.2" || !b?.mentor || !b?.protege) throw new BankUsage(`${f.file} is not a mentorship offer (asp bank mentor offer writes one)`);
+      if (b.mentor !== f.by) throw new BankUsage(`this offer names ${b.mentor} as the mentor; only that agent can accept it (you passed --by ${f.by})`);
+      const res = await o.log.append(cosign(rec, o.signerFor(f.by)));
+      o.io.out(`mentorship ${res.id}: ${b.mentor} now mentors ${b.protege}; it may guarantee the protege's first credit line in place of a sponsor, for 5% of the protege's first three settlements (log seq ${res.seq})`);
+      return 0;
+    }
+    throw new BankUsage("asp bank mentor offer --protege <did> --mentor <did> [--note <text>] [--out <offer.json>] | accept --file <offer.json> --by <the mentor's did>");
+  }
   if (sub === "show") {
     const all = await bankRecords(o.log);
     const lines = all.filter((r) => r.type === "asp.credit_line/v0.2" && (!f.agent || r.body.borrower === f.agent));
@@ -163,5 +188,5 @@ export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<num
     if (!lines.length) o.io.out("no credit line");
     return 0;
   }
-  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | clear --line <id> --amount <n> | offer --agent <did> | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
+  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | clear --line <id> --amount <n> | offer --agent <did> | mentor offer|accept (a mentor for a newcomer: --protege <did> --mentor <did> --out <file>, then --file <file> --by <mentor>) | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
 }

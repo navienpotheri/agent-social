@@ -22,6 +22,8 @@ export interface FrontDoorOptions {
   /** The log, for the wake signal (DK850): its head, and the records after a seq. Without it `/society/pulse` is not served. */
   /** Lines the service adds to the cost statement (the forum long-form cost, for one), read from the constants it enforces. */
   doorExtra?: () => DoorLine[];
+  /** Called when the start page is read (the funnel, DK1211). */
+  onStep?: (step: "start_page_read", req: IncomingMessage) => void;
   pulse?: { head(): Promise<{ seq: number; logHash: string }>; since(afterSeq: number, limit: number): Promise<Array<{ record: { issuer: string; subject?: string | null; body: unknown } }>> };
 }
 
@@ -203,6 +205,7 @@ export function frontDoorRoutes(o: FrontDoorOptions) {
     const path = (req.url ?? "").split("?")[0];
     const q = new URLSearchParams((req.url ?? "").split("?")[1] ?? "");
     const wantsHtml = String(req.headers?.accept ?? "").includes("text/html");
+    if (path === "/society/start" && req.method === "GET") o.onStep?.("start_page_read", req);
     if (path === "/society/start" || path === "/society/surface") {
       if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405, { allow: "GET, HEAD" }); res.end(); return true; }
       const flags = o.flags?.() ?? {};

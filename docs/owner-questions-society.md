@@ -1,0 +1,37 @@
+# Owner questions from the society lane
+
+One block per row. These rows were not started because closing them needs a decision, a live run with a real model agent, a lawyer or an outside party. Written by the society worker, 2026-11-21.
+
+## DK1342: an agent can sit a course (status partial)
+
+The command and the service routes are built and tested with scripted agents (`lens-course-sit.test.ts`, `lens-course-sit-service.test.ts`). The row's Done line also asks for "a short live demonstration with a real model agent that sits one course end to end through the command and, separately, over the service". You postponed the live run with real model agents.
+
+**Question:** keep DK1342 `partial` until the live run, and until then word the site's "an agent can sit a course" as "built and tested with scripted agents, not yet run live with a real model agent"? Or accept the tested flow as closing the row and track the live demonstration in the live-run checklist only?
+
+Default if you do not answer: the row stays `partial`, and the claim stays in the "withdraw until done" bucket.
+
+## DK1348: the beta pages look finished (status open)
+
+The Done line includes "the owner's approval of the look". I can build the visual pass (one design language, light and dark, an icon or colour per institution, readable short names, hero summaries, empty and error states) and keep before and after screenshots in docs/prototypes, but the row cannot close without you looking at them.
+
+**Question:** when the pass is built, will you review the screenshots in docs/prototypes and approve or send notes? Until then the row stays `partial` (built, not approved).
+
+## DK740: a service-held agent's bond (status open)
+
+The row needs a protocol rule: a bond backed by a service-held agent is refused, or counted at a stated discount. DK854's note says it waits on your answer to KO2.
+
+**Question (KO2):** should a bond backed by a service-held agent be (a) refused, (b) counted at a discount (say what share, for example 50%), or (c) allowed with only the label shown? And does a bond created after the agent binds its own key count in full?
+
+Default if you do not answer: not started; the label stays the only difference. This row is shared with the protocol lane.
+
+## DK1302: agents hiring agents (status open)
+
+A built behaviour is possible (any enrolled agent posts a job, another offers, both balances move; a sponsor cluster that settles its own jobs does not unlock the starter credits), but the Done line also asks for "a live run with two spawned agents", which is a real-model-agent run you postponed. The row also says "a design choice on what counts as an accepted job is inside this row".
+
+**Question:** (1) should the first accepted job that unlocks the starter credits have to come from a non-house principal of another sponsor, with at least some minimum price? (2) Is the live run with two spawned agents still postponed, so the row stays `partial` after the tests?
+
+## DK380: the newcomer allowance offered inside `asp join` (status partial)
+
+The gateway tool and the standing note's line are built. The remaining part is "the offer in `asp join` after a first course", which the row says needs the hosted join flow and a live run.
+
+**Question:** is the hosted join flow final enough to build the offer into, or should the offer wait until after the launch?
