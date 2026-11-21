@@ -1,28 +1,26 @@
 # Launch bar: what must be true before the public beta with ads (row DK1312)
 
-Drafted 2026-11-21 by the launch-bar worker and refreshed as rows close. **Status: drafted, waiting for the owner.** The row closes only when the owner approves this page. It changes no status in the register. The tables below are generated from the register by `npm run launch-bar` (`conformance/generate-launch-bar.ts`; the classification is in `conformance/launch-bar-data.ts`; a machine-readable copy is [launch-bar.json](launch-bar.json)). A test fails when a row that is not closed is missing from it or sits in two buckets. Statuses were read on 2026-11-21 by the rule the scope test uses (the status is the last cell).
+Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971`. **Status: drafted, waiting for the owner.** The row closes only when the owner approves this page. It changes no status in the register. The tables below are generated from the register by `npm run launch-bar` (`conformance/generate-launch-bar.ts`; the classification is in `conformance/launch-bar-data.ts`; a machine-readable copy is [launch-bar.json](launch-bar.json)). A test fails when a row that is not closed is missing from it or sits in two buckets. Statuses were read on 2026-11-21 by the rule the scope test uses (the status is the last cell).
 
 ## 1. One page for the owner
 
-<!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 502 register rows are not closed (232 at priority A, 214 at B, 49 at C). Sorted:
+**The date cannot hold.** 477 register rows are not closed (233 at priority A, 199 at B, 45 at C). Sorted:
 
-- **Must close before launch: 71 rows, 331 worker-hours.** 14 need your decision, 14 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 109 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 322 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **Must close before launch: 88 rows, 319 worker-hours (DK1405, DK1303 and DK1343 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Withdraw the claim until done: 98 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **After launch: 289 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
-Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
+**What one worker can do by 26 November.** Five days of working time is about 50 worker-hours (an assumption: about 10 productive build-hours a day inside the usage limits). Three honest dates:
 
-| Bar | Worker-hours | Earliest date |
+| Bar | Worker-hours | Earliest honest date at about 10 hours a day |
 |---|---|---|
-| **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 40 | **2026-11-26** |
-| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 81 | 2026-11-30 |
-| **Full**: all 71 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 331 | 2026-12-25 |
+| **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 79 | **about 3 December** |
+| **Reduced**: Core plus enrolment (DK733, DK854, DK546, DK740), the run log, token recovery, export and close, and housekeeping (52 rows, 166 hours) | 166 | about 13 December |
+| **Full**: all 88 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 319 | about 23 December |
 
-The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
+These are the earliest the build can finish, not promises: they assume none of your decisions or live runs arrives late. The live run with a real model agent is postponed by you, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **My recommendation:** do not announce 25 to 26 November. If the date is fixed, either open quietly to the public on 26 November with no ads (needs only the legal minimum DK1340 and the claims audit DK1307 on top of today's state, plus the forum, map and house agents described as "not open yet") and start ads when Core is done, or move the ads to about 3 December.
 
-**What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
-<!-- END SUMMARY -->
+**What you decide first** (section 3, one question per row): engage counsel for the legal minimum (DK1340), flags 1 and 5, whether the forum opens at launch, whether to start the outside security review (SC1), and the ten-minute GitHub settings (O11 to O13).
 
 ## 2. What the three buckets mean
 
@@ -37,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 71 (331.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Must close before launch | 70 (323.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 109 |
 | After launch | 322 |
-| Total not closed | 502 |
+| Total not closed | 501 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -81,7 +79,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1360 | ? | partial | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
-| DK1382 | A | open | 8 | L | - | the sandbox tenant |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
@@ -615,7 +612,7 @@ Capacity: about 10 build-hours a day for one worker, with a hard stop at 97% of 
 | 3 to 12 Dec | The rest of Reduced: E5, E2, P29, T26, O18, T21 and the live runs the owner can take | |
 | 13 to 22 Dec | The Full bar: forum, society map, house agents, DK76 engine, DK121, DK9 | |
 
-**Core rows**: DK1312, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
+**Core rows** (about 79 hours): DK1312, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
 
 ## 5. Launch checks
 

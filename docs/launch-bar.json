@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 70,
   "withdraw": 109,
   "after": 322,
-  "total": 502
+  "total": 501
  },
- "mustWorkerHours": 331.2,
+ "mustWorkerHours": 323.2,
  "entries": [
   {
    "id": "D3",
@@ -5960,17 +5960,6 @@
    "flags": "",
    "why": "API stability guarantees and webhooks: the follow-on enterprise set",
    "says": "the protocol is versioned 0.2"
-  },
-  {
-   "id": "DK1382",
-   "pri": "A",
-   "status": "open",
-   "gap": "An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it.",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the sandbox tenant"
   },
   {
    "id": "DK1383",
