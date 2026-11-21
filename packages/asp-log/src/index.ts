@@ -1,5 +1,8 @@
 export { PLATFORM_DID } from "./economy.ts";
 export { DEFAULT_TOWN_RULES, DEFAULT_RESERVED, VOTABLE_KINDS, countVotes, voterWeightMilli, type TownRules, type Voter, type Tally } from "./town-hall.ts";
+export { stressReplay, dynamicsLine, type StressResult, type StressEvent, type DynamicsLine } from "./insurer-stress.ts";
+export { basketRatio, dormancyShare, claimsInDay, BASKET_MIN_EARNERS, BASKET_WINDOW_DAYS, type BasketReport } from "./guard-basket.ts";
+export { sizeBondSplit, modelPremium, MEASURED_THROUGH, type SplitInput, type SplitSuggestion } from "./bond-sizing.ts";
 export { sizeBond, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
 export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
@@ -53,7 +56,7 @@ export { PROFILE_LIMITS, THEME_PREFIX, LAYOUT_PREFIX, textProblem, homeView, hom
 export { EVENTS_DID, ENTRY_SERVICE, EVENTS_CATALOGUE, MIN_SPONSORS, MAX_ENTRIES_PER_SPONSOR, DEFAULT_SEATS_PER_SPONSOR, EVENT_NOTICE_MS, defaultPrizes, calendar as eventsCalendar, meeting, souvenirsOf, eventsReconciliation, runEvents, type EventBody, type EventView, type EventsRun } from "./events.ts";
 export { societyHealth, activityFromRecords, healthFigure, type Activity, type HealthEvent, type HealthOptions, type HealthReport, type HealthAlarm } from "./society-health.ts";
 export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
-export { FAILED_JOB_RATE_BY_CLASS, INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";
+export { mutualPoolDid, fleetFactorPermille, MUTUAL_MAX_PARTICIPANTS, FAILED_JOB_RATE_BY_CLASS, INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";
 export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_PROBLEM, DEFAULT_SPLIT, runChecker, sha256Text, board as researchBoard, researchReconciliation, runResearch, type ProblemView, type ResearchRun } from "./research.ts";
 export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, Collector, mayCollect, brier, surprisal, meanSurprisal, klBits, normativePosterior, calibration as calibrationOf, beliefDiff, merkleRoot, textHash, buildDigest, lensRecalibration, simulateSociety, rng, round3, type Signal, type ConsentView, type DigestView, type SimAgent } from "./telemetry.ts";
 export { TELEMETRY_DID } from "./telemetry-rules.ts";
@@ -112,4 +115,4 @@ export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage
 export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";
 export { readOrgRecords } from "./audit-export.ts";
 export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./token-watch.ts";
-export { respondToBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
+export { respondToBreach, PendingBreaches, BREACH_CAUSES, type PendingBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";

@@ -38,6 +38,10 @@
     },
     "valid_to": {
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "mutual": {
+      "description": "A fleet's mutual pool (bank-insurer.md 13.2, register row DK185 and BI-14; spec-delta S1568): the policy is sold into the pool of this fleet. The holder is a member of the fleet, the pool is open, the premium is the table's premium re-rated by the fleet's own record, the Insurer's share of it goes to the pool and a claim is paid from the pool first, then from the Insurer's reserve above its floor.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
     }
   }
 }

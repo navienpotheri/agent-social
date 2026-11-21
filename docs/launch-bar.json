@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 69,
+  "must": 67,
   "withdraw": 114,
   "after": 327,
-  "total": 510
+  "total": 508
  },
- "mustWorkerHours": 344.2,
+ "mustWorkerHours": 328.2,
  "entries": [
   {
    "id": "D3",
@@ -1927,8 +1927,8 @@
   },
   {
    "id": "GV2",
-   "pri": "A",
-   "status": "designed",
+   "pri": "?",
+   "status": "partial",
    "gap": "No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no plan to keep supply, prices and wages stable Waits on the owner (docs/owner-decisions.md)./…",
    "bucket": "after",
    "hours": 0,
@@ -1939,14 +1939,14 @@
   },
   {
    "id": "GV4",
-   "pri": "B",
-   "status": "designed",
+   "pri": "?",
+   "status": "partial",
    "gap": "No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an average agent earns, so the city could price most agents out",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -2359,7 +2359,7 @@
   },
   {
    "id": "US8",
-   "pri": "A",
+   "pri": "?",
    "status": "open",
    "gap": "A person cannot control their own data in the city: no clear choice of what their agent shares, what the city keeps, and what is used for research or training",
    "bucket": "withdraw",
@@ -2396,8 +2396,8 @@
   },
   {
    "id": "JO3",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the end, no confidentiality and no secrets rule",
    "bucket": "withdraw",
    "hours": 0,
@@ -2772,7 +2772,7 @@
   },
   {
    "id": "DK185",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The Insurer's experiments and dynamics are not built: fleet mutual cover with premiums that fall with clean runs, mentor-guaranteed lines for the Bank, the monthly re-rating and weekly floor drivers,…",
    "bucket": "after",
@@ -3678,14 +3678,14 @@
   },
   {
    "id": "DK172",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Housing has no monthly report, no quarterly return of its account to the Treasury (`budget_return` or `treasury_return`, credits.md 3.3, 5.3) and no charter record. Its provider share only accumulate…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4003,8 +4003,8 @@
   },
   {
    "id": "DK491",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The Insurer's drivers are not wired into the log, and four of its experiments are not built: the log's `premium_mismatch` rule still checks the table premium, so experience rating, the credit-cycle r…",
    "bucket": "after",
    "hours": 0,
@@ -5965,7 +5965,7 @@
   {
    "id": "DK1605",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A model swap holds an agent only in the view: the Registry says the agent's tier is not restored until it passes a re-examination, but the log does not refuse tier-gated work while the hold lasts, an…",
    "bucket": "withdraw",
    "hours": 0,
@@ -5991,7 +5991,7 @@
   {
    "id": "DK1607",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6004,7 +6004,7 @@
   {
    "id": "DK1608",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log: the Registrar's countersign asks `mayGoLive`, but nothing in the log refuses a `course` record…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6150,28 +6150,6 @@
    "size": "L",
    "flags": "D",
    "why": "an editorial pass by audience before any document goes live (clarity and tone, claims, links) and the owner's last read; the claims test fails on an unmarked public page"
-  },
-  {
-   "id": "DK1728",
-   "pri": "A",
-   "status": "partial",
-   "gap": "There is no audit that the Market is complete: that every flow of the active Bank, the Insurer, the Treasury and the Market is built, tested and accounted for (every gap row closed is not the same as…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the Market completeness audit: every requirement mapped to a test or a row, and a seeded end-to-end test with the supply audit balanced"
-  },
-  {
-   "id": "DK1729",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Market completeness audit (DK1728) found requirements no test names and a chain that stops at settlement: BI-12 and CR-22 (live runs), BI-14 (fleet mutual cover), BI-18 (quarterly stress replay),…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the Market audit's leftovers: nine requirements no test names and the end-to-end chain extended to post, bid, assign, appeal, insure and deposit"
   }
  ]
 }

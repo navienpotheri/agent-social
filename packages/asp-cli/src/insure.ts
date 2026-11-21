@@ -3,7 +3,7 @@
  * terms. The Insurer's key is the operator's during the beta; the holder countersigns a policy and signs its own claim. Credits are accounting entries, not money; this is not insurance in a legal sense.
  */
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { INSURER_DID, payoutFor, premiumFor, reserveFloor, type Cover } from "@agent-social/asp-log";
+import { INSURER_DID, MEASURED_THROUGH, payoutFor, premiumFor, reserveFloor, type Cover } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 
 export class InsureUsage extends Error {}
@@ -13,14 +13,14 @@ export interface InsureOpts {
   io: { out: (l: string) => void; err: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { contract?: string; cover?: string; amount?: string; by?: string; policy?: string; event?: string; claim?: string; days?: string };
+  flags: { fleet?: string; pool?: string; contract?: string; cover?: string; amount?: string; by?: string; policy?: string; event?: string; claim?: string; days?: string; multiplier?: string };
 }
 
 const DAY = 86_400_000;
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 const cr = (n: number) => ({ value: n, unit: "credit" as const });
 
-async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; premium: number; holder: string; price: number }> {
+async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; premium: number; holder: string; price: number; why?: string }> {
   const f = o.flags;
   if (!f.contract || !f.cover || !f.by) throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder did> [--amount <insured credits>]");
   if (f.cover !== "bond_slash" && f.cover !== "failed_job") throw new InsureUsage("--cover is bond_slash or failed_job");
@@ -28,23 +28,25 @@ async function quote(o: InsureOpts): Promise<{ cover: Cover; insured: number; pr
   if (!contract || contract.record.type !== "asp.contract/v0.2") throw new Error(`${f.contract} is not a contract in the log`);
   const price = (contract.record.body as { price: { value: number } }).price.value;
   const insured = f.amount === undefined ? Math.min(price, f.cover === "bond_slash" ? 20 : Math.floor(price * 0.3)) : Math.trunc(Number(f.amount));
-  const rep = await o.log.log.reputationOf(f.by);
-  const strikes = rep?.strikes ?? 0;
-  return { cover: f.cover, insured, premium: premiumFor(f.cover, insured, price, rep?.qualifyingJobs ?? 0, strikes, await o.log.log.jobClassOf(f.contract)), holder: f.by, price };
+  const q = await o.log.log.insurerQuote({ contract: f.contract, cover: f.cover, holder: f.by, insured, at: o.now(), ...(f.pool ? { mutual: f.pool } : {}) });
+  return { cover: f.cover, insured, premium: q.premium, holder: f.by, price, ...(q.driven ? { why: q.why ?? "" } : {}) };
 }
 
 export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise<number> {
   const f = o.flags;
   if (sub === "quote") {
     const q = await quote(o);
+    if (q.why !== undefined) o.io.out(f.pool ? `pooled cover in the mutual pool of ${f.pool}: ${q.why}` : `the Insurer's price drivers are on: ${q.why}`);
     o.io.out(`${q.cover} cover for ${q.holder} on ${f.contract}: insured ${q.insured} credits, premium ${q.premium} credits (split 800 reserve, 150 Treasury, 50 burned); pays ${q.cover === "bond_slash" ? "50 % of a slash after a 20 % deductible, nothing for fraud (fault 800 or more)" : "up to 30 % of the price when the job fails"}`);
+    const risk = await o.log.log.riskQuoteFor(q.holder, { jobValue: q.price, damage: 0, insured: q.insured });
+    if (risk) o.io.out(`risk model (advisory, not charged): ${risk.modelPremium} credits for this cover, from ${risk.attemptRuns} runs with an attempt in ${risk.trials} and ${MEASURED_THROUGH.through} of ${MEASURED_THROUGH.attempts} measured attempts getting through; the table's ${q.premium} is what is charged`);
     return 0;
   }
   if (sub === "buy") {
     const q = await quote(o);
     const at = o.now();
     const insurerSigner = (() => { try { return o.signerFor(INSURER_DID); } catch { return undefined; } })();
-    let rec: AspRecord = createRecord({ type: "policy", issuer: insurerSigner ? INSURER_DID : q.holder, subject: q.holder, prev: null, body: { holder: q.holder, contract: f.contract, cover: q.cover, insured_amount: cr(q.insured), premium: cr(q.premium), valid_from: at, valid_to: iso(Date.parse(at) + (f.days === undefined ? 60 : Number(f.days)) * DAY) }, issued_at: at }, insurerSigner ?? o.signerFor(q.holder));
+    let rec: AspRecord = createRecord({ type: "policy", issuer: insurerSigner ? INSURER_DID : q.holder, subject: q.holder, prev: null, body: { ...(f.pool ? { mutual: f.pool } : {}), holder: q.holder, contract: f.contract, cover: q.cover, insured_amount: cr(q.insured), premium: cr(q.premium), valid_from: at, valid_to: iso(Date.parse(at) + (f.days === undefined ? 60 : Number(f.days)) * DAY) }, issued_at: at }, insurerSigner ?? o.signerFor(q.holder));
     if (insurerSigner) rec = cosign(rec, o.signerFor(q.holder)); // without the Insurer's key the holder signs the policy alone (DK387, S1011): the log sells it at the published premium
     const res = await o.log.append(rec);
     o.io.out(`policy ${res.id}: ${q.cover} cover, ${q.insured} insured, premium ${q.premium} paid (log seq ${res.seq})`);
@@ -85,10 +87,29 @@ export async function insureCmd(sub: string | undefined, o: InsureOpts): Promise
     if (!r.decisions.length) o.io.out("  no claim was decided in the period");
     return 0;
   }
+  if (sub === "pool-open" || sub === "pool-return" || sub === "pool-close") {
+    // The fleet mutual pool (bank-insurer.md 13.2, BI-14): the fleet's organisation opens it, returns its surplus to the members and closes it. The log computes every amount.
+    const act = sub.slice("pool-".length);
+    if (!f.fleet || !f.by) throw new InsureUsage("asp insure pool-open|pool-return|pool-close --fleet <fleet did> --by <the fleet's organisation did>");
+    const rec = createRecord({ type: "mutual_act" as never, issuer: f.by, subject: null, prev: null, body: { act, fleet: f.fleet }, issued_at: o.now() }, o.signerFor(f.by));
+    const res = await o.log.append(rec);
+    o.io.out(`mutual pool ${act} for ${f.fleet}: record ${res.id} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "stress") {
+    // The quarterly stress replay (BI-18, DK491): the last 90 days replayed with the claims multiplied, in simulation only; nothing is written.
+    const m = f.multiplier === undefined ? 2 : Number(f.multiplier);
+    if (!(m >= 1 && m <= 10)) throw new InsureUsage("--multiplier is from 1 to 10 (2 doubles the claims)");
+    const { stress: s, line } = await o.log.log.insurerStress(o.now(), m);
+    o.io.out(`stress replay of the last ${s.windowDays} days (simulation only, nothing is written): ${s.events} event(s), premiums to the reserve ${s.premiums}, claims paid ${s.claimsPaid}; the reserve started at ${s.startReserve}, its lowest as it happened was ${s.minActual}`);
+    o.io.out(`  ${s.note}  [${s.verdict}]`);
+    o.io.out(`still moving: ${line.note}`);
+    return s.verdict === "runs_dry" ? 1 : 0;
+  }
   if (sub === "reserve") {
     const reserve = await o.log.log.balance(INSURER_DID);
     o.io.out(`the Insurer's reserve: ${reserve} credits; the floor for a new sale is at least ${reserveFloor(0, 0)} (10 times the largest insured amount, or 1.5 times the expected 30-day claims, if more)`);
     return 0;
   }
-  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve | report [--days YYYY-MM]");
+  throw new InsureUsage("asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder> [--amount n] | stress [--multiplier n] | claim --policy <id> --event <settlement id> --by <holder> | decide --claim <id> | reserve | report [--days YYYY-MM]");
 }
