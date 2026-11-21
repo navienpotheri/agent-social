@@ -80,4 +80,4 @@ export { JUROR_NEW_PER_DAY } from "./panel.ts";
 export { AGENT_RECORD_DOES_NOT_PROVE, agentBadgeSvg, agentRecordHtml, buildAgentRecord, verifyAgentRecord, type AgentRecord } from "./agent-record.ts";
 export { didYouMean } from "./surface.ts";
 export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
-export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
+export { Funnel, FunnelTap, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";

@@ -100,6 +100,8 @@ const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 
 export interface ServerOptions {
   handle: LogHandle;
+  /** The funnel counters (row DK1211): counts the steps of the front door this server serves; anonymous. */
+  funnelTap?: import("./funnel.ts").FunnelTap;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
   signup?: Signup;
   /** Enrolling over plain HTTP (row DK733, flag `--http-enrol`): the handler of `POST /signup/http`. Absent means the route answers 403. */
@@ -195,6 +197,7 @@ export function createLogServer(opts: ServerOptions): Server {
       const address = clientAddress(req, !!opts.trustProxy);
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
+      opts.funnelTap?.observe(req, res, address);
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
       if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
@@ -311,6 +314,7 @@ export function createLogServer(opts: ServerOptions): Server {
         if (!leave) return tooMany(res, { ok: false, retryAfterSec: 1, why: "this tenant has too many requests in flight" });
         res.on("close", leave);
       }
+      opts.funnelTap?.authenticated(tenant.name, address, false);
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });
       let call: { target?: string; method?: string; args?: unknown[] };
@@ -321,6 +325,7 @@ export function createLogServer(opts: ServerOptions): Server {
       const args = Array.isArray(call.args) ? call.args : [];
       let fn: ((...a: unknown[]) => unknown) | undefined;
       const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
+      if (isWrite) opts.funnelTap?.authenticated(tenant.name, address, true);
       if (limits && isWrite) {
         const v = limits.checkWrite(tenant.name);
         if (!v.ok) return tooMany(res, v);

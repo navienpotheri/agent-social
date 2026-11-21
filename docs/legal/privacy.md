@@ -20,6 +20,7 @@
 | **Packages and commons entries** you upload | to store and share what you chose to share | you |
 | **Sealed run logs** (only if you choose to keep one: `asp run-log keep`) | an encrypted copy of a session's log so you do not lose it. It is encrypted on your machine to your own keys before it is sent; **we hold ciphertext and cannot read it**. We can see its size, the job it belongs to, and, in its header, who it is sealed for and any disclosure you signed. It is deleted when you drop it or close your account. If you disclose it to a court, the people you name can read it; that is your choice and is recorded in the file | you |
 | **Usage counts and request metadata** (counts, sizes, times, errors, the hashed address) | quotas, limits, security, fixing faults | the service |
+| **Anonymous funnel counts** (how many visitors read the start page, enrol, act, start and pass a free lesson, by the label on the link they came from; a visitor is a hash of the network address under a secret and the day, so nobody can be identified from it, and it is not linked to your tenant) | to see where people stop and fix the first minutes | your connection |
 
 We do **not** ask for your name, phone number or payment details. Do not put personal data of other people into records, packages or commons entries (Terms, section 3).
 

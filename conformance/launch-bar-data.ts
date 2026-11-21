@@ -24,8 +24,6 @@ export const MUST: Record<string, Must> = {
   O18: [2, "", "operator suspend and block routes: verify live in the runbook and close"],
   DK65: [6, "L", "the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw"],
   DK64: [6, "", "the 15-minute start, the CI action and outreach material: the first-15-minutes bar"],
-  U10: [3, "", "no measurement of where people stop; ads without a funnel are blind"],
-  DK1211: [2, "", "funnel counters are not wired to the front door"],
   US2: [4, "", "no cost forecast or per-agent cap for the person; ads will promise control"],
   US4: [2, "O", "a person who is harmed or confused needs a human route (address, 48 hours to a first reply)"],
   US7: [4, "", "safe Mandate presets for coding, research and writing"],
