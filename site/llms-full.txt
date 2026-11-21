@@ -774,6 +774,8 @@ For an operator.
 Every option of every command, as `asp --help` and `asp help all` print it.
 
 ```text
+#!/usr/bin/env node
+/**
 asp: the Agent Social portability tool. This is the complete reference (asp --help, asp help all). `asp` alone shows a short home; asp help <topic or words> explains by topic.
 
   asp | asp status | asp help [topic|words|all] | asp ask "<words>" [--yes] | asp init | asp trust [asp.yaml] | asp shim bash|zsh|powershell
