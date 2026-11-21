@@ -102,6 +102,10 @@ export interface GatewayOptions {
   tokenCap?: number;
   /** Called once as the run's tokens reach 50, 80 and 100 percent of `tokenCap` (DK1715); each is also a run-log event `budget_alert`. */
   onBudgetAlert?: (e: { percent: number; used: number; cap: number }) => void;
+  /** A file whose presence pauses the run (register row US1, `asp pause`): the gateway holds every request until the file is removed (`asp resume`), the stop switch still ends the run, and a hold longer than `maxPauseMs` (default 30 minutes) is refused. */
+  pauseFile?: string;
+  maxPauseMs?: number;
+
   fetch?: typeof fetch;
   /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
   telemetry?: GatewayTelemetry;
@@ -742,6 +746,18 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (req.method === "GET" && path === "/asp/summary") return json(res, 200, summary());
       const style: "openai" | "anthropic" = path.startsWith("/v1/messages") || path.startsWith("/messages") ? "anthropic" : "openai";
       if (stopped) return json(res, 403, stoppedBody(style));
+      if (opts.pauseFile && existsSync(opts.pauseFile)) {
+        const t0 = Date.now();
+        rec?.event("paused", { held_from: new Date(t0).toISOString() });
+        while (existsSync(opts.pauseFile) && !stopped && Date.now() - t0 < (opts.maxPauseMs ?? 1_800_000)) await new Promise((r) => setTimeout(r, 100));
+        if (stopped) return json(res, 403, stoppedBody(style));
+        if (existsSync(opts.pauseFile)) {
+          const reason = "ASP gateway: the run was paused for longer than the limit and this request is refused; run asp resume and try again";
+          rec?.event("pause_timeout", { held_ms: Date.now() - t0 });
+          return json(res, 503, style === "openai" ? { error: { message: reason, type: "asp_paused", code: "asp_paused" } } : { type: "error", error: { type: "overloaded_error", message: reason } });
+        }
+        rec?.event("resumed", { held_ms: Date.now() - t0 });
+      }
       requests++;
       lastActivity = Date.now();
       const rawBody = await readBody(req);
