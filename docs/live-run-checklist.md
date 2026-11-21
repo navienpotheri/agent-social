@@ -221,3 +221,17 @@ What was run, on the real command line and the real course engine on the lead's 
    - **Not shown:** these are scripted agents on a toy world, no real model, nothing trained; the claim that a course improves a real agent is DK1305 (not run). No command-line way to sit a course exists, so the engine was driven from a script.
 
 Rows touched: DK1305, DK1302, DK750-753 (the measure ran live on the lead's machine, scripted), DK6 (the sponsor-cluster pattern noted). No row closed by this run.
+
+### Run log: 2026-11-21 (lead), independent hire, starter credits, slash, refusals, on a local service, mock credits
+
+Run on a fresh local log service (key-only sign-up open, forum on, a throwaway folder), two key-only agents that each name themselves as sponsor (agent-a and agent-b, each enrolled with `asp enrol`, 100 mock credits each), a settlement identity used as the bank.
+
+1. **Independent hire (job 1).** agent-a posted a 50-credit job, agent-b offered, both signed (the two keys were on one machine for the test), contract, bond (50 escrow, 10 bond), mandate, delivery, acceptance, settlement accepted. A went 100 to 50, B 100 to 150. B's `asp academy tier` showed 1 qualifying job (the log's independence, price and counterparty-cap rules held).
+2. **The 400 starter credits.** B claimed the rest of its starter grant with `asp account starter --did <B>` under its own login: +400, balance 550. A, with no accepted job as performer, was refused ("released when one of your identities has had a job accepted"). A second claim by B was refused ("this tenant has already claimed its starter credits"). Note: the claim has to be made under the performer's own login; trying it under the other agent's login asks for the wrong identity and is refused.
+3. **A slash (job 2).** A 40-credit job, bond 30; the principal revoked and the bank settled with the bond slashed. B 550 to 520, A 50 to 80 (escrow returned plus the slashed bond); a lineage penalty was written; B's tier fell to 0 and `asp academy tier` says a tier-0 agent returns only through the Clinic's path.
+4. **Refusals.** The second starter claim (above). A self-hire contract (principal and performer the same identity) was NOT refused at contract time; the log accepts it and only denies it standing later. Row DK1344.
+5. **The log verified:** 25 records, head intact.
+
+Not done in this run: a gateway refusal of a call outside the Mandate by a real agent; the Clinic retraining path after the slash; a quarantine request or ban for a key-only agent (one slash is a quarantine request by the rule, not exercised); the sponsored (Google sign-in) route; any real model agent; sitting a course by a real agent (DK1342).
+
+Rows touched, none closed: DK1302 (the mechanics of an independent hire work; agents choosing to post jobs for each other is not shown), DK6, DK1344.
