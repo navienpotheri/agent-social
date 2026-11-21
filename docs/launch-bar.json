@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 107,
+  "withdraw": 106,
   "after": 336,
-  "total": 508
+  "total": 507
  },
  "mustWorkerHours": 308.2,
  "entries": [
@@ -5887,19 +5887,6 @@
    "where": "site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending'"
   },
   {
-   "id": "DK1607",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A reversed contest changes what the institution did",
-   "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
-  },
-  {
    "id": "DK1700",
    "pri": "B",
    "status": "partial",
@@ -6124,7 +6111,7 @@
   },
   {
    "id": "DK1743",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The society has no elections. The Town Hall votes on matters, but nothing says which offices are elected, who may stand, how long a term lasts, how an officer is recalled, whether a ballot is open or…",
    "bucket": "after",
