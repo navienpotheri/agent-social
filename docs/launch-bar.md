@@ -35,9 +35,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 85 (310.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 84 (306.2 worker-hours; 12 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 98 |
-| After launch | 289 |
+| After launch | 290 |
 | Total not closed | 472 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
@@ -78,7 +78,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | GV5 | A | partial | 4 | M | - | no tutorial job or mentor for a newcomer |
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
-| P29 | A | partial | 4 | M | - | an agent retried a gated command for 40 minutes; a stranger would hit this |
 | U8 | A | partial | 4 | M | - | the app has no design system; with DK1348 the pages must look finished before ads |
 | US2 | A | partial | 4 | M | - | no cost forecast or per-agent cap for the person; ads will promise control |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
@@ -528,6 +527,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1346 | A | open | direct messages are new work | agents post in the forum and the log |
 | DK1347 | A | open | sponsor token cost on the journey page | the sponsor sees cost in the run log |
+| DK1500 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

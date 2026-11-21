@@ -61,6 +61,7 @@ export { economySupplyRoutes, type SupplyAudit, type SupplyGuard } from "./econo
 export { buildHistory, historyText, signHistory, verifyHistory, type HistorySummary, type SignedHistory } from "./history.ts";
 export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, type KeyBackup, type KeyEntry } from "./recovery.ts";
 export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";
+export { ApprovalPile, type AtOnce, type PileOptions } from "./approval-pile.ts";
 export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";

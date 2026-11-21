@@ -357,6 +357,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
+import { ApprovalPile } from "@agent-social/asp-package";
 import { MentorUsage, mentorCmd } from "./mentor.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
@@ -3335,6 +3336,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    onNotice: (m) => io.err(`  NOTICE   ${m}`),
     // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
     onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
   });
@@ -7009,8 +7011,9 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void; /** P29: tell the person once when approvals pile up; a name and facts for the run log. */ onEvent?: (name: string, data: Record<string, unknown>) => void; /** P29: the agent keeps asking for a call nobody approved: end the session (no strike, no slash). */ onGiveUp?: (why: string) => void }) {
   let stopped = false;
+  const pile = new ApprovalPile({ env: o.io.env });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
   // ASP_DEBUG_APPROVALS=1 keeps a timed trail of this side of the hand-off (gap T23).
@@ -7019,6 +7022,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const tmp = join(o.dir, `${id}.decision.tmp`);
     writeFileSync(tmp, JSON.stringify(d));
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
+    if (!d.approved && ApprovalPile.isUnanswered(d.reason)) pile.noteUnanswered();
     trail(`${id}: wrote the decision (${d.approved ? "approved" : `refused: ${d.reason ?? ""}`})`);
   };
 
@@ -7132,6 +7136,15 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         const path = join(o.dir, f);
         const req = JSON.parse(readFileSync(path, "utf8"));
         renameSync(path, join(o.dir, f.replace(".request.json", ".request.seen.json")));
+        if (pile.closed && !(o.filter && (req.tool === "Bash" || req.tool === "PowerShell") && req.scope === "shell.exec" && o.filter(req.summary) !== "ask")) {
+          // P29: nobody answered the last requests, so none is asked: no Checkpoint is raised and the hook is answered at once.
+          const piled = pile.refuseAtOnce(req.scope);
+          decide(req.id, { approved: false, reason: piled.reason });
+          trail(`${req.id}: refused at once (${pile.unansweredCount} unanswered)`);
+          if (piled.notify) { o.io.err(`  NOTICE   ${piled.notify}`); o.onEvent?.("approvals_piling", { unanswered: pile.unansweredCount }); }
+          if (piled.stop) { o.io.err(`  stopped  ${piled.stop}`); o.onEvent?.("approvals_stopped_run", { refused: pile.refusedAtOnceCount }); o.onGiveUp?.(piled.stop); }
+          continue;
+        }
         try { await handle(req); trail(`${req.id}: handled`); } catch (e) { trail(`${req.id}: failed: ${(e as Error).message}`); try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
       }
       await sleep(o.pollMs);
@@ -7281,7 +7294,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }), onEvent: (n, d) => runLog?.event(n, d), onGiveUp: () => { if (child.exitCode === null && child.signalCode === null) { killTree(child, "SIGTERM"); killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS); } } })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;

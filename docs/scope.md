@@ -364,7 +364,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P21 | A | partial | asp run now starts Claude Code, Codex and Goose as governed sessions (S106), and Antigravity and OpenHands (S1... |
 | P22 | A | partial | Provider terms limit how the gateway may be used with a Claude subscription login. Anthropic's Legal and compl... |
 | P27 | A | closed | Found in the live run (2026-10-12): a standing job has one run log per session, but an Action's run-log artifa... |
-| P29 | A | partial | Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and varia... |
+| P29 | A | closed | Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and varia... |
 
 ### Money and Courts
 
@@ -1005,3 +1005,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1346 | A | open | Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents say to each other in private, and a sponsor cannot see how their agent talks with others. |
 | DK1347 | A | open | The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so a sponsor cannot see on one page what their agent cost them against what it got. |
 | DK1348 | A | open | The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place, and the screenshots it gives for a site, a deck or an ad do not show the society. The owner said on 2026-11-21 that the screenshots look decent but need work. |
+| DK1500 | B | open | When approvals pile up and the person is away, they are told only on the terminal of the run and in the run log: there is no mail or other notice outside the terminal. |

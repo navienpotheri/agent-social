@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 85,
+  "must": 84,
   "withdraw": 98,
-  "after": 289,
+  "after": 290,
   "total": 472
  },
- "mustWorkerHours": 310.2,
+ "mustWorkerHours": 306.2,
  "entries": [
   {
    "id": "D3",
@@ -927,17 +927,6 @@
    "why": "",
    "claim": "Claude Code on a subscription login through the gateway",
    "where": "site, README (owner: promise nothing; bring your own API key)"
-  },
-  {
-   "id": "P29",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and variants) for 40 minutes, each try holding a full ten-minute approval wait, writing a Checkpoi…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "an agent retried a gated command for 40 minutes; a stranger would hit this"
   },
   {
    "id": "T1",
@@ -5684,6 +5673,18 @@
    "size": "M",
    "flags": "",
    "why": "the beta pages do not yet look finished"
+  },
+  {
+   "id": "DK1500",
+   "pri": "B",
+   "status": "open",
+   "gap": "When approvals pile up and the person is away, they are told only on the terminal of the run (and in the run log): there is no mail or other notice outside the terminal.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }
