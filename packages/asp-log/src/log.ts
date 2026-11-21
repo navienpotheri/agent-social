@@ -45,6 +45,7 @@ import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
 import { candidacyProblems, commitBallot, runElection, type Ballot } from "./election.ts";
+import { declProblems as expeditionDeclProblems, frameHash as expeditionFrameHash } from "./expedition.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
 import { basketRatio, dormancyShare, claimsInDay, type BasketReport } from "./guard-basket.ts";
 import { sizeBond, sizeBondSplit, modelPremium, type BondSuggestion, type SplitSuggestion } from "./bond-sizing.ts";
@@ -373,6 +374,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
+    if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
     if (type === "election" || type === "candidacy" || type === "ballot_commit" || type === "ballot_reveal" || type === "election_result") await this.projectElection(tx, verified, type);
     if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
@@ -2892,6 +2894,55 @@ export class EventLog {
       const e = await tx.getRecord(election);
       if (!e || e.record.type !== "asp.election/v0.2") return null;
       return this.electionCountIn(tx, election, e.record.body as never);
+    });
+  }
+
+  /**
+   * Expeditions into generated worlds (S1597, DK1740; docs/research/exploration-and-expeditions.md 5): the declaration is checked by `declProblems` (the world model and the hash of its weights, the licence checked, a cost cap and a
+   * GPU rate, no seed), the group is agents, each frame must follow the hash of the one before it and stay inside the step limit and the cost cap (a frame over the cap is refused; the frame that reaches it is the last), and the result is the log's own count: a scored result needs a frame and an expedition not stopped at its cap; the audit failing means void, never scored. An expedition is never claimable as a measured result. The operator is the world authority and signs all three.
+   */
+  private async projectExpedition(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("expedition_not_chained", "an expedition record starts its own chain (prev is null)");
+    if (r.issuer !== this.operator) throw rule("expedition_wrong_issuer", "the operator, as the world authority, signs an expedition, its frames and its result");
+    if (type === "expedition") {
+      const b = r.body as { world: string; model: { name: string; weights_sha256: string; licence_checked: boolean }; max_steps: number; cost_cap_millicredits: number; gpu_millicredits_per_second: number; group: string[] };
+      const bad = expeditionDeclProblems({ id: b.world, kind: "expedition", model: b.model, max_steps: b.max_steps, cost_cap: b.cost_cap_millicredits / 1000, gpu_credits_per_second: b.gpu_millicredits_per_second / 1000 });
+      if (bad.length) throw rule("expedition_declaration", bad.join("; "));
+      for (const m of b.group) if (!(await tx.getPassport(m))) throw rule("expedition_group", `${m} has no passport in this log: the group is enrolled agents`);
+      await tx.putMarker(`exp:${r.id}`, JSON.stringify({ frames: 0, last: "genesis", seconds: 0, max_steps: b.max_steps, cost_cap: b.cost_cap_millicredits, rate: b.gpu_millicredits_per_second, stopped: false }));
+      return;
+    }
+    const id = (r.body as { expedition: string }).expedition;
+    const raw = await tx.getMarker(`exp:${id}`);
+    if (!raw) throw rule("expedition_unknown", `${id} is not an expedition in this log`);
+    const st = JSON.parse(raw) as { frames: number; last: string; seconds: number; max_steps: number; cost_cap: number; rate: number; stopped: boolean };
+    if (await tx.getMarker(`exp_result:${id}`)) throw rule("expedition_closed", "this expedition has its result");
+    if (type === "expedition_frame") {
+      const b = r.body as { n: number; frame_sha256: string; action: string; gpu_ms: number; before: string };
+      if (st.stopped) throw rule("expedition_cost_cap", "the cost cap was reached: the expedition is stopped and closes void");
+      if (b.n !== st.frames) throw rule("expedition_frame_order", `the next frame is ${st.frames}, not ${b.n}: a frame is neither dropped nor reordered`);
+      if (b.before !== st.last) throw rule("expedition_chain_broken", "the frame does not follow the hash of the frame before it: the chain is broken");
+      if (st.frames >= st.max_steps) throw rule("expedition_step_limit", `the step limit of ${st.max_steps} frames is reached`);
+      const cost = Math.ceil(((st.seconds + b.gpu_ms) * st.rate) / 1000); // millicredits: GPU milliseconds times millicredits a second, rounded up
+      if (cost > st.cost_cap) throw rule("expedition_cost_cap", `the frame would take the cost to ${cost} millicredits, over the cap of ${st.cost_cap}: a frame over the cap is refused`);
+      // a frame that REACHES the cap is the last: the expedition is stopped and can only close void (a refusal cannot be remembered, so the stop is recorded by the frame that reaches it)
+      await tx.putMarker(`exp:${id}`, JSON.stringify({ ...st, stopped: cost >= st.cost_cap, frames: st.frames + 1, seconds: st.seconds + b.gpu_ms, last: expeditionFrameHash({ n: b.n, sha256: b.frame_sha256, action: b.action, gpu_seconds: b.gpu_ms }, b.before) }));
+      return;
+    }
+    const b = r.body as { status: "scored" | "void"; frames: number; cost_millicredits: number; evaluator_error_permille: number };
+    const cost = Math.ceil((st.seconds * st.rate) / 1000);
+    if (b.frames !== st.frames || b.cost_millicredits !== cost) throw rule("expedition_result_mismatch", `the log counts ${st.frames} frames and a cost of ${cost} millicredits, not ${b.frames} and ${b.cost_millicredits}`);
+    if (b.status === "scored" && (st.frames === 0 || cost > st.cost_cap || st.stopped)) throw rule("expedition_must_be_void", "an expedition with no frame, or one stopped at its cost cap, is void: it is never scored");
+    await tx.putMarker(`exp_result:${id}`, r.id);
+  }
+
+  /** The state of an expedition as the log counts it (S1597): frames, the last frame's hash, the GPU seconds and cost so far, whether the cap stopped it, and its result record. Reads only. */
+  async expeditionState(id: string): Promise<{ frames: number; last: string; gpuMs: number; costMillicredits: number; stopped: boolean; result: string | null } | null> {
+    return this.store.transaction(async (tx) => {
+      const raw = await tx.getMarker(`exp:${id}`);
+      if (!raw) return null;
+      const st = JSON.parse(raw) as { frames: number; last: string; seconds: number; rate: number; stopped: boolean };
+      return { frames: st.frames, last: st.last, gpuMs: st.seconds, costMillicredits: Math.ceil((st.seconds * st.rate) / 1000), stopped: st.stopped, result: (await tx.getMarker(`exp_result:${id}`)) || null };
     });
   }
 
