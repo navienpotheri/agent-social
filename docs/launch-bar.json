@@ -5076,7 +5076,7 @@
   {
    "id": "DK1333",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The idea of a risk-priced bond has no model: nothing turns the measured chance that an agent drifts or breaches into the amount of real-money bond that mitigates the risk.",
    "bucket": "after",
    "hours": 0,
