@@ -34,6 +34,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
@@ -3478,7 +3479,49 @@ export class EventLog {
     const page = buildPage(did, { records, seq: head.seq, at: when, reputation: await this.reputationOf(did) ? { ...(await this.reputationOf(did))! } : undefined });
     if (!page) return null;
     const abuse = await this.abuseReportsAbout(did);
+    const fleetInfo = await this.fleetInfoOf(did);
+    if (fleetInfo) (page as RecordPage).fleetInfo = fleetInfo;
     return abuse.length ? { ...page, abuse: abuse.map((a) => ({ id: a.id, kind: a.kind, at: a.at, ...(a.outcome ? { outcome: a.outcome } : {}) })) } : page;
+  }
+
+  /** Every agent's facts for template-level reputation (S1412): passport fingerprint, fleet, persona, node and standing counts. */
+  private async memberFacts(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
+    const passports = new Map<string, { fingerprint?: MemberFacts["fingerprint"]; persona?: string; kind: string }>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; fingerprint?: MemberFacts["fingerprint"]; persona?: string }; passports.set(b.did, b); }
+    return this.store.transaction(async (tx) => {
+      const facts: MemberFacts[] = [];
+      const decl = new Map<string, FleetDecl>();
+      const tpl = new Map<string, ReturnType<typeof templateOf>>();
+      for (const [did, b] of passports) {
+        if (b.kind !== "agent") continue;
+        const row = await tx.getPassport(did);
+        const fleet = row?.fleet ?? null;
+        if (fleet && !decl.has(fleet)) decl.set(fleet, JSON.parse((await tx.getMarker(`fleet_decl:${fleet}`)) ?? "{}") as FleetDecl);
+        const rep = await this.reputation(tx, did);
+        facts.push({ did, fleet, persona: b.persona ?? null, node: fleet ? (await tx.getMarker(`fnode_of:${did}`)) ?? "root" : null, fingerprint: b.fingerprint, tier: rep?.tier ?? 1, acceptedJobs: rep?.acceptedJobs ?? 0, qualifyingJobs: rep?.qualifyingJobs ?? 0, slashes: rep?.slashCount ?? 0, strikes: rep?.strikeLog.reduce((n, s) => n + s.count, 0) ?? 0, relatedRuns: Number((await tx.getMarker(`rp_clean:${did}`)) ?? 0) });
+        tpl.set(did, templateOf({ fingerprint: b.fingerprint }, fleet ? decl.get(fleet)?.template : undefined));
+      }
+      return { facts, tpl };
+    });
+  }
+
+  /** An agent's fleet, persona, node and template, and the standing of all agents with the same template in its fleet and in the society (S1412, DK1366). Undefined outside a fleet. */
+  async fleetInfoOf(did: string): Promise<NonNullable<RecordPage["fleetInfo"]> | undefined> {
+    const { facts, tpl } = await this.memberFacts();
+    const me = facts.find((f) => f.did === did);
+    if (!me?.fleet) return undefined;
+    const t = tpl.get(did)!;
+    const fleetMembers = facts.filter((f) => f.fleet === me.fleet);
+    const same = (f: MemberFacts) => tpl.get(f.did)!.key === t.key;
+    const fd = await this.fleetDetails(me.fleet);
+    const personas: Record<string, number> = {};
+    for (const m of fleetMembers) if (m.persona) personas[m.persona] = (personas[m.persona] ?? 0) + 1;
+    return {
+      fleet: me.fleet, name: fd?.name ?? me.fleet, org: fd?.org ?? "", kind: fleetKind(fleetMembers.map((m) => ({ persona: m.persona, templateKey: tpl.get(m.did)!.key }))), persona: me.persona, node: me.node, association: fd?.association ?? "full",
+      template: { key: t.key, runtime: t.runtime, model: t.model, policy: t.policy, tools: t.tools, source: t.source }, personas,
+      inFleet: standingOf(fleetMembers.filter(same)), inSociety: standingOf(facts.filter(same)),
+      note: "Template-level standing is the sum over every agent that runs this template (a runtime, a model, a policy and a set of tools); a fleet-mate's slash also raises the bond floor of the next bond. Computed from the log, it is a record of what these agents did, not a promise about the next run.",
+    };
   }
 
   /** The Treasury's closed-loop records (DK98): budgets with what has been paid from each, the payments, the newcomer allowances and the prizes, each with its record id and time. Public, computed from the log. */

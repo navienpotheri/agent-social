@@ -169,6 +169,19 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(v ? `${fleet}${f.persona ? ` persona ${f.persona}` : ""}: Mandate template version ${v}` : `${fleet}${f.persona ? ` persona ${f.persona}` : ""} has no Mandate template`);
     return 0;
   }
+  // Template-level reputation (S1412, DK1366): `asp fleet standing --member <did> [--json]`: the member's fleet, persona, node and template, and the standing of every agent with the same template in its fleet and in the society.
+  if (sub === "standing") {
+    if (!f.member) throw new FleetUsage("asp fleet standing --member <did> [--json]");
+    const i = await o.log.log.fleetInfoOf(f.member);
+    if (!i) { o.io.out(`${f.member} is not in a fleet`); return 1; }
+    if (f.json) { o.io.out(JSON.stringify(i, null, 2)); return 0; }
+    const line = (s: typeof i.inFleet) => `${s.agents} agent(s), ${s.qualifyingJobs} counted job(s), ${s.slashes} slash(es), ${s.strikes} strike(s), ${s.relatedPartyRuns} related-party run(s) (labelled, not jobs)`;
+    o.io.out(`${f.member}: fleet ${i.name} (${i.kind}), persona ${i.persona ?? "none"}, node ${i.node ?? "root"}, association ${i.association}`);
+    o.io.out(`  template ${i.template.runtime ?? "?"} / ${i.template.model ?? "?"} (${i.template.source}, ${i.template.key})`);
+    o.io.out(`  same template in this fleet: ${line(i.inFleet)}`);
+    o.io.out(`  same template in the society: ${line(i.inSociety)}`);
+    return 0;
+  }
   // Related-party record (S1411, DK1358): `asp fleet attest --member <did> --action <Action id> [--by <sponsor>]`, `asp fleet record --member <did> [--json]`; the association is `asp fleet update <fleet> --association full|related-party-only|private`.
   if (sub === "attest") {
     if (!f.member || !f.action) throw new FleetUsage("asp fleet attest --member <did> --action <Action id> [--by <sponsor, organisation or co-sponsor did>]");
@@ -228,5 +241,5 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     }
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record");
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record|standing");
 }

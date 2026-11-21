@@ -35,5 +35,11 @@ test("an enterprise chooses its association, reads a member's related-party reco
     assert.notEqual(bad.code, 0);
     assert.match(bad.err + bad.out, /is not an Action in this log/);
     assert.notEqual((await asp(f, ["fleet", "attest"])).code, 0, "a usage line");
+    const st = await asp(f, ["fleet", "standing", "--member", A]);
+    assert.equal(st.code, 0, st.err);
+    assert.match(st.out, /fleet All \(single\), persona none, node root, association private/);
+    assert.match(st.out, /same template in this fleet: 1 agent\(s\), 0 counted job\(s\), 0 slash\(es\), 0 strike\(s\)/);
+    assert.equal(JSON.parse((await asp(f, ["fleet", "standing", "--member", A, "--json"])).out).kind, "single");
+    assert.equal((await asp(f, ["fleet", "standing", "--member", ORG])).code, 1, "not in a fleet");
   } finally { setClock(undefined); }
 });

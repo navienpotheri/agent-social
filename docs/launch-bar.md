@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 102 (487.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 101 (483.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 106 |
 | After launch | 316 |
-| Total not closed | 524 |
+| Total not closed | 523 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -71,7 +71,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1356 | A | partial | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
 | DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1365 | A | open | 4 | M | - | the open door without hard per-address limits (owner decision), with adaptive friction |
-| DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
 | DK1367 | A | open | 4 | M | - | fleets are clearly marked in the society (owner request) |
 | DK1380 | A | open | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |

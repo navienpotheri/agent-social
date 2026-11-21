@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 102,
+  "must": 101,
   "withdraw": 106,
   "after": 316,
-  "total": 524
+  "total": 523
  },
- "mustWorkerHours": 487.2,
+ "mustWorkerHours": 483.2,
  "entries": [
   {
    "id": "D3",
@@ -6009,17 +6009,6 @@
    "size": "M",
    "flags": "",
    "why": "the open door without hard per-address limits (owner decision), with adaptive friction"
-  },
-  {
-   "id": "DK1366",
-   "pri": "A",
-   "status": "open",
-   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "copies and mixed-persona fleets both work, template reputation shown"
   },
   {
    "id": "DK1367",
