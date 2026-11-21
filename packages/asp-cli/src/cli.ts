@@ -355,6 +355,7 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts } from "@agent-social/asp-package";
+import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
@@ -897,6 +898,7 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  "since-file": { type: "string" },
   reads: { type: "string" },
   reference: { type: "string" },
   lot: { type: "string" },
@@ -1194,6 +1196,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "collusion") return await collusionCommand(home, v, io);
     if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
     if (cmd === "lots") return await lotsCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
@@ -5011,6 +5014,31 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file> (register row DK1374, S1417): the organisation's and its agents' signed records as JSON lines, with the
+ * signers' passports so the file verifies offline; `--since-file` keeps the last position, so running it again (from cron, say) exports only what is new; `verify` checks the manifest and every record's id and signatures.
+ */
+async function auditExportCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[]): Promise<number> {
+  if (sub === "verify") {
+    const file = rest[0];
+    if (!file) throw new UsageError("asp audit-export verify <file>");
+    const r = verifyAuditExport(readFileSync(file, "utf8"));
+    io.out(r.ok ? `${file}: ${r.records} record(s) of ${r.manifest!.org}, the manifest and every signature that can be checked from the file check${r.unverified.length ? `; ${r.unverified.length} record(s) are signed by a key that is not in the file (${[...new Set(r.unverified.map((u) => u.kid))].join(", ")}) and are listed, not checked` : ""}` : `${file}: does not check:\n  ${r.problems.join("\n  ")}`);
+    return r.ok ? 0 : 1;
+  }
+  if (sub !== "export") throw new UsageError("asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file>");
+  if (!v.org) throw new UsageError("asp audit-export export --org <organisation did>");
+  const local = await openLog(home, logEnv);
+  let afterSeq = 0;
+  if (v["since-file"] && existsSync(v["since-file"])) afterSeq = Number(JSON.parse(readFileSync(v["since-file"], "utf8")).last_seq ?? 0);
+  const out = await local.log.auditExport(v.org, { ...(v.from ? { from: new Date(v.from).toISOString() } : {}), ...(v.to ? { to: new Date(v.to).toISOString() } : {}), afterSeq });
+  const file = v.out ?? join(process.cwd(), `audit-${v.org.replace(/[^a-z0-9]+/gi, "-").slice(0, 40)}-${now().slice(0, 10)}.jsonl`);
+  writeFileSync(file, out.text);
+  if (v["since-file"] && out.manifest.last_seq !== null) writeFileSync(v["since-file"], JSON.stringify({ org: v.org, last_seq: out.manifest.last_seq, at: now() }) + "\n");
+  io.out(`${out.manifest.records} record(s) (${out.manifest.passports} passport(s) of signers) of ${v.org} written to ${file}${afterSeq ? ` since position ${afterSeq}` : ""}; check it with: asp audit-export verify ${file}`);
+  return 0;
+}
+
 /**
  * asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256 of the payment reference> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]
  * (register row DK1370, ledger part; S1413): the operator records a sale of purchased credits (with the owner's co-signature, the owner's go for each sale), the expiry of a lot and a refund inside its window, and anyone reads

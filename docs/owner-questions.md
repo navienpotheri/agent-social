@@ -53,3 +53,9 @@ If you answer "accept", the lane-protocol worker builds DK1458 with a supply tes
 - **Asked:** do you want the contract's deadline extended by the seconds an agent waits for its principal's approval (so a slow principal cannot make a good agent late), with the waits recorded in the Action? It changes what a deadline means in the protocol (a field on the Action, a rule in the lifecycle guards, vectors in both SDKs). A gated long run with a real model agent is also part of the row and is postponed.
 - **Default in force until you answer:** none; the row stays partial.
 
+
+## DK1384: what "re-import on a fresh service" means for a departing enterprise
+
+- **Asked:** when an enterprise leaves, is a signed export it can verify and keep (its and its agents' records in the log's own form, with the signers' passports, as `asp audit-export` now produces) enough as its offboarding, with a closure certificate on top, or must the same records be replayable into a fresh, working ledger?
+- **Why a question:** a subset of a shared ledger cannot be replayed on its own: a bond or an escrow depends on a counterparty's balance and records that are not the enterprise's (tested on 2026-11-21: 5 of 8 records of one job replay, the bond, Mandate and delivery do not). A replayable copy would need either the counterparties' records or a new import-only archive format; that is a product decision, not a build detail.
+- **Default in force until you answer:** the verifiable export (DK1374) stands as the offboarding data; DK1384 stays open.

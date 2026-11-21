@@ -99,3 +99,4 @@ export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterR
 export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
 export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";
 export { meterOf, priceStatement, creditsFor, type Plan as UsagePlan, type Usage as MeterUsage, type AgentUsage, type Priced } from "./metering.ts";
+export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } from "./audit-export.ts";
