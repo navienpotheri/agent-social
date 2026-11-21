@@ -219,7 +219,7 @@
  *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
  *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
- *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
+ *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> | review [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
  *   asp world halt --by <operator> --reason <text> | resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>] | invariants [--json]   the kill-switch (S1402) and what must hold after every event
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
@@ -592,6 +592,7 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
+  "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
@@ -5804,6 +5805,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
         basis: { intent: intentId, offer: offerId },
         ...(intentBody.verification.review_deadline ? { review_deadline: intentBody.verification.review_deadline } : {}),
+        // The deadline binds delivery, extended by the time the performer waits for approvals (S1441, T21).
+        ...(v["deadline-binds"] ? { deadline_binds: true } : {}),
         ...(intentBody.verification.verifier ? { verifier: intentBody.verification.verifier } : {}),
       };
     } else if (callId || proposalId) {

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:key_handover",
+  "title": "Key handover body",
+  "description": "Key rotation as a handover (register row X7; the owner's answer; spec-delta S1427): an identity cannot change its key, so a rotation is a NEW identity linked to the old one by this record. It is signed by the OLD key (`issuer` is `old`) and countersigned by the NEW key, so both keys consent; the new identity must already have its own passport. From the record on the old identity is retired: it signs nothing more (`identity_handed_over`), its standing (tier, slashes, strikes, accepted and counted jobs) and its balance pass to the new identity in the same step, and anyone can follow the chain old to new (`EventLog.handoverChain`). A lost key cannot do this (nothing signs it: that is recovery, for a sponsor to vouch for a new identity); a stolen key can, which is why the old key's holder revokes by handing over first. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "old",
+    "new"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "old": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "new": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "reason": {
+      "enum": [
+        "rotation",
+        "compromise_suspected",
+        "upgrade"
+      ]
+    }
+  }
+}

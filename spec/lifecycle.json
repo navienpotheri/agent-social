@@ -45,7 +45,7 @@
     {
       "from": ["Running"], "type": "delivery", "to": "Delivered",
       "issuer": "performer",
-      "guards": ["refs_contract"]
+      "guards": ["refs_contract", "delivered_in_time"]
     },
     {
       "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "accepted" }, "to": "Delivered",

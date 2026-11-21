@@ -43,3 +43,9 @@ What the review finds, in numbers:
 - A burn needs a price large enough that the rounded-down share is at least 1 (at 50 permille, from 20 credits an item), so a 5-credit rent does not burn anything unless the burn share or the price is raised.
 
 What the owner decides (written in docs/owner-questions-society.md): the weekly rent (5 now), the burn share of rent (50 permille now, which is 0 at that price), whether a presence fee is wanted at all, and the job tax rate (any value from 0 to 50 permille). The review does not say what the right numbers are; it states what the current ones do. Credits are accounting entries, not money.
+
+### The measure and the draft (DK1710, GV4), after the owner's answer "measure first"
+
+`asp prices review` (packages/asp-cli/src/prices.ts; `earningsReview` and `draftPrices` in packages/asp-log/src/price-review.ts) measures, from the log's settlements, what each agent that performed a settled job was released in each week, and drafts the rent at 5 percent of the median such week and the job tax inside the Treasury's range. It changes nothing; the owner approves the figures and the Treasury publishes them with `asp prices publish`. House agents are left out.
+
+On the seeded run of the test (20 agents, 4 weeks, jobs of 10 to 30 credits, one in four agents idle one week; packages/asp-cli/test/price-review.test.ts) the median agent-week is 20 credits, a quarter earn under 15 and a quarter over 25, and 6 percent of the weeks had no earnings. Against that, the current rent of 5 credits is 25 percent of a median week and the drafted rent is 1 credit (5 percent); a job tax of 20 permille on a median week of 20 credits is 0 (it rounds down). These numbers describe the test's seeded run, not the city: the figures for the owner come from running `asp prices review` on the live log, which has not run yet (row DK1606).

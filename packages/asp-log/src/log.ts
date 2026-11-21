@@ -412,6 +412,8 @@ export class EventLog {
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
+    if (type === "incident") await this.projectIncident(tx, verified);
+    if (type === "key_handover") await this.projectKeyHandover(tx, verified);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
     if (type === "usage_statement") await this.projectUsageStatement(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
@@ -465,6 +467,7 @@ export class EventLog {
     if (type === "bond" || type === "mandate" || type === "proposal" || type === "purchase" || type === "contract") await checkSuspended(tx, verified);
     if (type === "intent") checkIntentClass(verified);
     if (type === "contract") await markPostingFilled(tx, verified);
+    if (type !== "key_handover" && type !== "passport" && (await tx.getMarker(`handed_over:${verified.issuer}`))) throw rule("identity_handed_over", `${verified.issuer} was handed over to a new identity: it signs nothing more`);
     if (type === "mandate" || type === "contract" || type === "bond" || type === "proposal" || type === "offer") await this.checkQuarantined(tx, verified);
     if (type === "offer") await this.checkAssociation(tx, verified);
     if (type === "related_party_attestation") await this.projectRelatedAttestation(tx, verified);
@@ -1473,6 +1476,18 @@ export class EventLog {
     if (outOfScope.length) {
       throw rule("scope_violation", `${r.issuer} used scope(s) not granted by the Mandate: ${outOfScope.join(", ")}`);
     }
+    // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
+    // show is refused, so a claim cannot extend a binding deadline.
+    const claimedWait = (r.body as { metrics?: { approval_wait_seconds?: number } }).metrics?.approval_wait_seconds;
+    if (claimedWait) {
+      const snap = chain?.snapshot;
+      const shownMs = (snap?.approvalWaitMs ?? 0) + (snap?.openCheckpointAt ? Math.max(0, Date.parse(r.issued_at) - Date.parse(snap.openCheckpointAt)) : 0);
+      const prior = Number((await tx.getMarker(`waitclaimed:${body.contract}`)) ?? 0);
+      if (prior + claimedWait > Math.ceil(shownMs / 1000) + 2) {
+        throw rule("approval_wait_not_in_log", `the report claims ${prior + claimedWait} seconds of approval wait on ${body.contract}, and the Checkpoints in its chain show ${Math.ceil(shownMs / 1000)}: a wait the log does not show is not counted`);
+      }
+      await tx.putMarker(`waitclaimed:${body.contract}`, String(prior + claimedWait));
+    }
     if (body.late) {
       if ((mandate.lateActions ?? 0) >= MAX_LATE_ACTIONS) throw rule("late_action_limit", `contract ${body.contract} has already taken ${MAX_LATE_ACTIONS} late reports`);
       await tx.putMandate({ ...mandate, lateActions: (mandate.lateActions ?? 0) + 1 });
@@ -2350,6 +2365,71 @@ export class EventLog {
     for (const c of contracts) if (await this.runHaltOf(c.contract)) halted.add(c.contract);
     const reasons = tripped(used, allowed);
     return { node, windowMs, multiple, used, allowed, reasons, contracts: reasons.length ? contracts.filter((c) => !halted.has(c.contract)) : [], cycles: hireCycles(hires) };
+  }
+
+  /** A key handover (S1427, X7): old signs, new countersigns; the old identity is retired and its standing and balance pass to the new one. */
+  private async projectKeyHandover(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { old: string; new: string };
+    if (r.prev !== null) throw rule("handover_not_chained", "a key handover starts its own chain (prev is null)");
+    if (r.issuer !== b.old) throw rule("handover_not_by_old", "a handover is signed by the OLD key: a lost key cannot hand over");
+    if (!this.cosignedBy(r, b.new)) throw rule("handover_needs_new", "the new identity countersigns the handover");
+    if (b.old === b.new) throw rule("handover_same", "a handover names a different identity");
+    if (!(await tx.getPassport(b.old)) || !(await tx.getPassport(b.new))) throw rule("handover_unknown", "both identities need a passport in this log");
+    if (await tx.getMarker(`handed_over:${b.old}`)) throw rule("identity_handed_over", `${b.old} was handed over already`);
+    if (await tx.getMarker(`inherited_from:${b.new}`)) throw rule("handover_new_taken", `${b.new} already took over from another identity`);
+    const rep = await this.reputation(tx, b.old);
+    if (rep) { const cur = await this.reputation(tx, b.new); await this.saveReputation(tx, b.new, { tier: Math.max(rep.tier, cur?.tier ?? 0), slashCount: rep.slashCount + (cur?.slashCount ?? 0), strikeLog: [...rep.strikeLog, ...(cur?.strikeLog ?? [])], acceptedJobs: rep.acceptedJobs + (cur?.acceptedJobs ?? 0), qualifyingJobs: rep.qualifyingJobs + (cur?.qualifyingJobs ?? 0), recentJobs: [...rep.recentJobs, ...(cur?.recentJobs ?? [])].slice(-19) }); }
+    const bal = (await tx.getAccount(canonicalAccount(b.old)))?.balance ?? 0;
+    const held = Number((await tx.getMarker(`hold:${canonicalAccount(b.old)}`)) ?? 0);
+    const lots = outstanding(await lotsOf(tx, canonicalAccount(b.old)));
+    if (bal - held - lots > 0) { await this.debit(tx, b.old, bal - held - lots); await this.credit(tx, b.new, bal - held - lots); }
+    await tx.putMarker(`handed_over:${b.old}`, JSON.stringify({ to: b.new, id: r.id, at: r.issued_at }));
+    await tx.putMarker(`inherited_from:${b.new}`, b.old);
+  }
+
+  /** The handovers from this identity forward and back (S1427): who it was before, and who it became, oldest first. */
+  async handoverChain(did: string): Promise<{ before: string[]; after: string[] }> {
+    return this.store.transaction(async (tx) => {
+      const before: string[] = [], after: string[] = [];
+      for (let d = did; ;) { const p = await tx.getMarker(`inherited_from:${d}`); if (!p || before.includes(p)) break; before.unshift(p); d = p; }
+      for (let d = did; ;) { const n = await tx.getMarker(`handed_over:${d}`); if (!n) break; const to = (JSON.parse(n) as { to: string }).to; if (after.includes(to)) break; after.push(to); d = to; }
+      return { before, after };
+    });
+  }
+
+  /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */
+  private async projectIncident(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; steps: { step: string; ref?: string }[]; detection?: string; restitution?: { open: boolean } };
+    if (r.prev !== null) throw rule("incident_not_chained", "an incident record starts its own chain (prev is null)");
+    if (r.issuer !== this.operator && r.issuer !== CLINIC_DID) throw rule("incident_wrong_issuer", "only the operator or the Clinic records an incident");
+    if (!(await tx.getPassport(b.agent))) throw rule("incident_unknown_agent", `${b.agent} has no passport in this log`);
+    for (const s of b.steps) if (s.ref && !(await tx.getRecord(s.ref))) throw rule("incident_step_unknown", `the ${s.step} step names ${s.ref}, which is not a record in this log`);
+    if (b.detection && !(await tx.getRecord(b.detection))) throw rule("incident_detection_unknown", `${b.detection} is not a record in this log`);
+    const list = ((await tx.getMarker(`incidents:${b.agent}`)) ?? "").split(",").filter(Boolean);
+    await tx.putMarker(`incidents:${b.agent}`, [...list, r.id].join(","));
+    if (b.restitution?.open) await tx.putMarker(`incident_open:${r.id}`, r.issued_at);
+  }
+
+  /** The running contracts of the members of a tree node and below, not yet halted (S1426): who a breach in the node stops. */
+  async nodeRunningContracts(fleet: string, node: string): Promise<{ contract: string; agent: string }[]> {
+    const members = new Set(await this.store.transaction(async (tx) => subtreeMembers(tx, fleet, node)));
+    const out: { contract: string; agent: string }[] = [];
+    for (const r of await this.recordsOfTypes(["contract"])) {
+      const b = r.body as { performer: string };
+      if (members.has(b.performer) && ["Running", "Checkpoint"].includes((await this.chainInfo(r.id))?.state ?? "")) out.push({ contract: r.id, agent: b.performer });
+    }
+    return out;
+  }
+
+  /** The incidents recorded for an agent, oldest first, with whether the restitution path is open (S1426). */
+  async incidentsOf(agent: string): Promise<{ id: string; at: string; cause: string; detectedAt: string; seconds: number; steps: string[]; restitutionOpen: boolean }[]> {
+    const ids = await this.store.transaction(async (tx) => ((await tx.getMarker(`incidents:${agent}`)) ?? "").split(",").filter(Boolean));
+    const out = [];
+    for (const id of ids) {
+      const r = (await this.get(id))!.record; const b = r.body as { cause: string; detected_at: string; steps: { step: string }[]; restitution?: { open: boolean } };
+      out.push({ id, at: r.issued_at, cause: b.cause, detectedAt: b.detected_at, seconds: (Date.parse(r.issued_at) - Date.parse(b.detected_at)) / 1000, steps: b.steps.map((s) => s.step), restitutionOpen: !!b.restitution?.open });
+    }
+    return out;
   }
 
   /** The record that halted a contract's run, or undefined (S1422): what a gateway checks at the start of a run, so a halted run is not resumed under the same Mandate. */

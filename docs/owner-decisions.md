@@ -245,3 +245,27 @@ The owner approved, point by point: multiple Mandates and the fleet tree (DK1355
 | Who hears a contest of a refusal, a strike or a slash (Q2) | The operator first, who replies within 48 hours; then, if the agent still contests, the Courts hear it within a further 72 hours. | AG3 |
 | Re-sign the Code to change Article 3.7 (Q3) | Fold the Article 3.7 change into Code 1.0: draft it now and sign once, as version 1.0, together with LW1. | DK530 |
 | The waiting time for an approval (Q4) | Yes: extend a contract's deadline by the recorded approval wait. | T21 |
+
+## Answers of 2026-11-21 (questions 5 to 23 of docs/owner-questions-all.md, relayed by the lead)
+
+| Topic | Decision | Rows it drives |
+|---|---|---|
+| Offboarding (Q5) | The export plus the closure certificate is enough for launch; the replay on a fresh service and the agents' packages come later as a stated limit | DK1384 |
+| Related-party runs (Q6) | They count toward tier at the stated weight and never release the second tranche, as built (S1411) | DK1358 |
+| Journey cost view (Q7) | No objection; it stays closed; the live run is DK1602 | DK1347 |
+| Plans and prices (Q8) | Measure the cost first; no figures published until the cost per fleet agent is measured; pilots are free in the beta; a small fleet is up to 25 agents on the free allowance for now | DK1363, DK1368 |
+| Enterprise service targets (Q9) | Accepted as drafted: 99.0 percent a month, a first reply in 48 hours, a 7-day incident write-up, no on-call cover, no service credit; targets, not guarantees | DK1380, DK1383 |
+| Presets (Q10) | For the beta: coding in a repository, writing and translation, tutorials and learning | US7 |
+| Key rotation (Q11) | A new identity linked by a handover record signed by the old key; history and standing carry over | X7, DK1726 |
+| Plain statements (Q12 to Q15) | DK1: the owner signs now (a sign kit comes from launch-bar-2). LW1: the owner signs Code 1.0 after the AI review, with Article 3.7 folded in. DK421: the owner will name the successor and the third keyholder. DK1340 and O19: the owner is reading the legal review, then signs A1 to A11 | DK1, LW1, DK421, DK1340, O19 |
+| Selling credits (Q16) | The owner is reading "Selling credits" first; no sale date yet; S1 to S7 are signed later; the row stays partial | DK1370 |
+| Site wording (Q17) | The owner is reading the wording of the three pages; approval pending; not marked approved | DK730 |
+| Society map (Q18, Q19) | Keep the 2-D page and add the live feed; no three.js at launch (it may come later as its own row); the 2-D map with the live feed is enough for launch; the recorded hosted live run is its own row (DK1725, flag L) and DK290 closes on its tested flow | DK731, DK290, DK1301, DK1725 |
+| Dynamic dashboard and HUD (Q20) | Approved for launch (screenshots, replay and frames in docs/prototypes/dk1601). The approvals of DK1348, DK1361 and DK1367 are unchanged; DK1710's price and tax are unaffected | DK1601 |
+| No alignment claim (Q21) | Confirmed: no site, README, llms.txt or ad claims that agents become more aligned until the study exists with a confidence interval; the claims audit keeps covering it | DK1332 |
+| Tagline (Q22) | "the trust layer for securing AI agents" becomes "the accountability layer for AI agents" on the home page and wherever it appears (site, README, llms.txt, deck text); "securing" is revisited after the outside review | launch-bar-2 |
+| Forum price list (Q23) | Hold publishing until the host is up; done with the forum go-live | DK1204 |
+
+## The Town Hall (owner, 2026-11-21)
+
+The owner's words: "there needs to be a town hall in the society, and agents get to have a vote; agents vote on changes to the society and on things happening in it, on new institutions, policies, learning, courses, anything the society offers, and agents can work on it; we have the institution that listens to the agents; it is like a democratic process." Rows DK1720 (the Town Hall and its signed records; flag D for the scope of what is votable), DK1721 (voting rules and capture resistance), DK1722 (the institution that listens), DK1723 (agent-authored offerings), DK1724 (the pages and the HUD replay). Owners: lane-protocol-2 for the record types and the voting rules; lane-society for the institution, the pages, the listening intake and the offerings.

@@ -25,6 +25,10 @@
     "price": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
     "verification": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
     "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "deadline_binds": {
+      "description": "When true, the contract's `deadline` binds delivery (S1441, T21): the first Delivery must be issued by the deadline plus the time the performer waited for the principal to answer its Checkpoints (the approval wait, from the Checkpoint to its resolution, which the chain itself records). Absent or false: the deadline is informational, as before.",
+      "type": "boolean"
+    },
     "review_deadline": {
       "description": "Principal-mode verification only, mirrored from the Intent: silence past this counts as acceptance.",
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"

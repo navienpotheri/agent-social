@@ -325,6 +325,26 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
   lc("settle_before_deadline", "A silence settlement before review_deadline has passed is refused", c, err("GUARD_FAILED", 4, "past_review_deadline"));
 }
 {
+  // S1441 (T21): a binding deadline is extended by the time the performer waited for the principal to answer Checkpoints. Times: contract 09:00, then every record five minutes later.
+  const met = new Chain(); met.contractRec({ body: { deadline: "2026-10-01T09:20:00Z", deadline_binds: true } }); met.bond(); met.mandate();
+  met.deliver();
+  lc("deadline_binds_met", "A delivery by a binding deadline is accepted", met, { state: "Delivered" });
+  const late = new Chain(); late.contractRec({ body: { deadline: "2026-10-01T09:12:00Z", deadline_binds: true } }); late.bond(); late.mandate();
+  late.deliver();
+  lc("deadline_binds_late", "A first delivery after a binding deadline, with no approval wait, is refused", late, err("GUARD_FAILED", 3, "delivered_in_time"));
+  const ext = new Chain(); ext.contractRec({ body: { deadline: "2026-10-01T09:22:00Z", deadline_binds: true } }); ext.bond(); ext.mandate();
+  const e1 = ext.checkpoint(); ext.resolve(e1.id);      // raised 09:15, answered 09:20: five minutes waited
+  ext.deliver();                                         // 09:25: after the deadline, within it plus the wait (09:27)
+  lc("deadline_extended_by_wait", "The principal's approval wait extends a binding deadline: a delivery after the deadline but within deadline plus the wait is accepted", ext, { state: "Delivered" });
+  const more = new Chain(); more.contractRec({ body: { deadline: "2026-10-01T09:12:00Z", deadline_binds: true } }); more.bond(); more.mandate();
+  const m1 = more.checkpoint(); more.resolve(m1.id);    // five minutes waited: the deadline becomes 09:17
+  more.deliver();                                        // 09:25: late by more than the wait
+  lc("deadline_late_beyond_wait", "An agent late by more than the approval wait is still late: the delivery is refused", more, err("GUARD_FAILED", 5, "delivered_in_time"));
+  const free = new Chain(); free.contractRec({ body: { deadline: "2026-10-01T09:12:00Z" } }); free.bond(); free.mandate();
+  free.deliver();
+  lc("deadline_informational", "Without deadline_binds the deadline is informational: a delivery after it is accepted, as before", free, { state: "Delivered" });
+}
+{
   const c = new Chain(); c.contractRec(); c.bond(); c.mandate(); c.deliver();
   lc("node_actor", "Records may be issued by a person and acted by one of its nodes", c, { state: "Delivered" });
 }
@@ -1504,6 +1524,24 @@ const worldRules = [
   sv("run_halt_no_contract", "run_halt", (({ contract: _c, ...r }) => r)(haltBody()), false);
   sv("run_halt_zero_count", "run_halt", haltBody({ count: 0 }), false);
   sv("run_halt_carries_arguments", "run_halt", haltBody({ arguments: { cmd: "rm" } }), false);
+  // ---------- the incident record (spec-deltas S1426): schema cases ----------
+  const incBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", cause: "exfiltration", summary: "the agent tried to send a secret to an outside host", detected_at: "2026-11-21T10:00:00Z", detection: "sha256:" + "3".repeat(64), steps: [{ step: "quarantine", ref: "sha256:" + "4".repeat(64), at: "2026-11-21T10:00:01Z" }, { step: "alert_sponsor" }, { step: "restitution_opened" }], restitution: { open: true, remedy: "suspension" }, ...over });
+  sv("valid_incident", "incident", incBody(), true);
+  sv("valid_incident_node", "incident", incBody({ fleet: "did:web:example.com:orgs:acme:fleets:coders", node: "platform", cause: "loop" }), true);
+  sv("incident_no_steps", "incident", incBody({ steps: [] }), false);
+  sv("incident_unknown_cause", "incident", incBody({ cause: "bad luck" }), false);
+  sv("incident_unknown_step", "incident", incBody({ steps: [{ step: "shrug" }] }), false);
+  sv("incident_credit_restitution", "incident", incBody({ restitution: { open: true, remedy: "credits" } }), false);
+  sv("incident_no_detected_at", "incident", (({ detected_at: _d, ...r }) => r)(incBody()), false);
+  sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
+  // ---------- the key handover (spec-deltas S1427): schema cases ----------
+  const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
+  sv("valid_key_handover", "key_handover", hoBody(), true);
+  sv("valid_key_handover_reason", "key_handover", hoBody({ reason: "compromise_suspected" }), true);
+  sv("key_handover_no_new", "key_handover", (({ new: _n, ...r }) => r)(hoBody()), false);
+  sv("key_handover_no_old", "key_handover", (({ old: _o, ...r }) => r)(hoBody()), false);
+  sv("key_handover_unknown_reason", "key_handover", hoBody({ reason: "bored" }), false);
+  sv("key_handover_carries_a_key", "key_handover", hoBody({ new_key: "abc" }), false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

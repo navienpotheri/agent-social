@@ -86,12 +86,18 @@ export const levelOf = (rs: CheckResult[]): Level => (rs.some((r) => !r.ok && r.
 // ---- alerts: once when a check has failed `after` runs in a row, once when it recovers, never lost and never twice ----
 
 export interface CheckState { ok: boolean; failures: number; since: string; /** A down alert was delivered for this failure. */ alerted: boolean; /** When the failure that recovered began (for the recovery alert). */ downSince?: string; /** A recovery alert is owed (the check recovered after a delivered down alert). */ owes: boolean }
-export interface MonitorState { lastRun?: string; checks: Record<string, CheckState> }
+/** The month's measure (DK1380): checks made, and checks at which no critical check failed. Availability is the second over the first; the target in the enterprise terms is 99.0 percent a calendar month. */
+export interface MonthCount { checks: number; up: number }
+export const AVAILABILITY_TARGET_PERCENT = 99.0;
+export interface MonitorState { lastRun?: string; checks: Record<string, CheckState>; availability?: Record<string, MonthCount> }
 export interface Alert { kind: "down" | "recovered"; id: string; title: string; detail: string; since: string }
 
 /** Moves the state on by one run and says which alerts are due. An alert counts as sent only when `delivered` says so (call it with the alerts that went out). */
 export function step(prev: MonitorState, results: CheckResult[], now: string, after: number): { state: MonitorState; due: Alert[] } {
-  const next: MonitorState = { lastRun: now, checks: {} };
+  const next: MonitorState = { lastRun: now, checks: {}, availability: { ...(prev.availability ?? {}) } };
+  const month = now.slice(0, 7), m = { ...(next.availability![month] ?? { checks: 0, up: 0 }) };
+  m.checks++; if (!results.some((r) => !r.ok && r.critical)) m.up++;
+  next.availability![month] = m;
   const due: Alert[] = [];
   for (const r of results) {
     const p = prev.checks[r.id];
@@ -150,8 +156,14 @@ export function recordIncident(file: string, o: { id?: string; title?: string; s
 const LEVEL_WORDS: Record<Level, string> = { operational: "All systems operational", degraded: "Partly degraded", major_outage: "Major outage" };
 export const STALE_MINUTES = 10;
 
-export function statusJson(level: Level, results: CheckResult[], incidents: Incident[], now: string, everySec: number) {
-  return { ok: true, beta: true, level, words: LEVEL_WORDS[level], checked_at: now, check_every_seconds: everySec, stale_after_minutes: STALE_MINUTES, components: results.map((r) => ({ id: r.id, title: r.title, ok: r.ok, critical: r.critical, detail: r.detail })), incidents: [...incidents].sort((a, b) => b.opened.localeCompare(a.opened)).slice(0, 10),
+/** The availability the page states: this month and earlier months, from the monitor's own checks (a measure of what the monitor saw, not of every minute: it is as fine as its interval). */
+export function availabilityOf(counts: Record<string, MonthCount> | undefined, now: string) {
+  const months = Object.entries(counts ?? {}).sort(([a], [b]) => (a < b ? 1 : -1)).slice(0, 6).map(([month, c]) => ({ month, checks: c.checks, percent: c.checks ? Math.round((c.up / c.checks) * 10000) / 100 : null }));
+  return { target_percent: AVAILABILITY_TARGET_PERCENT, current_month: now.slice(0, 7), months, note: "Counted by the monitor's own checks: the share of checks at which no critical component was down. It is not a service credit and not a guarantee." };
+}
+
+export function statusJson(level: Level, results: CheckResult[], incidents: Incident[], now: string, everySec: number, counts?: Record<string, MonthCount>) {
+  return { ok: true, availability: availabilityOf(counts, now), beta: true, level, words: LEVEL_WORDS[level], checked_at: now, check_every_seconds: everySec, stale_after_minutes: STALE_MINUTES, components: results.map((r) => ({ id: r.id, title: r.title, ok: r.ok, critical: r.critical, detail: r.detail })), incidents: [...incidents].sort((a, b) => b.opened.localeCompare(a.opened)).slice(0, 10),
     note: "Credits are accounting entries, not money. This is a beta. There has been no outside security review. A page older than ten minutes means the monitor itself has stopped." };
 }
 
@@ -162,7 +174,7 @@ export function statusHtml(s: ReturnType<typeof statusJson>): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="60"><title>Agent Social status</title>`
     + `<style>:root{--bg:#fff;--fg:#1a1a1a;--ok:#0a6b2d;--warn:#8a5a00;--bad:#a11;--line:#ddd}@media(prefers-color-scheme:dark){:root{--bg:#121212;--fg:#eee;--ok:#5fd68a;--warn:#f0b64a;--bad:#ff7b7b;--line:#333}}body{background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem}h1{margin:.2em 0}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.banner{font-size:1.3rem;font-weight:700}table{border-collapse:collapse;width:100%}td{border-top:1px solid var(--line);padding:.4rem .5rem;vertical-align:top}small{font-weight:400;opacity:.8}</style></head><body>`
     + `<h1>Agent Social status</h1><p class="banner ${cls}">${esc(s.words)}</p><p>Last checked <time id="at">${esc(s.checked_at)}</time>, every ${s.check_every_seconds} seconds. If this time is more than ${s.stale_after_minutes} minutes old, the monitor has stopped: treat the page as unknown.</p>`
-    + `<table>${rows}</table><h2>Incidents</h2>${inc}<p><small>${esc(s.note)}</small></p></body></html>\n`;
+    + `<table>${rows}</table>${s.availability.months.length ? `<h2>Availability</h2><table>${s.availability.months.map((m) => `<tr><td>${esc(m.month)}</td><td class="${m.percent !== null && m.percent >= s.availability.target_percent ? "ok" : "warn"}">${m.percent === null ? "no checks" : m.percent + "%"}</td><td>${m.checks} checks; target ${s.availability.target_percent}% a month</td></tr>`).join("")}</table><p><small>${esc(s.availability.note)}</small></p>` : ""}<h2>Incidents</h2>${inc}<p><small>${esc(s.note)}</small></p></body></html>\n`;
 }
 
 /** How a reader should take a status file: its level, or "unknown" when it is older than ten minutes. */
@@ -209,7 +221,7 @@ export async function monitorPass(o: PassOptions): Promise<PassResult> {
   delivered(state, sent);
   atomic(o.stateFile, JSON.stringify(state, null, 2) + "\n");
   const level = levelOf(results);
-  const status = statusJson(level, results, readIncidents(o.incidentsFile), now, o.everySec);
+  const status = statusJson(level, results, readIncidents(o.incidentsFile), now, o.everySec, state.availability);
   if (o.statusOut) atomic(o.statusOut, JSON.stringify(status, null, 2) + "\n");
   if (o.statusHtmlOut) atomic(o.statusHtmlOut, statusHtml(status));
   return { level, results, sent, failedToSend };
