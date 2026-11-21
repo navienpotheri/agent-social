@@ -808,6 +808,7 @@ const OPTIONS = {
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
   "ask-first": { type: "boolean" },
+  "job-data-chain": { type: "string" },
   path: { type: "string" },
   "commons-sharing": { type: "boolean" },
   "retain-days": { type: "string" },
@@ -1205,7 +1206,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "today") return todayCmd(home, v, io);
     if (cmd === "job-data") {
       // JO3: after settlement the performer removes its working copies of a job's data and writes down that it did.
-      if (sub === "show") { const lines = readJobDataLines(join(home, "job-data.ndjson")); for (const l of lines) io.out(`${l.n}  ${l.at}  ${l.kind}  ${l.contract.slice(0, 19)}${l.files !== undefined ? `  ${l.files} file(s), ${l.bytes} byte(s)` : ""}${l.due ? `  due ${l.due}` : ""}`); io.out(lines.length ? `${lines.length} line(s); the chain ${verifyJobDataLines(lines) ? "checks out" : "DOES NOT check out"}` : "nothing recorded yet"); return 0; }
+      if (sub === "show") { const lines = readJobDataLines(join(home, "job-data.ndjson")); for (const l of lines) io.out(`${l.n}  ${l.at}  ${l.kind}  ${l.contract.slice(0, 19)}${l.files !== undefined ? `  ${l.files} file(s), ${l.bytes} byte(s)` : ""}${l.due ? `  due ${l.due}` : ""}`); io.out(lines.length ? `${lines.length} line(s); the chain ${verifyJobDataLines(lines) ? "checks out" : "DOES NOT check out"}${lines.length ? `; head ${lines.at(-1)!.hash.replace(/^sha256:/, "")}` : ""}` : "nothing recorded yet");
+        if (v.contract) { const st = await (await openLog(home, logEnv)).log.jobDataStatus(v.contract); io.out(`the log reads this contract's job data as: ${st.status}${st.chain_head ? ` (chain head ${st.chain_head})` : ""}`); }
+        return 0; }
       if (sub !== "delete") throw new UsageError("asp job-data delete --contract <id> --path <folder> | show");
       if (!v.contract || !v.path) throw new UsageError("asp job-data delete --contract <id> --path <folder>");
       const handle = await openLog(home, logEnv);
@@ -1215,6 +1218,18 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       const settled = [...chain].reverse().find((s) => s.record.type === "asp.settlement/v0.2");
       const r = jobDataDelete({ home, contract: v.contract, path: resolve(io.cwd, v.path), state: info?.state ?? undefined, ...(settled ? { settledAt: settled.record.issued_at } : {}), term: (contractRec?.record.body as { data_handling?: DataHandling } | undefined)?.data_handling, now: now() });
       io.out(r.message);
+      // With --by, the performer cites the head of the chain in a late Action, which the log accepts only soon after settlement (ten minutes): the contract then reads as confirmed, not data_unconfirmed.
+      if (r.ok && r.line && r.line.kind === "data_deleted" && v.by) {
+        const head = r.line.hash.replace(/^sha256:/, "");
+        try {
+          const settledAt = settled?.record.issued_at ?? now();
+          const rec = createRecord({ type: "action", issuer: v.by, subject: v.contract, prev: null, body: { contract: v.contract, scopes_used: [], late: { activity_ended: settledAt }, job_data_chain: head, summary: "job data deleted at settlement" }, issued_at: now() } as never, (() => { const sg = new Keystore(home).forDid(v.by!); if (!sg) throw new Error(`no key for ${v.by} here: only its holder can sign`); return sg; })());
+          const res = await handle.append(rec as never);
+          io.out(`confirmed: the Action ${res.id} cites the chain head ${head.slice(0, 12)}...; the log now reads this contract's job data as confirmed`);
+        } catch (e) {
+          io.out(`not confirmed in the log: ${(e as Error).message}. The log accepts the citation only within ten minutes of settlement; the local line is written, and the contract stays data_unconfirmed.`);
+        }
+      } else if (r.ok && r.line && r.line.kind === "data_deleted") io.out("not cited in the log: add --by <your did> within ten minutes of settlement to confirm it, or asp market action --job-data-chain <head> --late <time>");
       return r.ok ? 0 : 1;
     }
     if (cmd === "my-data") {
@@ -6007,6 +6022,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`intent ${res.id} by ${by} (log seq ${res.seq})`);
+    // JO3: say, once, what the job-data term covers, at the point where the poster describes the job.
+    io.err(`  data     what you share for this job is shared for the job only: the performer uses it only to do the job and deletes its copies when the job settles. Do not put secrets or personal data of other people in the purpose, the criteria or any file that the job does not need; the contract can allow the commons (--commons-sharing) or a retention period (--retain-days).`);
     return 0;
   }
 
@@ -6511,6 +6528,12 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.sub_agents = "shared_identity";
     }
     if (v.summary) body.summary = v.summary;
+    // The performer cites the head of its job-data deletion chain (JO3, S1602): 64 lowercase hex characters.
+    if (v["job-data-chain"] !== undefined) {
+      const h = String(v["job-data-chain"]).replace(/^sha256:/, "");
+      if (!/^[0-9a-f]{64}$/.test(h)) throw new UsageError("--job-data-chain is the hash of your job-data chain head: 64 lowercase hex characters (asp job-data show prints it)");
+      body.job_data_chain = h;
+    }
     // A late report (S80): the last stretch of activity, made after the job ended; the log accepts it only on a settled job, soon after, for activity up to the end.
     if (v.late) body.late = { activity_ended: v.late };
     if (v.metrics) {
@@ -7150,6 +7173,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // JO3: at the start of a run, one line on the job-data term: what is shared for a job is for the job only.
+  io.err("  data     the agent reads this project and your prompt: do not put secrets or personal data of other people in them unless the task needs it; a job's data is shared for the job only and is deleted when the job settles (asp job-data delete)");
   // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
   if (v["ask-first"] && !v.yes) {
     let go = false;

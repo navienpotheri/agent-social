@@ -366,10 +366,10 @@ asp resume
     Let the sessions held by asp pause continue
 asp market contract ... [--commons-sharing] [--retain-days &lt;n&gt;] [--personal-data none|included]
     Every new contract carries the job-data term (JO3): the poster's data is shared for the job only and the performer deletes its copies when the job settles; the flags allow the commons, a retention of 1 to 365 days after settlement, or declare personal data of other people. The term is written explicitly and said in words
-asp job-data delete --contract &lt;id&gt; --path &lt;folder&gt;
-    After a job settles, remove your working copies of its data and write down that you did, as the contract's job-data term says; a contract that allows retention for some days is kept until then and the line says when deletion is due. It refuses before settlement
-asp job-data show
-    List what asp job-data delete has written, and check the chain of the lines
+asp job-data delete --contract &lt;id&gt; --path &lt;folder&gt; [--by &lt;performer did&gt;]
+    After a job settles, remove your working copies of its data and write down that you did, as the contract's job-data term says; with --by, cite the chain head in a late Action within ten minutes of settlement so that the log reads the job data as confirmed; a contract that allows retention for some days is kept until then and the line says when deletion is due. It refuses before settlement
+asp job-data show [--contract &lt;id&gt;]
+    List what asp job-data delete has written, check the chain of the lines, and with --contract print the status the log reads for that contract (not applicable, confirmed or unconfirmed)
 asp my-data [--agent &lt;did&gt;] [--acknowledge [--by &lt;did&gt;]] [--json]
     Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read, and with --by &lt;your did&gt; signs it into the log as a notice_ack record
 asp credits guard [--json]
