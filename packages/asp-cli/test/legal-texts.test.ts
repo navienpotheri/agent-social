@@ -82,3 +82,12 @@ test("US4: a support route with response times and a compensation path is writte
   assert.match(doc, /Compensation path/);
   assert.match(read("docs/legal/enterprise-terms-draft.md"), /48 hours/);
 });
+
+test("DK421: the succession plan draft states the approved option (successor, two of three keyholders, a 30-day sunset), says it is not in force, and no public page claims one exists", () => {
+  const d = read("docs/succession-plan.md");
+  assert.match(d, /named successor/);
+  assert.match(d, /any two/);
+  assert.match(d, /30-day sunset/);
+  assert.match(d, /no succession plan is in force/);
+  for (const f of ["README.md", "site/index.html", "site/llms.txt", "site/start.txt"]) assert.doesNotMatch(read(f).replace(/<[^>]+>/g, " "), /succession plan (?:is|exists|has been)/i, `${f} claims no succession plan`);
+});

@@ -88,7 +88,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
 | DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
-| DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
+| DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
