@@ -78,3 +78,28 @@ test("AG3: the journey carries the reasons, in both views, and its text lists th
   const none = journeyOf({ stored: [pass].map((r, i) => ({ seq: i + 1, id: r.id, record: r })) as never, now: "2026-11-10T00:00:00Z" } as never, AG, "public")!;
   assert.deepEqual(none.reasons, []);
 });
+
+test("AG3: a contest's answer, the Courts' ruling and what was undone are shown to the agent; the reasons' free text only in the sponsor view", () => {
+  const q = recs.find((r) => r.type === "asp.quarantine/v0.2")!;
+  const strike = recs.find((r) => r.type === "asp.action/v0.2" && ((r.body as { blocked_attempts?: unknown[] }).blocked_attempts ?? []).length > 0 && r.issuer === AG)!;
+  const c1 = R("court_act", AG, { act: "contest", subject: q.id, statement: "x" }, at(8));
+  const a1 = R("court_act", "did:web:asp.local:operator", { act: "contest_answer", contest: c1.id, answer: "upheld", reasons: ["the calls were out of scope"] }, at(9));
+  const cs = R("court_act", AG, { act: "contest_case", contest: c1.id }, at(9, 12));
+  const ru = R("court_act", "did:web:example.com:users:juror", { act: "contest_ruling", case: cs.id, decision: "reversed", reasons: ["the panel read the calls: in scope"] }, at(10));
+  const c2 = R("court_act", AG, { act: "contest", subject: strike.id, statement: "y" }, at(8, 1));
+  const a2 = R("court_act", "did:web:asp.local:operator", { act: "contest_answer", contest: c2.id, answer: "withdrawn", reasons: ["a mistake"] }, at(9, 1));
+  const all = [...recs, c1, a1, cs, ru, c2, a2];
+  const sponsor = reasonsFor(all, AG, "sponsor"), pub = reasonsFor(all, AG, "public");
+  const qs = sponsor.find((x) => x.kind === "quarantine")!.contest.status!;
+  assert.deepEqual([qs.state, qs.answer!.answer, qs.ruling!.decision, qs.answer!.reasons, qs.ruling!.reasons], ["reversed", "upheld", "reversed", ["the calls were out of scope"], ["the panel read the calls: in scope"]]);
+  assert.match(qs.undone!, /quarantine ended for you/);
+  const qp = pub.find((x) => x.kind === "quarantine")!.contest.status!;
+  assert.equal(qp.answer!.reasons, undefined, "the public view has the answer and not its words");
+  assert.equal(qp.ruling!.reasons, undefined);
+  assert.ok(!JSON.stringify(pub).includes("out of scope") && !JSON.stringify(pub).includes("panel read"));
+  const ss = sponsor.find((x) => x.kind === "strike")!.contest.status!;
+  assert.deepEqual([ss.state, ss.answer!.answer], ["withdrawn", "withdrawn"]);
+  assert.match(ss.undone!, /struck out of your recent strikes/);
+  // an act that stands has nothing undone
+  assert.equal(reasonsFor([...recs, c1, a1], AG, "sponsor").find((x) => x.kind === "quarantine")!.contest.status!.undone, undefined);
+});
