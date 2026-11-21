@@ -35,6 +35,14 @@ Headings are now "Available now", "Not yet built", "Data", "Plans" and "Joining 
 4. **site/place-for-agents.html, "story page".** The phrase "story page" is used for `/agent/<name>/story` and nowhere defined. It should be defined once on the first page that uses it.
 5. **site/society.html, the replay.** The sentence "The replay below shows scripted agents and simulated data" is exact; the instruction text of the controls (Pause, Speed) is interface text and was not reviewed.
 
+## Scope cut (owner, 2026-11-22)
+
+Rewriting every document takes too long, so the launch needs one pass each over these texts, in this order:
+
+1. site/index.html and site/start.html (the start page is generated from `packages/asp-log/src/front-door.ts`): **done 2026-11-22**. Headings became nouns, sentences were made formal and the spelling is British. The start page still says "trajectories, messages and free text", which is narrower than DK79 (finding 1).
+2. README.md and site/llms.txt (generated from `conformance/generate-ai-files.ts`): **done 2026-11-22** for the opening sections and the status sentence. The rest of the README, which is already in a formal register, has had no second pass.
+3. docs/legal/terms.md and docs/legal/privacy.md: **after the DK79 category list exists**, because the telemetry disclosure is generated from it. Structure prepared from the owner's category names: plans, sub-agent graph, reasoning traces, skills, actions, beliefs, goals, memory, messages, profiles.
+4. Every other document in docs/document-register.json stays "approved for now (working draft)", is not final, and is moved to an after-launch pass (`"pass": "after_launch"` in the register).
 ## Second pass by lane-verify (2026-11-22)
 
 The standard is the owner's: formal, grammatically correct, sharp and precise; British spelling; one register; one set of terms. Method: an automated scan of the visible text of site/society.html, learning.html, place-for-agents.html, enterprise.html, start.html and index.html and of README.md for contractions, exclamation marks, first-person plural, informal words, American spellings, a lower-case "Mandate", shorthand (&, +, w/, e.g.), repeated words and numerals; and a full read of site/learning.html and site/place-for-agents.html. The scan found nothing in society.html and enterprise.html; it cannot judge grammar or meaning, so those two pages are not certified by it, only free of the listed patterns. The four rewritten pages pass the pattern scan. The violations below are in the sentences quoted; none is changed here (the text belongs to launch-bar-2 and the owner reads the pages).
@@ -66,3 +74,23 @@ The standard is the owner's: formal, grammatically correct, sharp and precise; B
 - Whether every sentence in society.html and enterprise.html states one fact, which the owner's rule requires.
 - Headings that are nouns throughout (the scan does not test headings).
 - Consistency of "enrol" (British) against "enroll" in the commands and the code: the code prints "enrolled"; the pages use "enrol". No change is suggested; the commands are not copy.
+
+### Resolution of the second pass (launch-bar-2, 2026-11-22)
+
+| # | State | What was done |
+|---|---|---|
+| 1, 2 | Fixed | The opening sentence of the gap section and the heading "Six properties of every agent" replace the originals (site/index.html). |
+| 3 | Fixed | "The target for the first three months is 1,000 tenants and 1 million governed runs." |
+| 4–7 | Fixed | The README opening sections ("What Agent Social is", "The protocol") are rewritten; British spelling; no first person. |
+| 8 | Fixed | "a standing job lasts seven days". |
+| 9 | Fixed | "corpora that the project wrote itself". |
+| 10 | Fixed | "No money moves through the service, and the terms say so." |
+| 11 | Fixed | The sentence about the local gateway and open models sits under its own heading, "Runtimes". |
+| 12 | Open | Waits for the DK79 category list (finding 1). |
+| 13 | Fixed | "Young person" stays, as the term of the terms and the privacy notice; "tenant" is defined on the Learning page, the first page that uses it. |
+| 14 | Fixed | "The services board is separate from the job board." |
+| 15 | Fixed | Each kind of service is defined from `SERVICE_KINDS` in packages/asp-package/src/services-pages.ts. |
+| 16 | Fixed | The sentence that sent a reader to docs/site-claims.json was removed from the four pages; the claims test still runs. |
+| 17 | Open by design | The draft banner is removed on publication, with the owner's final mark. |
+
+**Update 2026-11-22 (DK79).** Finding 1 is partly resolved: docs/legal/privacy.md now carries a generated list of the nine collected signals, and the terms point to it. The start page, the Learning page and the enterprise page still say "trajectories and messages" and should name the categories or link to the notice; skills, goals, messages and profiles join when a signal collects them.

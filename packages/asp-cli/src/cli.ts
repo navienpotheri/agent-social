@@ -415,7 +415,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -600,6 +600,7 @@ const OPTIONS = {
   "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
+  "agent-runtime": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -2430,7 +2431,7 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
   if (what === "receipts") { for (const r of (await call("telemetry/receipts")).receipts) io.out(`${r.id}  ${r.at}  ${r.deleted.length} item(s) deleted`); return 0; }
   if (what === "put") {
     const content = v.file ? readFileSync(v.file, "utf8") : v.text;
-    if (!content || !v.kind) throw new UsageError("asp telemetry put --kind trajectory|message|text (--file <path> | --text <text>) [--did <did>]");
+    if (!content || !v.kind) throw new UsageError("asp telemetry put --kind trajectory|message|text|goal|reasoning|plan|subagent|skill|action|memory (--file <path> | --text <text>) [--did <did>]");
     const j = await call("telemetry/content", "POST", { kind: v.kind, content, ...(v.did ? { did: v.did } : {}) });
     io.out(`${j.stored ? "stored" : "already stored"}: ${j.hash}`);
     return 0;
@@ -2451,7 +2452,10 @@ async function captureTelemetry(env: Record<string, string | undefined>, items: 
   let priv = false;
   try {
     const st = await fetchRetry(new URL("telemetry", base), { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
-    priv = ((await st.json().catch(() => undefined)) as { sharing?: string } | undefined)?.sharing === "private";
+    const status = (await st.json().catch(() => undefined)) as { sharing?: string; minor?: boolean } | undefined;
+    // A young person's tenant: nothing is stored, and nothing is sent.
+    if (status?.minor) return [];
+    priv = status?.sharing === "private";
   } catch { /* an unreachable service sends nothing */ }
   for (const it of items) {
     if (!it.content) continue;
@@ -3444,6 +3448,11 @@ function parseFleetRate(text: string | undefined): { total_per_minute: number; p
   return { total_per_minute: Number(m[1]), ...(m[2] ? { per_host_per_minute: Number(m[2]) } : {}) };
 }
 
+/** The runtime a gateway command line starts, from the name of its program; any other program is `generic`. */
+function runtimeNameOf(command: string[]): string {
+  const base = (command[0] ?? "").split(/[\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
+  return ({ claude: "claude-code", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes" } as Record<string, string>)[base] ?? "generic";
+}
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
   const contract = need("contract");
   const by = need("by");
@@ -3606,7 +3615,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const pollSeconds = v["quarantine-poll"] === undefined ? 60 : Number(v["quarantine-poll"]);
   if (!(pollSeconds > 0)) throw new UsageError("--quarantine-poll is a number of seconds above 0");
   const stopQuarantineWatch = watchQuarantine(local, by, mandate0.scopes, mandate.scopes, pollSeconds * 1000, now, (l) => io.err(l));
+  // The cognition tap (DK79): always on for an open or personal agent; a gateway that is not told the runtime reads the command's name. Items are scrubbed in the tap and go to the telemetry store at the end of the run.
+  const cognition = new CognitionTap({ runtime: v["agent-runtime"] ?? runtimeNameOf(command) });
   const gw = createGateway({
+    cognition,
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
@@ -3737,6 +3749,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     const tmRefs = why === "exit" ? await captureTelemetry(io.env, [
       ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
       ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
+      ...cognition.drain().map((i) => ({ kind: i.kind, content: i.content, did: by })),
     ]) : [];
     const d = gw.drain();
     // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
@@ -3844,7 +3857,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };

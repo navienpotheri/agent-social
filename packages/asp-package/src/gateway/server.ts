@@ -31,6 +31,7 @@ import { CODE_MARKER } from "../law-code.ts";
 import { reachesOutward } from "./untrusted.ts";
 import { ApprovalPile } from "../approval-pile.ts";
 import type { GatewayTelemetry } from "./telemetry-tap.ts";
+import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -104,6 +105,8 @@ export interface GatewayOptions {
   fetch?: typeof fetch;
   /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
   telemetry?: GatewayTelemetry;
+  /** The cognition tap (DK79): reads messages, thinking, plans, sub-agent calls, skills, memory writes and actions, scrubbed, for the telemetry store. Absent: nothing is read. */
+  cognition?: CognitionTap;
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
@@ -194,7 +197,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingBlockedTargets = new Map<string, Set<string>>();
   const pendingTargets = new Set<string>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
-  const tokens: { input: number; output: number; text: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
+  const tokens: { input: number; output: number; text: string; thinking?: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
   const limiter: Limiter = opts.rateLedger ? new SharedRateLimiter(opts.rateLedger) : new RateLimiter();
@@ -214,6 +217,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const foreignResult = new Map<string, string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
+    opts.cognition?.observeRequest(body);
     // The answers to earlier tool calls arrive in the next request; each is kept once (a request carries the whole history).
     for (const r of toolResultsIn(body)) {
       const key = r.id || r.text.slice(0, 80);
@@ -233,12 +237,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
       }
     }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
-    tokens.text = "";
+    tokens.text = ""; tokens.thinking = undefined;
     return { input: tokens.input, output: tokens.output, at: Date.now() };
   };
-  const endModelCall = (snap: { input: number; output: number; at: number }, text: string) => {
+  const endModelCall = (snap: { input: number; output: number; at: number }, text: string, thinking?: string) => {
+    opts.cognition?.observeReply({ text, ...(thinking ? { thinking } : {}) });
     rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
-    tokens.text = "";
+    tokens.text = ""; tokens.thinking = undefined;
   };
   // Totals at the last drain, and the models seen since, so each Action carries its own interval's figures.
   const last = { requests: 0, toolCalls: 0, input: 0, output: 0, at: Date.now() };
@@ -435,6 +440,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
     opts.telemetry?.observeCall({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
+    opts.cognition?.observeCall({ name: call.name, args: call.args, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
     rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); for (const t of targetsOf(call)) if (pendingTargets.size < 64) pendingTargets.add(t); }
@@ -542,7 +548,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayOpenaiStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
-      endModelCall(snap, tokens.text);
+      endModelCall(snap, tokens.text, tokens.thinking);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
@@ -553,7 +559,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     tokens.input += reply.usage?.prompt_tokens ?? 0;
     tokens.output += reply.usage?.completion_tokens ?? 0;
     noteModel(body.model, opts.openaiUpstream, { model: reply.model, fingerprint: reply.system_fingerprint });
-    endModelCall(snap, replyText(reply));
+    endModelCall(snap, replyText(reply), thinkingOf(reply));
     const refused: { name: string; reason: string }[] = [];
     for (const choice of reply.choices ?? []) {
       const msg = choice.message;
@@ -588,7 +594,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayResponsesStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
-      endModelCall(snap, tokens.text);
+      endModelCall(snap, tokens.text, tokens.thinking);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
@@ -599,7 +605,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
     noteModel(body.model, opts.openaiUpstream, { model: reply.model });
-    endModelCall(snap, replyText(reply));
+    endModelCall(snap, replyText(reply), thinkingOf(reply));
     if (Array.isArray(reply.output)) {
       const kept: any[] = [];
       const refused: { name: string; reason: string }[] = [];
@@ -632,7 +638,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayAnthropicStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.anthropicUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
-      endModelCall(snap, tokens.text);
+      endModelCall(snap, tokens.text, tokens.thinking);
       if (tokenCapHit()) stop("token cap reached");
       return;
     }
@@ -643,7 +649,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     tokens.input += reply.usage?.input_tokens ?? 0;
     tokens.output += reply.usage?.output_tokens ?? 0;
     noteModel(body.model, opts.anthropicUpstream, { model: reply.model });
-    endModelCall(snap, replyText(reply));
+    endModelCall(snap, replyText(reply), thinkingOf(reply));
     if (Array.isArray(reply.content)) {
       const refused: { name: string; reason: string }[] = [];
       const kept: any[] = [];
