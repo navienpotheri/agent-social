@@ -374,6 +374,7 @@ export class EventLog {
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
+    if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
@@ -1268,6 +1269,9 @@ export class EventLog {
     } else if (t === "asp.clinic_diagnosis/v0.2") {
       await tx.putMarker(`diagnosis_withdrawn:${info.subject}`, at);
       effects.diagnosis_withdrawn = true;
+    } else if (t === "asp.gateway_refusal/v0.2") {
+      await tx.putMarker(`refusal_reversed:${info.subject}`, contestId);
+      effects.refusal_recorded_as_wrong = true;
     } else if (t === "asp.quarantine/v0.2") {
       if (!(await tx.getMarker(`quarantine_released:${info.subject}|${info.agent}`))) { await tx.putMarker(`quarantine_released:${info.subject}|${info.agent}`, contestId); effects.quarantine_ended_for = info.agent; }
     }
@@ -2792,6 +2796,17 @@ export class EventLog {
    * A notice acknowledgement (S1591, US8): an unknown notice and a malformed hash are refused by name; when it names an agent the issuer is that agent or its sponsor; every acknowledgement is kept and the latest for an issuer and a
    * notice is the one in force (a marker per issuer and notice, rebuilt on replay).
    */
+  /** A refusal by the agent's local gateway, signed with the agent's key (S1601, DK1607): so the agent can contest it. Costs no credits; moves nothing. */
+  private async projectGatewayRefusal(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { agent: string; rule: string; call_sha256: string };
+    if (r.prev !== null) throw rule("gateway_refusal_not_chained", "a gateway refusal starts its own chain (prev is null)");
+    if (r.issuer !== b.agent) throw rule("gateway_refusal_wrong_issuer", `${r.issuer} is not ${b.agent}: the gateway signs a refusal with the agent's own key`);
+    if (!(await tx.getPassport(b.agent))) throw rule("gateway_refusal_unknown_agent", `${b.agent} has no passport in this log`);
+    if (!["outside_mandate", "forbidden_means", "injection_hold", "budget", "network_host"].includes(b.rule)) throw rule("gateway_refusal_unknown_rule", `${b.rule} is not a refusal rule (outside_mandate, forbidden_means, injection_hold, budget, network_host)`);
+    if (await tx.getMarker(`gateway_refusal:${b.agent}|${b.call_sha256}`)) throw rule("gateway_refusal_duplicate", "this call was recorded as refused already");
+    await tx.putMarker(`gateway_refusal:${b.agent}|${b.call_sha256}`, r.id);
+  }
+
   private async checkNoticeAck(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { notice: string; statement_sha256: string; agent?: string };
     if (r.prev !== null) throw rule("notice_ack_not_chained", "a notice acknowledgement starts its own chain (prev is null)");
