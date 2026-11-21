@@ -52,7 +52,7 @@ export function ruleWorld(spec: RuleSpec) {
     const pick = <T,>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
     const out: Task[] = [];
     for (let tries = 0; out.length < count && tries < 30000; tries++) {
-      const s: Record<string, string> = { name: `${pick(spec.nameParts)}${pick(spec.nameParts)}-${10 + Math.floor(r() * 89)}` };
+      const s: Record<string, string> = { name: `${pick(spec.nameParts)}${pick(spec.nameParts)}-${seed.includes("|held|") ? 50 + Math.floor(r() * 49) : 10 + Math.floor(r() * 40)}` }; // practice names end 10 to 49 and held-out names 50 to 98: a name seen in practice is never a held-out name (DK1752)
       for (const f of featureNames) s[f] = pick(spec.features[f]);
       if (fired(s).length > 1) continue;
       const a = correctAction(s);
@@ -138,7 +138,7 @@ export function ruleWorld(spec: RuleSpec) {
     if (regressions > spec.regressionsMax) failures.push(`${regressions} tasks it got right without the rules are now wrong: a rule is too broad`);
     return { score_permille: regressions > spec.regressionsMax ? Math.min(accuracy, 500) : accuracy, passed: failures.length === 0, measures: { accuracy_permille: accuracy, baseline_permille: baseline, regressions, rules: memory.length }, failures };
   };
-  const engine: Engine = { id: spec.id, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks };
+  const engine: Engine = { id: spec.id, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks, leakTokens: (seed) => [...new Set(heldoutFor(seed).map((t) => t.name))] };
   register(engine);
 
   // scripted agents

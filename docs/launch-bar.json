@@ -6089,7 +6089,7 @@
   {
    "id": "DK1752",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Courses derived from papers are written by hand: there is no authoring template that separates practice tasks from held-out tasks and no lint that finds a held-out item leaking into the lesson text o…",
    "bucket": "after",
    "hours": 0,

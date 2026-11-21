@@ -14,7 +14,8 @@ import { createHash } from "node:crypto";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { REGISTRAR_DID, TREASURY_DID } from "@agent-social/asp-log";
 import { courseItem, courseService, loadCatalogue, type CourseCard } from "./catalogue.ts";
-import { engineIds } from "./index.ts";
+import { ENGINES, engineIds } from "./index.ts";
+import { lintCard } from "./lint.ts";
 import { courseRecordFor } from "./sitting.ts";
 
 export interface PublishIo {
@@ -23,6 +24,8 @@ export interface PublishIo {
   log: any;
   now: () => string;
   signerFor: (did: string) => Signer;
+  /** For tests: cards to publish instead of the catalogue's. */
+  catalogue?: CourseCard[];
 }
 export class PublishUsage extends Error {}
 
@@ -38,8 +41,11 @@ export async function publishCmd(target: string | undefined, o: PublishIo): Prom
   if (cat.problems.length) throw new PublishUsage(`the course catalogue has problems: ${cat.problems.join("; ")}`);
   const all = o.flags.all === true;
   if (!target && !all) throw new PublishUsage(usage);
-  const cards: CourseCard[] = all ? cat.order.map((id) => cat.courses.find((c) => c.id === id)!) : cat.courses.filter((c) => c.id === target);
+  const pool = o.catalogue ?? cat.courses;
+  const cards: CourseCard[] = all ? (o.catalogue ?? cat.order.map((id) => cat.courses.find((c) => c.id === id)!)) : pool.filter((c) => c.id === target);
   if (!cards.length) throw new PublishUsage(`${target} is not a course in the catalogue (asp academy lens courses)`);
+  const failing = cards.map((c) => ({ c, r: lintCard(c, ENGINES[c.generator.engine]) })).filter((x) => x.r.problems.length);
+  if (failing.length) { for (const f of failing) o.out(`${f.c.id}: not published, the lint fails: ${f.r.problems[0]}`); return 1; }
   const author = flag(o, "author"), reviewers = (flag(o, "reviewers") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   if (!author) throw new PublishUsage(`${usage}: --author names the agent that signs the course`);
   if (reviewers.length < 2) throw new PublishUsage(`${usage}: --reviewers names at least two agents of other sponsors than the author's`);

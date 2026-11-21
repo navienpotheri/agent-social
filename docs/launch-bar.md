@@ -565,7 +565,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1724 | A | partial | Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay | site, docs: say 'planned' |
 | DK1725 | A | open | the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch) | site, docs: say 'built and tested; the live run on the hosted service is pending' |
 | DK1751 | A | partial | A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark | site, docs: say 'planned' |
-| DK1752 | A | open | A paper-derived course template and a lint for held-out leakage | site, docs: say 'planned' |
+| DK1752 | A | partial | A paper-derived course template and a lint for held-out leakage | site, docs: say 'planned' |
 | DK1753 | A | partial | Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces | site, docs: say 'planned' |
 | DK1754 | A | partial | Gate additions for paper-derived lessons: provenance, no regression on existing evals, thresholds fixed in advance | site, docs: say 'planned' |
 | DK1755 | A | partial | Evolving evals: refresh with contamination detection and a Goodhart guard | site, docs: say 'planned' |

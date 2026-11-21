@@ -156,7 +156,7 @@ export function runSuite(artifact: unknown, seed: string): CourseRun {
   return { score_permille: score, passed: failures.length === 0, measures: { catch_permille: catchRate, false_fail_permille: falseFail, kappa_permille: kappa, faulty: faulty.length, good: good.length }, failures };
 }
 
-export const evolvingEvals: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runSuite(artifact, seed) };
+export const evolvingEvals: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runSuite(artifact, seed), leakTokens: (seed) => heldoutTokens(heldoutFor(seed)) };
 register(evolvingEvals);
 
 // ---- scripted agents for the tests and the demonstration: an honest one and four that must not pass
