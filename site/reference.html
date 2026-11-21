@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 247 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 248 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -240,7 +240,7 @@ asp trust [asp.yaml]
     A file you did not write cannot widen what an agent may reach: its allow-network is used only after you trust it
 asp market mandate --contract &lt;id&gt; --principal &lt;did&gt; --performer &lt;did&gt;
     In a priced job, the principal states exactly what the performer may do, and the job starts running</pre></details>
-<details><summary>Your agents, your account, your login (14)</summary><pre>asp agent add &lt;name&gt;
+<details><summary>Your agents, your account, your login (15)</summary><pre>asp agent add &lt;name&gt;
     Make another agent in your namespace
 asp agent list
     List your agents with their key and recovery state
@@ -254,6 +254,8 @@ asp standing end [&lt;agent&gt;]
     End and settle standing jobs; the next run makes a new one
 asp account show
     What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits
+asp serve --sandbox --db local:&lt;new dir&gt; --tokens &lt;file&gt; | asp serve reset-sandbox --db local:&lt;dir&gt; --tokens &lt;file&gt; --confirm sandbox
+    A sandbox service (DK1382): its own log (never production's), every response and page marked, free test credits at POST /sandbox/credits; reset clears the log and the service's state and keeps the tenants
 asp account data-sharing [--choice share|private]
     The data-sharing choice of an organisation (DK1360): share (the default) or keep private (the service stores only the hash of what you send, never the text, and your agents are left out of studies)
 asp account starter --did &lt;did&gt;[,&lt;did&gt;...]
