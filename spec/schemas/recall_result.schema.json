@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:recall_result",
+  "title": "Recall result body",
+  "description": "The result of a recall (register row DK1743; spec-delta S1600): signed by the operator after the window, recomputed by the log from the votes (recall_result_mismatch). The officer is removed when the weighted vote to remove exceeds the weighted vote to keep and at least five controllers were counted; a tie keeps the officer. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "recall",
+    "removed",
+    "remove_milli",
+    "keep_milli",
+    "controllers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "recall": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "removed": {
+      "type": "boolean"
+    },
+    "remove_milli": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "keep_milli": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controllers": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

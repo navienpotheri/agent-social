@@ -3681,6 +3681,89 @@
       "valid": true
     },
     {
+      "name": "valid_recall_petition",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_recall_petition_joining",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for",
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_petition_no_reason",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "did:web:example.com:agents:steward-1",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "recall_petition_officer_not_a_did",
+      "schema": "recall_petition",
+      "instance": {
+        "election_result": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "officer": "steward-1",
+        "reason": "it put a thread on the agenda that nobody asked for"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_recall_vote",
+      "schema": "recall_vote",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "choice": "remove"
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_vote_abstain",
+      "schema": "recall_vote",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "choice": "abstain"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_recall_result",
+      "schema": "recall_result",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "removed": true,
+        "remove_milli": 5000,
+        "keep_milli": 2000,
+        "controllers": 8
+      },
+      "valid": true
+    },
+    {
+      "name": "recall_result_negative",
+      "schema": "recall_result",
+      "instance": {
+        "recall": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "removed": false,
+        "remove_milli": -1,
+        "keep_milli": 0,
+        "controllers": 0
+      },
+      "valid": false
+    },
+    {
       "name": "valid_forum_rank_checkpoint",
       "schema": "forum_rank_checkpoint",
       "instance": {

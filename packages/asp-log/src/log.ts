@@ -44,7 +44,7 @@ import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-
 import { modelTrust as modelTrustOf } from "./model-trust.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { projectAgentMessage, projectMessageBlock } from "./messages.ts";
-import { candidacyProblems, commitBallot, runElection, type Ballot } from "./election.ts";
+import { candidacyProblems, commitBallot, recallPasses, runElection, type Ballot } from "./election.ts";
 import { isDrawn } from "./ladder-draw.ts";
 import { declProblems as expeditionDeclProblems, frameHash as expeditionFrameHash } from "./expedition.ts";
 import { dynamicsLine, stressReplay, type DynamicsLine, type StressEvent, type StressResult } from "./insurer-stress.ts";
@@ -377,6 +377,7 @@ export class EventLog {
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
+    if (type === "recall_petition" || type === "recall_vote" || type === "recall_result") await this.projectRecall(tx, verified, type);
     if (type === "election" || type === "candidacy" || type === "ballot_commit" || type === "ballot_reveal" || type === "election_result") await this.projectElection(tx, verified, type);
     if (type === "message_block") await projectMessageBlock(tx, verified);
     if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
@@ -3033,6 +3034,99 @@ export class EventLog {
   async latestRankCheckpoint(): Promise<{ id: string; period: string; votes: number } | null> {
     const raw = await this.store.transaction((tx) => tx.getMarker("rank_checkpoint:last"));
     return raw ? JSON.parse(raw) : null;
+  }
+
+  /**
+   * Recall of an elected officer (S1600, DK1743; docs/institutions/elections.md 5): a petition of controllers, a seven-day vote weighted like the Town Hall's, and a result the log recomputes. The first petition names the election result
+   * and the officer; it is refused within seven days of the election and against someone who was not elected there. Each controller signs once. At 10 percent of the controllers that voted (never fewer than five) the recall opens;
+   * the vote closes seven days later; the operator signs the result, which the log recomputes: removed when `remove` outweighs `keep` with five controllers counted, a tie keeps the officer.
+   */
+  private async projectRecall(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule("recall_not_chained", "a recall record starts its own chain (prev is null)");
+    const now = Date.parse(r.issued_at);
+    const DAYS = 86_400_000;
+    const stateOf = async (id: string) => {
+      const raw = await tx.getMarker(`recall:${id}`);
+      if (!raw) throw rule("recall_unknown", `${id} is not a recall in this log`);
+      return JSON.parse(raw) as { election: string; officer: string; office: string; need: number; controllers: string[]; opens_at?: string; closes_at?: string; votes: { voter: string; choice: string }[]; done?: boolean };
+    };
+    if (type === "recall_petition") {
+      const b = r.body as { election_result: string; officer: string; recall?: string };
+      const me = await this.factsOf(tx, r.issuer);
+      if (!(await tx.getPassport(r.issuer))) throw rule("recall_no_passport", `${r.issuer} has no passport in this log`);
+      const voter = await this.voterOf(tx, r.issuer, "abstain");
+      if (voter.qualifyingJobs < 1 && voter.relatedJobs < 1) throw rule("recall_petitioner_ineligible", "a petitioner needs standing (a counted job)");
+      let id = b.recall, st: Awaited<ReturnType<typeof stateOf>>;
+      if (id) {
+        st = await stateOf(id);
+        if (st.officer !== b.officer || st.election !== b.election_result) throw rule("recall_mismatch", "a petition joins the petition for the same officer and election");
+        if (st.opens_at) throw rule("recall_open", "the recall is open: it is voted on, no longer petitioned");
+      } else {
+        const res = await tx.getRecord(b.election_result);
+        if (!res || res.record.type !== "asp.election_result/v0.2") throw rule("recall_not_an_officer", `${b.election_result} is not an election result in this log`);
+        const rb = res.record.body as { void: boolean; elected: string[]; controllers: number; election: string };
+        const el = await tx.getRecord(rb.election);
+        const office = (el?.record.body as { office?: string } | undefined)?.office ?? "";
+        if (rb.void || !rb.elected.includes(b.officer)) throw rule("recall_not_an_officer", `${b.officer} was not elected in that election`);
+        const holders = JSON.parse((await tx.getMarker(`office_holders:${office}`)) ?? "null") as { elected: string[]; election: string } | null;
+        if (!holders || holders.election !== rb.election || !holders.elected.includes(b.officer)) throw rule("recall_not_an_officer", `${b.officer} no longer holds the office from that election`);
+        if (now - Date.parse(res.record.issued_at) < 7 * DAYS) throw rule("recall_grace", "a recall waits seven days after an election: a loser does not start one the day after");
+        if (await tx.getMarker(`recall_for:${b.election_result}|${b.officer}`)) throw rule("recall_exists", "this officer already has a recall for that election");
+        id = r.id;
+        st = { election: b.election_result, officer: b.officer, office, need: Math.max(5, Math.ceil(rb.controllers / 10)), controllers: [], votes: [] };
+        await tx.putMarker(`recall_for:${b.election_result}|${b.officer}`, id);
+      }
+      if (st.controllers.includes(me.sponsor)) throw rule("recall_petition_twice", "one signature for each controller");
+      st.controllers.push(me.sponsor);
+      if (st.controllers.length >= st.need) { st.opens_at = r.issued_at; st.closes_at = new Date(now + 7 * DAYS).toISOString().replace(/\.\d{3}Z$/, "Z"); }
+      await tx.putMarker(`recall:${id}`, JSON.stringify(st));
+      return;
+    }
+    const recallId = (r.body as { recall: string }).recall;
+    const st = await stateOf(recallId);
+    if (type === "recall_vote") {
+      if (!st.opens_at) throw rule("recall_not_open", "the petition has not reached its signatures: no vote yet");
+      if (now >= Date.parse(st.closes_at!)) throw rule("recall_closed", "the voting window has closed");
+      const v = await this.voterOf(tx, r.issuer, "abstain");
+      if (!(await tx.getPassport(r.issuer)) || (v.qualifyingJobs < 1 && v.relatedJobs < 1)) throw rule("recall_voter_ineligible", "a voter needs a passport and standing (a counted job)");
+      if (st.votes.some((x) => x.voter === r.issuer)) throw rule("recall_vote_duplicate", "one vote for each identity");
+      st.votes.push({ voter: r.issuer, choice: (r.body as { choice: string }).choice });
+      await tx.putMarker(`recall:${recallId}`, JSON.stringify(st));
+      return;
+    }
+    // recall_result
+    if (r.issuer !== this.operator) throw rule("recall_wrong_issuer", "only the operator signs a recall result, and the log recomputes it");
+    if (!st.opens_at || now < Date.parse(st.closes_at!)) throw rule("recall_early", "a result waits for the vote to close");
+    if (st.done) throw rule("recall_done", "this recall has its result");
+    const t = await this.recallCountIn(tx, st);
+    const b = r.body as { removed: boolean; remove_milli: number; keep_milli: number; controllers: number };
+    if (b.removed !== t.removed || b.remove_milli !== t.remove_milli || b.keep_milli !== t.keep_milli || b.controllers !== t.controllers) throw rule("recall_result_mismatch", `the count of the votes is ${JSON.stringify(t)}, which is not what was signed`);
+    await tx.putMarker(`recall:${recallId}`, JSON.stringify({ ...st, done: true }));
+    if (t.removed) {
+      const holders = JSON.parse((await tx.getMarker(`office_holders:${st.office}`)) ?? "null") as { elected: string[]; election: string; at: string } | null;
+      if (holders) await tx.putMarker(`office_holders:${st.office}`, JSON.stringify({ ...holders, elected: holders.elected.filter((x) => x !== st.officer) }));
+      await tx.putMarker(`removed:${st.office}|${st.officer}`, r.id);
+    }
+  }
+
+  private async recallCountIn(tx: LogTx, st: { votes: { voter: string; choice: string }[] }) {
+    const votes: Voter[] = [];
+    for (const x of st.votes) votes.push(await this.voterOf(tx, x.voter, x.choice === "remove" ? "yes" : "no"));
+    const t = countVotes(votes, this.townRules, "setting");
+    return { removed: recallPasses(t.yes_milli, t.no_milli, t.controllers, this.townRules), remove_milli: t.yes_milli, keep_milli: t.no_milli, controllers: t.controllers };
+  }
+
+  /** The live count of a recall (S1600): what the operator signs, whether or not it has its result. Reads only. */
+  async recallTally(recall: string) {
+    return this.store.transaction(async (tx) => {
+      const raw = await tx.getMarker(`recall:${recall}`);
+      return raw ? this.recallCountIn(tx, JSON.parse(raw)) : null;
+    });
+  }
+
+  /** Whether an officer was removed from an office by a recall (S1600): the record of the result, or null. Reads only. */
+  async removedFrom(office: "steward" | "auditor", officer: string): Promise<string | null> {
+    return (await this.store.transaction((tx) => tx.getMarker(`removed:${office}|${officer}`))) || null;
   }
 
   /** The holders of an elected office (S1596): the last election's winners, or null. Reads only. */

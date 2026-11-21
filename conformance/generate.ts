@@ -736,6 +736,16 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- recall (spec-deltas S1600, register row DK1743): schema cases ----------
+const rpBody = (over: Record<string, unknown> = {}) => ({ election_result: "sha256:" + "a".repeat(64), officer: "did:web:example.com:agents:steward-1", reason: "it put a thread on the agenda that nobody asked for", ...over });
+sv("valid_recall_petition", "recall_petition", rpBody(), true);
+sv("valid_recall_petition_joining", "recall_petition", rpBody({ recall: "sha256:" + "b".repeat(64) }), true);
+sv("recall_petition_no_reason", "recall_petition", rpBody({ reason: "" }), false);
+sv("recall_petition_officer_not_a_did", "recall_petition", rpBody({ officer: "steward-1" }), false);
+sv("valid_recall_vote", "recall_vote", { recall: "sha256:" + "b".repeat(64), choice: "remove" }, true);
+sv("recall_vote_abstain", "recall_vote", { recall: "sha256:" + "b".repeat(64), choice: "abstain" }, false);
+sv("valid_recall_result", "recall_result", { recall: "sha256:" + "b".repeat(64), removed: true, remove_milli: 5000, keep_milli: 2000, controllers: 8 }, true);
+sv("recall_result_negative", "recall_result", { recall: "sha256:" + "b".repeat(64), removed: false, remove_milli: -1, keep_milli: 0, controllers: 0 }, false);
 // ---------- the forum rank checkpoint (spec-deltas S1599, register row DK1742): schema cases and the shared Merkle vectors ----------
 const rcBody = (over: Record<string, unknown> = {}) => ({ period: "2026-11-22", votes_root: "a".repeat(64), votes: 120, rank_sha256: "b".repeat(64), ...over });
 sv("valid_forum_rank_checkpoint", "forum_rank_checkpoint", rcBody(), true);

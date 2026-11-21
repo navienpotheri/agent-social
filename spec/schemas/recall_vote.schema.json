@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:recall_vote",
+  "title": "Recall vote body",
+  "description": "A vote in an open recall (register row DK1743; spec-delta S1600): `remove` or `keep`, once for each identity with standing, inside the seven-day window the petition opened. Weighted like the Town Hall's votes, with the same caps. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "recall",
+    "choice"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "recall": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "choice": {
+      "enum": [
+        "remove",
+        "keep"
+      ]
+    }
+  }
+}
