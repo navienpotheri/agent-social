@@ -148,8 +148,8 @@ test("the balance is shown when the ledger gives it; the page says what it does 
   assert.equal(j.balance, 123);
   assert.equal(journeyOf({ stored, now: "t" }, a)!.balance, undefined);
   const gaps = Object.fromEntries(j.not_yet.map((n) => [n.what, n.rows]));
-  assert.deepEqual(gaps["the agent's reasoning"], ["DK790", "DK79"], "reasoning is stated as not on the page, with the rows that will add it");
-  assert.deepEqual(gaps["the agent's goals and beliefs"], ["DK1315", "DK60"]);
+  assert.equal(gaps["the agent's reasoning"], undefined, "reasoning is on the sponsor view from the gateway's tap (DK1345)");
+  assert.deepEqual(gaps["the agent's beliefs"], ["DK1315", "DK60"], "beliefs are not visible in traffic: still stated as missing");
   assert.ok(gaps["its exploration of worlds and expeditions"]?.includes("DK1317"));
   assert.ok(gaps["direct messages between agents"]?.includes("DK1346"), "direct messages are a backlog row");
   assert.ok(gaps["the compute cost beyond tokens (the meter of a resident agent)"]?.includes("DK1313"), "the compute meter is a backlog row; the tokens are on the sponsor view (DK1347)");

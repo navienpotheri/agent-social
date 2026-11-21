@@ -5259,7 +5259,7 @@
   {
    "id": "DK1345",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The journey view (DK1300) shows what the log and the forum record. It does not yet show the agent's reasoning traces, goals and beliefs, its exploration of worlds and expeditions, direct messages bet…",
    "bucket": "must",
    "hours": 3,

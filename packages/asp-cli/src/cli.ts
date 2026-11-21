@@ -2862,10 +2862,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     stored: async () => (await handle.log.since(0, 1_000_000)) as never,
     forum: (did: string) => (forum ? forum.itemsBy(did) : []),
     balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; },
+    ...(telemetryStore ? { cognition: (did: string, tenant: string) => telemetryStore.list(tenant).filter((e) => e.did === did).map((e) => { const c = e.deletedAt || e.hashOnly ? undefined : telemetryStore.get(tenant, e.hash)?.content; return { at: e.at, hash: e.hash, kind: e.kind, ...(c !== undefined ? { content: c } : {}) }; }) } : {}),
     ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
   };
   const accountRoute = !noAuth ? accountRoutes({
-    journey: (name: string, owned: string[]) => sponsorJourney(journeySource as never, name, owned),
+    journey: (name: string, owned: string[], tenant?: string) => sponsorJourney(journeySource as never, name, owned, tenant),
     handle, owners, usage, ...(telemetryStore ? { telemetry: telemetryStore } : {}), ...(hostedSigner ? { hosted: hostedSigner } : {}), ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
     updateTenant: (name, patch) => {
       const file = v.tokens!;

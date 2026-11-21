@@ -33,7 +33,7 @@ export interface AccountOptions {
   handle: LogHandle;
   owners: OwnerStore;
   /** The sponsor view of an agent's journey (DK1300), for the tenant that owns it: given the name or DID and the DIDs the tenant owns. */
-  journey?: (nameOrDid: string, ownedDids: string[]) => Promise<{ status: number; body: Record<string, unknown> }>;
+  journey?: (nameOrDid: string, ownedDids: string[], tenant?: string) => Promise<{ status: number; body: Record<string, unknown> }>;
   usage?: UsageStore;
   /** The folders the package and commons services keep their data in (omit one that is not served). */
   packagesRoot?: string;
@@ -373,7 +373,7 @@ export function accountRoutes(o: AccountOptions) {
     if (method === "GET" && url.pathname.startsWith("/account/journey/")) {
       if (!o.journey) { fail(res, 404, "NOT_SERVED", "this service does not serve journeys"); return true; }
       const name = decodeURIComponent(url.pathname.slice("/account/journey/".length).replace(/\/+$/, ""));
-      const r = await o.journey(name, o.owners.of(me.name));
+      const r = await o.journey(name, o.owners.of(me.name), me.name);
       send(res, r.status, r.body);
       return true;
     }
