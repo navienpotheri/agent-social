@@ -122,6 +122,12 @@ if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
     echo "NOTE: GOOGLE_CLIENT_ID is set but $ETC/asp.env has no GOOGLE_CLIENT_SECRET, so sign-up with Google is NOT turned on yet"
   fi
 fi
+# Production (rows O2, T12): sign-up with a verified Google account is the only way in, so a start line without it is refused unless the operator says, on purpose, that this is a test server.
+if [ -z "$GOOGLE_FLAGS" ] && [ "${ALLOW_NO_GOOGLE:-}" != "1" ]; then
+  echo "ERROR: Google sign-up is not configured (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET), and the production start line requires --signup-require-google."
+  echo "       Set them (docs/deploy/README.md, 'Turning on sign-up with Google'), or run with ALLOW_NO_GOOGLE=1 for a test server."
+  exit 1
+fi
 
 echo "==> systemd service"
 cat > /etc/systemd/system/asp-log.service <<UNIT
@@ -139,6 +145,7 @@ ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE
   --packages $DATA/packages --runlogs $DATA/runlogs --commons $DATA/commons --known-bad $DATA/known-bad \\
   --forum $DATA/forum --forum-open \\
   --limits-state $DATA/limits-state.json \\
+  --rate-limit 600 --write-limit 120 --address-limit 1200 --max-in-flight 16 \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
   --public-url https://$DOMAIN --mail-from "$MAIL_FROM" --mail-operator $MAIL_OPERATOR $GOOGLE_FLAGS
 Restart=always
@@ -185,6 +192,19 @@ $DOMAIN {
 		rewrite * /grievance.html
 		file_server
 	}
+	# The status page (DK1341) is two static files the monitor writes; Caddy serves them itself, so the page is up while the service is down.
+	handle /status {
+		root * /var/www/asp
+		rewrite * /status.html
+		header Cache-Control "no-store"
+		file_server
+	}
+	handle /status.json {
+		root * /var/www/asp
+		header Cache-Control "no-store"
+		header Access-Control-Allow-Origin "*"
+		file_server
+	}
 	redir / /join 302
 	handle {
 		reverse_proxy 127.0.0.1:8787
@@ -212,13 +232,47 @@ install -d /etc/systemd/journald.conf.d
 printf '[Journal]\nMaxRetentionSec=90day\n' > /etc/systemd/journald.conf.d/asp-retention.conf
 systemctl restart systemd-journald
 
+echo "==> monitor and status page (DK1341): asks the service every 60 seconds, alerts once on a failure and once on recovery, writes /status"
+install -d -o asp -g asp /var/www/asp
+ALERT_WEBHOOK_LINE=""
+if grep -q '^ALERT_WEBHOOK=.\+' "$ETC/asp.env"; then ALERT_WEBHOOK_LINE="--alert-webhook \${ALERT_WEBHOOK}"; fi
+cat > /etc/systemd/system/asp-monitor.service <<UNIT
+[Unit]
+Description=Agent Social monitor and status page
+After=network-online.target asp-log.service
+Wants=network-online.target
+
+[Service]
+User=asp
+Group=asp
+EnvironmentFile=$ETC/asp.env
+ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs monitor run --service https://$DOMAIN --every 60 --after 2 \\
+  --state $DATA/monitor-state.json --status-out /var/www/asp/status.json --status-html-out /var/www/asp/status.html --incidents /var/www/asp/incidents.json \\
+  --backup-dir /var/backups/asp --alert-mail $MAIL_OPERATOR --mail-from "$MAIL_FROM" $ALERT_WEBHOOK_LINE
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=$DATA /var/www/asp
+ReadOnlyPaths=/var/backups/asp
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable asp-monitor
+systemctl restart asp-monitor
+
 echo "==> checks"
 sleep 4
-systemctl is-active asp-log postgresql caddy
+systemctl is-active asp-log asp-monitor postgresql caddy
 curl -fsS http://127.0.0.1:8787/health && echo
 echo
 echo "Service:  https://$DOMAIN/health   (the certificate can take up to a minute on the first start)"
 echo "Sign-up:  https://$DOMAIN/signup"
 echo "Terms:    https://$DOMAIN/terms   Privacy: https://$DOMAIN/privacy"
+echo "Status:   https://$DOMAIN/status   (written by asp-monitor; journalctl -u asp-monitor -f)"
 echo "Logs:     journalctl -u asp-log -f"
 echo "Operate:  cd $APP && sudo -u asp node packages/asp-cli/bin/asp.mjs serve signups --tokens $DATA/tokens.json"

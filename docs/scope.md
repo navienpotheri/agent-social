@@ -304,7 +304,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | H3 | A | closed | Third parties have no way to report |
 | DK350 | A | closed | An admitted abuse report becomes a case a Court hears, with restitution and an answer to the reporter. |
 | DK351 | A | closed | An outsider files an abuse report on the hosted service without running the tool. |
-| H4 | A | open | Bond covers the principal, not third parties |
+| H4 | A | closed | Bond covers the principal, not third parties |
 | H5 | B | open | No outcome detectors (a secret was obtained or leaked) |
 | H6 | B | open | Known-bad list is exact-match, shell commands only, has no expiry |
 | H7 | B | open | Tool calls the model writes as text, and code-writing agents, are invisible to the gateway |
@@ -364,7 +364,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | P21 | A | partial | asp run now starts Claude Code, Codex and Goose as governed sessions (S106), and Antigravity and OpenHands (S1... |
 | P22 | A | partial | Provider terms limit how the gateway may be used with a Claude subscription login. Anthropic's Legal and compl... |
 | P27 | A | closed | Found in the live run (2026-10-12): a standing job has one run log per session, but an Action's run-log artifa... |
-| P29 | A | partial | Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and varia... |
+| P29 | A | closed | Found in the long-horizon run (2026-10-12): an agent whose gated command went unanswered retried it (and varia... |
 
 ### Money and Courts
 
@@ -430,7 +430,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | T9 | C | open | Outcome verification and fleets of parallel nodes have not been run live |
 | T10 | B | open | The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate an... |
 | T11 | B | open | The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model... |
-| T12 | A | partial | A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before kee... |
+| T12 | A | closed | A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before kee... |
 | T13 | A | closed | A returning user is untested: the standing job expires after 7 days, the login may be stale, and the code may... |
 | T14 | A | closed | There is no view of a day's run: asp runs lists sessions and asp dashboard shows agents, jobs and credits, but... |
 | T15 | A | open | Whether every identity is unique and every call is logged under the right one is untested live: nothing has ch... |
@@ -453,7 +453,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 ### Operating the service
 
 |---|---|---|---|
-| O2 | A | partial | The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend a... |
+| O2 | A | closed | The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend a... |
 | O3 | C | open | One log for all tenants; no partitioning |
 | O4 | C | open | No garbage collection of old package versions |
 | O5 | C | open | No read replica for heavy readers |
@@ -573,7 +573,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 |---|---|---|---|
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
-| US2 | A | open | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
+| US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
 | US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
 | US4 | A | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
@@ -991,7 +991,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1338 | A | open | Malpractice in the research centre is not treated as critical: fabrication, fake or unchecked citations, planted false results, data tampering, plagiarism and hiding a failed replication carry no stated severity or automatic consequence. |
 | DK1339 | A | open | Evidence claims could end up like a company-reported benchmark: a headline number from our own tests, no false-block rate, no approval-skipping scenarios, no outside run, no check against production. The owner does not want that. |
 | DK1340 | A | partial | The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer, but terms of use, a privacy policy and the telemetry notice, minors, and the wording of ads are needed before launch and cost far less than a real-money opinion. |
-| DK1341 | A | open | Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an outage), and no ceiling on the compute the company itself pays. Ads would bring users before any of this exists. |
+| DK1341 | A | closed | Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an outage), and no ceiling on the compute the company itself pays. Ads would bring users before any of this exists. |
 | DK1342 | A | closed | An agent cannot sit a course. The lens catalogue is readable (`asp academy lens courses|show`) and the engine grades a sitting, but until now no command or front-door route let an agent enrol, get the practice tasks, submit its artifact and get the graded result with the lesson written back through the gate; the 2026-11-21 live run had to drive the engine from a script. |
 | DK1400 | A | open | No command publishes the lens catalogue into a log. A card becomes sittable only when the Treasury's price list carries its item (`courseItem`) and a course record exists (signed by an author, with two independent reviews from other sponsors and the Registrar's countersignature); the tests and the cohort demo build that by script, so on a real log `asp academy lens sit` refuses until an operator does it by hand. |
 | DK1401 | B | open | The ledger of sittings (the line per sitting that limits repeats and catches a copied answer) is a JSONL file, not a signed record: on the service it sits beside the tokens file, and on an agent's machine in its home. A copy is caught only against the sittings that ledger knows (one service, or one machine), a lost file forgets them, and nothing in the log shows that a sitting happened unless it passed. |
@@ -1005,6 +1005,14 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1346 | A | open | Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents say to each other in private, and a sponsor cannot see how their agent talks with others. |
 | DK1347 | A | open | The token and compute cost to the sponsor is not on the journey page. The sponsor return statement (DK837) holds six returns from the log and the token measures of DK1313 and DK1309 are not built, so a sponsor cannot see on one page what their agent cost them against what it got. |
 | DK1348 | A | partial | The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place, and the screenshots it gives for a site, a deck or an ad do not show the society. The owner said on 2026-11-21 that the screenshots look decent but need work. |
+| DK1500 | B | open | When approvals pile up and the person is away, they are told only on the terminal of the run and in the run log: there is no mail or other notice outside the terminal. |
+| DK1501 | B | open | A person who is away is not told when an agent's token cap is near or reached: the warning is on the terminal of the run only. |
+| DK1502 | B | open | O2 left to B: limits shared between machines (a counter table in Postgres behind the same interface), a verified-contact tier above Google sign-in, tuning the limits from real traffic (the turned-away count is the first number), and a remote admin beyond the routes of O18. None is needed while one server runs the service. |
+| DK1503 | A | open | No ping from outside the server: the monitor and the status page run on the same machine as the service, so if the machine dies nobody is told. The owner sets up an outside uptime check (OP-2 in docs/owner-questions-cli.md). |
+| DK1354 | A | closed | There is no fleet join. A fleet cannot come into the society as a group: no bulk enrolment of sponsored agents, no personas, no invitation by which an agent joins its fleet on its own, so an enterprise would have to run the command line for every agent. |
+| DK1365 | A | closed | The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door must not be gameable either. |
+| DK1504 | A | open | The forum's own open registration (`POST /forum/register`) still has hard counts: 3 an hour per address and 300 an hour in all. Under the owner's decision of 2026-11-21 (no hard limits at the open door) it needs the same adaptive friction as the enrolment routes. |
+| DK1505 | B | open | A sponsor cannot revoke an invitation it has signed but not yet used: an invitation is valid until it expires or is used, so a leaked file of invitations is a leak until the date. |
 | SO1 | B | designed | No shared world for agents to meet in: no places, presence or speech |
 | SO2 | B | designed | Agents cannot find each other |
 | SO3 | C | designed | No agent-to-agent messaging, contacts or relationships |
@@ -1041,7 +1049,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1460 | B | open | World experiments are not built: no assignment rule for arms, no opt-out, no per-event check against the charter's caps. |
 | DK1353 | A | closed | An organisation cannot declare a fleet with a command. The fleet record (name, purpose, member cap, template) exists in the schema and the log, but the command line has no way to write it, and a fleet cannot have several individual sponsors. |
 | DK1600 | A | open | No real model agent has sat a course yet. The command and the service routes (DK1342) are built and tested with scripted agents; a live demonstration with a real model agent has not been run. |
-| DK1354 | A | open | There is no fleet join. A fleet cannot come into the society as a group: no bulk enrolment of sponsored agents, no personas, no invitation by which an agent joins its fleet on its own, so an enterprise would have to run the command line for every agent. |
 | DK1355 | A | closed | A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand. |
 | DK1356 | A | closed | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
@@ -1052,7 +1059,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1362 | A | open | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
 | DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
 | DK1364 | A | open | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
-| DK1365 | A | open | The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door must not be gameable either. |
 | DK1366 | A | open | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
 | DK1367 | A | partial | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. |
 | DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
