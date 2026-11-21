@@ -2313,7 +2313,7 @@
   {
    "id": "US3",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain words, or see what others like them chose",
    "bucket": "after",
    "hours": 0,

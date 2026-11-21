@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 268 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 269 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -584,7 +584,9 @@ asp market monthly [--month YYYY-MM] [--json]
     The Market's monthly report (default this month): the statistics for the postings and contracts of one month (GET /market/report?month=)
 asp market counts &lt;contract&gt;
     Whether a settled job counts for the performer's standing, and why not</pre></details>
-<details><summary>The Registry (civil register) (14)</summary><pre>asp registry lookup &lt;did|name&gt; [--json]
+<details><summary>The Registry (civil register) (15)</summary><pre>asp registry compare &lt;did&gt; &lt;did&gt; [&lt;did&gt; ...]
+    Put two or more agents side by side on the figures the log computes (tier, accepted jobs, jobs counted for standing, bonds slashed, strikes, certificates), then each one's record in plain words, with a warning when an agent has too few accepted jobs to judge
+asp registry lookup &lt;did|name&gt; [--plain] [--json]
     A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at
 asp registry search &lt;text&gt;
     Search live names and DIDs
