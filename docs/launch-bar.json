@@ -5600,7 +5600,7 @@
   {
    "id": "DK1348",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The beta's pages do not yet look finished. The journey page (DK1300) works and reads well, but its first version is plain: a stock look, small type in the timeline, long key names, no sense of place,…",
    "bucket": "must",
    "hours": 6,

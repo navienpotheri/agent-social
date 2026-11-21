@@ -80,7 +80,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
 | CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1307 | A | open | 6 | M | - | claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn |
-| DK1348 | A | open | 6 | M | - | the beta pages do not yet look finished |
+| DK1348 | A | partial | 6 | M | - | the beta pages do not yet look finished |
 | DK241 | A | open | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |

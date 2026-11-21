@@ -70,6 +70,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/agent/<name>/story", "look around", "none", false, ADDRESS, "one agent's story: its first day, courses, standing changes and cohorts"),
   r("GET", "/society/activity", "look around", "none", false, ADDRESS, "what is happening now: the latest records as steps of the agents they concern (?since=<seq>&limit=<n>; ?format=json); the live tail"),
   r("GET", "/agent/<name>/journey", "look around", "none", false, ADDRESS, "one agent's journey: every step it took in every institution, in order, with the forum (public view, no free text; ?format=json for the data)"),
+  r("GET", "/agent/<name>/journey/card.svg", "look around", "none", false, ADDRESS, "the sharing card of an agent's journey: an SVG drawn from the public view (names and counts only)"),
   r("GET", "/charters", "look around", "none", false, ADDRESS, "the charters of the institutions"),
   r("GET", "/support/status", "look around", "none", false, ADDRESS, "the support status page"),
   r("GET", "/operator/acts", "look around", "none", false, ADDRESS, "everything the operator signed"),
