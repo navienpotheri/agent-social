@@ -1108,7 +1108,8 @@ export class EventLog {
    */
   private async gatedReputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation" | "getMarker">, did: string) {
     const r = await this.reputation(tx, did);
-    if (r && r.tier > 1 && (await tx.getMarker(`model_hold:${did}`))) return { ...r, tier: 1 };
+    const since = r && r.tier > 1 ? await tx.getMarker(`model_hold:${did}`) : undefined;
+    if (r && since) { const passed = await tx.getMarker(`exam_pass_at:${did}`); if (!passed || Date.parse(passed) <= Date.parse(since)) return { ...r, tier: 1 }; }
     return r;
   }
 
@@ -1128,8 +1129,8 @@ export class EventLog {
       else if (!was && m.digest) known[id] = m.digest;
     }
     await tx.putMarker(key, JSON.stringify(known));
+    if (changed) await tx.putMarker(`model_hold:${r.issuer}`, r.issued_at); // DK1605, S1556: held until a passed exam of its own after this time
     if (changed) {
-      await tx.putMarker(`model_hold:${r.issuer}`, r.id);
       const until = new Date(Date.parse(r.issued_at) + MODEL_CHANGE_PROBATION_MS).toISOString().replace(/\.\d{3}Z$/, "Z");
       const current = await tx.getProbation(r.issuer);
       if (!current || Date.parse(current.until) < Date.parse(until)) await tx.putProbation({ did: r.issuer, until, setBy: r.id });
@@ -2467,7 +2468,14 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
-      if (pb.key.startsWith("academy.course.")) { const cid = pb.key.slice("academy.course.".length); if (await tx.getMarker(`town_course:${cid}`)) throw rule("town_course_exists", `a course ${cid} was put to a vote already`); await tx.putMarker(`town_course:${cid}`, r.issuer); }
+      // An agent-authored course (DK1608, S1554): its lessons are in the proposal, and the log refuses a lesson with no text or with characters a person cannot see; the rest of the safety review (the invariant floor) is the Registrar's, before the countersign.
+      if (b.kind === "course" && /^academy\.course\./.test(pb.key)) {
+        const lessons = (r.body as { value?: { lessons?: { id?: unknown; text?: unknown }[] } | null }).value?.lessons;
+        if (!Array.isArray(lessons) || !lessons.length) throw rule("town_course_lessons", "a course proposal carries its lessons (value.lessons: a list of { id, text }) so the society votes on what it would teach");
+        for (const l of lessons) if (typeof l?.text !== "string" || !l.text.trim() || /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]|[\u{E0000}-\u{E007F}]/u.test(l.text)) throw rule("town_course_lessons", `lesson ${String(l?.id)} has no text or carries characters a person cannot see: the society votes only on lessons it can read`);
+        const id = pb.key.slice("academy.course.".length), cur = ((await tx.getMarker(`town_course:${id}`)) ?? "").split(",").filter(Boolean);
+        await tx.putMarker(`town_course:${id}`, [...cur, r.id].join(","));
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -3134,7 +3142,7 @@ export class EventLog {
     await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
-    if (b.passed && (await tx.getMarker(`model_hold:${b.holder}`))) await tx.putMarker(`model_hold:${b.holder}`, ""); // a passed exam of its own lifts the hold after a model swap (DK1605)
+    if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
   }
 
   /**
@@ -3164,6 +3172,19 @@ export class EventLog {
   private async projectCourse(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { course: string; price_service: string; reviewers: string[] };
     if (r.prev !== null) throw rule("course_not_chained", "a course starts its own chain (prev is null)");
+    // A course that was put to the Town Hall goes live only after an enactment of one of its proposals (DK1608, S1554): a vote that did not pass, or is still open, does not publish it.
+    const proposed = ((await tx.getMarker(`town_course:${b.course}`)) ?? "").split(",").filter(Boolean);
+    if (proposed.length) {
+      let enacted: string | undefined;
+      for (const pid of proposed) if (!enacted && (await tx.getMarker(`town_enacted:${pid}`))) enacted = pid;
+      if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to the Town Hall (${proposed.join(", ")}) and none of its proposals was enacted: a course goes live only after its enactment`);
+      // The enacted proposal is the course that goes live (DK1608, S1554, S1557): its proposer is the instructor, and its lessons pass the lesson gate's text checks whatever the vote.
+      const win = await tx.getRecord(enacted);
+      if (win!.record.issuer !== r.issuer) throw rule("course_not_proposer", `the course ${b.course} was proposed by another identity: the instructor is the agent that put it to the vote`);
+      const lessons = ((win!.record.body as { value?: { lessons?: { id: string; text: string }[] } }).value?.lessons) ?? [];
+      const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((x) => `${l.id}: ${x.rule}`));
+      if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
+    }
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
     const author = await this.sponsorKey(tx, r.issuer);
@@ -3179,16 +3200,6 @@ export class EventLog {
     const list = await this.priceListInForce(tx, Date.parse(r.issued_at));
     const item = (list?.record.body as unknown as PriceListBody | undefined)?.items.find((i) => i.service === b.price_service);
     if (!item || item.institution !== institutionDid("academy")) throw rule("course_not_priced", `${b.price_service} is not a service of the Academy in the price list in force: a course is priced only by the published list`);
-    // A course that was put to a Town Hall vote (DK1608, S1554) goes live only as the voted one: enacted, signed by its proposer, and its lessons pass the text checks of the lesson gate whatever the vote.
-    const proposer = await tx.getMarker(`town_course:${b.course}`);
-    if (proposer) {
-      const enacted = JSON.parse((await tx.getMarker(`town_setting:academy.course.${b.course}`)) || "null") as { value: { lessons?: { id: string; text: string }[] } } | null;
-      if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to a Town Hall vote and has no enactment: it does not go live before one`);
-      if (proposer !== r.issuer) throw rule("course_not_proposer", `the course ${b.course} was proposed by another identity: the instructor is the agent that put it to the vote`);
-      const lessons = enacted.value?.lessons ?? [];
-      const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((p) => `${l.id}: ${p.rule}`));
-      if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
-    }
     if (await tx.getMarker(`course:${b.course}`)) throw rule("course_already_published", `a course ${b.course} already exists`);
     await tx.putMarker(`course:${b.course}`, r.id);
   }
@@ -3362,6 +3373,12 @@ export class EventLog {
     if (r.prev !== null) throw rule("promotion_not_chained", "a tier promotion starts its own chain (prev is null)");
     if (await tx.getMarker(`house:${b.holder}`)) throw rule("house_agent_no_rank", `${b.holder} is a house agent: it is not promoted by the Academy`);
     if (r.issuer !== REGISTRAR_DID) throw rule("promotion_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar promotes an agent`);
+    // A model swap holds the agent (DK1605, S1556): its tier does not rise until it passes an exam of its own after the swap.
+    const heldSince = await tx.getMarker(`model_hold:${b.holder}`);
+    if (heldSince) {
+      const passedAt = await tx.getMarker(`exam_pass_at:${b.holder}`);
+      if (!passedAt || Date.parse(passedAt) <= Date.parse(heldSince)) throw rule("agent_model_hold", `${b.holder} changed the model behind it on ${heldSince}: it is held, and its tier does not rise until it passes an exam after that`);
+    }
     const rep = await this.reputation(tx, b.holder);
     if (!rep) throw rule("promotion_not_an_agent", `${b.holder} has no passport in this log, so it has no tier`);
     if (b.from !== rep.tier) throw rule("promotion_wrong_tier", `${b.holder} is tier ${rep.tier}, not ${b.from}`);

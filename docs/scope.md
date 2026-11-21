@@ -1096,10 +1096,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
 | DK1603 | A | open | A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger. |
 | DK1604 | A | open | The drift scheduler (DK1712) has not run on a real agent: it is built and tested with scripted stand-ins. |
-| DK1605 | A | open | A model swap holds an agent only in the view: the log does not yet refuse tier-gated work while the hold lasts, and the per-model table has no breach column. |
+| DK1605 | A | partial | A model swap holds an agent only in the view: the log does not yet refuse tier-gated work while the hold lasts, and the per-model table has no breach column. |
 | DK1606 | A | open | The cost-of-living review (DK1710) has been run on a seeded run only: the live log has too few settled jobs to set the rent and the tax from real earnings. |
-| DK1607 | A | open | A reversed contest changes nothing yet: the Courts' ruling is a record, but the institution that made the contested act does not act on a reversal. |
-| DK1608 | A | open | A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log. |
+| DK1607 | A | partial | A reversed contest changes nothing yet: the Courts' ruling is a record, but the institution that made the contested act does not act on a reversal. |
+| DK1608 | A | partial | A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
 | DK1710 | A | partial | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
 | DK1711 | A | partial | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |

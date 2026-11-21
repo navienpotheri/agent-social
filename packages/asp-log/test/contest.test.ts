@@ -131,3 +131,56 @@ test("AG3: a strike, a slash and a Clinic diagnosis can each be contested too", 
   assert.equal((await kit.log.contestOf(sid))!.agent, w.agent.did, "a strike is contested by the agent that was struck");
   void clinic;
 });
+
+test("DK1607: a reversed contest undoes what the act did where the log can: a quarantine is released, a strike is struck from the agent's strikes; an upheld ruling changes nothing", async () => {
+  const w = await world();
+  const { kit } = w;
+  const principal = await kit.person("rv-principal");
+  await kit.mint(principal.did, 1000);
+  const { cosign } = await import("@agent-social/asp-core");
+  const { bankP, credit, hashOf } = await import("./academy-kit.ts");
+  let n = 0;
+  const running = async (scopes: string[]) => {
+    const c = cosign(kit.mk("contract", principal, { principal: principal.did, performer: w.agent.did, bank: bankP.did, purpose: `rv job ${++n}`, price: credit(10), verification: "deterministic", deadline: "2027-12-03T18:00:00Z", basis: { intent: hashOf("0"), offer: hashOf("1") } }, null, { subject: w.agent.did }), w.agent);
+    const cid = await kit.put(c);
+    const bondId = await kit.put(kit.mk("bond", principal, { contract: cid, backer: principal.did, amount: credit(2), escrow: { payer: principal.did, amount: credit(10) }, slashing_conditions: ["lost_dispute"] }, cid, { subject: cid }));
+    const mandate = kit.mk("mandate", principal, { contract: cid, purpose: "Work", floor: "asp.floor/v1", scopes, forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: iso(Date.parse(kit.now()) + 86_400_000 * 5), revocable: true }, bondId, { subject: w.agent.did });
+    return { cid, mandate };
+  };
+  // a strike of 2 blocked calls
+  const first = await running(["repo.read"]);
+  await kit.put(first.mandate);
+  const strike = await kit.put(kit.mk("action", w.agent, { contract: first.cid, scopes_used: ["repo.read"], summary: "run", blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, null, { subject: first.cid }));
+  assert.equal((await kit.log.reputationOf(w.agent.did))!.strikes, 2);
+  const sc = await kit.put(w.contest(w.agent, strike));
+  await kit.put(w.answer(sc, "upheld"));
+  const scase = await kit.put(w.toCourts(sc, w.agent));
+  // an upheld ruling changes nothing
+  const upheldCase = scase;
+  void upheldCase;
+  await kit.put(w.ruling(scase, "reversed"));
+  assert.equal((await kit.log.reputationOf(w.agent.did))!.strikes, 0, "the reversed strike no longer counts");
+  // a quarantine at observe level refuses a risky Mandate; reversed, it is released
+  const q = await w.quarantine();
+  const second = await running(["repo.read", "shell.exec"]);
+  assert.match(String(await refused(kit.put(second.mandate))), /quarantin/i, "while quarantined a risky scope is refused");
+  const qc = await kit.put(w.contest(w.agent, q));
+  await kit.put(w.answer(qc, "upheld"));
+  const qcase = await kit.put(w.toCourts(qc, w.agent));
+  await kit.put(w.ruling(qcase, "reversed"));
+  await kit.put(second.mandate);
+  assert.equal((await kit.log.verify()).ok, true);
+});
+
+test("DK1607: a ruling that upholds the act leaves the quarantine and the strike as they were", async () => {
+  const w = await world();
+  const { kit } = w;
+  const q = await w.quarantine();
+  const qc = await kit.put(w.contest(w.agent, q));
+  await kit.put(w.answer(qc, "upheld"));
+  const qcase = await kit.put(w.toCourts(qc, w.agent));
+  await kit.put(w.ruling(qcase, "upheld"));
+  assert.equal((await kit.log.contestOf(qc))!.state, "stands");
+  const released = (await kit.log.quarantinesOf(w.agent.did)).filter((r) => r.type === "asp.quarantine_release/v0.2");
+  assert.equal(released.length, 0);
+});

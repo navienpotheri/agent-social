@@ -1,51 +1,45 @@
 /**
- * A model swap holds an agent at the entry tier (register row DK1605; spec-delta S1555): after the model behind an agent changed, every gate that reads the tier sees at most tier 1 until the agent passes an exam of its
- * own, and the stored reputation is not touched. Also the breach column of the per-model table (the incident record of DK1714). Fake keys only; credits are accounting entries, not money.
+ * A model swap holds the agent (register row DK1605; spec-delta S1556): after the model behind an agent changes (a new model, or the same name on different weights) its tier does not rise until it passes an exam of its own
+ * after the swap. A promotion that would have been accepted is refused with the reason, and accepted after the re-examination; an agent that did not swap is promoted as before. Fake keys only.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { examSeed, examVariant, modelTrust } from "../src/index.ts";
-import { Kit, SERVICES, hashOf, refused, registrar } from "./academy-kit.ts";
+import { Kit, refused, type Party } from "./academy-kit.ts";
 
-test("DK1605: a swapped agent is refused work above the entry tier until it passes an exam of its own, and the exam restores it", async () => {
+async function earned(k: Kit, name: string) {
+  const a = await k.agent(name);
+  const [p1, p2] = [await k.person(`${name}-p1`), await k.person(`${name}-p2`)];
+  const cert = await k.certify(a, "foundations", 1);
+  for (const p of [p1, p2, p1]) await k.acceptedJob(p, a);
+  return { a, cert };
+}
+const run = (k: Kit, a: Party, model: { name: string; provider?: string; digest?: string }) => { const j = k.jobs.get(a.did)!; return k.put(k.mk("action", a, { contract: j.contract, scopes_used: [], summary: "run", metrics: { models: [model] } }, null, { subject: j.contract })); };
+const GPT = { name: "gpt-x", provider: "api.openai.com" };
+
+test("DK1605: a swap holds the agent: a promotion it earned is refused until it passes an exam after the swap; an agent that did not swap is promoted", async () => {
   const k = new Kit();
-  await k.priceList();
-  const learner = await k.agent("learner");
-  await k.fund(learner, 200);
-  const [p1, p2] = [await k.person("p1"), await k.person("p2")];
-  const def = await k.defineExam("foundations-v1", "foundations", 1);
-  const used: number[] = [];
-  const sit = async (score: number) => { const id = await k.sit(learner, def, score, {}, 800, used.length, used); used.push(examVariant(examSeed(def, learner.did, used.length + 1), 40, used)); return id; };
-  const passed = await sit(900);
-  const cert = await k.put(k.certificate(learner, "foundations", 1, passed));
-  for (const p of [p1, p2, p1]) await k.acceptedJob(p, learner);
-  await k.log.append(k.promote(learner, 1, 2, [cert]));
-  assert.equal((await k.log.reputationOf(learner.did))?.tier, 2);
-  const bigJob = async () => (await k.job(learner, 1000)).mandate;
-  assert.ok(await bigJob(), "a tier 2 agent may take a job of 1,000");
-  // the model behind the agent changes
-  const run = async (m: { name: string; provider: string }) => { const j = k.jobs.get(learner.did)!; return k.put(k.mk("action", learner, { contract: j.contract, scopes_used: [], summary: `run ${m.name}`, metrics: { models: [m] } }, null, { subject: j.contract })); };
-  await run({ name: "gpt-x", provider: "api.openai.com" });
-  assert.ok(await bigJob(), "no swap yet: the first model seen is not a change");
-  await run({ name: "claude-y", provider: "api.anthropic.com" });
-  assert.equal(await refused(bigJob()), "tier_limit_exceeded", "held at the entry tier after the swap");
-  assert.equal((await k.log.reputationOf(learner.did))?.tier, 2, "the stored reputation is not touched");
-  // a failed exam does not lift it; a passed one does
-  await sit(500);
-  assert.equal(await refused(bigJob()), "tier_limit_exceeded");
-  await sit(900);
-  assert.ok(await bigJob(), "the exam restores the tier");
+  const held = await earned(k, "hold-a"), free = await earned(k, "hold-b");
+  await run(k, held.a, GPT); await run(k, free.a, GPT);
+  await run(k, held.a, { name: "claude-y", provider: "api.anthropic.com" }); // the swap
+  assert.equal(await refused(k.log.append(k.promote(held.a, 1, 2, [held.cert]))), "agent_model_hold");
+  assert.equal((await k.log.reputationOf(held.a.did))?.tier, 1, "the tier did not move");
+  await k.log.append(k.promote(free.a, 1, 2, [free.cert]));
+  assert.equal((await k.log.reputationOf(free.a.did))?.tier, 2, "an agent that did not swap is promoted as before");
+  // the Foundations exam it passed BEFORE the swap does not lift it; one passed after does
+  assert.equal(await refused(k.log.append(k.promote(held.a, 1, 2, [held.cert]))), "agent_model_hold", "an exam passed before the swap does not count");
+  k.addDays(1);
+  await k.passedResult(held.a, "practitioner", 1);
+  await k.log.append(k.promote(held.a, 1, 2, [held.cert]));
+  assert.equal((await k.log.reputationOf(held.a.did))?.tier, 2, "after the re-examination the promotion is accepted");
   assert.equal((await k.log.verify()).ok, true);
-  void SERVICES; void hashOf; void registrar;
 });
 
-test("DK1605: the per-model table counts breaches from the incident records, under the model that was running", () => {
-  let n = 0;
-  const R = (type: string, issuer: string, body: Record<string, unknown>, at: string) => ({ type: `asp.${type}/v0.2`, id: `sha256:${String(++n).padStart(64, "0")}`, issuer, actor: issuer, subject: null, body, prev: null, issued_at: at, sigs: [] } as never);
-  const A = "did:web:example.com:agents:hold-1";
-  const recs = [R("action", A, { contract: "sha256:" + "9".repeat(64), scopes_used: [], summary: "r", metrics: { models: [{ name: "gpt-x", provider: "p" }] } }, "2026-11-01T10:00:00Z"),
-    R("incident", "did:web:asp.local:operator", { agent: A, cause: "exfiltration", summary: "s" }, "2026-11-02T10:00:00Z")];
-  const t = modelTrust(recs);
-  assert.equal(t.models[0]!.breaches, 1);
-  assert.equal(modelTrust(recs, { houseAgents: new Set([A]) }).models.length, 0, "house agents are left out");
+test("DK1605: the same name on different weights is a swap too; a digest appearing for the first time is not", async () => {
+  const k = new Kit();
+  const w = await earned(k, "hold-c"), v = await earned(k, "hold-d");
+  await run(k, w.a, { ...GPT, digest: "fingerprint:fp_1" }); await run(k, w.a, { ...GPT, digest: "fingerprint:fp_2" });
+  assert.equal(await refused(k.log.append(k.promote(w.a, 1, 2, [w.cert]))), "agent_model_hold");
+  await run(k, v.a, GPT); await run(k, v.a, { ...GPT, digest: "fingerprint:fp_1" });
+  await k.log.append(k.promote(v.a, 1, 2, [v.cert]));
+  assert.equal((await k.log.reputationOf(v.a.did))?.tier, 2);
 });
