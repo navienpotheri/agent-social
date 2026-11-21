@@ -107,7 +107,6 @@ export const MUST: Record<string, Must> = {
   DK1340: [1, "D", "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"],
   DK1341: [8, "OX", "operations: uptime monitor, status page, on-call, backup restore drill, incident process"],
   GV6: [2, "LO", "runbook exists; the restore drill on the real host is the owner's"],
-  DK797: [6, "", "reconcile the first lists (backlog, triage, owner checklist, gate) against the register"],
   DK794: [1, "", "forum docs and demos exist only as untracked files in an old worktree"],
   DK795: [1, "", "the society design document exists only in a worktree"],
   DK796: [1, "", "treasury wording and test changes not committed"],
