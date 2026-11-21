@@ -15,3 +15,5 @@ export * from "./catalogue.ts";
 export { writeBack, REPLAY_TASKS } from "./writeback.ts";
 export { coursesRoutes, catalogueEntries } from "./pages.ts";
 export { cohortRoutes, dashboardView } from "./cohort-pages.ts";
+export { sitRoutes } from "./sit-routes.ts";
+export * from "./sitting.ts";

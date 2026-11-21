@@ -18,6 +18,7 @@ import { admitToMemory, type HeldOutTask, type LessonCandidate, type LogHandle }
 import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, type Transcript } from "./exam.ts";
 import { loadCatalogue } from "./lens-courses/catalogue.ts";
 import { engineIds } from "./lens-courses/index.ts";
+import { sitCmd } from "./lens-courses/sit-cmd.ts";
 
 export class AcademyUsage extends Error {}
 
@@ -27,6 +28,9 @@ export interface AcademyOpts {
   now: () => string;
   flags: Record<string, string | string[] | boolean | undefined>;
   signerFor: (did: string) => Signer;
+  /** Where the ledger of course sittings is kept (a JSONL file in the home); memory only when absent. */
+  ledgerPath?: string;
+  readStdin?: () => string;
 }
 
 const DAY = 86_400_000;
@@ -338,9 +342,12 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
   }
   // ---------------------------------------------------------------- the lens catalogue (docs/learning-platform.md; register rows DK600, DK601)
   if (sub === "lens") {
-    const usage = "asp academy lens courses [--json] | show <course id> [--json]";
+    const usage = "asp academy lens courses [--json] | show <course id> [--json] | sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin] [--package <dir>] [--run-log <id> | --contract <id>] [--service <url>]";
     const cat = loadCatalogue(engineIds());
     if (cat.problems.length) { for (const p of cat.problems) o.io.out(`problem  ${p}`); throw new AcademyUsage("the course catalogue has problems (above): fix docs/lenses/courses.json"); }
+    if (rest[0] === "sit") {
+      return sitCmd(rest[1], { out, flags: o.flags, log: o.log, now: o.now, signerFor: o.signerFor, buy: (agent, service, mandate) => buyService(o, agent, service, mandate), append: (type, by, subject, body) => append(o, type as never, by, subject, body), ...(o.ledgerPath ? { ledgerPath: o.ledgerPath } : {}), ...(o.readStdin ? { readStdin: o.readStdin } : {}), Usage: AcademyUsage });
+    }
     if (rest[0] === "courses") {
       if (json) { out(JSON.stringify(cat.courses.map((c) => ({ id: c.id, title: c.title, lens: c.lens, price: c.price, prerequisites: c.prerequisites, artifact: c.artifact.kind, grading: c.grading.mode })), null, 2)); return 0; }
       if (!cat.courses.length) { out("no lens course is in the catalogue yet (docs/lenses/courses.json)"); return 0; }

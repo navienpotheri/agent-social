@@ -174,6 +174,7 @@ export class Job {
   private guard(name: string, r: AspRecord): boolean {
     const b = r.body as Record<string, any>;
     switch (name) {
+      case "not_self_hire": return b.principal !== b.performer;
       case "cosigned_by_performer": return this.cosignedBy(r, this.performer);
       case "cosigned_by_principal": return this.cosignedBy(r, this.principal);
       case "refs_contract": return b.contract === this.contractId;

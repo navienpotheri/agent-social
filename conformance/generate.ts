@@ -310,6 +310,14 @@ lc("happy_path", "Contract, zero bond, mandate, plan checkpoint, delivery, accep
 
 // errors: roles and guards
 {
+  const c = new Chain(); c.contractRec({ cosigners: [alice], body: { principal: alice.did, performer: alice.did } });
+  lc("contract_self_hire", "A Contract whose principal and performer are the same identity is refused at contract time, even when the principal co-signs its own Contract (spec-delta S1300)", c, err("GUARD_FAILED", 0, "not_self_hire"));
+}
+{
+  const c = new Chain(); c.contractRec({ cosigners: [], body: { principal: alice.did, performer: alice.did } });
+  lc("contract_self_hire_unsigned", "The self-hire guard is checked before the performer's co-signature, so the refusal names the self-hire", c, err("GUARD_FAILED", 0, "not_self_hire"));
+}
+{
   const c = new Chain(); c.contractRec({ cosigners: [] });
   lc("contract_without_performer_cosig", "The performer must co-sign the Contract", c, err("GUARD_FAILED", 0, "cosigned_by_performer"));
 }

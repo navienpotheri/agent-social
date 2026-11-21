@@ -3,6 +3,7 @@
  * learner sees practice tasks only; the held-out variants come from seeds the learner does not control (`courseSeeds`, anchored in the log head at the time of the sitting). An engine is pure: the same artifact and
  * seed give the same score on every machine. The first three engines are the courses of `docs/lenses/courses.json`.
  */
+import type { HeldOutTask } from "@agent-social/asp-package";
 import { courseSeeds, type CourseCard } from "./catalogue.ts";
 
 /** One run of an engine: the score in permille, whether it met the gate, what was measured, and what failed (in words, for the learner). */
@@ -14,6 +15,8 @@ export interface Engine {
   practice(seed: string): unknown;
   /** Scores the artifact the agent wrote on the held-out variants of `seed`. */
   run(artifact: unknown, seed: string, gate: CourseCard["gate"]): CourseRun;
+  /** The held-out tasks the lesson gate replays a written-back lesson on (a course whose artifact is memory replays on its own tasks); absent: the generic floor tasks. */
+  replay?(seed: string): HeldOutTask[];
 }
 
 export const ENGINES: Record<string, Engine> = {};
