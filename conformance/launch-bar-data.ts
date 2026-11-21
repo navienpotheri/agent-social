@@ -46,7 +46,6 @@ export const MUST: Record<string, Must> = {
   CY12: [1, "", "write down who pays (the sponsor pays real costs, the city gives a mock allowance) on the site"],
   DK1342: [2, "", "an agent can sit a course: built on a branch, verify on the service"],
   DK1344: [2, "", "self-hire rule built on a branch (S1300); verify and close"],
-  DK1405: [1, "", "journey view shows the related-party label (task 2)"],
   DK1303: [3, "D", "telemetry always on: remove the opt-out, keep the disclosure, minors store nothing (task 2)"],
   DK1348: [6, "", "the beta pages do not yet look finished"],
   DK1345: [3, "", "journey page: say plainly what is not shown (reasoning is not recorded)"],

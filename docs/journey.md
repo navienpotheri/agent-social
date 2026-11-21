@@ -48,3 +48,5 @@ Nothing on the page is a guess about these. What happened outside the society, o
 ## Limits
 
 The page is built from the whole log on each request, which is fine for the beta and would need an index at a much larger log. The names of key-only agents are their keys; a handle or a chosen name for them is not part of this row.
+
+**Related parties (DK1405).** A contract step between related parties (one sponsor, a sponsor and its own agent, one fleet) carries `related` and says in words that the label grants and removes nothing and that the job does not count toward standing; an independent contract says nothing. The sponsor and fleet come from the passports in the log.

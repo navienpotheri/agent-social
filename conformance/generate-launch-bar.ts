@@ -31,9 +31,9 @@ if (import.meta.url === new URL(process.argv[1] ?? "", "file://").href || proces
   writeFileSync(new URL("docs/launch-bar.json", root), JSON.stringify({ row: "DK1312", counts: { must: count("must"), withdraw: count("withdraw"), after: count("after"), total: entries.length }, mustWorkerHours: hours, entries }, null, 1) + "\n");
 
   const lines: string[] = [];
-  const must = entries.filter((e) => e.bucket === "must").sort((a, b) => a.hours - b.hours || a.id.localeCompare(b.id));
+  const must = entries.filter((e) => e.bucket === "must").sort((a, b) => Number(a.flags !== "") - Number(b.flags !== "") || a.hours - b.hours || a.id.localeCompare(b.id));
   lines.push(`### Counts`, "", `| Bucket | Rows |`, `|---|---|`, `| Must close before launch | ${count("must")} (${hours.toFixed(1)} worker-hours; ${flagN("D")} need an owner decision, ${flagN("L")} a live run, ${flagN("X")} an outside party, ${flagN("O")} an owner action) |`, `| Withdraw the claim until done | ${count("withdraw")} |`, `| After launch | ${count("after")} |`, `| Total not closed | ${entries.length} |`, "");
-  lines.push(`### Bucket 1: must close before launch (smallest first)`, "", `Flags: D owner decision, L live run, X outside party, O owner action.`, "", `| ID | Pri | Status | Hours | Size | Flags | Why |`, `|---|---|---|---|---|---|---|`);
+  lines.push(`### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)`, "", `Flags: D owner decision, L live run, X outside party, O owner action.`, "", `| ID | Pri | Status | Hours | Size | Flags | Why |`, `|---|---|---|---|---|---|---|`);
   for (const e of must) lines.push(`| ${e.id} | ${e.pri} | ${e.status} | ${e.hours} | ${e.size} | ${e.flags || "-"} | ${short(e.why, 170)} |`);
   lines.push("", `### Bucket 2: withdraw the claim until done`, "", `| ID | Pri | Status | Claim | Where it is made |`, `|---|---|---|---|---|`);
   for (const e of entries.filter((x) => x.bucket === "withdraw")) lines.push(`| ${e.id} | ${e.pri} | ${e.status} | ${short(e.claim!, 130)} | ${short(e.where!, 110)} |`);

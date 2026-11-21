@@ -6,7 +6,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 **The date cannot hold.** 477 register rows are not closed (233 at priority A, 199 at B, 45 at C). Sorted:
 
-- **Must close before launch: 90 rows, 307 worker-hours** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 89 rows, 306 worker-hours (DK1405 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 98 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 289 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -14,9 +14,9 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 | Bar | Worker-hours | Earliest honest date at about 10 hours a day |
 |---|---|---|
-| **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 74 | **about 2 December** |
+| **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 73 | **about 2 December** |
 | **Reduced**: Core plus enrolment (DK733, DK854, DK546, DK740), the run log, token recovery, export and close, and housekeeping (52 rows, 151 hours) | 151 | about 12 December |
-| **Full**: all 90 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 307 | about 22 December |
+| **Full**: all 89 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 306 | about 22 December |
 
 These are the earliest the build can finish, not promises: they assume none of your decisions or live runs arrives late. The live run with a real model agent is postponed by you, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **My recommendation:** do not announce 25 to 26 November. If the date is fixed, either open quietly to the public on 26 November with no ads (needs only the legal minimum DK1340 and the claims audit DK1307 on top of today's state, plus the forum, map and house agents described as "not open yet") and start ads when Core is done, or move the ads to about 2 December.
 
@@ -35,37 +35,27 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 90 (307.2 worker-hours; 12 need an owner decision, 10 a live run, 5 an outside party, 17 an owner action) |
+| Must close before launch | 89 (306.2 worker-hours; 12 need an owner decision, 10 a live run, 5 an outside party, 17 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 289 |
-| Total not closed | 477 |
+| Total not closed | 476 |
 
-### Bucket 1: must close before launch (smallest first)
+### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
 Flags: D owner decision, L live run, X outside party, O owner action.
 
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
-| O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
-| O12 | A | partial | 0.5 | S | O | branch protection on main |
-| O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
 | CY12 | A | open | 1 | S | - | write down who pays (the sponsor pays real costs, the city gives a mock allowance) on the site |
 | CY8 | A | open | 1 | S | - | stale: DK532 decided the service-held signer; verify the site and Terms sentence and close |
-| DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK1343 | B | open | 1 | S | - | two register rows with the id DK76; ids must be unique |
-| DK1405 | B | open | 1 | S | - | journey view shows the related-party label (task 2) |
-| DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK794 | B | open | 1 | S | - | forum docs and demos exist only as untracked files in an old worktree |
 | DK795 | B | open | 1 | S | - | the society design document exists only in a worktree |
 | DK796 | C | open | 1 | S | - | treasury wording and test changes not committed |
 | E8 | A | partial | 1 | S | - | stale text: the mail and dashboard exist; verify and close |
-| LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
-| T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
 | T21 | A | partial | 1 | S | - | stale text: verify the gated-job fairness fix and close |
-| DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1211 | B | open | 2 | S | - | funnel counters are not wired to the front door |
 | DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
-| DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
 | DK1344 | A | partial | 2 | S | - | self-hire rule built on a branch (S1300); verify and close |
 | DK857 | A | partial | 2 | S | - | forum quota conflicts with the owner's no-daily-cap decision |
@@ -73,35 +63,20 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E11 | A | open | 2 | S | - | the mail names a path on a machine; say plainly it is local |
 | E2 | A | partial | 2 | S | - | mail and dashboard need a redacted run log |
-| E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
-| GV6 | A | open | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
-| H4 | A | open | 2 | S | D | no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530) |
-| M2 | A | partial | 2 | S | D | disclose that the operator seats and rules, with a published appeal promise |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
-| O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
-| T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
-| U1 | A | partial | 2 | S | LO | token recovery tested only with a stand-in for Google; one live run with a real account |
 | U16 | A | partial | 2 | S | - | a newcomer must find the commands from `asp` alone |
-| US4 | A | open | 2 | S | O | a person who is harmed or confused needs a human route (address, 48 hours to a first reply) |
 | X6 | A | partial | 2 | S | - | forum: daily caps contradict the owner's FD1 decision |
 | X7 | A | partial | 2 | S | - | open forum registration: custody label and limits |
 | AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
-| DK1303 | A | open | 3 | M | D | telemetry always on: remove the opt-out, keep the disclosure, minors store nothing (task 2) |
 | DK1345 | A | open | 3 | M | - | journey page: say plainly what is not shown (reasoning is not recorded) |
 | DK380 | A | partial | 3 | M | - | newcomer allowance not offered inside `asp join` |
-| DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK740 | A | open | 3 | M | - | a service-held agent must be labelled (owner decision KO2) |
-| DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
 | DK791 | A | open | 3 | M | - | the forum head is not signed or witnessed |
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
-| O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
-| SC2 | A | open | 3 | M | DX | acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads) |
-| T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
 | T26 | A | partial | 3 | M | - | bond floor v2 has no cutover rule; a replayed legacy log would be refused |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | U10 | B | open | 3 | M | - | no measurement of where people stop; ads without a funnel are blind |
-| U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
 | DK1220 | A | open | 4 | M | - | no commands for a mentorship or the tutorial job |
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
@@ -123,19 +98,43 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
 | DK64 | A | partial | 6 | M | - | the 15-minute start, the CI action and outreach material: the first-15-minutes bar |
-| DK65 | A | partial | 6 | M | L | the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw |
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
 | DK733 | A | partial | 6 | M | - | key-only enrol for an agent that can only make HTTP calls |
-| DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK797 | A | open | 6 | M | - | reconcile the first lists (backlog, triage, owner checklist, gate) against the register |
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK121 | A | open | 8 | L | - | Code 3.8 promises a 72-hour hold so an appeal can change the money; the log must do it |
+| DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
+| DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
+| O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
+| O12 | A | partial | 0.5 | S | O | branch protection on main |
+| O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
+| DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
+| DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
+| LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
+| T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
+| DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
+| DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
+| E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
+| GV6 | A | open | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
+| H4 | A | open | 2 | S | D | no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530) |
+| M2 | A | partial | 2 | S | D | disclose that the operator seats and rules, with a published appeal promise |
+| O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
+| T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
+| U1 | A | partial | 2 | S | LO | token recovery tested only with a stand-in for Google; one live run with a real account |
+| US4 | A | open | 2 | S | O | a person who is harmed or confused needs a human route (address, 48 hours to a first reply) |
+| DK1303 | A | open | 3 | M | D | telemetry always on: remove the opt-out, keep the disclosure, minors store nothing (task 2) |
+| DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
+| DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
+| O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
+| SC2 | A | open | 3 | M | DX | acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads) |
+| T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
+| U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
+| DK65 | A | partial | 6 | M | L | the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw |
+| DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
-| DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
-| DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
 
 ### Bucket 2: withdraw the claim until done
 
@@ -578,7 +577,7 @@ Capacity: about 10 build-hours a day for one worker, with a hard stop at 97% of 
 | 3 to 12 Dec | The rest of Reduced: E5, E2, P29, T26, O18, T21 and the live runs the owner can take | |
 | 13 to 22 Dec | The Full bar: forum, society map, house agents, DK76 engine, DK121, DK9 | |
 
-**Core rows** (about 74 hours): DK1312, DK1303, DK1405, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
+**Core rows** (about 73 hours): DK1312, DK1303, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
 
 ## 5. Launch checks
 
