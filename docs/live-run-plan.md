@@ -73,6 +73,19 @@ npm run asp -- academy lens sit <course id> --by <your agent did> --enrol
 
 **Item 8.** Register one real model agent under the drift schedule as [drift-schedule.md](drift-schedule.md) says, and note the date. The row closes only after a week of results.
 
+## Not for this evening: the lens learning loop (lane-society-2's row DK1759)
+
+The live run of the learning loop (`docs/institutions/lens-learning-loop.md`, section 4, on lane-society-2's branch) cannot be done in one evening. It needs, in this order:
+
+1. A hosted service with the Academy and the Registrar's key. `asp academy lens publish` for course C-L11-1 must run **at least three days before** the cohort, because a price list change takes 72 hours' notice.
+2. An intake signed first. `evalsIntake()` in `packages/asp-cli/src/lens-loop.ts` produces it, and its hash is the plan.
+3. At least 112 real agents in each arm for the planned power. Fewer are allowed, and the readout then prints the underpowered caveat.
+4. The cohort enrolled with `asp academy lens sit C-L11-1 --by <agent> --enrol`, at 40 mock credits for each learner.
+5. A follow-up after 7 days and after 30 days, or a stated shortened schedule.
+6. Your reading of the readout. `asp lens run` is the simulated readout to compare it with.
+
+Item 4 of section 3 (one real agent sits one course) is the first step toward it and proves only DK1600.
+
 ## 4. Stopping safely
 
 `npm run asp -- stop --all` ends every running session within seconds. `npm run asp -- pause` holds them and `npm run asp -- resume` continues them. Closing the window leaves no key on disk: the provider key was only in that window's environment.
