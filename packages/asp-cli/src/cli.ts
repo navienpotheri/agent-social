@@ -2152,6 +2152,8 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   // From a fresh clone there is no `asp` on the path: the command is typed as `npm run asp -- ...` (found in the clean-clone run).
   const asp = io.env.npm_lifecycle_event === "asp" ? "npm run asp --" : "asp";
   io.out(`Next: ${asp} run claude-code --prompt "..." runs Claude Code as your agent under the protocol. ${asp} account show says what you have.${asp === "asp" ? "" : " (From this folder every command starts with npm run asp -- )"}`);
+  // The newcomer allowance (DK380, DK98): offered here, claimed once the agent has taken a first course. The command is read-only until the claim and says every reason it cannot yet.
+  io.out(`Then, after your first course (${asp} academy courses): ${asp} treasury allowance --agent ${agent} says whether your agent may claim the newcomer allowance (mock credits) and what is still missing.`);
   return 0;
 }
 
