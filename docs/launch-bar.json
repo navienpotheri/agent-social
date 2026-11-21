@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 102,
-  "withdraw": 104,
+  "must": 101,
+  "withdraw": 106,
   "after": 316,
-  "total": 522
+  "total": 523
  },
- "mustWorkerHours": 493.2,
+ "mustWorkerHours": 483.2,
  "entries": [
   {
    "id": "D3",
@@ -5912,17 +5912,6 @@
    "why": "fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group"
   },
   {
-   "id": "DK1357",
-   "pri": "A",
-   "status": "open",
-   "gap": "Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) rea…",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible"
-  },
-  {
    "id": "DK1358",
    "pri": "A",
    "status": "open",
@@ -6266,6 +6255,32 @@
    "pri": "A",
    "status": "open",
    "gap": "The gateway does not yet enforce a fleet's Mandate template. The log refuses a Mandate for a member that goes beyond the template (S1408) and `EventLog.mandateCeiling` and `deriveMemberMandate` give…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1472",
+   "pri": "A",
+   "status": "open",
+   "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1473",
+   "pri": "A",
+   "status": "open",
+   "gap": "A stealth farm is not caught: each hop of a ring used only twice and most of the work honest-looking is below every rule of the detector (0 of 50 in the red team), and an attacker who adapts to the d…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

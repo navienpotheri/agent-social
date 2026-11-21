@@ -57,6 +57,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.claim_decision/v0.2` | The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). | `claim`, `decision`, `amount`, `reason` |
 | `asp.clinic_diagnosis/v0.2` | The Clinic's signed finding that an agent's behaviour has drifted from its own baseline (clinic.md CL-4, register row DK28; spec-delta S261). | `agent`, `window`, `severity`, `findings`, `cause`, `recommendation`, `assurance` |
 | `asp.clinic_order/v0.2` | An order the Clinic issues for one agent (clinic.md CL-4 and CL-5, register row DK28; spec-delta S261): a checkup (scheduled, after a change, or on request), or, after a diagnosis, a re-exam or a refresher course at the Academy. | `agent`, `kind`, `reason`, `due` |
+| `asp.common_control/v0.2` | Sponsors that are one controller (register row DK1357; spec-delta S1410). | `cluster`, `sponsors`, `basis`, `detected_at` |
 | `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
 | `asp.config/v0.2` | A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972). | `key`, `value` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |

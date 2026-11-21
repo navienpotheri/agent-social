@@ -109,6 +109,8 @@ export interface ServerOptions {
   google?: GoogleSignIn;
   /** The measured front door (DK1211): counts the steps an agent takes, and serves `GET /society/funnel` to an operator. */
   funnel?: FunnelTap;
+  /** What the service knows about sponsors and the log does not (payment, verified domain, address cluster; opaque values): read by `GET /society/farming` (DK1357). */
+  farmingFacts?: () => import("./farming.ts").ExternalFacts | Promise<import("./farming.ts").ExternalFacts>;
   /** The service's public address (https://log.example.org), for the pages and the terms links. */
   publicUrl?: string;
   tenants?: Tenant[];
@@ -325,6 +327,12 @@ export function createLogServer(opts: ServerOptions): Server {
         const src = q.get("source") ?? undefined;
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/farming") {
+        // The anti-farming report (S1410, DK1357): an operator's view only, because a published list of what the detector flags would be a guide for a farm.
+        if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the farming report needs an operator token" } });
+        const external = opts.farmingFacts ? await opts.farmingFacts() : {};
+        return json(res, 200, await opts.handle.log.farmingReport({ external, ...(process.env.ASP_FARMING_SEED ? { seed: process.env.ASP_FARMING_SEED } : {}) }));
       }
       if (opts.extra && (await opts.extra(req, res, { tenant }))) return;
       if (req.method !== "POST" || req.url !== "/rpc") return json(res, 404, { ok: false, error: { code: "NOT_FOUND", message: "POST /rpc, GET /health", did_you_mean: didYouMean(req.url ?? "/", req.method ?? "GET"), see: "/society/surface" } });

@@ -352,7 +352,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -871,6 +871,7 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  cluster: { type: "string" },
   owner: { type: "string" },
   org: { type: "string" },
   strict: { type: "boolean" },
@@ -1146,6 +1147,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -4891,6 +4893,55 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
+ * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the
+ * Clinic's cohort freeze on the agents of a flagged cluster (an upheld report is needed, as for every cohort freeze).
+ */
+async function farmingCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const seed = process.env.ASP_FARMING_SEED || undefined;
+  const rep = await local.log.farmingReport({ ...(seed ? { seed } : {}) });
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "report") {
+    if (v.json) { io.out(JSON.stringify(rep, null, 2)); return rep.findings.length ? 1 : 0; }
+    io.out(`${rep.sponsors} sponsor(s), ${rep.jobs} accepted job(s) between controllers in the last 90 days; ${rep.clusters.length} cluster(s) under common control, ${rep.findings.length} finding(s): leads for the Clinic, never a penalty by themselves`);
+    for (const f of rep.findings) io.out(`  ${f.level.toUpperCase().padEnd(6)} ${f.kind.padEnd(19)} ${f.sponsors.length} sponsor(s): ${f.why}`);
+    return rep.findings.length ? 1 : 0;
+  }
+  if (sub === "flag") {
+    if (!v.by) throw new UsageError("asp farming flag [--cluster <id>] --by <operator or watcher did>");
+    const todo = rep.clusters.filter((c) => !v.cluster || c.id === v.cluster);
+    if (!todo.length) { io.out("no cluster under common control to record"); return 0; }
+    for (const c of todo) {
+      const res = await local.append(createRecord({ type: "common_control", issuer: v.by, subject: null, prev: null, body: { cluster: c.id, sponsors: c.sponsors, basis: c.basis, detected_at: now() }, issued_at: now() }, signerFor(v.by)));
+      io.out(`common control recorded for ${c.sponsors.length} sponsor(s) (${c.basis.join(", ")}) as cluster ${c.id} (log seq ${res.seq}): a job between their agents no longer counts for standing`);
+    }
+    return 0;
+  }
+  if (sub === "freeze") {
+    const clinicDid = v.by ?? CLINIC_DID;
+    if (!v.report || !v.cluster) throw new UsageError("asp farming freeze --report <upheld report id> --cluster <cluster id> [--by <Clinic did>] [--level observe|halt] [--days 1-7]");
+    const report = await local.log.report(v.report);
+    if (!report) throw new Error(`${v.report} is not a report in the log`);
+    if (report.status !== "upheld") throw new Error(`report ${v.report} is ${report.status}; only an upheld report can freeze a cohort`);
+    const cluster = rep.clusters.find((c) => c.id === v.cluster);
+    const found = rep.findings.filter((f) => f.level !== "watch" && f.sponsors.includes(v.cluster!));
+    const sponsors = [...new Set([...(cluster?.sponsors ?? []), ...found.flatMap((f) => f.sponsors)])];
+    if (!sponsors.length) throw new Error(`no flagged cluster ${v.cluster}: asp farming report`);
+    const members = await local.log.agentsOfSponsors(sponsors);
+    const days = v.days === undefined ? 7 : Number(v.days);
+    if (!(days > 0 && days <= 7)) throw new UsageError("--days is more than 0 and at most 7 (a longer quarantine needs a Court)");
+    const level = v.level ?? "observe";
+    if (level !== "observe" && level !== "halt") throw new UsageError("--level is observe or halt");
+    const body = farmingFreezeBody({ members, report: v.report, cluster: v.cluster, level, days, at: now(), sponsors: sponsors.length });
+    const res = await local.append(createRecord({ type: "quarantine", issuer: clinicDid, subject: null, prev: null, body, issued_at: now() }, signerFor(clinicDid)));
+    io.out(`quarantine ${res.id}: ${members.length} agent(s) of ${sponsors.length} sponsor(s) will be frozen at ${level} until ${body.until} (notice given; nothing was settled and no bond slashed). Release a member after a clean run: asp clinic release --quarantine <id> --member <did>`);
+    return 0;
+  }
+  throw new UsageError("asp farming report [--json] | flag [--cluster <id>] --by <did> | freeze --report <id> --cluster <id>");
+}
+
 async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const found = await local.log.collusionReport();

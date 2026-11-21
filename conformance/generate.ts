@@ -1393,6 +1393,18 @@ const worldRules = [
   sv("fleet_node_bad_slug", "fleet_node", nodeBody({ node: "Engineering Dept" }), false);
   sv("fleet_node_mandate_missing_field", "fleet_node", nodeBody({ mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }), false);
   sv("fleet_node_version_zero", "fleet_node", nodeBody({ version: 0 }), false);
+  // ---------- common control (spec-deltas S1410): schema cases ----------
+  const spA = "did:web:example.com:users:sponsor-a", spB = "did:web:example.com:users:sponsor-b";
+  const ccBody = (over: Record<string, unknown> = {}) => ({ cluster: spA, sponsors: [spA, spB], basis: ["payment"], detected_at: "2026-11-21T10:00:00Z", ...over });
+  sv("valid_common_control", "common_control", ccBody(), true);
+  sv("valid_common_control_lift", "common_control", ccBody({ lift: true }), true);
+  sv("valid_common_control_evidence", "common_control", ccBody({ basis: ["key_lineage", "domain", "address"], evidence: "sha256:" + "4".repeat(64) }), true);
+  sv("common_control_one_sponsor", "common_control", ccBody({ sponsors: [spA] }), false);
+  sv("common_control_duplicate_sponsor", "common_control", ccBody({ sponsors: [spA, spA] }), false);
+  sv("common_control_no_basis", "common_control", ccBody({ basis: [] }), false);
+  sv("common_control_unknown_basis", "common_control", ccBody({ basis: ["vibes"] }), false);
+  sv("common_control_no_cluster", "common_control", (({ cluster: _c, ...r }) => r)(ccBody()), false);
+  sv("common_control_unknown_field", "common_control", ccBody({ penalty: 100 }), false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

@@ -13337,6 +13337,151 @@
       "valid": false
     },
     {
+      "name": "valid_common_control",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_common_control_lift",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "lift": true
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_common_control_evidence",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "key_lineage",
+          "domain",
+          "address"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "evidence": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "valid": true
+    },
+    {
+      "name": "common_control_one_sponsor",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_duplicate_sponsor",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-a"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_no_basis",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_unknown_basis",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "vibes"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_no_cluster",
+      "schema": "common_control",
+      "instance": {
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_unknown_field",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "penalty": 100
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

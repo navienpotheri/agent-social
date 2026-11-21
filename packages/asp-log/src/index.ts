@@ -85,3 +85,4 @@ export { didYouMean } from "./surface.ts";
 export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
+export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";

@@ -34,6 +34,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
 import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
 import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
 import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
@@ -392,6 +393,7 @@ export class EventLog {
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
     if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
+    if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
     if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
@@ -744,6 +746,60 @@ export class EventLog {
     }
   }
 
+  /** The sponsor and fleet of an identity as the independence rule reads them: the sponsor is replaced by its common-control cluster when a signed finding says it belongs to one (S1410, DK1357). */
+  private async factsOf(tx: LogTx, did: string): Promise<PartyFacts> {
+    const p = await tx.getPassport(did);
+    const raw = p?.sponsor ?? did;
+    const cluster = await tx.getMarker(`ctrl:${raw}`);
+    return { did, sponsor: cluster || raw, fleet: p?.fleet ?? null, ...(cluster && cluster !== raw ? { rawSponsor: raw } : {}) };
+  }
+
+  /** Common control (S1410, DK1357): the operator or the watcher says sponsors are one controller; from then on they count as one sponsor for independence. `lift` ends it (operator only). It moves no credit and changes no tier. */
+  private async projectCommonControl(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { cluster: string; sponsors: string[]; lift?: boolean };
+    if (r.prev !== null) throw rule("common_control_not_chained", "a common-control record starts its own chain (prev is null)");
+    const isOperator = r.issuer === this.operator;
+    if (!isOperator && r.issuer !== WATCHER_DID) throw rule("common_control_wrong_issuer", `only the operator or the society watcher (${WATCHER_DID}) records common control`);
+    if (b.lift && !isOperator) throw rule("common_control_lift_operator", "only the operator lifts a finding of common control");
+    const sorted = [...b.sponsors].sort();
+    if (b.cluster !== sorted[0]) throw rule("common_control_cluster_id", `the cluster id is the smallest sponsor in it (${sorted[0]}), not ${b.cluster}`);
+    for (const s of b.sponsors) if (!(await tx.getPassport(s))) throw rule("common_control_unknown_sponsor", `${s} has no passport in this log`);
+    const members = async (c: string) => ((await tx.getMarker(`ctrl_members:${c}`)) ?? "").split(",").filter(Boolean);
+    if (b.lift) {
+      for (const s of b.sponsors) {
+        const c = await tx.getMarker(`ctrl:${s}`);
+        if (!c) continue;
+        const rest = (await members(c)).filter((m) => m !== s);
+        await tx.putMarker(`ctrl:${s}`, "");
+        if (rest.length < 2) { for (const m of rest) await tx.putMarker(`ctrl:${m}`, ""); await tx.putMarker(`ctrl_members:${c}`, ""); }
+        else { const canon = [...rest].sort()[0]; for (const m of rest) await tx.putMarker(`ctrl:${m}`, canon); await tx.putMarker(`ctrl_members:${c}`, ""); await tx.putMarker(`ctrl_members:${canon}`, rest.join(",")); }
+      }
+      return;
+    }
+    const all = new Set(b.sponsors);
+    for (const s of b.sponsors) { const c = await tx.getMarker(`ctrl:${s}`); if (c) for (const m of await members(c)) all.add(m); }
+    const canon = [...all].sort()[0];
+    for (const m of all) { const old = await tx.getMarker(`ctrl:${m}`); if (old && old !== canon) await tx.putMarker(`ctrl_members:${old}`, ""); await tx.putMarker(`ctrl:${m}`, canon); }
+    await tx.putMarker(`ctrl_members:${canon}`, [...all].sort().join(","));
+  }
+
+  /** The anti-farming report of this log (S1410, DK1357): common-control clusters and the findings over the job graph, for the Clinic. A lead, never a penalty. `external` carries what the hosted service knows (payment, domain, address). */
+  async farmingReport(opts: { at?: string; seed?: string; external?: ExternalFacts } = {}): Promise<FarmingReport> {
+    const recs = await this.recordsOfTypes(["passport", "contract", "settlement"]);
+    return analyseFarming(recs, opts);
+  }
+
+  /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
+  async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
+    const set = new Set(sponsors);
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor && set.has(b.sponsor)) out.add(b.did); }
+    return [...out].sort();
+  }
+
+  /** The cluster a sponsor belongs to by a signed finding, or undefined (S1410). */
+  async controlClusterOf(sponsor: string): Promise<string | undefined> { return this.store.transaction(async (tx) => (await tx.getMarker(`ctrl:${sponsor}`)) || undefined); }
+
   /** The Mandate in force at the node a member sits on (S1409), or undefined when its fleet has no mandated node on the way up. */
   private async nodeCeiling(tx: LogTx, member: string): Promise<{ node: string; mandate: Record<string, unknown> } | undefined> {
     const at = await nodeOfMember(tx, member);
@@ -990,7 +1046,7 @@ export class EventLog {
     const looped = closesLoop(edges, job.principal, job.performer, at);
     await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
     if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
-      const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+      const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
       if (others.every((o) => independent(principal, o))) {
@@ -2637,7 +2693,7 @@ export class EventLog {
   private async noteRelatedParty(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { principal?: string; performer?: string };
     if (!b.principal || !b.performer) return;
-    const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
     const kind = relatedKind(await facts(b.principal), await facts(b.performer));
     if (kind) await tx.putMarker(`related_party:${r.id}`, kind);
   }
@@ -3254,7 +3310,7 @@ export class EventLog {
     }
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
-    const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const partyFacts = async (did: string): Promise<PartyFacts> => this.store.transaction(async (tx) => this.factsOf(tx, did));
     // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
     const off = new Set<string>();
     await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });
