@@ -17,6 +17,8 @@ export interface Engine {
   run(artifact: unknown, seed: string, gate: CourseCard["gate"]): CourseRun;
   /** The held-out tasks the lesson gate replays a written-back lesson on (a course whose artifact is memory replays on its own tasks); absent: the generic floor tasks. */
   replay?(seed: string): HeldOutTask[];
+  /** Distinctive strings of the held-out tasks of a seed (an order number, a name): none of them may appear in a card's text or in the practice set (the lint of DK1752). Absent: the engine offers none and the lint says so. */
+  leakTokens?(seed: string): string[];
 }
 
 export const ENGINES: Record<string, Engine> = {};
