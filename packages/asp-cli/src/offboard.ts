@@ -27,7 +27,7 @@ const RETENTION = "docs/legal/retention-and-erasure.md";
 interface Slot { seq: number; id: string; record: Record<string, unknown> }
 
 /** Every record the organisation or an agent it sponsors signed, in log order, and the identities found. */
-async function collect(log: LogHandle, org: string): Promise<{ records: Slot[]; dids: string[] }> {
+export async function collect(log: LogHandle, org: string, afterSeq = 0): Promise<{ records: Slot[]; dids: string[] }> {
   // the same reader `asp audit-export` uses (readOrgRecords in packages/asp-log/src/audit-export.ts), in its `signed` mode
   const all: { seq: number; id: string; record: never }[] = [];
   for (let after = 0; ;) {
@@ -36,7 +36,7 @@ async function collect(log: LogHandle, org: string): Promise<{ records: Slot[]; 
     for (const s of page) { after = s.seq; all.push({ seq: s.seq, id: s.id, record: s.record as never }); }
   }
   const r = readOrgRecords(all, org, "signed");
-  return { records: r.records.map((x) => ({ seq: x.seq, id: x.id, record: x.record as unknown as Record<string, unknown> })), dids: r.identities };
+  return { records: r.records.filter((x) => x.seq > afterSeq).map((x) => ({ seq: x.seq, id: x.id, record: x.record as unknown as Record<string, unknown> })), dids: r.identities };
 }
 
 export async function offboardCmd(sub: string | undefined, o: OffboardOpts): Promise<number> {

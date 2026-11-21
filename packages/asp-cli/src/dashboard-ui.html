@@ -219,7 +219,7 @@
       </div>
       <h2>Reports from the agent</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>When</th><th>Used</th><th>Blocked</th><th>Held by</th></tr></thead><tbody>${acts}</tbody></table></div></div>
       ${f.approvals.length ? `<h2>Approvals</h2><div class="card">${f.approvals.map((p) => `<div class="flow"><span>${esc(p.question)}${p.proposed ? ` <span class="mono faint">${esc(p.proposed)}</span>` : ""}</span><span class="chip ${p.answer === "approved" ? "ok" : "warn"}">${esc(p.answer)}</span></div>`).join("")}</div>` : ""}
-      ${rl ? `<h2>The run, as the gateway saw it</h2><div class="card"><div class="small ${rl.ok ? "muted" : ""}" style="margin-bottom:8px">${rl.ok ? `${nf(rl.events)} events, hash chain checked <span class="chip ok">verified</span>` : `<span class="chip bad">not verified</span> ${esc(rl.problem || "")}`} · secrets masked, text cut · kept on this machine</div>${rl.truncated ? `<div class="faint small">Showing the last ${rl.shown.length}; ${nf(rl.truncated)} earlier events are in the file.</div>` : ""}<div class="events">${evs || '<div class="faint">Empty.</div>'}</div></div>` : ""}
+      ${rl ? `<h2>The run, as the gateway saw it</h2><div class="card"><div class="small ${rl.ok ? "muted" : ""}" style="margin-bottom:8px">${rl.ok ? `${nf(rl.events)} events, hash chain checked <span class="chip ok">verified</span>` : `<span class="chip bad">not verified</span> ${esc(rl.problem || "")}`} · secrets masked, text cut · kept on this machine · <a href="#" id="dl-runlog">download the whole run log</a></div>${rl.truncated ? `<div class="faint small">Showing the last ${rl.shown.length}; ${nf(rl.truncated)} earlier events are in the file.</div>` : ""}<div class="events">${evs || '<div class="faint">Empty.</div>'}</div></div>` : ""}
       <div class="grid g2"><div><h2>Where it stands</h2><div class="card"><ul class="tl">${chain}</ul></div></div>
       <div><h2>Money</h2><div class="card">${money}${flows}</div>
       <h2>With real money</h2><div class="card small muted">These credits are a mock ledger. If they were real: the escrow is the customer's payment, held until the job is accepted; the bond is the agent's sponsor's own money, and a blocked or violating run can forfeit it; ${f.ending ? `this job ended <strong>${esc(f.ending.basis)}</strong>: ${nf(f.ending.escrowReleased)} paid, ${nf(f.ending.bondReturned)} bond returned, ${nf(f.ending.bondSlashed)} forfeited.` : "nothing has moved yet."}</div></div></div>
@@ -328,6 +328,16 @@
     catch { el.className = "chip"; el.textContent = "log not checked"; }
   }
   document.addEventListener("click", async (ev) => {
+    if (ev.target.closest("#dl-runlog")) {
+      ev.preventDefault();
+      const id = decodeURIComponent((location.hash.match(/^#\/job\/(.+)$/) || [])[1] || "");
+      try {
+        const res = await fetch("/api/run-log?id=" + encodeURIComponent(id), { headers: { "x-dashboard-token": token } });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+        const a = document.createElement("a"); a.href = URL.createObjectURL(await res.blob()); a.download = "run-log.ndjson"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      } catch (e) { toast(e.message); }
+      return;
+    }
     const b = ev.target.closest("[data-resolve]");
     if (!b) return;
     const contract = b.dataset.contract || decodeURIComponent((location.hash.match(/^#\/job\/(.+)$/) || [])[1] || "");

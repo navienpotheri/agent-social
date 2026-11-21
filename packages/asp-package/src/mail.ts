@@ -219,7 +219,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     if (o.runLog.ok && a.runLogCommitments > 0 && o.runLog.head.events > a.runLogCommittedEvents) {
       check.push(`${o.runLog.head.events - a.runLogCommittedEvents} event(s) at the end of the run log came after the last report the agent could record (a job that has ended takes no more reports), so the figures above may leave them out; the run log has them.`);
     }
-    check.push(o.linkBase ? `Full run log:${o.linkBase.replace(/\/$/, "")}/run-log` : `Full run log, kept on the machine that ran the job: ${o.runLog.path}`);
+    check.push(o.linkBase ? "Full run log (redacted, hash-chained): open the run page below, which has a download button; it asks for your dashboard sign-in." : `Full run log: kept only on the machine that ran the job, at ${o.runLog.path}. No page is hosted for it; run \`asp dashboard\` on that machine to read it.`);
   } else check.push("No run log was kept for this job.");
   if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/#/job/${f.contract.id}`);
   sections.push({ title: "Check it", lines: check });

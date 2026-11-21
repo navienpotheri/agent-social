@@ -201,6 +201,18 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
+          "command": "asp runtimes personal [<name>]",
+          "description": "The personal-agent runtimes a person may bring in (OpenClaw, Hermes Agent, Manus, Muse, Grok Bot, Dots, the assistants' task agents, Instinct), the way each joins (behind the gateway, or the front door and the self-report SDK, or cannot be wrapped), its assurance and its evidence; with a name, its first minute (DK1364)"
+        },
+        {
+          "command": "asp org create --name <org> | show --org <org> | sso set --org <org> --file <sso.json> | members --org <org> | role --org <org> --member <id> --role <role> | provision-token --org <org> | deprovision --org <org> --member <id> [--keep-agents] | link-agent --org <org> --member <id> --did <agent>",
+          "description": "An organisation's tenancy (DK1359, DK1373): roles (owner, administrator, member, auditor), single sign-on by OpenID Connect, provisioning and deprovisioning (a deprovision ends the person's tokens and freezes their agents), as the caller's role allows"
+        },
+        {
+          "command": "asp org audit show --org <org> [--after <seq>] | export --org <org> --did <organisation did> --out <file|folder> [--every <seconds> [--times <n>]] | verify --file <file>",
+          "description": "The organisation's audit trail (DK1374): sign-ins, roles and provisioning, and an export of it with the organisation's and its agents' signed records, signed by the organisation's key, verified from the file alone, on a schedule from where the last one stopped"
+        },
+        {
           "command": "asp serve --sandbox --db local:<new dir> --tokens <file> | asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox",
           "description": "A sandbox service (DK1382): its own log (never production's), every response and page marked, free test credits at POST /sandbox/credits; reset clears the log and the service's state and keeps the tenants"
         },
