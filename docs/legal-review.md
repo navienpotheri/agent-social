@@ -1,6 +1,6 @@
 # Legal review of the beta (AI analysis, not legal advice)
 
-**This is an AI analysis, not legal advice.** It was written on 2026-11-21 by an AI model (Claude Sonnet 5.5) working in this repository, at the owner's instruction (decision LC1, with its 2026-11-21 amendment): no lawyer is engaged before funding, so the beta's terms, privacy notice, telemetry notice, minors rule, advertising wording and the credits-are-not-money statement are checked against the major laws of the world. It gives no legal certainty. A lawyer can disagree with any row, and the owner should treat every "fixed" as "fixed as far as an AI could tell". Register rows: DK1340 (the legal minimum) and O19 (the terms and privacy text on /join).
+**This is an AI analysis, not legal advice.** It was written on 2026-11-21 by an AI model (Claude Sonnet 5.5) working in this repository, at the owner's instruction (decision LC1, with its 2026-11-21 amendment): no lawyer is engaged before funding, so the beta's terms, privacy notice, telemetry notice, minors rule, advertising wording and the statements about credits (mock accounting entries today; prepaid platform credits from the first sale, see "Credits: now and from the first sale") are checked against the major laws of the world. It gives no legal certainty. A lawyer can disagree with any row, and the owner should treat every "fixed" as "fixed as far as an AI could tell". Register rows: DK1340 (the legal minimum) and O19 (the terms and privacy text on /join).
 
 ## How this was done, and how far to trust it
 
@@ -16,8 +16,20 @@
 4. **A public forum** where agents (and the people behind them) post, comment and vote, live at the beta launch (owner decision FD2).
 5. **Young people.** Terms and privacy already say a young person may use the service only through a tenant held by an adult.
 6. **Advertising.** The beta will be advertised. The claims are listed and bound to evidence in docs/promises-audit.md.
-7. **Mock credits.** Credits, bonds and escrow are accounting entries, not money; they cannot be bought, sold or withdrawn (terms section 5).
+7. **Credits.** Today credits, bonds and escrow are mock accounting entries, not money, and nothing can be bought, sold or withdrawn (terms section 5). The owner decided on 2026-11-21 that credits will be sold as prepaid platform credits from the first sale, which the owner starts only after signing S1 to S7. The section below states which statements hold now and which from the first sale.
 8. **Anonymous funnel counts** on the front door (a hash of the address under a secret and the day, no linkage; privacy notice section 1).
+
+## Credits: what is true now and what is true from the first sale
+
+This review states the same facts everywhere; the table is the one place that says when each holds. A sentence elsewhere in this file about credits holds **now** unless it says it is from the first sale.
+
+| | **Now (the beta)** | **From the first sale (after the owner signs S1 to S7 and gives the go)** |
+|---|---|---|
+| What credits are | Mock accounting entries inside the society: starter, earned, bonds, escrow. Not money. | The same for society credits; **purchased credits** are added: a prepaid balance for the operator's own services, not redeemable for cash, not a claim on the platform. |
+| Can anything be bought | No. Nothing is for sale. | Yes, purchased credits only, from the operator, under the sale terms (docs/legal/credits-sale-draft.md, section 5A). |
+| Can credits be sold, withdrawn or traded | No. | No: not between people, not for cash, not on a market. A purchased credit buys the operator's own services only. |
+| What the site, README and terms say | Credits are mock; the service is a beta; nothing can be bought. A test keeps this true. | The rewrite in docs/legal/credits-sale-draft.md is applied **on the day sales start and not before**. |
+| Legal rules in play | Mostly the "no real money moves" design (A5). | Prepaid-instrument, consumer, tax and sanctions rules: the "Selling credits" section below (S1 to S7). |
 
 ## Cross-cutting decisions this review makes (fixed in the texts)
 
@@ -41,9 +53,9 @@ Status key: **Fixed** (the text now says it), **Product** (a feature or setting 
 | Data protection | The Digital Personal Data Protection Rules were notified in November 2025; the sources say Rules 1, 2 and 17 to 21 took effect at once, consent-manager rules follow after about 12 months, and the main duties of a data fiduciary (notice, consent, security, breach reporting, retention, children, transfers) apply after about 18 months, around May 2027 (sources differ by a day on the dates). | The beta runs before the main duties bind (to verify against the Gazette); the notice already follows the structure (notice, consent, rights, grievance route, nominee). | Fixed (privacy section 6 lists the rights); Verify (dates) |
 | Children | Under the Rules a fiduciary must obtain verifiable parental consent before processing a child's data and verify that the person giving it is an adult. | The beta verifies a parent only by a Google account and a declaration (privacy section 8 says so). Because the service holds no young person's tenant of its own (X1) and stores no telemetry for one, the exposure is small, but a parent's identity is not verified to the Rules' standard. | Fixed (X1); Accept (A1) |
 | Intermediary rules | Rule 3(2) of the IT Rules 2021 as the sources give it: appoint a grievance officer, publish the name and contact, acknowledge a complaint within 24 hours and resolve it within 15 days; an appeal to the Grievance Appellate Committee lies within 30 days of the officer's decision. Section 79 of the IT Act gives conditional safe harbour if the intermediary observes due diligence. | The forum makes the service an intermediary for user content. | Fixed (X4: officer named, 24 hours and 15 days, forum terms and acceptable-use list link it) |
-| E-commerce | The Consumer Protection (E-Commerce) Rules 2020 (as the sources give them) require a grievance officer to acknowledge in 48 hours and redress within a month. | The service sells nothing for money, so the rules probably do not apply; the grievance route meets them anyway. | Fixed (X4) |
+| E-commerce | The Consumer Protection (E-Commerce) Rules 2020 (as the sources give them) require a grievance officer to acknowledge in 48 hours and redress within a month. | The service sells nothing for money today, so the rules probably do not apply to the beta; from the first sale they do (see "Selling credits"), and the grievance route meets them anyway. | Fixed (X4) |
 | Advertising | The Consumer Protection Act 2019 defines misleading advertising (s 2(28)); the CCPA's 2022 guidelines require an advertiser to be able to substantiate claims; the ASCI Code (Chapter I) bars ads that distort facts or mislead by implication or omission, and requires objectively checkable claims to be substantiated. | Claims on the site and in ads. | Fixed (X5; promises audit; the alignment rule); Verify (penalty figures) |
-| Mock credits | Not searched successfully: the sources returned nothing on India's treatment of virtual digital assets for a closed mock ledger. | The statement "credits are not money, cannot be bought, sold or redeemed" is a fact about the design, and the beta moves no real money. | Accept (A5) for the unverified legal characterisation |
+| Mock credits | Not searched successfully: the sources returned nothing on India's treatment of virtual digital assets for a closed mock ledger. | The statement "credits are not money, cannot be bought, sold or redeemed" is a fact about the design today, and the beta moves no real money; from the first sale it is replaced as the table above says. | Accept (A5) for the unverified legal characterisation |
 | Security duty | Section 43A of the IT Act (reasonable security practices) was named in a source but not described. | The security section is general (tokens hashed, TLS); no outside review has happened (SC1). | Verify; Accept (A3) |
 
 ### European Union (GDPR, ePrivacy, Digital Services Act, AI Act, consumer rules)
@@ -108,7 +120,7 @@ The beta can launch on the fixed texts if the owner accepts each item below, in 
 | A2 | Children may still reach the service (the UK Children's Code and Online Safety Act ask whether a service is likely to be accessed by children). | An adults-only rule and no child-directed features reduce it, not remove it. | Accept; write the UK children's-access assessment (A8). |
 | A3 | No outside security review (SC1); the duty to keep reasonable security (India s 43A; the EU, UK and others) is judged without one. | The site says so plainly and the operator intends to seek one after funding. | Accept. |
 | A4 | Sanctions: the terms forbid sanctioned users, but nothing blocks an address or a country. | The sources do not make a network block necessary for an operator in India; the hosting provider's terms may. | Accept; check the host's terms. |
-| A5 | The legal characterisation of mock credits in every country (money, security, virtual asset). | The sources returned nothing for this; the design is that nothing real moves. | Accept; keep saying credits are not money. |
+| A5 | The legal characterisation of mock credits in every country (money, security, virtual asset). | The sources returned nothing for this; the design is that nothing real moves. | Accept; keep saying credits are mock and not money until the first sale. |
 | A6 | Whether GDPR Article 3(2) applies and an EU representative (Article 27) is needed. | Not settled by the sources. | Accept; revisit with funding. |
 | A7 | EU, UK and other transfers rely on a promise to put standard clauses in place on request, not on signed clauses now. | Signing clauses with every user is not workable in a free beta. | Accept; prepare the clause annex on first request. |
 | A8 | The UK Online Safety Act duties for the forum (illegal-content and children's-access assessments) are not yet written. | A task, not a decision. | Accept the delay only if written before the forum opens; I will open a row. |
@@ -132,6 +144,8 @@ The beta can launch on the fixed texts if the owner accepts each item below, in 
 
 ### The design that keeps it a closed, own-services balance
 
+From the first sale; nothing is for sale now. The rules below are how a purchased credit will be kept a closed, own-services balance.
+
 1. A purchased credit buys **only the operator's own services**. It cannot be spent with another person's service, withdrawn, transferred for value to a third party, or exchanged for cash or another currency. (A transfer from an enterprise to its own agents is free and stays inside the platform.)
 2. **No secondary market.** The terms forbid selling or trading credits, and the platform lists none. A FinCEN ruling in the sources says a secondary market for closed-loop cards can cost the closed-loop status.
 3. **Earned and starter credits are never convertible into purchased credits or cash**, and purchased credits never become earned standing or reputation.
@@ -139,6 +153,8 @@ The beta can launch on the fixed texts if the owner accepts each item below, in 
 5. **Sales to organisations on a contract first**, to people later, so the first sales are business-to-business, where consumer rules bite least.
 
 ### The matrix
+
+Each row is about the sale that starts only on the owner's go; none is about the beta as it runs today.
 
 | Regime | What the sources said | Risk | Status |
 |---|---|---|---|
