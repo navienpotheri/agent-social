@@ -1374,6 +1374,32 @@ const worldRules = [
   sv("mandate_narrowing_unknown_field", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { privileges: ["root"] } }, false);
   sv("mandate_narrowing_bad_scope", "mandate_narrowing", { fleet: fl, member: "did:web:example.com:agents:coder-7", narrow: { scopes: ["Repo Read"] } }, false);
   sv("valid_passport_persona", "passport", { did: "did:web:example.com:agents:coder-7", kind: "agent", sponsor: "did:web:example.com:orgs:acme", persona: "coder", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-7#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  // ---------- the fleet tree (spec-deltas S1409): schema cases ----------
+  const owner = "did:web:example.com:users:dept-lead";
+  const nodeBody = (over: Record<string, unknown> = {}) => ({ fleet: fl, node: "engineering", version: 1, kind: "department", name: "Engineering", parent: "root", owner, ...over });
+  sv("valid_fleet_node_root", "fleet_node", { fleet: fl, node: "root", version: 1, kind: "fleet", name: "Acme", owner }, true);
+  sv("valid_fleet_node_department", "fleet_node", nodeBody(), true);
+  sv("valid_fleet_node_budget_and_mandate", "fleet_node", nodeBody({ node: "platform", kind: "team", parent: "engineering", budget: { credits: 400, tokens: 2000000 }, mandate: tmplMandate() }), true);
+  sv("valid_fleet_node_persona", "fleet_node", nodeBody({ node: "coder", kind: "persona", parent: "platform", persona: "coder" }), true);
+  sv("fleet_node_no_owner", "fleet_node", (({ owner: _o, ...r }) => r)(nodeBody()), false);
+  sv("fleet_node_root_with_parent", "fleet_node", nodeBody({ node: "root", kind: "fleet", parent: "root" }), false);
+  sv("fleet_node_root_named_otherwise", "fleet_node", nodeBody({ node: "top", kind: "fleet", parent: undefined }), false);
+  sv("fleet_node_department_without_parent", "fleet_node", (({ parent: _p, ...r }) => r)(nodeBody()), false);
+  sv("fleet_node_department_named_root", "fleet_node", nodeBody({ node: "root" }), false);
+  sv("fleet_node_unknown_kind", "fleet_node", nodeBody({ kind: "division" }), false);
+  sv("fleet_node_negative_budget", "fleet_node", nodeBody({ budget: { credits: -1 } }), false);
+  sv("fleet_node_empty_budget", "fleet_node", nodeBody({ budget: {} }), false);
+  sv("fleet_node_budget_in_dollars", "fleet_node", nodeBody({ budget: { dollars: 5 } }), false);
+  sv("fleet_node_bad_slug", "fleet_node", nodeBody({ node: "Engineering Dept" }), false);
+  sv("fleet_node_mandate_missing_field", "fleet_node", nodeBody({ mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }), false);
+  sv("fleet_node_version_zero", "fleet_node", nodeBody({ version: 0 }), false);
+  sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
+  sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
+  sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);
+  sv("fleet_move_bad_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "Platform Team" }, false);
+  sv("fleet_move_unknown_field", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform", force: true }, false);
+  sv("valid_passport_node", "passport", { did: "did:web:example.com:agents:coder-8", kind: "agent", sponsor: "did:web:example.com:orgs:acme", fleet: fl, node: "platform", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-8#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, true);
+  sv("passport_bad_node", "passport", { did: "did:web:example.com:agents:coder-8", kind: "agent", sponsor: "did:web:example.com:orgs:acme", fleet: fl, node: "Platform Team", tier: 1, shape: {}, keys: [{ id: "did:web:example.com:agents:coder-8#key-1", type: "Ed25519", public_key: "A".repeat(43) }] }, false);
   const T = tmplMandate();
   const cases: { name: string; ceiling: Record<string, unknown>; candidate: Record<string, unknown> }[] = [
     ["the_same_mandate_is_within", {}], ["fewer_scopes", { scopes: ["repo.read"] }], ["a_scope_under_a_wildcard", { scopes: ["pr.open", "pr.merge"] }], ["a_scope_outside", { scopes: ["repo.read", "shell.exec"] }],

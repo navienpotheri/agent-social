@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 103,
+  "must": 102,
   "withdraw": 104,
   "after": 316,
-  "total": 523
+  "total": 522
  },
- "mustWorkerHours": 503.2,
+ "mustWorkerHours": 493.2,
  "entries": [
   {
    "id": "D3",
@@ -6075,17 +6075,6 @@
    "size": "L",
    "flags": "",
    "why": "the guided fleet onboarding: init, blueprints, plan, apply, rollback"
-  },
-  {
-   "id": "DK1372",
-   "pri": "A",
-   "status": "open",
-   "gap": "A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard.",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "fleet subdivisions with narrowing Mandates"
   },
   {
    "id": "DK1373",

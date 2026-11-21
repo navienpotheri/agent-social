@@ -13,7 +13,7 @@ export interface FleetOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
+  flags: { node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "fleet";
@@ -163,5 +163,47 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     o.io.out(v ? `${fleet}${f.persona ? ` persona ${f.persona}` : ""}: Mandate template version ${v}` : `${fleet}${f.persona ? ` persona ${f.persona}` : ""} has no Mandate template`);
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate");
+  // The fleet tree (S1409, DK1372): `asp fleet node set --did <fleet> --node <id> --kind <fleet|department|team|persona> --name <text> [--parent <id>] --owner <did> [--credits <n>] [--tokens <n>] [--file <mandate.json>] [--persona <p>] [--by <org>]`,
+  // `asp fleet move --did <fleet> --member <did> --to <node> [--by <org, node owner or sponsor>] [--reason <text>]`, `asp fleet tree <fleet> [--month <YYYY-MM-DD>] [--json]`.
+  if (sub === "node") {
+    const fleet = f.did ?? rest[1];
+    if (rest[0] !== "set" || !fleet || !f.node || !f.kind || !f.name) throw new FleetUsage("asp fleet node set --did <fleet did> --node <id> --kind <fleet|department|team|persona> --name <text> [--parent <id>] --owner <did> [--credits <n>] [--tokens <n>] [--file <mandate.json>] [--persona <p>] [--by <organisation did>]");
+    const d = await declaration(o, fleet);
+    const by = f.by ?? d.org;
+    const owner = f.owner ?? d.org;
+    const budget: Record<string, number> = {};
+    for (const k of ["credits", "tokens"] as const) if (f[k] !== undefined) { const n = Number(f[k]); if (!Number.isInteger(n) || n < 0) throw new FleetUsage(`--${k} is a whole number, 0 or more`); budget[k] = n; }
+    const tree = await o.log.log.fleetTree(fleet);
+    const before = tree?.nodes.find((n) => n.node === f.node && n.version > 0);
+    const version = (before?.version ?? 0) + 1;
+    const body = { fleet, node: f.node, version, kind: f.kind, name: f.name, ...(f.parent ? { parent: f.parent } : {}), owner, ...(f.persona ? { persona: f.persona } : {}), ...(Object.keys(budget).length ? { budget } : {}), ...(f.file ? { mandate: JSON.parse(readFileSync(f.file, "utf8")) } : {}) };
+    const res = await o.log.append(createRecord({ type: "fleet_node", issuer: by, subject: fleet, prev: null, body, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`node ${f.node} (${f.kind}${f.parent ? ` under ${f.parent}` : ""}) of ${fleet}, version ${version}, signed (log seq ${res.seq}); a child's Mandate may only narrow its parent's and a budget stays within its parent's`);
+    return 0;
+  }
+  if (sub === "move") {
+    const fleet = f.did ?? rest[0];
+    if (!fleet || !f.member || !f.to) throw new FleetUsage("asp fleet move --did <fleet did> --member <did> --to <node> [--by <organisation, node owner or sponsor did>] [--reason <text>]");
+    const d = await declaration(o, fleet);
+    const by = f.by ?? d.org;
+    const res = await o.log.append(createRecord({ type: "fleet_move", issuer: by, subject: f.member, prev: null, body: { fleet, member: f.member, to: f.to, ...(f.reason ? { reason: f.reason } : {}) }, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`${f.member} moved to node ${f.to} of ${fleet} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "tree") {
+    const fleet = rest[0] ?? f.did;
+    if (!fleet) throw new FleetUsage("asp fleet tree <fleet did> [--month <YYYY-MM-DD>] [--json]");
+    await declaration(o, fleet);
+    const t = await o.log.log.fleetTree(fleet, f.at ? `${f.at.slice(0, 10)}T00:00:00Z` : undefined);
+    if (!t) throw new FleetUsage(`${fleet} is not a declared fleet in this log`);
+    if (f.json) { o.io.out(JSON.stringify(t, null, 2)); return 0; }
+    o.io.out(`fleet ${fleet}: ${t.members} member(s), ${t.nodes.filter((n) => n.version > 0).length} node(s), ${t.moves} move(s); usage for ${t.month}`);
+    for (const n of t.nodes) {
+      const cr = n.usage.credits, tk = n.usage.tokens;
+      const parts = [`${n.members} here, ${n.subtreeMembers} below and here`, cr.budget !== null ? `credits ${cr.spent}/${cr.budget}` : `credits ${cr.spent}`, tk.budget !== null ? `tokens ${tk.used}/${tk.budget}${tk.over ? " OVER" : ""}` : `tokens ${tk.used}`, n.mandate ? "Mandate set" : "Mandate inherited", ...(n.version ? [`owner ${n.owner}`] : [])];
+      o.io.out(`${"  ".repeat(n.depth + 1)}${n.node} [${n.kind}] ${n.version ? n.name : "(not declared: members sit here by default)"}  ${parts.join("; ")}`);
+    }
+    return 0;
+  }
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree");
 }

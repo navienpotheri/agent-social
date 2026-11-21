@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 227 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 228 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (25)</summary><pre>Most people use only these.
 
 asp
@@ -320,7 +320,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (52)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (53)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -360,6 +360,8 @@ asp fleet template set --did &lt;fleet did&gt; --file &lt;mandate.json&gt; [--pe
     The Mandate template of a fleet or a persona: the organisation signs one Mandate (the fields of a Mandate without its contract) and every member's Mandate derives from it; a new version is an amendment that applies to every member; the log refuses a Mandate for a member that goes beyond it
 asp fleet narrow --member &lt;did&gt; --file &lt;narrowing.json&gt; [--by &lt;member or its sponsor&gt;] | mandate --member &lt;did&gt; --contract &lt;id&gt;
     A member (or its sponsor) narrows its fleet's template (fewer scopes, a lower cap, more forbidden means, an earlier expiry; widening is refused naming the field); `mandate` prints the Mandate a member holds for a contract, derived from the template and its narrowing
+asp fleet node set --did &lt;fleet did&gt; --node &lt;id&gt; --kind &lt;fleet|department|team|persona&gt; --name &lt;text&gt; [--parent &lt;id&gt;] --owner &lt;did&gt; [--credits &lt;n&gt;] [--tokens &lt;n&gt;] [--file &lt;mandate.json&gt;] [--persona &lt;p&gt;] [--by &lt;organisation did&gt;] | move --did &lt;fleet did&gt; --member &lt;did&gt; --to &lt;node&gt; [--by &lt;did&gt;] [--reason &lt;text&gt;] | tree &lt;fleet did&gt; [--month &lt;date&gt;] [--json]
+    The fleet tree: the organisation signs the nodes (the fleet is `root`, then departments, teams and persona nodes), each with an owner, an optional Mandate that may only narrow its parent's and a monthly budget in credits and tokens that stays within its parent's; a member joins a node with `asp identity new --fleet &lt;fleet&gt; --node &lt;id&gt;` and is moved by a signed `move`; `tree` prints the members per node and the month's usage
 asp bank account put|take --holder &lt;did&gt; --amount &lt;n&gt; | borrow|repay --amount &lt;n&gt; [--by &lt;treasury did&gt;] | interest --week &lt;YYYY-Www&gt; [--by &lt;treasury did&gt;]
     The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held
 asp bank mentor offer --protege &lt;did&gt; --mentor &lt;did&gt; [--note &lt;text&gt;] [--out &lt;offer.json&gt;] | accept --file &lt;offer.json&gt; --by &lt;mentor did&gt;
@@ -624,7 +626,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash</pre></details>
-<details><summary>The records the protocol defines (91)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (93)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report            A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                  The runtime→protocol compliance bridge
@@ -663,6 +665,8 @@ events_act              The Events records (leisure-events.md 3, register rows D
 exam                    An exam the Registrar runs (academy.md 3, AC-7, register row DK25)
 exam_result             The result of one sitting (academy.md 3, AC-8, register row DK25)
 fleet                   A declared group of agent persons under one organization, with a shared sponsor
+fleet_move              A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409)
+fleet_node              One node of a fleet's tree (register row DK1372; spec-delta S1409)
 founding_act            Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1)
 game_move               An entrant reveals the move it committed to when it entered a referee-run game (S985, register row DK685)
 handback                What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303)

@@ -871,6 +871,7 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  owner: { type: "string" },
   org: { type: "string" },
   strict: { type: "boolean" },
   "max-members": { type: "string" },
@@ -1263,6 +1264,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       ...(v.purpose ? { purpose: v.purpose } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
       ...(v.persona ? { persona: v.persona } : {}),
+      ...(v.fleet && v.node ? { node: v.node } : {}),
       ...(v.runtime || v.model ? { fingerprint: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v.model ? { model: v.model } : {}) } } : {}),
     };
   }
@@ -4942,7 +4944,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;

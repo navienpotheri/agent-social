@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 103 (503.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 102 (493.2 worker-hours; 15 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 104 |
 | After launch | 316 |
-| Total not closed | 523 |
+| Total not closed | 522 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -109,7 +109,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
 | DK1357 | A | open | 10 | L | - | stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible |
 | DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
-| DK1372 | A | open | 10 | L | - | fleet subdivisions with narrowing Mandates |
 | DK1379 | A | open | 12 | L | - | metering, plan prices and invoicing |
 | DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
 | DK1361 | A | open | 14 | L | - | the fleet dashboard with caps and a freeze switch |

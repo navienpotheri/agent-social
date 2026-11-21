@@ -13002,6 +13002,434 @@
       "valid": true
     },
     {
+      "name": "valid_fleet_node_root",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Acme",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_department",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_budget_and_mandate",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "platform",
+        "version": 1,
+        "kind": "team",
+        "name": "Engineering",
+        "parent": "engineering",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "credits": 400,
+          "tokens": 2000000
+        },
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_persona",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "coder",
+        "version": 1,
+        "kind": "persona",
+        "name": "Engineering",
+        "parent": "platform",
+        "owner": "did:web:example.com:users:dept-lead",
+        "persona": "coder"
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_node_no_owner",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_root_with_parent",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_root_named_otherwise",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "top",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Engineering",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_department_without_parent",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_department_named_root",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_unknown_kind",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "division",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_negative_budget",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "credits": -1
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_empty_budget",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_budget_in_dollars",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "dollars": 5
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_bad_slug",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "Engineering Dept",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_mandate_missing_field",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_version_zero",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 0,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_fleet_move",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "platform"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_move_with_reason",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "root",
+        "reason": "the team was closed"
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_move_no_target",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_move_bad_target",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "Platform Team"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_move_unknown_field",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "platform",
+        "force": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_passport_node",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-8",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "platform",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-8#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_bad_node",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-8",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "Platform Team",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-8#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_bank_deposit",
       "schema": "bank_act",
       "instance": {

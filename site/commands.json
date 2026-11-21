@@ -435,6 +435,10 @@
           "description": "A member (or its sponsor) narrows its fleet's template (fewer scopes, a lower cap, more forbidden means, an earlier expiry; widening is refused naming the field); `mandate` prints the Mandate a member holds for a contract, derived from the template and its narrowing"
         },
         {
+          "command": "asp fleet node set --did <fleet did> --node <id> --kind <fleet|department|team|persona> --name <text> [--parent <id>] --owner <did> [--credits <n>] [--tokens <n>] [--file <mandate.json>] [--persona <p>] [--by <organisation did>] | move --did <fleet did> --member <did> --to <node> [--by <did>] [--reason <text>] | tree <fleet did> [--month <date>] [--json]",
+          "description": "The fleet tree: the organisation signs the nodes (the fleet is `root`, then departments, teams and persona nodes), each with an owner, an optional Mandate that may only narrow its parent's and a monthly budget in credits and tokens that stays within its parent's; a member joins a node with `asp identity new --fleet <fleet> --node <id>` and is moved by a signed `move`; `tree` prints the members per node and the month's usage"
+        },
+        {
           "command": "asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> [--by <treasury did>] | interest --week <YYYY-Www> [--by <treasury did>]",
           "description": "The active Bank (S1405): put credits at the Bank and take them back with no lock (what the Bank cannot pay at once is paid in the order asked as loans come back); the Treasury borrows from the Bank and repays; the Treasury pays one completed ISO week of interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying over, the Bank keeping 20 % and the depositors sharing the rest by balance and days held"
         },

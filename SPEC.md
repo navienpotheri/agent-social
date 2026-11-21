@@ -73,6 +73,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.exam/v0.2` | An exam the Registrar runs (academy.md 3, AC-7, register row DK25). | `exam`, `skill`, `level`, `suite_hash`, `pass_mark_permille`, `pool_size`, `categories`, `max_sittings`, `window_days`, `sitting_service` |
 | `asp.exam_result/v0.2` | The result of one sitting (academy.md 3, AC-8, register row DK25). | `exam`, `holder`, `score_permille`, `pass_mark_permille`, `passed`, `attempt`, `variant`, `seed`, `sitting`, `run_log_hash`, `missed_categories` |
 | `asp.fleet/v0.2` | A declared group of agent persons under one organization, with a shared sponsor. | `did`, `org`, `name`, `purpose` |
+| `asp.fleet_move/v0.2` | A member of a fleet moves to another node of the tree (register row DK1372; spec-delta S1409). | `fleet`, `member`, `to` |
+| `asp.fleet_node/v0.2` | One node of a fleet's tree (register row DK1372; spec-delta S1409): the fleet itself (`root`), a department, a team or a persona. | `fleet`, `node`, `version`, `kind`, `name`, `owner` |
 | `asp.founding_act/v0.2` | Founding a market institution (register row DK397; spec-delta S505; docs/institutions/charter.md, the decision of IS1). | `act` |
 | `asp.game_move/v0.2` | An entrant reveals the move it committed to when it entered a referee-run game (S985, register row DK685). | `arena`, `season`, `entry`, `move`, `salt` |
 | `asp.handback/v0.2` | What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303). | `dispatch`, `package_sha256_after`, `lineage_edges`, `lessons`, `tier_before`, `tier_after`, `strikes`, `slashes`, `credits_earned`, `usage`, `diff_sha256` |
