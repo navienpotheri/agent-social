@@ -40,12 +40,12 @@ test("DK1744: the inspectorate page: empty, then a warrant, a custody chain, a d
   await k.log.append(item(w.insp, 0, "copy of the run log", "genesis"));
   const reg = await k.log.append(w.decoy());
   const read = (run: string) => ({ run, kind: "read", forbidden: true });
-  await k.log.append(w.finding(reg.id, [read("r1"), { run: "r2", kind: "copied", forbidden: true }]));
+  await k.log.append(w.finding(reg.id, [read("r1"), { run: "r1", kind: "copied", forbidden: true }, read("r2")]));
   const v = await k.log.inspectorateView(at(1)); // while the warrant is in force
   assert.deepEqual([v.warrants.length, v.custody.length, v.decoys.registered, v.findings.length], [1, 1, 1, 1]);
   assert.deepEqual([v.warrants[0]!.data, v.warrants[0]!.grantedBy, v.warrants[0]!.panel, v.warrants[0]!.state, v.warrants[0]!.noticed], [["run_log", "private_memory"], 2, 3, "in force", "within the hour"]);
   assert.deepEqual([v.custody[0]!.items, v.custody[0]!.unbroken], [1, true]);
-  assert.deepEqual([v.findings[0]!.runs, v.findings[0]!.kinds], [2, ["read", "copied"]]);
+  assert.deepEqual([v.findings[0]!.runs, v.findings[0]!.kinds], [2, ["read", "copied"]], "three touches on two distinct runs");
   const wallClock = await k.log.inspectorateView();
   assert.equal(wallClock.warrants[0]!.state, "expired", "read now, the 48 hours have long passed");
   const records = await k.log.recordsOfTypes(["warrant", "custody_item", "decoy_registration", "inspectorate_finding"]);
