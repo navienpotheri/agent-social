@@ -2363,6 +2363,9 @@ export class EventLog {
     return { ok: !diffs.length, differences: diffs };
   }
 
+  /** An account's purchased-credit lots (S1413): amount left, expiry and refund window of each. */
+  async holderLots(did: string): Promise<{ holder: string; lots: Lot[]; outstanding: number }> { return this.store.transaction(async (tx) => { const lots = await lotsOf(tx, canonicalAccount(did)); return { holder: did, lots, outstanding: outstanding(lots) }; }); }
+
   /** The two ledger classes (S1413, DK1370): what was sold, consumed at the institutions, expired and refunded, what is outstanding, and whether every account's purchased credits fit inside its balance and the classes add up. Read-only. */
   async creditClassAudit(): Promise<{ sold: number; consumed: number; expired: number; refunded: number; outstanding: number; notSold: number; holders: number; expiredNotBurned: number; verdict: "balanced" | "mismatch"; problems: string[] }> {
     const totalBalances = (await this.store.ledgerRows()).accounts.reduce((n, a) => n + a.balance, 0);
