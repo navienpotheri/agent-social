@@ -3,8 +3,8 @@
  "counts": {
   "must": 88,
   "withdraw": 107,
-  "after": 319,
-  "total": 514
+  "after": 318,
+  "total": 513
  },
  "mustWorkerHours": 422.2,
  "entries": [
@@ -6130,18 +6130,6 @@
    "flags": "",
    "why": "network allow lists and private connectivity: the follow-on enterprise set",
    "says": "not offered yet"
-  },
-  {
-   "id": "DK1387",
-   "pri": "A",
-   "status": "open",
-   "gap": "No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "a compliance roadmap: the follow-on enterprise set",
-   "says": "no certification is claimed"
   },
   {
    "id": "DK1470",

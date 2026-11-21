@@ -37,8 +37,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 88 (422.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
 | Withdraw the claim until done | 107 |
-| After launch | 319 |
-| Total not closed | 514 |
+| After launch | 318 |
+| Total not closed | 513 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -569,7 +569,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1381 | A | open | API stability guarantees and webhooks: the follow-on enterprise set | the protocol is versioned 0.2 |
 | DK1385 | A | open | disaster recovery across regions beyond the restore drill: the follow-on enterprise set | backups and a restore drill |
 | DK1386 | A | open | network allow lists and private connectivity: the follow-on enterprise set | not offered yet |
-| DK1387 | A | open | a compliance roadmap: the follow-on enterprise set | no certification is claimed |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

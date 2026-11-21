@@ -2,7 +2,7 @@
 // (or is said to be not offered), and every enterprise row DK1353 to DK1387 appears. The owner has still to read it (the row stays partial until then).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
@@ -36,4 +36,16 @@ test("DK1369: the audit says it claims no certification, and the one gap it foun
   assert.match(audit, /DK1411/);
   assert.ok(known("DK1411"));
   assert.match(register, /^\| DK1411 \| Encryption at rest/m);
+});
+
+test("DK1387: the compliance roadmap claims no certification, cites evidence that exists, and orders what may follow after funding", () => {
+  const r = read("docs/enterprise/compliance-roadmap.md");
+  assert.match(r, /No certification is held and none is claimed/);
+  assert.match(r, /no outside security review/i);
+  assert.doesNotMatch(r, /\b(?:we are|is|are) (?:SOC ?2|ISO ?27001)(?: Type [12])? (?:certified|compliant|audited)\b/i);
+  const paths = [...r.matchAll(/\b((?:docs|packages|spec)\/[A-Za-z0-9_./-]+\.(?:md|ts|json)|SECURITY\.md)\b/g)].map((m) => m[1]!);
+  assert.ok(paths.length >= 12, `${paths.length} paths cited`);
+  for (const p of new Set(paths)) assert.ok(existsSync(new URL(p, root)), `${p} exists`);
+  assert.ok(r.indexOf("An outside security review") < r.indexOf("SOC 2 Type 1"), "the review comes before SOC 2");
+  assert.ok(r.indexOf("SOC 2 Type 1") < r.indexOf("ISO 27001 |"), "SOC 2 comes before ISO 27001");
 });

@@ -228,7 +228,6 @@ export const AFTER_A: Record<string, After> = {
   DK1381: ["API stability guarantees and webhooks: the follow-on enterprise set", "the protocol is versioned 0.2"],
   DK1385: ["disaster recovery across regions beyond the restore drill: the follow-on enterprise set", "backups and a restore drill"],
   DK1386: ["network allow lists and private connectivity: the follow-on enterprise set", "not offered yet"],
-  DK1387: ["a compliance roadmap: the follow-on enterprise set", "no certification is claimed"],
   DK1350: ["generative expedition worlds are a later feature", "expeditions are described as planned; measured worlds are the basis of any claim"],
   DK1351: ["needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed", "expeditions in generated worlds are not offered at launch"],
   D10: ["the `asp learned` command exists", "what an agent learned is listed by `asp learned`; no dashboard edit or undo yet"],

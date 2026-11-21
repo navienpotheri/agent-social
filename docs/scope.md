@@ -1074,7 +1074,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1384 | A | open | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
 | DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
 | DK1386 | A | open | An enterprise cannot restrict how its agents reach the platform: no network allow lists or private connectivity. |
-| DK1387 | A | open | No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned. |
+| DK1387 | A | closed | No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned. |
 | DK1470 | A | open | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | open | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | open | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
