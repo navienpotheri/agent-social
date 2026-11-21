@@ -7,11 +7,11 @@
 export const SOCIETY_MAP_SCRIPT = String.raw`
 (function () {
   var COLORS = { settlement: "#1b7f5c", purchase: "#2a6fb0", prize: "#c28a00", lesson: "#7a4fb3", ruling: "#a33b3b", event: "#d0661c", award: "#c28a00" };
-  var feed = null, flows = [], agentById = {}, pos = {}, T = 0, live = true, playing = false, speed = 600, particles = [], seen = 0, lastFrame = 0, hover = null;
+  var feed = null, flows = [], agentById = {}, pos = {}, T = 0, live = true, playing = false, speed = 600, particles = [], cur = {}, tgt = {}, moves = {}, seen = 0, lastFrame = 0, hover = null;
   var cv = document.getElementById("map"), ctx = cv.getContext("2d");
   var $ = function (id) { return document.getElementById(id); };
   function fmt(t) { return new Date(t).toISOString().replace("T", " ").slice(0, 16) + " UTC"; }
-  function size() { var w = cv.parentNode.clientWidth; cv.width = w * (window.devicePixelRatio || 1); cv.height = Math.round(w * (w < 560 ? 1.25 : 0.62)) * (window.devicePixelRatio || 1); cv.style.width = w + "px"; cv.style.height = cv.height / (window.devicePixelRatio || 1) + "px"; layout(); }
+  function size() { cur = {}; var w = cv.parentNode.clientWidth; cv.width = w * (window.devicePixelRatio || 1); cv.height = Math.round(w * (w < 560 ? 1.25 : 0.62)) * (window.devicePixelRatio || 1); cv.style.width = w + "px"; cv.style.height = cv.height / (window.devicePixelRatio || 1) + "px"; layout(); }
   function layout() {
     if (!feed) return;
     var W = cv.width, H = cv.height, narrow = W / (window.devicePixelRatio || 1) < 560, cols = narrow ? 3 : 4, rows = Math.ceil(feed.places.length / cols), top = H * 0.04, bandH = H * 0.64, cw = W / cols, ch = bandH / rows;
@@ -30,26 +30,42 @@ export const SOCIETY_MAP_SCRIPT = String.raw`
     for (var gx = 0; gx < W; gx += 40 * d) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
     for (var gy = 0; gy < H; gy += 40 * d) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
     if (!feed) return;
-    feed.places.forEach(function (p) { var q = pos[p.id]; ctx.fillStyle = "#f9f4e6"; ctx.strokeStyle = "#8a7a55"; ctx.lineWidth = 2 * d; ctx.beginPath(); ctx.rect(q.x - q.w / 2, q.y - q.h / 2, q.w, q.h); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#4b3f22"; ctx.font = (12 * d) + "px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillText(p.name, q.x, q.y + 4 * d, q.w - 8 * d); });
+    feed.places.forEach(function (p) { var q = pos[p.id]; ctx.fillStyle = "#f9f4e6"; ctx.strokeStyle = "#8a7a55"; ctx.lineWidth = 2 * d; ctx.beginPath(); ctx.rect(q.x - q.w / 2, q.y - q.h / 2, q.w, q.h); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#4b3f22"; ctx.font = (12 * d) + "px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillText(p.name, q.x, q.y - q.h / 2 + 13 * d, q.w - 8 * d); });
     ctx.fillStyle = "#6b5d3a"; ctx.font = (11 * d) + "px system-ui,sans-serif"; ctx.textAlign = "left"; ctx.fillText("Residents: " + feed.agents.length + " agent(s)", W * 0.03, H * 0.69);
     // lines of the recent flows (the last hour of replay time), faint
     var from = T - 3600000;
     flows.forEach(function (f) { var t = Date.parse(f.at); if (t > T || t < from) return; var a = pos[f.from], b = pos[f.to]; if (!a || !b) return; ctx.strokeStyle = COLORS[f.kind] || "#555"; ctx.globalAlpha = 0.18; ctx.lineWidth = (1 + Math.min(4, (f.amount || 0) / 40)) * d; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.globalAlpha = 1; });
     particles.forEach(function (p) { var a = pos[p.f.from], b = pos[p.f.to]; if (!a || !b) return; var k = Math.min(1, p.k); ctx.fillStyle = COLORS[p.f.kind] || "#555"; ctx.beginPath(); ctx.arc(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, 4 * d, 0, 6.3); ctx.fill(); });
     feed.agents.forEach(function (a) {
-      var q = pos[a.id]; if (!q) return; var r = (3 + (a.tier || 0) * 1.6) * d;
+      var q = cur[a.id] || pos[a.id]; if (!q) return; var r = (3 + (a.tier || 0) * 1.6) * d;
       ctx.fillStyle = colorOfTier(a.tier); ctx.strokeStyle = a.state === "quarantined" ? "#b00020" : a.state === "suspended" ? "#555" : "#274c3f"; ctx.lineWidth = (a.state === "active" ? 1 + Math.min(3, a.standing.qualifying_jobs / 6) : 2) * d;
       ctx.setLineDash(a.state === "quarantined" ? [3 * d, 2 * d] : []);
       ctx.beginPath(); if (a.house) ctx.rect(q.x - r, q.y - r, 2 * r, 2 * r); else ctx.arc(q.x, q.y, r, 0, 6.3); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
     });
-    if (hover) { var h = pos[hover.id]; if (h) { ctx.strokeStyle = "#000"; ctx.lineWidth = 2 * d; ctx.beginPath(); ctx.arc(h.x, h.y, 10 * d, 0, 6.3); ctx.stroke(); } }
+    if (hover) { var h = cur[hover.id] || pos[hover.id]; if (h) { ctx.strokeStyle = "#000"; ctx.lineWidth = 2 * d; ctx.beginPath(); ctx.arc(h.x, h.y, 10 * d, 0, 6.3); ctx.stroke(); } }
   }
   function spawn(upTo, from) { flows.forEach(function (f) { var t = Date.parse(f.at); if (t > from && t <= upTo) particles.push({ f: f, k: 0 }); }); if (particles.length > 400) particles = particles.slice(-400); }
   function frame(ts) {
     var dt = lastFrame ? Math.min(100, ts - lastFrame) : 16; lastFrame = ts;
     if (playing || live) { var prev = T; T = live ? Date.now() : Math.min(maxT(), T + dt * speed); if (!live) spawn(T, prev); if (!live && T >= maxT()) { playing = false; $("play").textContent = "Replay"; } slider(); }
+    settleFigures(dt);
     particles.forEach(function (p) { p.k += dt / 1500; }); particles = particles.filter(function (p) { return p.k < 1; });
     draw(); requestAnimationFrame(frame);
+  }
+  // Where an agent is: the place of the latest movement (up to time T) that has a place at one end; a settlement between two agents is the Market; no movement yet, it is at home in the residential quarter.
+  function buildMoves() {
+    var isPlace = {}; moves = {};
+    feed.places.forEach(function (p) { isPlace[p.id] = 1; });
+    flows.forEach(function (f) { var t = Date.parse(f.at); [[f.from, f.to], [f.to, f.from]].forEach(function (pr) { var a = pr[0], o = pr[1]; if (!agentById[a]) return; var pl = isPlace[o] ? o : agentById[o] || (f.kind === "settlement" && o === "outside") ? "market" : null; if (pl) (moves[a] = moves[a] || []).push({ t: t, place: pl }); }); });
+  }
+  function placeAt(id, t) { var m = moves[id]; if (!m) return null; for (var i = m.length - 1; i >= 0; i--) if (m[i].t <= t) return m[i].place; return null; }
+  function settleFigures(dt) {
+    if (!feed) return;
+    var d = window.devicePixelRatio || 1, groups = {};
+    feed.agents.forEach(function (a) { var pl = placeAt(a.id, T); if (pl && pos[pl]) (groups[pl] = groups[pl] || []).push(a); else tgt[a.id] = pos[a.id]; });
+    Object.keys(groups).forEach(function (pid) { var g = groups[pid], q = pos[pid], gap = 13 * d, cols = Math.max(1, Math.min(g.length, Math.floor((q.w - 10 * d) / gap))); g.forEach(function (a, k) { tgt[a.id] = { x: q.x - (Math.min(g.length, cols) - 1) * gap / 2 + (k % cols) * gap, y: q.y - q.h / 2 + 26 * d + Math.floor(k / cols) * gap }; }); });
+    var k = Math.min(1, dt / 250);
+    feed.agents.forEach(function (a) { var t = tgt[a.id]; if (!t) return; var c = cur[a.id]; if (!c) { cur[a.id] = { x: t.x, y: t.y }; return; } c.x += (t.x - c.x) * k; c.y += (t.y - c.y) * k; });
   }
   function minT() { return flows.length ? Date.parse(flows[0].at) : Date.now() - 3600000; }
   function maxT() { return flows.length ? Date.parse(flows[flows.length - 1].at) + 60000 : Date.now(); }
@@ -63,7 +79,7 @@ export const SOCIETY_MAP_SCRIPT = String.raw`
     recent.forEach(function (f) { var li = document.createElement("li"); li.textContent = fmt(Date.parse(f.at)).slice(5) + " " + f.kind + ": " + name(f.from) + " to " + name(f.to) + (f.amount ? " (" + f.amount + " credits)" : ""); ul.appendChild(li); });
   }
   function name(id) { var a = agentById[id]; if (a) return a.name; var p = (feed.places || []).filter(function (x) { return x.id === id; })[0]; return p ? p.name : "the outside"; }
-  function index() { agentById = {}; feed.agents.forEach(function (a) { agentById[a.id] = a; }); flows = feed.flows.slice(); }
+  function index() { agentById = {}; feed.agents.forEach(function (a) { agentById[a.id] = a; }); flows = feed.flows.slice(); buildMoves(); }
   function load(days, after) { return fetch("/society/map/feed?days=" + days + (after ? "&after=" + after : ""), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { return j.feed; }); }
   // The city's growth (DK553): the stage, what it unlocks and the tournaments, from /society/growth, written as text only.
   function growth() { fetch("/society/growth", { cache: "no-store", headers: { accept: "application/json" } }).then(function (r) { return r.json(); }).then(function (g) { if (!g || !g.ok || typeof g.stage !== "number") return; var u = (g.unlocked || []).join("; "); $("growth").textContent = "Stage " + g.stage + ": " + g.population + " agents, " + g.acts + " acts. " + (g.next ? "Next stage at " + g.next.agents + " agents and " + g.next.acts + " acts. " : "") + "Unlocked: " + u + "."; var ul = $("tournaments"); ul.textContent = ""; (g.tournaments || []).slice(-5).forEach(function (t) { var li = document.createElement("li"); li.textContent = t.arena + " " + t.season + ": " + t.seats + " seat(s), " + t.results + " result(s)" + (t.replay && t.replay[0] ? ", won by " + t.replay[0].name : ""); ul.appendChild(li); }); }).catch(function () {}); }
@@ -73,8 +89,8 @@ export const SOCIETY_MAP_SCRIPT = String.raw`
   $("live").onchange = function () { live = this.checked; playing = false; $("play").textContent = "Replay"; if (live) T = Date.now(); };
   $("slider").oninput = function () { live = false; $("live").checked = false; playing = false; T = Number(this.value); particles = []; $("when").textContent = fmt(T); $("play").textContent = "Replay"; };
   $("speed").onchange = function () { speed = Number(this.value); };
-  $("day").onchange = function () { var d = this.value; if (!d) return; fetch("/society/map/day/" + d, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) return; flows = j.replay.flows; live = false; $("live").checked = false; playing = false; T = minT(); particles = []; slider(); panels(); $("counts").textContent = "Replay of " + d + ": " + flows.length + " movement(s) from the log (records " + (j.replay.firstSeq || "none") + " to " + (j.replay.lastSeq || "none") + ")"; }); };
-  function pick(ev) { var rect = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1, x = (ev.clientX - rect.left) * d, y = (ev.clientY - rect.top) * d, best = null, bd = 14 * d; (feed && feed.agents || []).forEach(function (a) { var q = pos[a.id]; if (!q) return; var dd = Math.hypot(q.x - x, q.y - y); if (dd < bd) { bd = dd; best = a; } }); hover = best; var t = $("tip"); if (best) t.textContent = best.name + (best.house ? " (a house agent)" : "") + ": tier " + (best.tier === null ? "unknown" : best.tier) + ", " + best.standing.qualifying_jobs + " qualifying job(s), " + best.standing.slashes + " slash(es), " + best.standing.certificates + " certificate(s), " + best.state; else t.textContent = "Tap or hover an agent for its name and standing."; }
+  $("day").onchange = function () { var d = this.value; if (!d) return; fetch("/society/map/day/" + d, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) return; flows = j.replay.flows; buildMoves(); live = false; $("live").checked = false; playing = false; T = minT(); particles = []; slider(); panels(); $("counts").textContent = "Replay of " + d + ": " + flows.length + " movement(s) from the log (records " + (j.replay.firstSeq || "none") + " to " + (j.replay.lastSeq || "none") + ")"; }); };
+  function pick(ev) { var rect = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1, x = (ev.clientX - rect.left) * d, y = (ev.clientY - rect.top) * d, best = null, bd = 14 * d; (feed && feed.agents || []).forEach(function (a) { var q = cur[a.id] || pos[a.id]; if (!q) return; var dd = Math.hypot(q.x - x, q.y - y); if (dd < bd) { bd = dd; best = a; } }); hover = best; var t = $("tip"); if (best) t.textContent = best.name + (best.house ? " (a house agent)" : "") + ": tier " + (best.tier === null ? "unknown" : best.tier) + ", " + best.standing.qualifying_jobs + " qualifying job(s), " + best.standing.slashes + " slash(es), " + best.standing.certificates + " certificate(s), " + best.state; else t.textContent = "Tap or hover an agent for its name and standing."; if (best) { var l = document.createElement("a"); l.href = "/agent/" + encodeURIComponent(best.name) + "/journey"; l.textContent = " Follow this agent: its journey"; t.appendChild(l); } }
   cv.addEventListener("mousemove", pick); cv.addEventListener("click", pick); cv.addEventListener("touchstart", function (e) { if (e.touches[0]) pick(e.touches[0]); }, { passive: true });
   window.addEventListener("resize", size);
   first(); growth(); setInterval(poll, 8000); requestAnimationFrame(frame);
@@ -98,9 +114,11 @@ button,select,input[type=date]{font:inherit;padding:.4rem .7rem;border:2px solid
 .legend span{display:inline-block;margin-right:.8rem}
 .sw{display:inline-block;width:.8rem;height:.8rem;border-radius:50%;vertical-align:middle;margin-right:.25rem}
 small,footer{color:#5b4f2f}
+.links a{margin-right:1rem}
+#tip a{margin-left:.4rem}
 #tip{min-height:1.5rem}
 </style></head><body>
-<header><h1>The society: a live city map</h1><div id="counts">Loading the society from the log.</div></header>
+<header><h1>The society: a live city map</h1><div id="counts">Loading the society from the log.</div><nav class="links"><a href="/society/daily">Today's front page (Society Daily)</a> <a href="/society/leaderboards">Leaderboards</a> <a href="/society/courses">Courses</a></nav></header>
 <main>
 <div class="map"><canvas id="map" role="img" aria-label="A map of the society: the institutions as districts, the agents as dots, and the movements between them"></canvas></div>
 <div id="tip">Tap or hover an agent for its name and standing.</div>

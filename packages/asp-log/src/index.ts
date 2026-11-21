@@ -1,5 +1,5 @@
 export { PLATFORM_DID } from "./economy.ts";
-export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { EventLog, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { RENT_SERVICE, rentAt } from "./housing.ts";
@@ -36,12 +36,14 @@ export {
 } from "./economy.ts";
 export * from "./world.ts";
 export * from "./market.ts";
+export { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
+export * from "./market-dynamics.ts";
+export * from "./market-risk.ts";
 export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
 export { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type EdgeComparison, type OutcomeJob, type Window as OutcomeWindow } from "./outcomes.ts";
-export { TUTORIAL_LABEL, TUTORIAL_DAYS } from "./log.ts";
-export { QUARANTINE_NOTICE_FROM, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
+export { QUARANTINE_NOTICE_FROM, TUTORIAL_LABEL, TUTORIAL_DAYS, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
 export { ABUSE_RESTITUTION_CAP, ABUSE_RESTITUTION_OFF_FROM, APPEAL_HOLD_MS, APPEAL_FREEZE_MAX_MS, JUROR_PENALTY_PERMILLE, effectiveFault } from "./courts-rules.ts";
 export * from "./academy.ts";
 export { SHOPS_DID, UPKEEP_SERVICE, FREE_DAYS, DORMANT_AFTER_DAYS, WARN_AFTER_DAYS, EFFECT_ALLOWLIST, DISPLAY_EFFECTS, RESOURCE_EFFECTS, PROTECTED_TARGETS, SHOPS_CATALOGUE, HOUSING_CATALOGUE, HOUSING_DID, CAPACITY_LEDGER, mimicsMark, resourceExtras, resourceReconciliation, runHousing, catalogueProblem, residentStates, holdingsAt, unpaidDays, runShops, freeThrough, type CatalogueItem, type ResidentState, type HoldingView, type ShopsRun, type ShopsIo } from "./shops.ts";

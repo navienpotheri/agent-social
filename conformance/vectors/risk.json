@@ -1,0 +1,526 @@
+{
+  "version": "asp.conformance/v0.2",
+  "model": "asp-risk-model/1",
+  "suggest": [
+    {
+      "name": "no_model_is_the_floor_and_the_whole_price",
+      "terms": null,
+      "input": {
+        "price": 80,
+        "floorPermille": 400,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 400,
+        "bond": 32,
+        "escrow": 80,
+        "parts": {
+          "floor": 400,
+          "class": 0,
+          "verification": 0,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "routine_principal_no_poster_record",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 300,
+        "bond": 30,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": 0,
+          "verification": 0,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "critical_arbiter_raises_it",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 200,
+        "floorPermille": 300,
+        "jobClass": "critical",
+        "verification": "arbiter",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 490,
+        "bond": 98,
+        "escrow": 160,
+        "parts": {
+          "floor": 300,
+          "class": 150,
+          "verification": 40,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "deterministic_tests_lower_it",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "trivial",
+        "verification": "deterministic",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 170,
+        "bond": 17,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": -50,
+          "verification": -80,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "a_poster_who_lost_every_dispute",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 1000
+      },
+      "expected": {
+        "bondPermille": 420,
+        "bond": 42,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": 0,
+          "verification": 0,
+          "poster": 120
+        }
+      }
+    },
+    {
+      "name": "a_poster_who_lost_a_third_rounds",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 333
+      },
+      "expected": {
+        "bondPermille": 340,
+        "bond": 34,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": 0,
+          "verification": 0,
+          "poster": 40
+        }
+      }
+    },
+    {
+      "name": "half_a_permille_rounds_up",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 3,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 500
+      },
+      "expected": {
+        "bondPermille": 302,
+        "bond": 31,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": 0,
+          "verification": 0,
+          "poster": 2
+        }
+      }
+    },
+    {
+      "name": "capped_at_the_whole_price",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 900,
+        "jobClass": "critical",
+        "verification": "arbiter",
+        "posterLostPermille": 1000
+      },
+      "expected": {
+        "bondPermille": 1000,
+        "bond": 100,
+        "escrow": 80,
+        "parts": {
+          "floor": 900,
+          "class": 150,
+          "verification": 40,
+          "poster": 120
+        }
+      }
+    },
+    {
+      "name": "never_below_zero",
+      "terms": {
+        "class_permille": {
+          "trivial": -200,
+          "routine": -200,
+          "skilled": -200,
+          "critical": -200
+        },
+        "verification_permille": {
+          "deterministic": -200,
+          "principal": -200,
+          "arbiter": -200
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 50,
+        "jobClass": "trivial",
+        "verification": "deterministic",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 0,
+        "bond": 0,
+        "escrow": 80,
+        "parts": {
+          "floor": 50,
+          "class": -200,
+          "verification": -200,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "the_bond_rounds_up",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 7,
+        "floorPermille": 333,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 0
+      },
+      "expected": {
+        "bondPermille": 333,
+        "bond": 3,
+        "escrow": 6,
+        "parts": {
+          "floor": 333,
+          "class": 0,
+          "verification": 0,
+          "poster": 0
+        }
+      }
+    },
+    {
+      "name": "a_poster_share_above_1000_is_capped",
+      "terms": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "input": {
+        "price": 100,
+        "floorPermille": 300,
+        "jobClass": "routine",
+        "verification": "principal",
+        "posterLostPermille": 5000
+      },
+      "expected": {
+        "bondPermille": 420,
+        "bond": 42,
+        "escrow": 80,
+        "parts": {
+          "floor": 300,
+          "class": 0,
+          "verification": 0,
+          "poster": 120
+        }
+      }
+    }
+  ],
+  "onlyRemoves": [
+    {
+      "name": "zero_after_a_model_only_removes_rule",
+      "prev": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "next": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 0,
+          "critical": 0
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 0,
+        "escrow_share_permille": 1000
+      },
+      "expected": true
+    },
+    {
+      "name": "a_higher_term_adds_rule",
+      "prev": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "next": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 121,
+        "escrow_share_permille": 800
+      },
+      "expected": false
+    },
+    {
+      "name": "a_lower_escrow_share_adds_rule",
+      "prev": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "next": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 799
+      },
+      "expected": false
+    },
+    {
+      "name": "the_same_model_only_removes_nothing",
+      "prev": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "next": {
+        "class_permille": {
+          "trivial": -50,
+          "routine": 0,
+          "skilled": 50,
+          "critical": 150
+        },
+        "verification_permille": {
+          "deterministic": -80,
+          "principal": 0,
+          "arbiter": 40
+        },
+        "poster_permille": 120,
+        "escrow_share_permille": 800
+      },
+      "expected": true
+    }
+  ]
+}

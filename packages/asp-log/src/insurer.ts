@@ -8,6 +8,7 @@ import { TREASURY_DID, BURN_DID, institutionDid, splitParts } from "./economy.ts
 import { effectiveClass, higherClass, type JobClass } from "./market.ts";
 import type { LogTx } from "./store.ts";
 import { effectiveFault } from "./courts-rules.ts";
+import { noteIncome } from "./bank-active.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 
@@ -116,6 +117,7 @@ export async function projectPolicy(tx: LogTx, r: AspRecord, env: InsurerEnv): P
   await env.debit(tx, b.holder, premium);
   await env.credit(tx, INSURER_DID, parts.payees[0].amount);
   await env.credit(tx, TREASURY_DID, parts.treasury);
+  await noteIncome(tx, parts.treasury, r.issued_at);
   await env.credit(tx, BURN_DID, parts.burn);
   await tx.putMarker("insurer_largest", String(largest));
   await tx.putMarker(`policy_for:${b.contract}|${b.cover}`, r.id);

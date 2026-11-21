@@ -8,9 +8,9 @@
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { b64urlDecode, b64urlEncode, createRecord, publicKeyFromSeed, randomSeed, signerFromSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
+import { b64urlDecode, b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, signerFromSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
 import {
-  GENERATOR, WORLD_DID, calendarBetween, dayBody, dayOf, dayRecords, dayStart, explainDay, generateDay, isDay, seedCommitment, worldStateAt,
+  GENERATOR, WORLD_DID, calendarBetween, dayBody, dayOf, dayRecords, dayStart, explainDay, generateDay, haltIntervals, isDay, seedCommitment, worldStateAt,
   type CalendarEntryBody, type DayBody, type Effect, type EffectType, type WorldEvent,
 } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
@@ -22,7 +22,9 @@ export interface WorldOpts {
   io: WorldIo;
   /** The clock records are stamped with. */
   now: () => string;
-  flags: { day?: string; days?: string; seed?: string; json?: boolean; title?: string; kind?: string; from?: string; to?: string; target?: string; effect?: string; value?: string };
+  /** The signer for an operator or owner DID (their keys are on their own machine): the kill-switch is signed by them, not by the world authority. */
+  signerFor?: (did: string) => Signer;
+  flags: { by?: string; reason?: string; halt?: string; "cosign-by"?: string; day?: string; days?: string; seed?: string; json?: boolean; title?: string; kind?: string; from?: string; to?: string; target?: string; effect?: string; value?: string };
 }
 class WorldUsage extends Error {}
 export { WorldUsage };
@@ -84,6 +86,9 @@ export async function worldCmd(sub: string | undefined, rest: string[], o: World
   if (sub === "replay") return replay(rest, o);
   if (sub === "tick") return tick(rest, o);
   if (sub === "schedule") return schedule(o);
+  if (sub === "halt") return halt(o);
+  if (sub === "resume") return resume(o);
+  if (sub === "invariants") return invariants(o);
   throw new WorldUsage(`asp world today | calendar | replay <date> | tick | schedule (not ${sub})`);
 }
 
@@ -156,6 +161,8 @@ async function ensureAuthority(o: WorldOpts, signer: Signer & { publicKey: Uint8
 
 async function tick(rest: string[], o: WorldOpts): Promise<number> {
   const first = dayArg(o.flags, rest, o.now());
+  const halted = (await o.log.log.worldState(o.now())).halted;
+  if (halted) { o.io.out(`the world is halted since ${halted.since} (${halted.reason}): no day is written until the operator resumes it (asp world resume --by <operator did> --reason <text>)`); return 1; }
   const n = Math.max(1, Math.min(366, Math.trunc(Number(o.flags.days ?? 1)) || 1));
   const seed = seedOf(o.home, o.flags.seed, true)!;
   const signer = authority(o.home);
@@ -169,6 +176,9 @@ async function tick(rest: string[], o: WorldOpts): Promise<number> {
     const body = dayBody(seed, day);
     const r = await o.log.append(createRecord({ type: "world", issuer: WORLD_DID, subject: null, prev: null, body, issued_at: o.now() }, signer));
     wrote++;
+    // After every day the invariants must hold (DK76): price multipliers inside their bounds, every day reproducible, the credit supply rule. A failure stops the run and says what broke.
+    const inv = await o.log.log.worldInvariants(o.now());
+    if (!inv.ok) { o.io.out(`${day}: recorded, but the invariants FAIL: ${inv.failures.join("; ")}. Stopped: the operator halts the world with asp world halt.`); return 1; }
     o.io.out(`${day}: recorded ${r.id.slice(0, 19)}... at log seq ${r.seq}; ${body.events.length ? body.events.map((e) => e.title).join("; ") : "a quiet day"}`);
   }
   o.io.out(`${wrote} day(s) written; seed commitment ${seedCommitment(seed)}`);
@@ -191,4 +201,44 @@ async function schedule(o: WorldOpts): Promise<number> {
   const r = await o.log.append(createRecord({ type: "world", issuer: WORLD_DID, subject: null, prev: null, body, issued_at: o.now() }, signer));
   o.io.out(`calendar entry ${entryId} recorded ${r.id.slice(0, 19)}... at log seq ${r.seq}: ${body.title} (${when(body)}; ${describe(body.effect)})`);
   return 0;
+}
+
+const opSigner = (o: WorldOpts, did: string | undefined, what: string): Signer & { did: string } => {
+  if (!did) throw new WorldUsage(`${what} needs --by <the operator's did>: the operator signs it with their own key (the world authority cannot)`);
+  if (!o.signerFor) throw new WorldUsage("no key store: this command signs with the operator's own key");
+  return { ...o.signerFor(did), did } as Signer & { did: string };
+};
+
+/** `asp world halt --by <operator> --reason <text>`: the kill-switch (S1402). Every generated event and every shock, drill or experiment stops at once; the halt is a public record. */
+async function halt(o: WorldOpts): Promise<number> {
+  const reason = o.flags.reason;
+  if (!reason) throw new WorldUsage("asp world halt --by <operator did> --reason <why>: a halt says why, in public");
+  const by = opSigner(o, o.flags.by, "a halt");
+  const r = await o.log.append(createRecord({ type: "world", issuer: by.did, subject: null, prev: null, issued_at: o.now(), body: { kind: "halt", reason } }, by));
+  o.io.out(`halted: ${r.id.slice(0, 19)}... at log seq ${r.seq}. Generated events and shocks, drills and experiments are stopped; scheduled and season entries run on. Resume with: asp world resume --by ${by.did} --reason <text>${""}`);
+  return 0;
+}
+
+/** `asp world resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>]`: ends the halt in force. A resume 24 hours or more after the halt needs the owner's co-signature. */
+async function resume(o: WorldOpts): Promise<number> {
+  const reason = o.flags.reason;
+  if (!reason) throw new WorldUsage("asp world resume --by <operator did> --reason <why> [--cosign-by <owner did>]");
+  const by = opSigner(o, o.flags.by, "a resume");
+  const open = haltIntervals((await o.log.log.worldRecords()) as AspRecord[]).filter((h) => h.until === null).at(-1);
+  const haltId = o.flags.halt ?? open?.record;
+  if (!haltId) { o.io.out("the world is not halted: nothing to resume"); return 1; }
+  let rec = createRecord({ type: "world", issuer: by.did, subject: null, prev: null, issued_at: o.now(), body: { kind: "resume", halt: haltId, reason } }, by);
+  if (o.flags["cosign-by"]) rec = cosign(rec, { ...opSigner(o, o.flags["cosign-by"], "the owner's co-signature") });
+  const r = await o.log.append(rec);
+  o.io.out(`resumed: ${r.id.slice(0, 19)}... at log seq ${r.seq}. Events in force by their own windows run again.`);
+  return 0;
+}
+
+/** `asp world invariants [--json]`: what must hold after every event, read now (price bounds, reproducible days, the credit supply rule). Exit 1 when one fails. */
+async function invariants(o: WorldOpts): Promise<number> {
+  const inv = await o.log.log.worldInvariants(o.now());
+  if (o.flags.json) { o.io.out(JSON.stringify(inv, null, 2)); return inv.ok ? 0 : 1; }
+  o.io.out(`${inv.ok ? "invariants hold" : "invariants FAIL"}: ${inv.checked.days} day record(s), ${inv.checked.entries} calendar entr(ies) checked`);
+  for (const f of inv.failures) o.io.out(`  - ${f}`);
+  return inv.ok ? 0 : 1;
 }

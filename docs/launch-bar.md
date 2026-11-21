@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 74 (280.2 worker-hours; 12 need an owner decision, 11 a live run, 4 an outside party, 16 an owner action) |
-| Withdraw the claim until done | 108 |
-| After launch | 314 |
-| Total not closed | 496 |
+| Must close before launch | 77 (284.2 worker-hours; 12 need an owner decision, 11 a live run, 4 an outside party, 16 an owner action) |
+| Withdraw the claim until done | 106 |
+| After launch | 319 |
+| Total not closed | 502 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -46,8 +46,9 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
-| DK1301 | A | open | 2 | S | - | a person watching the society has nothing to look at (with DK730, DK731) |
 | DK1342 | A | partial | 2 | S | - | an agent can sit a course: built on a branch, verify on the service |
+| DK1368 | A | open | 2 | S | - | the enterprise page and README section so claims match what is built |
+| DK1369 | A | open | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK857 | A | partial | 2 | S | - | forum quota conflicts with the owner's no-daily-cap decision |
 | DK858 | A | partial | 2 | S | - | forum posting tied to sponsored identities conflicts with the owner's decision |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
@@ -66,12 +67,14 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
+| DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
+| DK1366 | A | open | 4 | M | - | copies and mixed-persona fleets both work, template reputation shown |
+| DK1367 | A | open | 4 | M | - | fleets are clearly marked in the society (owner request) |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | DK854 | A | partial | 4 | M | - | the enrol reply must carry the limits (the citizen study's finding) |
 | E10 | A | partial | 4 | M | - | nothing triggers the mail when a Mandate ends |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
-| GV5 | A | partial | 4 | M | - | no tutorial job or mentor for a newcomer |
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
 | U8 | A | partial | 4 | M | - | the app has no design system; with DK1348 the pages must look finished before ads |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
@@ -91,7 +94,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK34 | A | partial | 8 | L | - | the forum is not public and has no moderation, rent or injection defence |
-| DK76 | A | partial | 16 | L | - | engine of change: the halt record and kill switch, the daily tick on the service (the safety slice) |
+| DK1357 | A | open | 10 | L | - | stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
@@ -225,14 +228,12 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1400 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | SO9 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | SO13 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1453 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1454 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1455 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1456 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1503 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1504 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1470 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1471 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -412,8 +413,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK123 | A | open | court tools | the court is the operator's |
 | DK384 | A | partial | registry renewal mail | none |
 | DK125 | A | open | registry sponsor view | none |
-| DK126 | A | open | market agent tools | market commands exist |
-| DK127 | A | partial | market priced risk | not claimed |
+| DK126 | A | partial | market agent tools | market commands exist |
 | DK114 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK116 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK117 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -451,7 +451,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK406 | A | open | no held-out pool | no claim |
 | DK490 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK491 | A | open | insurer drivers | no insurance claim |
-| DK492 | A | open | market risk dynamics | no claim |
 | DK662 | A | open | SB2: job tax only for the first season | the job tax only |
 | DK690 | A | open | tier breadth limits are built, off (TB1 undecided) | tier breadth is not limited |
 | DK691 | A | open | abuse intake tested with a fake fetch | an abuse report is a lead and an operator action |
@@ -552,6 +551,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1502 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1505 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1460 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1358 | A | open | the related-party track record for an enterprise fleet that works only for itself | enterprise fleets earn standing from outside principals until it is built |
+| DK1359 | A | open | enterprise tenancy (organisation tenant, roles, single sign-on, private log): the enterprise release; the owner is aske… | the site says enterprise tenancy is coming |
+| DK1360 | A | open | the enterprise data-sharing choice, with the enterprise release | enterprise tenants are not offered until it is built |
+| DK1361 | A | open | the fleet dashboard and caps, with the enterprise release | the site says the fleet dashboard is coming |
+| DK1362 | A | open | the 10,000-agent load test and per-plan limits, with the enterprise release | capacity is a stated goal, not a present claim |
+| DK1363 | A | open | enterprise pricing: the owner sets the numbers; pilots are free in the beta | no price is named on the site |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

@@ -73,3 +73,7 @@ Second block of the launch-bar worker: DK1343 closed (the duplicate ids were E16
 ## PUSHED 2026-11-21 (fourth push): claude/open-forum
 
 Contents: the owner decisions of 2026-11-21 (docs/owner-decisions.md), rows DK1349 to DK1352 and the launch bar updates, the society and insurance design documents taken from the saved branches, the audit reconciliation table, and lane-protocol report 1 (8 rows closed: DK794, DK795, DK796, DK121, DK1450, T26, DK1451, DK1452; DK1349 partial with the structure document and one owner question). Full gate on the merged tree: core 699 of 699, log 720 of 720, package 418 of 418, command line 792 of 793 with none failing, Python 822, typecheck clean. Four workers run: lane-protocol, lane-cli, launch-bar (site lane), lane-society.
+
+## PUSHED 2026-11-21 (fifth push): claude/open-forum
+
+lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e15276). Full gate: core 699 of 699, log 725 of 725, package 418 of 418, command line 793 of 794 with none failing, Python 822, typecheck clean. From now on lane-verify (branch `integration`) merges the builder branches and runs the gate; the lead fast-forwards open-forum to its tip and pushes.

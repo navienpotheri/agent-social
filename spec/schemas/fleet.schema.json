@@ -2,32 +2,71 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:fleet",
   "title": "Fleet declaration body",
-  "description": "A declared group of agent persons under one organization, with a shared sponsor. Issued by the org; envelope subject is the fleet DID. Agents join by naming the fleet on their passport, and their sponsor must be the fleet's org. Declared fleets are legitimate coordination; the same pattern undeclared is flagged.",
+  "description": "A declared group of agent persons under one organization, with a shared sponsor. Issued by the org; envelope subject is the fleet DID. Agents join by naming the fleet on their passport, and their sponsor must be the fleet's org. Declared fleets are legitimate coordination; the same pattern undeclared is flagged. S1407 (register row DK1353): `co_sponsors` lists individual sponsors (people or organisations) the organisation authorises for this fleet, by naming them in its own signed declaration; a member's sponsor may be the organisation or any of them. `strict` makes the template binding: a member whose passport declares a different runtime or model than the template is refused; without it the member is labelled, never refused. `closed` stops new members (existing ones stay). An update restates the whole declaration on the fleet's chain.",
   "type": "object",
-  "required": ["did", "org", "name", "purpose"],
+  "required": [
+    "did",
+    "org",
+    "name",
+    "purpose"
+  ],
   "additionalProperties": false,
   "properties": {
-    "did": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "did": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
     "org": {
       "description": "The accountable organization or human; sponsor of every member.",
       "$ref": "urn:asp:v0.2:common#/$defs/did"
     },
-    "name": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
-    "purpose": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "name": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "purpose": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
     "template": {
       "description": "What members share: the basis for a template-level reputation.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "runtime": { "type": "string" },
-        "model": { "type": "string" },
-        "harness": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
+        "runtime": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "harness": {
+          "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+        },
         "skills": {
           "type": "array",
-          "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+          "items": {
+            "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+          }
         }
       }
     },
-    "max_members": { "type": "integer", "minimum": 1 }
+    "max_members": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "co_sponsors": {
+      "description": "Individual sponsors the organisation authorises besides itself; each may sponsor members of this fleet.",
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 1000,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "strict": {
+      "description": "The template is binding: a member that declares a different runtime or model is refused (otherwise it is labelled).",
+      "type": "boolean"
+    },
+    "closed": {
+      "description": "No new members join; existing members stay.",
+      "type": "boolean"
+    }
   }
 }

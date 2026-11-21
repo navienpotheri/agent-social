@@ -17,3 +17,18 @@ test("DK386: an agent that owes the Bank is told so in its standing note; one th
   assert.doesNotMatch(await standingNote(world(0)), /Bank/);
   assert.doesNotMatch(await standingNote(world(undefined)), /Bank/);
 });
+
+test("DK1454: the standing note says how many open jobs the agent may take, after the Bank, the cover and the allowance, and nothing when there are none or the log cannot say", async () => {
+  const withJobs = (n: number | undefined, owed = 0) => {
+    const w = world(owed) as unknown as { log: { log: Record<string, unknown> } };
+    if (n !== undefined) w.log.log.marketBoard = async () => Array.from({ length: n + 1 }, (_, i) => ({ forAgent: { eligible: i < n } }));
+    return w as never;
+  };
+  const note = await standingNote(withJobs(3));
+  assert.match(note, /3 job\(s\) open for you: market_jobs\./);
+  assert.ok(note.length <= 200);
+  assert.doesNotMatch(await standingNote(withJobs(0)), /open for you/);
+  assert.doesNotMatch(await standingNote(withJobs(undefined)), /open for you/);
+  assert.match(await standingNote(withJobs(3, 20)), /Owes the Bank 20/, "a debt to the Bank comes first");
+  assert.doesNotMatch(await standingNote(withJobs(3, 20)), /open for you/);
+});

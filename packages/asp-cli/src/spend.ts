@@ -218,7 +218,9 @@ export async function standingNote(o: SpendOpts): Promise<string> {
   const owed = await (async () => { try { return await (o.log.log as { bankOwedBy?: (a: string) => Promise<number> }).bankOwedBy?.(agent) ?? 0; } catch { return 0; } })();
   // The Insurer (DK387): how many live policies the agent holds, so it knows its cover is there.
   const cover = await (async () => { try { const r = (await o.log.log.recordsOfTypes?.(["policy"])) ?? []; return (r as unknown as { body: { holder: string; valid_to: string } }[]).filter((p) => p.body.holder === agent && Date.parse(p.body.valid_to) > Date.parse(o.now())).length; } catch { return 0; } })();
-  const tail = owed > 0 ? `Owes the Bank ${owed}: asp_standing.` : cover > 0 ? `Cover held on ${cover} job(s): asp_standing.` : allowance ? "treasury_allowance: newcomer allowance? asp_price, asp_standing." : "asp_price shows costs, asp_standing the rest.";
+  // The Market (DK1454): how many open jobs this agent may take now, so it knows to look; one short line, after the Bank and the cover and the allowance.
+  const jobs = await (async () => { try { return (await (o.log.log as { marketBoard?: (a: string) => Promise<{ forAgent?: { eligible: boolean } }[]> }).marketBoard?.(agent) ?? []).filter((e) => e.forAgent?.eligible).length; } catch { return 0; } })();
+  const tail = owed > 0 ? `Owes the Bank ${owed}: asp_standing.` : cover > 0 ? `Cover held on ${cover} job(s): asp_standing.` : allowance ? "treasury_allowance: newcomer allowance? asp_price, asp_standing." : jobs > 0 ? `${jobs} job(s) open for you: market_jobs.` : "asp_price shows costs, asp_standing the rest.";
   const note = `Credits ${balance} (accounting, not money). Tier ${rep?.tier ?? "?"}, ${rep?.slashCount ?? 0} slashes, ${rep?.strikes ?? 0} strikes. Budget left: ${budget}. ${tail}`;
   return note.length <= 200 ? note : `${note.slice(0, 197)}...`;
 }

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 74,
-  "withdraw": 108,
-  "after": 314,
-  "total": 496
+  "must": 77,
+  "withdraw": 106,
+  "after": 319,
+  "total": 502
  },
- "mustWorkerHours": 280.2,
+ "mustWorkerHours": 284.2,
  "entries": [
   {
    "id": "D3",
@@ -2015,17 +2015,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "GV5",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Newcomers get no orientation: no tutorial jobs, no mentor, no buddy, no clear first week",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no tutorial job or mentor for a newcomer"
-  },
-  {
    "id": "GV6",
    "pri": "A",
    "status": "open",
@@ -3239,17 +3228,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK76",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The society has no engine of change. Nothing happens unless a person starts a job: no calendar, no seasons, no events, no shocks, no steady arrival of work. The owner principle (2026-11-12) is that t…",
-   "bucket": "must",
-   "hours": 16,
-   "size": "L",
-   "flags": "",
-   "why": "engine of change: the halt record and kill switch, the daily tick on the service (the safety slice)"
-  },
-  {
    "id": "DK77",
    "pri": "A",
    "status": "partial",
@@ -3593,7 +3571,7 @@
   {
    "id": "DK126",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Market has no agent tools, sponsor view, statistics, monthly report or live run, so an agent in its loop cannot yet see or take a posted job.",
    "bucket": "after",
    "hours": 0,
@@ -3601,18 +3579,6 @@
    "flags": "",
    "why": "market agent tools",
    "says": "market commands exist"
-  },
-  {
-   "id": "DK127",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Market has no priced risk, poster reputation or dynamics: bond and escrow ignore the job and the poster, the class guide price does not move, and the board is stationary.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "market priced risk",
-   "says": "not claimed"
   },
   {
    "id": "DK114",
@@ -4142,18 +4108,6 @@
    "flags": "",
    "why": "insurer drivers",
    "says": "no insurance claim"
-  },
-  {
-   "id": "DK492",
-   "pri": "A",
-   "status": "open",
-   "gap": "The rest of the Market's priced risk and dynamics: a lost dispute reaches the poster's record only through the settlement basis (a ruling that paid the performer), and no test runs a real ruling thro…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "market risk dynamics",
-   "says": "no claim"
   },
   {
    "id": "DK530",
@@ -4957,17 +4911,6 @@
    "size": "S",
    "flags": "",
    "why": "forum posting tied to sponsored identities conflicts with the owner's decision"
-  },
-  {
-   "id": "DK1301",
-   "pri": "A",
-   "status": "open",
-   "gap": "A person watching the society has nothing to look at: the map exists only as a design prototype, and the service serves text and HTML summaries but no live visual of agents moving between institution…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "a person watching the society has nothing to look at (with DK730, DK731)"
   },
   {
    "id": "DK1302",
@@ -5820,75 +5763,10 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1453",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Market has no statistics page and no monthly report: `GET /market/stats` (jobs by class, median price, fill rate, postings and settlements in the period) and the monthly report market.md 7 and 10…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1454",
-   "pri": "A",
-   "status": "open",
-   "gap": "An agent in its loop cannot see or take a posted job through its tools: `market.jobs`, `market.bid` and `market.counts` over MCP and the standing-note line `3 jobs open for you` (MK-10) are not built.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1455",
-   "pri": "A",
-   "status": "open",
-   "gap": "Bond and escrow ignore the job's risk: a poster and a performer pick a bond by hand and the Market suggests none (MK-14, DK43). The risk model is not a record, an offer carries no suggested bond and…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1456",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Market is stationary: no seasons, no seeded demand process, the class guide price does not move with the fill rate, no new-entrant waves and no dynamics monitor (MK-16 to MK-20). The owner's prin…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1457",
    "pri": "A",
    "status": "open",
    "gap": "The Market has not been used by a real model agent end to end: one agent finds a posted job, bids, is assigned and completes it, with the posting deposit returning (MK-13). The owner postponed live r…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1458",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Bank is passive. The owner's target (2026-11-21): agents, the Insurer and, where it fits, the Treasury hold their credits in Bank accounts; the Bank lends what it holds, including to the Treasury…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -5993,6 +5871,195 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1459",
+   "pri": "A",
+   "status": "open",
+   "gap": "The world engine runs by hand. The world authority's key is a local file (`<home>/world-authority.json`), the hosted service has no world authority, and nothing runs `asp world tick` daily there, so…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1460",
+   "pri": "B",
+   "status": "open",
+   "gap": "World experiments are not built: no assignment rule for arms (a hash of the DID with the logged seed), no opt-out for a sponsor except for safety measures, no stop rule, and no per-event check agains…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1357",
+   "pri": "A",
+   "status": "open",
+   "gap": "Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) rea…",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
+   "flags": "",
+   "why": "stronger anti-farming; the starter rule and the open door lose their hard limits, so the guards must be credible"
+  },
+  {
+   "id": "DK1358",
+   "pri": "A",
+   "status": "open",
+   "gap": "A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the related-party track record for an enterprise fleet that works only for itself",
+   "says": "enterprise fleets earn standing from outside principals until it is built"
+  },
+  {
+   "id": "DK1359",
+   "pri": "A",
+   "status": "open",
+   "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "enterprise tenancy (organisation tenant, roles, single sign-on, private log): the enterprise release; the owner is asked whether it moves before launch",
+   "says": "the site says enterprise tenancy is coming"
+  },
+  {
+   "id": "DK1360",
+   "pri": "A",
+   "status": "open",
+   "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the enterprise data-sharing choice, with the enterprise release",
+   "says": "enterprise tenants are not offered until it is built"
+  },
+  {
+   "id": "DK1361",
+   "pri": "A",
+   "status": "open",
+   "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the fleet dashboard and caps, with the enterprise release",
+   "says": "the site says the fleet dashboard is coming"
+  },
+  {
+   "id": "DK1362",
+   "pri": "A",
+   "status": "open",
+   "gap": "The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the 10,000-agent load test and per-plan limits, with the enterprise release",
+   "says": "capacity is a stated goal, not a present claim"
+  },
+  {
+   "id": "DK1363",
+   "pri": "A",
+   "status": "open",
+   "gap": "Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "enterprise pricing: the owner sets the numbers; pilots are free in the beta",
+   "says": "no price is named on the site"
+  },
+  {
+   "id": "DK1364",
+   "pri": "A",
+   "status": "open",
+   "gap": "Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
+  },
+  {
+   "id": "DK1366",
+   "pri": "A",
+   "status": "open",
+   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "copies and mixed-persona fleets both work, template reputation shown"
+  },
+  {
+   "id": "DK1367",
+   "pri": "A",
+   "status": "open",
+   "gap": "Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet.",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "fleets are clearly marked in the society (owner request)"
+  },
+  {
+   "id": "DK1368",
+   "pri": "A",
+   "status": "open",
+   "gap": "The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page.",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the enterprise page and README section so claims match what is built"
+  },
+  {
+   "id": "DK1369",
+   "pri": "A",
+   "status": "open",
+   "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the enterprise readiness audit, so the list is known to be exhaustive"
+  },
+  {
+   "id": "DK1470",
+   "pri": "A",
+   "status": "open",
+   "gap": "The service's starter claim form still caps a tenant at two identities and one claim: `claimStarter` and `claimStarterSigned` (packages/asp-package/src/account.ts) name `STARTER_MAX_DIDS`, a tenant c…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1471",
+   "pri": "A",
+   "status": "open",
+   "gap": "The gateway does not yet enforce a fleet's Mandate template. The log refuses a Mandate for a member that goes beyond the template (S1408) and `EventLog.mandateCeiling` and `deriveMemberMandate` give…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

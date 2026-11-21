@@ -11,7 +11,7 @@ import { b64urlDecode, verifyBytes } from "@agent-social/asp-core";
 import { Signup, createLogServer, frontDoorTools, surfaceListing, type Tenant } from "@agent-social/asp-log";
 import { Keystore, openLog } from "@agent-social/asp-package";
 import { main, type Io } from "../src/cli.ts";
-import { FleetUsage, parseManifest } from "../src/fleet.ts";
+import { FleetEnrolUsage, parseManifest } from "../src/fleet-enrol.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
 const ORG = "did:web:acme.example:org";
@@ -39,7 +39,7 @@ test("a manifest is checked and every problem is said at once; the fleet's did c
   const ok = parseManifest(JSON.stringify(manifest([{ name: "developer", count: 6000 }, { name: "support", count: 2500 }, { name: "ceo", count: 1 }])));
   assert.equal(ok.total, 8501); assert.equal(ok.fleetDid, FLEET);
   assert.equal(parseManifest(JSON.stringify({ ...manifest([{ name: "a1x", count: 1 }]), fleet: { name: "X", did: "did:web:acme.example:fleets:own", purpose: "p" } })).fleetDid, "did:web:acme.example:fleets:own");
-  const bad = (m: unknown, re: RegExp) => assert.throws(() => parseManifest(typeof m === "string" ? m : JSON.stringify(m)), (e: Error) => e instanceof FleetUsage && re.test(e.message));
+  const bad = (m: unknown, re: RegExp) => assert.throws(() => parseManifest(typeof m === "string" ? m : JSON.stringify(m)), (e: Error) => e instanceof FleetEnrolUsage && re.test(e.message));
   bad("{ nope", /not JSON/);
   bad({}, /5 problems/);
   bad({ ...manifest([{ name: "Developer!", count: 3 }]) }, /personas\[0\]\.name is a short label/);

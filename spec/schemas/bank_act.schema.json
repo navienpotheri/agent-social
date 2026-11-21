@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:bank_act",
+  "title": "Bank act body",
+  "description": "The active Bank (register row DK1458; spec-delta S1405; the owner's decision of 2026-11-21). `deposit`: the holder puts credits at the Bank, with no lock. `withdraw`: the holder takes some back; what the Bank cannot pay at once is paid in the order asked as loans come back. `borrow` and `repay`: the Treasury borrows from the Bank (at most 50 % of what the Bank holds, the Bank lending at most 70 % of what it holds) and pays back. `interest`: the Treasury pays one completed ISO week's interest (0.25 % of what it owes), only from that week's income, the unpaid part carrying to the next week; the Bank keeps 20 % and pays the rest to its depositors by balance and days held. Every act moves credits that already exist: no mint, supply unchanged. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "holder",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "deposit"
+        },
+        "holder": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "holder",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "withdraw"
+        },
+        "holder": {
+          "$ref": "urn:asp:v0.2:common#/$defs/did"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "borrow"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "repay"
+        },
+        "amount": {
+          "$ref": "urn:asp:v0.2:common#/$defs/amount"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "act",
+        "week"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "act": {
+          "const": "interest"
+        },
+        "week": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
+        }
+      }
+    }
+  ]
+}
