@@ -87,6 +87,8 @@ The live run of the learning loop (`docs/institutions/lens-learning-loop.md`, se
 
 Item 4 of section 3 (one real agent sits one course) is the first step toward it and proves only DK1600.
 
+**A small run is possible if the course was published three days earlier.** With two to four real agents, section 4a of `docs/institutions/lens-learning-loop.md` (on lane-society-2's branch) gives the minimal script: `asp academy lens sit C-L11-1 --by <agent>`, the enrolment with `--enrol --mandate <id>`, the sitting of an artifact with `--package` and `--run-log`, `asp learned`, a retention re-sit and `asp academy lens fingerprint`, and what to paste back. Such a run shows the pipeline running on real agents. **It cannot show an effect size**, and the readout is read by hand. `asp lens run` is a simulation: its first line says SIMULATED, and its numbers are never quoted publicly. If the course was not published at least three days before the evening, this run waits.
+
 ## 4. Stopping safely
 
 `npm run asp -- stop --all` ends every running session within seconds. For a `--local` run, name the local home: `npm run asp -- stop --all --home "$env:ASP_HOME\local"`. `npm run asp -- pause` holds them and `npm run asp -- resume` continues them. Closing the window leaves no key on disk: the provider key was only in that window's environment.
