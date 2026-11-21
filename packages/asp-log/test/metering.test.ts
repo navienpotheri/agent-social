@@ -123,6 +123,9 @@ describe("a plan and a statement in the log", () => {
     assert.equal(late.ok, false);
     assert.match(late.differences.join(" "), /active agents: the log has 3, the statement 2/);
     assert.equal((await w.log.checkStatement("sha256:" + "0".repeat(64))).ok, false);
+    const listed = await w.log.usageStatementsOf([w.org.did]);
+    assert.deepEqual(listed.map((x) => [x.id, x.month, x.usage_matches_log]), [[stmt.id, month, false]], "the tenant's list recounts each statement: the late work makes it differ");
+    assert.deepEqual(await w.log.usageStatementsOf(["did:web:example.com:orgs:someone-else"]), []);
     assert.equal((await w.log.verify()).ok, true);
   });
 

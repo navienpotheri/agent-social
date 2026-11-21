@@ -2346,6 +2346,18 @@ export class EventLog {
     return { scope: o.agent ?? o.fleet ?? o.org ?? "", usage: total, perAgent };
   }
 
+  /** The usage statements closed for these holders (all when none are named), each with a recount against the log (S1416, DK1474): what a tenant sees of its months. */
+  async usageStatementsOf(holders?: string[]): Promise<{ id: string; at: string; holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number; usage_matches_log: boolean; differences: string[] }[]> {
+    const out = [];
+    for (const r of await this.recordsOfTypes(["usage_statement"])) {
+      const b = r.body as { holder: string; fleet?: string; month: string; plan: string; total: number; currency: string; credits_applied?: number };
+      if (holders && !holders.includes(b.holder)) continue;
+      const c = await this.checkStatement(r.id);
+      out.push({ id: r.id, at: r.issued_at, holder: b.holder, ...(b.fleet ? { fleet: b.fleet } : {}), month: b.month, plan: b.plan, total: b.total, currency: b.currency, ...(b.credits_applied ? { credits_applied: b.credits_applied } : {}), usage_matches_log: c.ok, differences: c.differences });
+    }
+    return out;
+  }
+
   /** The signed plan of this log by id (S1414), or undefined. */
   async usagePlan(plan: string): Promise<Plan | undefined> { return this.store.transaction(async (tx) => { const raw = await tx.getMarker(`uplan:${plan}`); return raw ? (JSON.parse(raw) as Plan) : undefined; }); }
 

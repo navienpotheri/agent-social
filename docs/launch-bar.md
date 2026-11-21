@@ -36,9 +36,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 73 (343.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 108 |
+| Withdraw the claim until done | 107 |
 | After launch | 322 |
-| Total not closed | 503 |
+| Total not closed | 502 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -231,7 +231,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1473 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1474 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 

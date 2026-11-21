@@ -894,6 +894,7 @@ const OPTIONS = {
   "min-qualifying": { type: "string" },
   month: { type: "string" },
   persona: { type: "string" },
+  reads: { type: "string" },
   reference: { type: "string" },
   lot: { type: "string" },
   "refund-until": { type: "string" },
@@ -5058,7 +5059,7 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new UsageError("--month is YYYY-MM");
   if (!sub || sub === "report") {
     if (!v.fleet && !v.org && !v.agent) throw new UsageError("asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json]");
-    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month });
+    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) });
     if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
     const u = m.usage;
     io.out(`usage of ${m.scope} in ${month}: ${u.activeAgents} active agent(s), ${u.writes} write(s), ${u.actions} action(s), ${u.tokensIn + u.tokensOut} token(s), ${u.modelRequests} model request(s), ${u.toolCalls} tool call(s), ${u.storageBytes} byte(s) stored; reads ${u.reads ?? "counted by the service, not the log"}`);
@@ -5077,9 +5078,9 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
     const plan = await local.log.usagePlan(v.plan);
     if (!plan) throw new UsageError(`${v.plan} is not a plan in this log`);
     const taxes = (v["tax-line"] ?? []).map((t) => { const [name, bp] = t.split(":"); const n = Number(bp); if (!name || !Number.isInteger(n) || n < 0 || n > 10000) throw new UsageError("--tax-line is <name>:<basis points>, for example GST:1800"); return { name, rate_bp: n }; });
-    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month })).usage;
+    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) })).usage;
     const priced = priceStatement(plan, m, taxes);
-    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
+    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes, ...(m.reads !== null ? { reads: m.reads } : {}) }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
     const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
     io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
     for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
