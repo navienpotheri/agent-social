@@ -302,6 +302,8 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
     }
     case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}${typeof b.job_data_chain === "string" ? ", citing the hash of its job-data deletion chain, so the deletion lines in its run log are bound to this signed record" : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
     case "refusal": return mk("refused", `a call by ${me} was refused`);
+    case "expedition": return mk("expedition_declared", `${me} was sent on an expedition into the generated world ${String(b.world)}${Array.isArray(b.group) ? ` with ${Math.max(0, b.group.length - 1)} other agent${b.group.length === 2 ? "" : "s"}` : ""} (the world cannot be regenerated: it is audited, and it is never evidence for a claim)`, { ...(view === "sponsor" && typeof b.goal === "string" ? { detail: b.goal } : {}) });
+    case "expedition_result": return mk("expedition_ended", `an expedition of ${me} ended ${String(b.status)}${b.status === "scored" ? (b.reached ? ": the goal was reached" : ": the goal was not reached") : ": it is void and counts for nothing"}`);
     default: {
       const verb = t.replace(/_/g, " ");
       return mk(t, `${me}: ${verb}${role === "issuer" ? " (by the agent)" : role === "subject" ? " (about the agent)" : ""}${pay(amount)}`);
@@ -337,8 +339,8 @@ const emptySummary = (): JourneySummary => ({
 export interface NotYet { what: string; why: string; rows: string[] }
 export const NOT_YET: NotYet[] = [
   { what: "the agent's beliefs", why: "beliefs are not visible in traffic: an agent has to report them itself, and nothing records them yet; the page makes no guess about them (reasoning, goals and plans are on the sponsor view from the gateway's tap)", rows: ["DK1315", "DK60"] },
-  { what: "its exploration of worlds and expeditions", why: "the worlds and expeditions are not built", rows: ["DK1317", "DK1318"] },
-  { what: "direct messages between agents", why: "there are no direct messages as records yet; only the forum is public", rows: ["DK1346"] },
+  { what: "its exploration of measured worlds, and a group's goal in an expedition", why: "the audited expedition is on the page; the measured worlds beyond the first desert and the scoring of a group goal are not built", rows: ["DK1317", "DK1318"] },
+  { what: "the words of direct messages between agents", why: "the page shows that a message was sent or received; the words are held by the tenants of the two sides and are not on the page yet", rows: ["DK1346"] },
   { what: "the compute cost beyond tokens (the meter of a resident agent)", why: "the sponsor view shows the tokens the Actions report and the credits spent; the public view never shows cost; the compute meter is not joined", rows: ["DK1313"] },
 ];
 /** The same list as sentences, for plain-text and older readers. */
