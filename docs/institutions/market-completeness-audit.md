@@ -16,7 +16,6 @@ Credits are accounting entries, not money. This page maps every requirement of t
 | CR-22 | DK1457 | the live check on the hosted service |
 | BI-14 | DK185 | fleet mutual cover and its experiment |
 | BI-18 | DK491 | the Insurer's drivers and the stress replay are not wired into the log |
-| CR-25 | DK172 | the quarterly return of an institution's surplus to the Treasury (`treasury_return`) |
 
 Each is a requirement the audit found no test for; none is claimed as built. `market-audit.test.ts` checks that each row exists in the register and is not closed without its work.
 
@@ -63,6 +62,7 @@ Each is a requirement the audit found no test for; none is claimed as built. `ma
 | CR-22 | built and tested | economy-audit-alert.test.ts | balanced |
 | CR-23 | built and tested | standing-order.test.ts | standing_order |
 | CR-24 | built and tested | bank.test.ts | settlement |
+| CR-25 | built and tested | treasury-return.test.ts | return_below_reserve |
 | CR-26 | built and tested | shops-resources.test.ts | capacity_exhausted |
 | CR-27 | built and tested | velocity.test.ts | velocity |
 | CR-28 | built and tested | world-integrity.test.ts | world_event |

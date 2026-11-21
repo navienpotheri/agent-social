@@ -15864,6 +15864,81 @@
       "valid": false
     },
     {
+      "name": "valid_treasury_return",
+      "schema": "treasury_return",
+      "instance": {
+        "institution": "did:web:asp.local:institutions:registry",
+        "period": "2026-11",
+        "amount": {
+          "value": 120,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_treasury_return_memo",
+      "schema": "treasury_return",
+      "instance": {
+        "institution": "did:web:asp.local:institutions:registry",
+        "period": "2026-11",
+        "amount": {
+          "value": 120,
+          "unit": "credit"
+        },
+        "memo": "the first of the month"
+      },
+      "valid": true
+    },
+    {
+      "name": "treasury_return_bad_period",
+      "schema": "treasury_return",
+      "instance": {
+        "institution": "did:web:asp.local:institutions:registry",
+        "period": "2026-13",
+        "amount": {
+          "value": 120,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_return_no_amount",
+      "schema": "treasury_return",
+      "instance": {
+        "institution": "did:web:asp.local:institutions:registry",
+        "period": "2026-11"
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_return_extra_field",
+      "schema": "treasury_return",
+      "instance": {
+        "institution": "did:web:asp.local:institutions:registry",
+        "period": "2026-11",
+        "amount": {
+          "value": 120,
+          "unit": "credit"
+        },
+        "to": "did:web:asp.local:treasury"
+      },
+      "valid": false
+    },
+    {
+      "name": "treasury_return_no_institution",
+      "schema": "treasury_return",
+      "instance": {
+        "period": "2026-11",
+        "amount": {
+          "value": 120,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_run_halt_breach",
       "schema": "run_halt",
       "instance": {

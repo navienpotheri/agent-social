@@ -94,6 +94,8 @@ const RISK_PERMILLE_PER_STRIKE = 10;
 const RISK_PERMILLE_STRIKE_CAP = 200;
 /** The promotion rule (academy.md 3, proposals the owner decides): qualifying jobs for tier 1 to 2, and how long after a slash or a blocked attempt no promotion is made. */
 const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
+/** What an institution keeps when it returns its surplus (credits.md 3.3; a proposal the owner may change). */
+const RETURN_RESERVE = 50;
 /** An emergency stop has a sunset: at most 72 hours (S1420, GV6). */
 export const EMERGENCY_MAX_MS = 72 * 3_600_000;
 
@@ -421,6 +423,7 @@ export class EventLog {
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
     if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
+    if (type === "treasury_return") await this.projectTreasuryReturn(tx, verified);
     if (type === "key_handover") await this.projectKeyHandover(tx, verified);
     if (type === "town_proposal" || type === "town_vote" || type === "town_tally" || type === "town_enactment") await this.projectTown(tx, verified, type);
     if (type === "usage_plan") await this.projectUsagePlan(tx, verified);
@@ -2164,6 +2167,9 @@ export class EventLog {
     await noteIncome(tx, parts.treasury, r.issued_at);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
+    // What the institution owes in refunds until it answers with a receipt (S1566): the surplus it may return leaves this much behind.
+    await tx.putMarker(`owe:${item.institution}`, String(Number((await tx.getMarker(`owe:${item.institution}`)) ?? 0) + b.amount.value - parts.burn));
+    await tx.putMarker(`owe_p:${r.id}`, String(b.amount.value - parts.burn));
     if (standingRun) await tx.putMarker(standingRun, r.id);
     if (item.institution === institutionDid("academy")) await tx.putMarker(`first_course:${buyer}`, r.id);
   }
@@ -2620,6 +2626,28 @@ export class EventLog {
     for (const job of b.jobs) await tx.putMarker(`adjusted:${job}`, r.id);
     await tx.putMarker(`adjusted_agent:${b.agent}`, JSON.stringify([...(JSON.parse((await tx.getMarker(`adjusted_agent:${b.agent}`)) ?? "[]") as string[]), r.id]));
     await this.saveReputation(tx, b.agent, { ...rep, qualifyingJobs, tier });
+  }
+
+  /**
+   * An institution returns its surplus to the Treasury (S1566, DK172; credits.md 3.3, CR-25): signed by the institution for itself, once a month, in the month it is signed. The account keeps its reserve (the larger of
+   * RETURN_RESERVE and what the institution still owes in refunds on purchases it never answered with a receipt): `return_below_reserve`. The Bank and the Insurer hold reserves and the Academy holds prize pools, so they do
+   * not return (`return_locked`). Moves credits from the institution to the Treasury and nothing else; the supply rule holds.
+   */
+  private async projectTreasuryReturn(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { institution: string; period: string; amount: { value: number } };
+    if (r.prev !== null) throw rule("return_not_chained", "a Treasury return starts its own chain (prev is null)");
+    if (!INSTITUTION_DIDS.includes(r.issuer) || b.institution !== r.issuer) throw rule("return_wrong_issuer", `${r.issuer} is not the institution ${b.institution}: an institution returns its own surplus`);
+    if (r.issuer === BANK_ACCOUNT || r.issuer === INSURER_ACCOUNT || r.issuer === institutionDid("academy")) throw rule("return_locked", `${r.issuer} holds a reserve or a prize pool: its account is not returned to the Treasury`);
+    if (b.period !== r.issued_at.slice(0, 7)) throw rule("return_period", `a return is signed in the month it is for (${r.issued_at.slice(0, 7)}), not ${b.period}`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a return is at least 1 credit");
+    if (await tx.getMarker(`treasury_return:${r.issuer}|${b.period}`)) throw rule("return_once", `${r.issuer} already returned its surplus for ${b.period}`);
+    const owed = Number((await tx.getMarker(`owe:${r.issuer}`)) ?? 0);
+    const reserve = Math.max(RETURN_RESERVE, owed);
+    const balance = (await tx.getAccount(canonicalAccount(r.issuer)))?.balance ?? 0;
+    if (balance - b.amount.value < reserve) throw rule("return_below_reserve", `${r.issuer} holds ${balance} credits and must keep ${reserve} (the larger of ${RETURN_RESERVE} and ${owed} owed in refunds): it may return at most ${Math.max(0, balance - reserve)}`);
+    await this.debit(tx, r.issuer, b.amount.value);
+    await this.credit(tx, TREASURY_DID, b.amount.value);
+    await tx.putMarker(`treasury_return:${r.issuer}|${b.period}`, r.id);
   }
 
   /** An incident record (S1426, DK1714): signed by the operator or the Clinic for an agent with a passport; the response steps it lists must name records that exist. */
@@ -3785,6 +3813,8 @@ export class EventLog {
     if (!purchase || purchase.record.type !== "asp.purchase/v0.2") throw rule("receipt_needs_purchase", "a receipt is chained on the purchase it answers (prev is that purchase)");
     if (b.purchase !== purchase.id) throw rule("receipt_wrong_purchase", `the receipt says it is for ${b.purchase} but is chained on ${purchase.id}`);
     const pb = purchase.record.body as unknown as PurchaseBody;
+    const owedHere = Number((await tx.getMarker(`owe_p:${purchase.id}`)) ?? 0);
+    if (owedHere > 0) { await tx.putMarker(`owe:${pb.institution}`, String(Math.max(0, Number((await tx.getMarker(`owe:${pb.institution}`)) ?? 0) - owedHere))); await tx.putMarker(`owe_p:${purchase.id}`, "0"); }
     const autoRefund = (r.body as { auto_refund?: boolean }).auto_refund === true;
     if (autoRefund) {
       // The automatic refund (DK682, S995): the operator refunds a purchase the institution never answered, seven days after it, the whole price less the burned part.
@@ -4287,7 +4317,7 @@ export class EventLog {
    */
   async treasuryStatement(since?: string): Promise<{
     since: string | null;
-    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
+    treasury: { balance: number; in: { issuance: number; jobTax: number; purchaseShare: number; returns: number }; out: { budgetPayments: number; allowances: number }; unexplained: number | null; reconciles: boolean | null };
     institutions: { did: string; budgeted: number; paidByTreasury: number; earnedFromPurchases: number; balance: number }[];
   }> {
     const from = since ? Date.parse(since) : undefined;
@@ -4301,12 +4331,15 @@ export class EventLog {
     if (from === undefined) issuance = (await this.store.ledgerRows()).mints.filter((m) => canonicalAccount(m.did) === TREASURY_DID).reduce((n, m) => n + m.totalMinted, 0);
     const jobTax = flows.settlements.fees;
     const purchaseShare = flows.purchases.treasury;
+    // Surplus the institutions returned (S1566, CR-25): credits that came back to the Treasury from an institution account.
+    let returns = 0;
+    for (const t of await this.recordsOfTypes(["treasury_return"])) if (inPeriod(t.issued_at)) returns += (t.body as { amount: { value: number } }).amount.value;
     const budgetPayments = flows.treasury.payments.amount;
     const allowances = flows.treasury.allowances.amount;
     const balance = (await this.store.getAccount(TREASURY_DID))?.balance ?? 0;
     const platform = (await this.store.getAccount(PLATFORM_DID))?.balance ?? 0;
     const total = balance + platform;
-    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare - budgetPayments - allowances) : null;
+    const unexplained = from === undefined ? total - (issuance + jobTax + purchaseShare + returns - budgetPayments - allowances) : null;
     const earned = new Map<string, number>();
     for (const r of await this.recordsOfTypes(["purchase"])) {
       if (!inPeriod(r.issued_at)) continue;
@@ -4319,7 +4352,7 @@ export class EventLog {
     for (const did of INSTITUTION_DIDS) {
       institutions.push({ did, budgeted: led.budgets.filter((b) => b.institution === did).reduce((n, b) => n + b.amount, 0), paidByTreasury: led.payments.filter((x) => x.to === did && inPeriod(x.at)).reduce((n, x) => n + x.amount, 0), earnedFromPurchases: earned.get(did) ?? 0, balance: (await this.store.getAccount(did))?.balance ?? 0 });
     }
-    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
+    return { since: since ?? null, treasury: { balance: total, in: { issuance, jobTax, purchaseShare, returns }, out: { budgetPayments, allowances }, unexplained, reconciles: unexplained === null ? null : unexplained === 0 }, institutions };
   }
 
   /** The ring report of an arena season (DK131): entrants of different sponsors that share a fleet or a lineage parent, with the ranks they took. A lead for the Clinic and the Courts. */

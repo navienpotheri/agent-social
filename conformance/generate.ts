@@ -1555,6 +1555,14 @@ const worldRules = [
   sv("standing_adjustment_no_reason", "standing_adjustment", adjBody({ reason: "" }), false);
   sv("standing_adjustment_extra_field", "standing_adjustment", adjBody({ slash: 5 }), false);
   sv("standing_adjustment_job_not_a_record_id", "standing_adjustment", adjBody({ jobs: ["a job"] }), false);
+  // ---------- the treasury return (spec-deltas S1566): schema cases ----------
+  const retBody = (over: Record<string, unknown> = {}) => ({ institution: "did:web:asp.local:institutions:registry", period: "2026-11", amount: { value: 120, unit: "credit" }, ...over });
+  sv("valid_treasury_return", "treasury_return", retBody(), true);
+  sv("valid_treasury_return_memo", "treasury_return", retBody({ memo: "the first of the month" }), true);
+  sv("treasury_return_bad_period", "treasury_return", retBody({ period: "2026-13" }), false);
+  sv("treasury_return_no_amount", "treasury_return", (({ amount: _a, ...r }) => r)(retBody()), false);
+  sv("treasury_return_extra_field", "treasury_return", retBody({ to: "did:web:asp.local:treasury" }), false);
+  sv("treasury_return_no_institution", "treasury_return", (({ institution: _i, ...r }) => r)(retBody()), false);
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });

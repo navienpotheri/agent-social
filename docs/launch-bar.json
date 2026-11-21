@@ -3678,14 +3678,14 @@
   },
   {
    "id": "DK172",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Housing has no monthly report, no quarterly return of its account to the Treasury (`budget_return` or `treasury_return`, credits.md 3.3, 5.3) and no charter record. Its provider share only accumulate…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
