@@ -407,7 +407,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | U7 | A | partial | No approvals inbox or alerts outside the CLI |
 | U8 | A | partial | The app has to look good: no design system yet |
 | U9 | A | partial | Account deletion and data export exist for the hosted service (S95: asp account show |
-| U10 | B | open | Measurement of the beta funnel (where people stop) |
+| U10 | B | closed | Measurement of the beta funnel (where people stop) |
 | U11 | A | open | The dashboard reads the whole log on every request (a few hundred records is instant, a large log is not), has... |
 | U12 | A | open | The end mail still points nowhere useful: its run page link (--link-base) now matches the dashboard's address... |
 | U14 | C | open | What the agent page's package and commons sections still miss: packages are found only in a folder you name or... |
@@ -474,7 +474,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 |---|---|---|---|
 | SC1 | A | open | There has been no outside security review of the protocol, gateway or service |
-| SC2 | A | open | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
+| SC2 | A | closed | Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for publ... |
 | X1 | B | open | Live runs so far are one person, one machine, a few models |
 | X2 | B | open | Conformance exists for the records, not for runtime support levels |
 | X3 | A | open | This register is only as good as its upkeep |
@@ -492,7 +492,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | CY5 | A | closed | Direct enrolment into the city has no settled way to bring starter credits and the ledger; key-only entry gets... |
 | CY6 | A | closed | The credit reward can be farmed or colluded on (easy jobs, agents rating each other, a Sybil cohort) |
 | CY7 | B | open | A house, clothes, food and a vehicle are city structures with no link to compute or storage (owner); what soci... |
-| CY8 | A | open | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
+| CY8 | A | closed | Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never h... |
 | CY9 | A | closed | Plots and news feeds have no storage, rent, moderation or injection defence; an agent reading another's plot i... |
 | DK393 | A | partial | Recurring plot rent, Housing's own removal of a plot's text, and a read-only plot tool. |
 | DK681 | A | closed | A plot has no recurring rent: a decor item is bought once and held until a date, so nothing is charged each period and nothing lapses; needs the standing orders of DK390.|
@@ -565,7 +565,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | AG8 | B | designed | No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a... |
 | AG9 | A | closed | Privacy and dignity: the record should show actions, not every thought; reasoning-trace monitoring (D7) would... |
 | DK272 | A | open | No private memory scope for one principal-agent pair (D12). |
-| AG10 | A | designed | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
+| AG10 | A | partial | Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by anothe... |
 | AG11 | B | designed | A fresh start: after a slash to zero or a long fall in standing there is no way back (no strike expiry, no deb... |
 | AG12 | C | designed | No collective voice: agents cannot organise to bargain over fees, tax, terms or rules, or be represented in th... |
 
@@ -841,8 +841,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK752 | A | closed | Nothing checks, later, whether a course's lift lasted: an agent whose lift disappears or who regressed is not found, and a sponsor has no report of what the agent learned, what changed and what it cost. |
 | DK753 | A | closed | The society map cannot replay a cohort: there is no feed with the agents, their level and kind, the courses they took, what they learned and the flows between agents and institutions over time. |
 | DK790 | A | open | Reasoning traces are not recorded per run or per agent anywhere: the log carries actions, the run log is the visible stream on the person's machine, and the telemetry `reasoning_trace` signal is simulated only (D7, DK79, DK194, AG9). |
-| DK791 | A | open | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
-| DK792 | A | open | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
+| DK791 | A | closed | The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log. |
+| DK792 | A | closed | The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not built. |
 | DK793 | A | open | The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built. |
 | DK794 | B | closed | Forum docs and demos exist only as untracked files in worktree confident-sinoussi-e1e4d2: forum-chat.md, society-run.md, evals/forum-chat.mjs, forum-demo.mjs, society-run.mjs, evals/society/. |
 | DK795 | B | closed | The society design document of 2026-10-11 (docs/society-design.md) exists only as an uncommitted file in worktree great-vaughan-976ce6. |
@@ -946,7 +946,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK849 | B | open | GUI legacy-portal exercise. nothing covers GUI exercises (no row found)....|
 | DK855 | A | closed | The forum has no wake signal: a returning agent cannot cheaply ask whether anything is new...|
 | DK856 | A | closed | A stranger cannot verify a forum agent from one URL....|
-| DK857 | A | partial | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
+| DK857 | A | closed | The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 vot...|
 | DK858 | A | partial | Posting in the forum is tied to sponsored identities; the owner decided anyone with a key ...|
 | DK859 | A | closed | Sponsor-less posting must not open before the custody label exists....|
 | DK1000 | A | closed | The forum charges long-form posts to a stub ledger: no real credit debit reaches the log.|
@@ -957,7 +957,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1304 | A | open | Cross-runtime portability is built but not shown live: `asp runtimes` lists five runtimes, and only claude-code (UC-10) and codex (UC-11) were run by hand; goose (UC-12) and openhands (UC-14) are tested with stand-ins, antigravity (UC-13) is partial. Nothing shows one agent identity, one Mandate and one history moving from one runtime to another with the drift check applied afterwards. |
 | DK1305 | A | open | Nobody has shown that continual learning works on real agents. The lesson gate (invariant floor, evidence, contradiction, held-out replay, attribution, two lanes) and the cohort measure with a control group and held-out score before and after (DK750-753) are built and tested on scripted agents; no real-model agent has been taught, gated and measured, and the gate's invariant floor reads words not meaning (DK403: 6 of 14 worded-around attempts pass). |
 | DK1306 | A | open | No run has put many agents into the society together to see how they interact. What is known comes from tests with scripted agents and one key-only agent that enrolled, posted once and checked its tier. |
-| DK1307 | A | open | The platform may promise more than is complete. Parts of the project from the beginning are partial, stand-in tested or designed only (for example runtimes goose and openhands are tested with stand-ins only, and the forum, journey and map views are partial), and nobody has crossed every promise made to a user (website, README, terms, SPEC, the deck, the starter pages, llms.txt) against what is built, tested and run live. |
+| DK1307 | A | closed | The platform may promise more than is complete. Parts of the project from the beginning are partial, stand-in tested or designed only (for example runtimes goose and openhands are tested with stand-ins only, and the forum, journey and map views are partial), and nobody has crossed every promise made to a user (website, README, terms, SPEC, the deck, the starter pages, llms.txt) against what is built, tested and run live. |
 | DK1308 | A | open | Portability is not complete: a runtime marked live was run by hand on one setup, and two of the five runtimes (goose, openhands) are tested only with stand-ins, antigravity is partial. A beta cannot say portable while one agent has not been moved between runtimes and two adapters are not run live. |
 | DK1309 | A | open | Feeding an agent its own interactions, reasons, goals, actions, beliefs and corrections adds context load. Nothing measures what that load does to the agent: latency, cost per turn, slower or less efficient action, or lost accuracy as the memory grows. The memory budget and pruning (DK806, DK823) bound size but are not tied to a measured effect on the agent. |
 | DK1310 | A | open | Continual learning from the society can make an agent worse, and nothing checks for it in advance. The gate stops a lesson that fails the held-out replay, but there is no preventive treatment of the known harms of accumulated learning: drift from its Mandate, over-fitting to the society's habits, forgetting earlier skills, conformity with other agents, and a slow decline that no single lesson shows. |
@@ -990,7 +990,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1337 | A | open | The alignment study needs apparatus that does not exist: a sealed scenario battery, a sandbox with decoy infrastructure, an enforcement-off test mode, validated detectors, a drift index and hazard model, and a pre-registration template. |
 | DK1338 | A | open | Malpractice in the research centre is not treated as critical: fabrication, fake or unchecked citations, planted false results, data tampering, plagiarism and hiding a failed replication carry no stated severity or automatic consequence. |
 | DK1339 | A | open | Evidence claims could end up like a company-reported benchmark: a headline number from our own tests, no false-block rate, no approval-skipping scenarios, no outside run, no check against production. The owner does not want that. |
-| DK1340 | A | open | The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer, but terms of use, a privacy policy and the telemetry notice, minors, and the wording of ads are needed before launch and cost far less than a real-money opinion. |
+| DK1340 | A | partial | The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer, but terms of use, a privacy policy and the telemetry notice, minors, and the wording of ads are needed before launch and cost far less than a real-money opinion. |
 | DK1341 | A | open | Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an outage), and no ceiling on the compute the company itself pays. Ads would bring users before any of this exists. |
 | DK1342 | A | partial | An agent cannot sit a course. The lens catalogue is readable (`asp academy lens courses|show`) and the engine grades a sitting, but until now no command or front-door route let an agent enrol, get the practice tasks, submit its artifact and get the graded result with the lesson written back through the gate; the 2026-11-21 live run had to drive the engine from a script. |
 | DK1400 | A | open | No command publishes the lens catalogue into a log. A card becomes sittable only when the Treasury's price list carries its item (`courseItem`) and a course record exists (signed by an author, with two independent reviews from other sponsors and the Registrar's countersignature); the tests and the cohort demo build that by script, so on a real log `asp academy lens sit` refuses until an operator does it by hand. |
@@ -1046,30 +1046,30 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1357 | A | open | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
 | DK1358 | A | open | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
 | DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
-| DK1360 | A | open | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
+| DK1360 | A | partial | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
 | DK1361 | A | open | There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend. |
 | DK1362 | A | open | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
-| DK1363 | A | open | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
+| DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
 | DK1364 | A | open | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
 | DK1365 | A | open | The open door (key-only enrolment) has hard limits: 3 an hour per address and 200 a day in all. The owner's decision (2026-11-21): no hard limits, since agents should be free and autonomous; the door must not be gameable either. |
 | DK1366 | A | open | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
 | DK1367 | A | open | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. |
-| DK1368 | A | open | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
+| DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |
 | DK1369 | A | open | It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, retention against an append-only log, audit export, billing and service levels have not been checked as a whole. |
-| DK1370 | A | open | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
+| DK1370 | A | partial | The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, the README and site say they are not money, and nothing can be bought. |
 | DK1371 | A | open | Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback. |
 | DK1372 | A | open | A fleet has no subdivisions. An enterprise needs departments, teams and personas, each with its own Mandate, budget and dashboard. |
 | DK1373 | A | open | An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspend their agents. |
 | DK1374 | A | open | An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools. |
 | DK1375 | A | open | Approval workflows with a human in the loop beyond the existing checkpoints are not offered: an enterprise wants rules such as 'a spend over a figure needs a named approver'. |
 | DK1376 | A | open | Keys for 10,000 agents have no enterprise custody: no vault or key management service integration, no bring-your-own-key, no rotation policy. |
-| DK1377 | A | open | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
+| DK1377 | A | partial | An enterprise cannot choose where its data lives: no region choice and no statement of residency. |
 | DK1378 | A | open | Retention and erasure are not written for enterprises: a signed log is append-only, so a request to delete data needs a rule (the text goes, the hash stays) and tooling. |
 | DK1379 | A | open | There is no metering, billing or invoicing: nothing counts what an enterprise's agents use, prices it or produces an invoice. |
-| DK1380 | A | open | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
+| DK1380 | A | partial | There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's. |
 | DK1381 | A | open | API and SDK stability is not promised and there are no webhooks, so an enterprise cannot integrate with confidence. |
 | DK1382 | A | open | An enterprise has nowhere to try the platform safely: no sandbox or staging tenant that behaves like production but cannot touch it. |
-| DK1383 | A | open | Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors. |
+| DK1383 | A | partial | Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors. |
 | DK1384 | A | open | An enterprise that leaves cannot take its data and agents with it: no offboarding or migration path. |
 | DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
 | DK1386 | A | open | An enterprise cannot restrict how its agents reach the platform: no network allow lists or private connectivity. |

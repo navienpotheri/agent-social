@@ -404,6 +404,7 @@ export class EventLog {
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
+    if (type === "forum_checkpoint") await this.projectForumCheckpoint(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "config") await this.projectConfig(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -2056,6 +2057,19 @@ export class EventLog {
     if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
     if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
     await tx.putMarker(`treasury_statement:${b.period}`, r.id);
+  }
+
+  /**
+   * A forum checkpoint (DK791, S1350): the operator signs the head of the forum's chain, so the log witnesses it. Only the operator issues one, it starts its own chain (prev is null), and it must move forward:
+   * `forum_seq` greater than the last checkpoint's. The log cannot read the forum's files, so what the head ought to be is checked outside the log, by `asp forum verify` and `GET /forum/verify`.
+   */
+  private async projectForumCheckpoint(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { forum_seq: number };
+    if (r.prev !== null) throw rule("forum_checkpoint_not_chained", "a forum checkpoint starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("forum_checkpoint_wrong_issuer", `${r.issuer} is not the operator${this.operator ? ` (${this.operator})` : " (this log has none configured)"}: only the operator signs the forum head`);
+    const last = Number((await tx.getMarker("forum_checkpoint:last")) ?? 0);
+    if (b.forum_seq <= last) throw rule("forum_checkpoint_not_forward", `the last checkpoint is at ${last} forum acts; a new one must be later (${b.forum_seq})`);
+    await tx.putMarker("forum_checkpoint:last", String(b.forum_seq));
   }
 
   /** A Treasury payment (T10): part of an approved budget goes to that budget's institution, and to no one else. Debits only the Treasury. */

@@ -16,6 +16,7 @@
     "commands": "node conformance/generate-command-reference.ts",
     "ai-files": "node conformance/generate-ai-files.ts",
     "launch-bar": "node conformance/generate-launch-bar.ts",
+    "promises-audit": "node conformance/generate-promises-audit.ts",
     "lenses": "node conformance/generate-lens-matrix.ts",
     "pipeline": "node conformance/generate-pipeline-decisions.ts",
     "asp": "node packages/asp-cli/bin/asp.mjs",

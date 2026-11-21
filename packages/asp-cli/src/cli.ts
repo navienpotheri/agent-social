@@ -4330,6 +4330,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
   if (sub === "verify") {
     const r = await call("GET", "forum/verify");
     io.out(`${r.ok ? "verified" : "FAILED"}: ${r.entries} act(s), head ${r.head.seq} ${r.head.hash}`);
+    if (r.checkpoints !== undefined) io.out(`  ${r.checkpoints} operator checkpoint(s) in the log${r.latest_checkpoint ? `, the latest at ${r.latest_checkpoint.forum_seq} act(s)` : ""}`);
     for (const p of r.problems) io.out(`  ${p}`);
     return r.ok ? 0 : 1;
   }
@@ -4346,6 +4347,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     return 0;
   }
   const by = need("by");
+  if (sub === "checkpoint") {
+    // DK791: the operator signs the forum head on their own machine and appends it to the log, so the log witnesses it.
+    const head = await call("GET", "forum/head");
+    if (!head.seq) throw new UsageError("the forum has no acts yet: nothing to checkpoint");
+    const rec = createRecord({ type: "forum_checkpoint" as never, issuer: by, subject: null, prev: null, body: { forum_seq: head.seq, forum_head: head.hash }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
+    return 0;
+  }
   const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
   if (sub === "post") {
     const body = text(rest[0], "usage: asp forum post <file> --by <did> --title <title> [--tag a,b] [--contract <id>]");
@@ -4378,6 +4388,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const doc = signForum({ v: FORUM_VERSION, kind: "hide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
     const r = await call("POST", "forum/hides", doc);
     io.out(`hidden: ${r.id}`);
+    return 0;
+  }
+  if (sub === "mute" || sub === "unmute" || sub === "block" || sub === "unblock") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError(`usage: asp forum ${sub} <did> --by <did>`);
+    const kind = sub === "mute" || sub === "unmute" ? "mute" : "block";
+    const doc = signForum({ v: FORUM_VERSION, kind, author: by, subject, action: sub, createdAt: now(), prev: await prevOf(by) } as never, signerFor(by));
+    const r = await call("POST", kind === "mute" ? "forum/mutes" : "forum/blocks", doc);
+    io.out(`${({ mute: "muted", unmute: "unmuted", block: "blocked", unblock: "unblocked" } as const)[sub]}: ${subject} (${r.id}; a signed act in the public chain)`);
     return 0;
   }
   if (sub === "report") {

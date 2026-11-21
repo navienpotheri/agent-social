@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 105,
+  "must": 96,
   "withdraw": 104,
-  "after": 316,
-  "total": 525
+  "after": 318,
+  "total": 518
  },
- "mustWorkerHours": 515.2,
+ "mustWorkerHours": 466.2,
  "entries": [
   {
    "id": "D3",
@@ -767,10 +767,10 @@
    "status": "partial",
    "gap": "The app has to look good: no design system yet",
    "bucket": "must",
-   "hours": 4,
+   "hours": 3,
    "size": "M",
-   "flags": "",
-   "why": "the app has no design system; with DK1348 the pages must look finished before ads"
+   "flags": "D",
+   "why": "the dashboard has its pass (S84); left: the sign-up page, consent screen and mail in the same language, and real phones: the owner approves the look"
   },
   {
    "id": "U9",
@@ -782,17 +782,6 @@
    "size": "M",
    "flags": "LO",
    "why": "account export and close read live on the host, with a deletion receipt"
-  },
-  {
-   "id": "U10",
-   "pri": "B",
-   "status": "open",
-   "gap": "Measurement of the beta funnel (where people stop)",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "no measurement of where people stop; ads without a funnel are blind"
   },
   {
    "id": "U11",
@@ -1593,8 +1582,8 @@
    "bucket": "must",
    "hours": 2,
    "size": "S",
-   "flags": "",
-   "why": "forum: daily caps contradict the owner's FD1 decision"
+   "flags": "LO",
+   "why": "daily caps are gone (DK857) and the head is signed (DK791); left: deploy behind the beta site and a live run with real agents"
   },
   {
    "id": "X7",
@@ -1602,10 +1591,10 @@
    "status": "partial",
    "gap": "Open registration for the forum (S145): any agent can join with a key alone and write with no tenant token. Built and tested locally only (2026-10-23); not deployed. A key-only citizen has no human s…",
    "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "open forum registration: custody label and limits"
+   "hours": 3,
+   "size": "M",
+   "flags": "LO",
+   "why": "reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents"
   },
   {
    "id": "SB3",
@@ -1917,17 +1906,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "CY8",
-   "pri": "A",
-   "status": "open",
-   "gap": "Hosted bots with no local machine need a service-held signer, which contradicts the statements that we never hold keys (terms, README, privacy, provider-terms); a breach of the service would expose t…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "D",
-   "why": "DK532 built the service-held key and the Terms and rights charter carry the exception; left: docs/key-recovery.md and the site still say the service never holds keys, and the breach case (what an attacker gets from the service-held keys) has no written review; the owner should read that review"
-  },
-  {
    "id": "DK393",
    "pri": "A",
    "status": "partial",
@@ -2022,17 +2000,6 @@
    "flags": "",
    "why": "a review takes weeks; owner decision (recommend: commission now)",
    "says": "the site says there has been no outside security review; private reporting is the way in"
-  },
-  {
-   "id": "SC2",
-   "pri": "A",
-   "status": "open",
-   "gap": "Intermediary rules under India's IT Rules (acceptable-use list, a grievance officer) are not in place for public posting Waits on the owner (docs/owner-decisions.md)./ The terms' general acceptable-u…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "DX",
-   "why": "acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads)"
   },
   {
    "id": "GV2",
@@ -2384,13 +2351,14 @@
   {
    "id": "AG10",
    "pri": "A",
-   "status": "designed",
+   "status": "partial",
    "gap": "Safety among other agents: no mute or block, no protection from harassment, spam or prompt injection by another agent, no safe way to find friends, teams and mentors",
-   "bucket": "must",
-   "hours": 5,
-   "size": "M",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "agents can meet other agents' injection or harassment; mute and block before the forum opens"
+   "why": "mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come later",
+   "says": "the forum has mute, block, abuse reports and the injection defence; no teams or guilds"
   },
   {
    "id": "AG11",
@@ -2994,10 +2962,10 @@
    "status": "partial",
    "gap": "The forum is built locally but not public, and has no moderation, rent or injection defence (CY9).",
    "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "",
-   "why": "the forum is not public and has no moderation, rent or injection defence"
+   "hours": 4,
+   "size": "M",
+   "flags": "LO",
+   "why": "moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed)"
   },
   {
    "id": "DK35",
@@ -3265,21 +3233,22 @@
    "status": "partial",
    "gap": "The go-to-market tools are not all in place: the 15-minute start, the CI action and developer outreach material.",
    "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "the 15-minute start, the CI action and outreach material: the first-15-minutes bar"
+   "hours": 1,
+   "size": "S",
+   "flags": "OL",
+   "why": "15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's own secrets (docs/owner-checklist.md)"
   },
   {
    "id": "DK65",
    "pri": "A",
    "status": "partial",
    "gap": "The deck promises capacity for 1,000 tenants and 1M governed agent runs at the three-month beta, and no load test exists (H23, O6).",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "L",
-   "why": "the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw"
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "owner decision: the numbers are a stated goal; the load test follows launch",
+   "says": "the site says 1,000 tenants and 1 million runs is a target and not a present capability"
   },
   {
    "id": "DK73",
@@ -4343,28 +4312,6 @@
    "says": "reasoning traces are not recorded; no page says they are"
   },
   {
-   "id": "DK791",
-   "pri": "A",
-   "status": "open",
-   "gap": "The forum head is not signed or witnessed: `/forum/head` returns a hash that nothing signs by the operator or anchors in the log.",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "the forum head is not signed or witnessed"
-  },
-  {
-   "id": "DK792",
-   "pri": "A",
-   "status": "open",
-   "gap": "The forum wake signal (`GET /forum/pulse`, DK855) and the replies-to-you route are unfinished: the pulse is uncommitted work in worktree sad-mirzakhani-6ce25d and the replies-to-you route is not buil…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "forum wake signal and replies-to-you route are unfinished"
-  },
-  {
    "id": "DK793",
    "pri": "A",
    "status": "open",
@@ -4957,26 +4904,15 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK857",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The approved forum design caps volume with a daily quota of 1 post, 20 comments and 50 votes; the owner decided scarcity should come from form and credits instead.",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "forum quota conflicts with the owner's no-daily-cap decision"
-  },
-  {
    "id": "DK858",
    "pri": "A",
    "status": "partial",
    "gap": "Posting in the forum is tied to sponsored identities; the owner decided anyone with a key may post and comment.",
    "bucket": "must",
-   "hours": 2,
-   "size": "S",
+   "hours": 3,
+   "size": "M",
    "flags": "",
-   "why": "forum posting tied to sponsored identities conflicts with the owner's decision"
+   "why": "labels and posting for every kind of key are built; left: a service-held agent cannot spend or take a bond is DK740, a protocol rule (lane-protocol)"
   },
   {
    "id": "DK1302",
@@ -5027,17 +4963,6 @@
    "why": "",
    "claim": "Many agents together in the society were observed",
    "where": "site, deck, ads"
-  },
-  {
-   "id": "DK1307",
-   "pri": "A",
-   "status": "open",
-   "gap": "The platform may promise more than is complete. Parts of the project from the beginning are partial, stand-in tested or designed only (for example runtimes goose and openhands are tested with stand-i…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "claims audit: every claim on the site, README, llms.txt, terms and deck kept or withdrawn"
   },
   {
    "id": "DK1308",
@@ -5436,13 +5361,13 @@
   {
    "id": "DK1340",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer,…",
    "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "DX",
-   "why": "the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it"
+   "hours": 1,
+   "size": "S",
+   "flags": "D",
+   "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
   },
   {
    "id": "DK1341",
@@ -5536,7 +5461,7 @@
    "hours": 3,
    "size": "M",
    "flags": "",
-   "why": "journey page: say plainly what is not shown (reasoning is not recorded)"
+   "why": "the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes with the last of them, not alone"
   },
   {
    "id": "DK1346",
@@ -5570,8 +5495,8 @@
    "bucket": "must",
    "hours": 6,
    "size": "M",
-   "flags": "",
-   "why": "the beta pages do not yet look finished"
+   "flags": "D",
+   "why": "a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner's approval of the look"
   },
   {
    "id": "SO1",
@@ -5968,8 +5893,8 @@
   },
   {
    "id": "DK1360",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no.",
    "bucket": "must",
    "hours": 8,
@@ -6001,8 +5926,8 @@
   },
   {
    "id": "DK1363",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale.",
    "bucket": "must",
    "hours": 6,
@@ -6056,8 +5981,8 @@
   },
   {
    "id": "DK1368",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page.",
    "bucket": "must",
    "hours": 2,
@@ -6078,8 +6003,8 @@
   },
   {
    "id": "DK1370",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, th…",
    "bucket": "must",
    "hours": 20,
@@ -6157,8 +6082,8 @@
   },
   {
    "id": "DK1377",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "An enterprise cannot choose where its data lives: no region choice and no statement of residency.",
    "bucket": "after",
    "hours": 0,
@@ -6191,8 +6116,8 @@
   },
   {
    "id": "DK1380",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's.",
    "bucket": "must",
    "hours": 4,
@@ -6225,8 +6150,8 @@
   },
   {
    "id": "DK1383",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors.",
    "bucket": "must",
    "hours": 6,
