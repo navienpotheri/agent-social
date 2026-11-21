@@ -35,7 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
-import { dataHandlingProblem, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
+import { dataHandlingProblem, readDataHandling, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -1553,6 +1553,8 @@ export class EventLog {
     }
     const cbody = contract.record.body as { performer: string };
     if (r.issuer !== cbody.performer) throw new AspError("WRONG_ISSUER", `${r.issuer} is not the performer of ${body.contract}`);
+    const jdc = (r.body as { job_data_chain?: string }).job_data_chain;
+    if (jdc) { await tx.putMarker(`job_data:${body.contract}`, jdc); await tx.putMarker(`data_unconfirmed:${body.contract}`, ""); } // the performer cites the head of its job-data deletion chain (S1602, JO3)
     const chain = await tx.getChain(contract.chain);
     const live = chain?.state === "Running" || chain?.state === "Checkpoint";
     if (body.late) {
@@ -1824,6 +1826,17 @@ export class EventLog {
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
     await noteLock(tx, escrow.backer, body.contract, null);
+    // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
+    if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** Whether a contract's job data is confirmed deleted (S1602, JO3): `not_applicable` while the contract is unsettled or retains data for a stated number of days; `confirmed` with the chain head the performer cited; `unconfirmed` when it settled with none. Reads only. */
+  async jobDataStatus(contract: string): Promise<{ status: "not_applicable" | "confirmed" | "unconfirmed"; chain_head?: string }> {
+    return this.store.transaction(async (tx) => {
+      const head = await tx.getMarker(`job_data:${contract}`);
+      if (head) return { status: "confirmed" as const, chain_head: head };
+      return { status: (await tx.getMarker(`data_unconfirmed:${contract}`)) === "1" ? ("unconfirmed" as const) : ("not_applicable" as const) };
+    });
   }
 
   /**

@@ -617,6 +617,10 @@ sv("bond_missing_escrow", "bond", { contract: fakeId("c"), backer: coder.did, am
 sv("bond_amount_not_an_amount", "bond", { contract: fakeId("c"), backer: coder.did, amount: 10, escrow: {}, slashing_conditions: [] }, false);
 sv("package_missing_lineage_head", "package", { agent: coder.did, memory: { uri: "x", sha256: "sha256:" + "a".repeat(64) } }, false);
 sv("package_agent_not_a_did", "package", { agent: "coder", passport: fakeId("p"), memory: { uri: "x", sha256: "sha256:" + "a".repeat(64) }, experience_store: { uri: "x", sha256: "sha256:" + "a".repeat(64) }, permissions: {}, lineage_head: fakeId("l"), source_runtime: {} }, false);
+sv("valid_action_job_data_chain", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "d".repeat(64) }, true);
+sv("action_job_data_chain_short", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "d".repeat(63) }, false);
+sv("action_job_data_chain_uppercase", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "D".repeat(64) }, false);
+sv("action_job_data_chain_prefixed", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "sha256:" + "d".repeat(57) }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
