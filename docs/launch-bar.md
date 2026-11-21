@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 77 (367.2 worker-hours; 14 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
+| Must close before launch | 74 (343.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 110 |
 | After launch | 322 |
-| Total not closed | 509 |
+| Total not closed | 506 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -60,7 +60,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1356 | A | partial | 4 | M | - | starter credits for every agent of a fleet (the owner removed the 2-per-sponsor limit); the claims change with it |
 | DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
-| DK1367 | A | partial | 4 | M | - | fleets are clearly marked in the society (owner request) |
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
@@ -87,7 +86,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1382 | A | open | 8 | L | - | the sandbox tenant |
 | DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
-| DK1361 | A | partial | 14 | L | - | the fleet dashboard with caps and a freeze switch |
 | DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
@@ -117,7 +115,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | X7 | A | partial | 3 | M | LO | reports, restriction and terms exist; left: key rotation and recovery for a key-only citizen, the deploy with --forum-open and a live run with real agents |
 | DK34 | A | partial | 4 | M | LO | moderation, reports, injection defence and mute/block are built; left: the forum live on the hosted service and one hostile post run past a real model (postponed) |
 | U16 | A | partial | 4 | M | O | built (S110); left: the landing page (O13) and a trial with people who have not seen the tool |
-| DK1348 | A | partial | 6 | M | D | a visual pass on the journey page, Society Daily, leaderboards, cohort dashboard, catalogue and map entry, with before and after screenshots; the row closes on the owner… |
 | DK1363 | ? | partial | 6 | M | D | plans and the enterprise page; the owner sets the numbers, pilots are free in the beta |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
