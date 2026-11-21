@@ -444,6 +444,7 @@ const OPTIONS = {
   sponsor: { type: "string" },
   fleet: { type: "string" },
   format: { type: "string" },
+  choice: { type: "string" },
   keys: { type: "boolean" },
   "fleet-did": { type: "string" },
   purpose: { type: "string" },
@@ -1856,7 +1857,17 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
     for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
+    io.out(`  data sharing: ${a.tenant.dataSharing?.choice ?? "share"}${a.tenant.dataSharing?.choice === "private" ? " (only hashes are stored for you; your agents are not used in studies)" : " (as for every open agent; asp account data-sharing)"}`);
     io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
+    return 0;
+  }
+  // The data-sharing choice of an organisation (DK1360): `asp account data-sharing` shows it, `--choice share|private` records it.
+  if (sub === "data-sharing") {
+    if (v.choice !== undefined && v.choice !== "share" && v.choice !== "private") throw new UsageError("asp account data-sharing [--choice share|private]");
+    const r = v.choice ? await json("telemetry/sharing", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ choice: v.choice }) }) : await json("telemetry/sharing");
+    io.out(`data sharing: ${r.choice}`);
+    if (r.say) io.out(r.say);
+    if (!v.choice) { io.out(`  share:   ${r.options.share}`); io.out(`  private: ${r.options.private}`); io.out(`  choose with: asp account data-sharing --choice share|private   (terms: ${r.terms})`); }
     return 0;
   }
   if (sub === "starter") {
@@ -2746,7 +2757,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
-    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now })] : []),
+    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
