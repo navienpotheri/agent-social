@@ -418,7 +418,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 
 |---|---|---|---|
 | R1 | A | partial | A governed session used to write about a dozen records; with a standing job (S103) it writes its Action report... |
-| T1 | A | open | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
+| T1 | A | partial | Install on macOS and on an older Node has never been tried by hand (CI runs Linux and Windows only; the old-No... |
 | T2 | A | partial | The failure modes of a session in the first minutes are untested: a non-git folder, spaces in a path, a very l... |
 | T3 | A | open | Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open C... |
 | T4 | A | partial | When the service is down or there is no network, there was no defined behaviour and no local-only mode, which... |
@@ -852,7 +852,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1201 | A | closed | A mentor's collateral is not locked: the guarantee is the mentor's balance at issue and at default, so a mentor can spend its balance between them and then fail to cover a default (it becomes a debt that blocks its lines). |
 | DK1202 | B | closed | A mentor's record is not shown: nothing says 'mentored 3, 0 defaults' on the mentor's page or lets a protege choose a mentor by it. |
 | DK1203 | A | closed | The tutorial job has no rule of its own: any seed job from a public-works house agent is open to any agent, so nothing reserves the first week's tutorial for a newcomer, limits it to one for each newcomer or lets the newcomer find it from `asp first-week`; and there is no command for a mentorship (`asp bank mentor`). |
-| DK1204 | A | open | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
+| DK1204 | A | partial | The hosted price list does not carry `forum.post.long` and `forum.comment.long`, so on the hosted service no author can buy the long form yet. |
 | DK1205 | B | open | The free-rein panel is not on the sponsor's dashboard or in the Mandate editor, and its inputs are not read from the log. |
 | DK1206 | B | open | The tail rule is in one engine, not in every course: the other engines (the evolving evals, message passing, the rule worlds) score one held-out set with no rare-end part. |
 | DK1207 | B | open | The listing audit is not on the services board or the Market: no job runs the probe on a real listing, no bond slice is taken in the log and nothing is posted in the Forum. |
@@ -872,7 +872,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
 | DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
 | DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
-| DK1230 | A | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
+| DK1230 | A | closed | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
 | DK1231 | B | open | The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access. |
 | DK1232 | B | open | `unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in. |
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |
@@ -1088,8 +1088,18 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
 | DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
+| DK1477 | A | open | Nothing breaks a loop between agents (A hires B hires A) or across a fleet (a spiral draining its budget): cycle detection and a fleet spend-rate circuit breaker that halts a node, as a signed record, are not built. |
+| DK1478 | A | open | The breaker counts equal calls only: a near-repeat (the same intent with small changes) is not detected, and its false-halt rate is not measured. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
 | DK1602 | A | open | The cost to the sponsor on the journey (DK1347) has not been checked on one real model agent: the figures come from the Actions' own token metrics and are tested on records. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
+| DK1710 | A | open | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
+| DK1711 | A | open | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
+| DK1712 | A | open | Drift detection does not run by itself: no scheduled checkups, no unannounced 'nobody is watching' audits, no measured false-flag rate. |
+| DK1713 | A | open | New bypass classes (plot and feed injection, tool-result injection, exfiltration through allowed tools, split commands) have no corpus, measured block rate or regression test in the normal run. |
+| DK1714 | A | open | Breach response is not tested end to end: detection, quarantine of the agent and its node, a signed incident record, alerts and the restitution path within a stated time. |
+| DK1715 | A | open | The starter Mandate has no default per-run and daily spend ceilings, alerts at 50, 80 and 100 percent, or a hard stop at the model call. |
+| DK1716 | A | open | Tool calls and model requests are not scanned by content for keys, tokens, card numbers and emails (the run log redacts what it writes; secret files are refused). |
+| DK1717 | A | open | A stolen tenant token or agent key is not detected: nothing notices use from a new place or at a rate far above its history. |

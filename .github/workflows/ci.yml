@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   # The TypeScript packages: typecheck, every package's tests, and the conformance vectors are the ones the generator produces.
-  # Every combination must pass: Linux and Windows, Node 24 and 22.18 (the declared minimum). An `experimental: true` entry shows a failure in the run
+  # Every combination must pass: Linux and Windows, Node 24 and 22.18 (the declared minimum); macOS runs too and is shown without blocking (T1). An `experimental: true` entry shows a failure in the run
   # without failing it; use it for a combination being tried (docs/gaps-register.md O14).
   node:
     name: node (${{ matrix.os }}, node ${{ matrix.node }})
@@ -29,6 +29,9 @@ jobs:
           - { os: ubuntu-latest, node: "22.18", experimental: false }
           - { os: windows-latest, node: "24", experimental: false }
           - { os: windows-latest, node: "22.18", experimental: false }
+          # macOS (T1): shown, not blocking, until it has passed enough runs to be trusted (docs/gaps-register.md O14); the first-minutes job below already runs macOS and zsh.
+          - { os: macos-latest, node: "24", experimental: true }
+          - { os: macos-latest, node: "22.18", experimental: true }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

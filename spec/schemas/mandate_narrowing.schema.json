@@ -336,7 +336,7 @@
           }
         },
         "token_budget": {
-          "description": "A token (compute) budget (register row DK1476; spec-delta S1421): the most model tokens, input and output together, one run of this Mandate may use (`per_run`) and the most all runs of the agent may use in a UTC month (`per_month`). Like every limit it can only be narrowed: a fleet template, a tree node and a member's own change may lower it, never raise it or drop it. The gateway counts the tokens it relays and refuses the next model call when the budget is spent; the log refuses a Mandate that widens a ceiling that states one. Absent means no budget of this kind at this level.",
+          "description": "A token (compute) budget (register row DK1476; spec-delta S1421): the most model tokens, input and output together, one run of this Mandate may use (`per_run`) the most all runs of the agent may use in a UTC month (`per_month`) and in a UTC day (`per_day`, the daily token cap of the loop breaker). Like every limit it can only be narrowed: a fleet template, a tree node and a member's own change may lower it, never raise it or drop it. The gateway counts the tokens it relays and refuses the next model call when the budget is spent; the log refuses a Mandate that widens a ceiling that states one. Absent means no budget of this kind at this level.",
           "type": "object",
           "minProperties": 1,
           "additionalProperties": false,
@@ -346,6 +346,26 @@
               "minimum": 1
             },
             "per_month": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "per_day": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "loop_limits": {
+          "description": "Loop limits (register row DK1230; spec-delta S1422): `equivalent_calls` is the number of calls to one tool with the same arguments after which the gateway halts the run, and `depth` the deepest chain of agents spawning agents it allows. Like every limit they can only be narrowed: a template, a node and a member may lower them, never raise or drop one the ceiling states. The gateway counts and halts; the halt is a signed `run_halt` record and a halted run buys nothing.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "equivalent_calls": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "depth": {
               "type": "integer",
               "minimum": 1
             }

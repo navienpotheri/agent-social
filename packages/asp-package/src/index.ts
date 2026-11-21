@@ -110,3 +110,4 @@ export { TestProvider, sellCredits, refundCredits, referenceHash, TEST_METHODS, 
 export { SANDBOX_BANNER, SANDBOX_CREDITS_PER_REQUEST, SANDBOX_CREDITS_PER_TENANT, checkEnvironment, markSandbox, resetSandbox, sandboxRoutes } from "./tenant-sandbox.ts";
 export { PERSONAL_AGENTS, firstMinute, personalAgentByName, type PersonalAgent, type PersonalWay } from "./personal-agents.ts";
 export { ORG_ROLES, OrgStore, PERMISSIONS, can, orgRoutes, verifyIdToken, type Org, type OrgMember, type OrgPermission, type OrgRole, type OidcConfig } from "./org-tenancy.ts";
+export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type GatewayHalt } from "./agent-guards.ts";

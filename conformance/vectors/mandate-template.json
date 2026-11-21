@@ -58,7 +58,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -116,7 +121,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -178,7 +188,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -234,7 +249,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -296,7 +316,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -353,7 +378,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -415,7 +445,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -472,7 +507,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -536,7 +576,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -594,7 +639,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -656,7 +706,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -714,7 +769,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -778,7 +838,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -836,7 +901,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -900,7 +970,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -957,7 +1032,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -1021,7 +1101,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1077,7 +1162,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -1141,7 +1231,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1200,7 +1295,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -1262,7 +1362,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1320,7 +1425,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -1382,7 +1492,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1440,7 +1555,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -1504,7 +1624,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1562,7 +1687,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -1624,7 +1754,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1682,7 +1817,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -1746,7 +1886,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1803,7 +1948,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -1865,7 +2015,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -1923,7 +2078,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -1987,7 +2147,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2045,7 +2210,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -2107,7 +2277,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2165,7 +2340,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -2227,7 +2407,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2285,7 +2470,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -2349,7 +2539,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2407,7 +2602,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -2469,7 +2669,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2527,7 +2732,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -2591,7 +2801,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2650,7 +2865,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -2712,7 +2932,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2768,7 +2993,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -2832,7 +3062,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -2890,7 +3125,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -2952,7 +3192,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3010,7 +3255,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3074,7 +3324,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3131,7 +3386,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -3193,7 +3453,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3250,7 +3515,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3314,7 +3584,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3369,7 +3644,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3433,7 +3713,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3491,7 +3776,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -3553,7 +3843,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3611,7 +3906,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3675,7 +3975,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3733,7 +4038,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3797,7 +4107,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3855,7 +4170,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -3919,7 +4239,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -3968,7 +4293,12 @@
         "institution_spend": [],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": []
@@ -4030,7 +4360,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -4089,9 +4424,15 @@
         "token_budget": {
           "per_run": 40000,
           "per_month": 800000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
-      "expected": []
+      "expected": [
+        "token_budget"
+      ]
     },
     {
       "name": "a_higher_token_run",
@@ -4150,7 +4491,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -4209,6 +4555,10 @@
         "token_budget": {
           "per_run": 60000,
           "per_month": 800000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -4272,7 +4622,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -4331,6 +4686,10 @@
         "token_budget": {
           "per_run": 40000,
           "per_month": 2000000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
@@ -4394,7 +4753,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -4452,10 +4816,930 @@
         ],
         "token_budget": {
           "per_run": 40000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "expected": [
         "token_budget"
+      ]
+    },
+    {
+      "name": "a_dropped_daily_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 40000,
+          "per_month": 800000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "expected": [
+        "token_budget"
+      ]
+    },
+    {
+      "name": "a_higher_daily_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 40000,
+          "per_month": 800000,
+          "per_day": 400000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "expected": [
+        "token_budget"
+      ]
+    },
+    {
+      "name": "lower_loop_limits",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 5,
+          "depth": 2
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "more_equivalent_calls",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 9,
+          "depth": 3
+        }
+      },
+      "expected": [
+        "loop_limits"
+      ]
+    },
+    {
+      "name": "deeper_recursion",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 4
+        }
+      },
+      "expected": [
+        "loop_limits"
+      ]
+    },
+    {
+      "name": "a_dropped_loop_limit",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "depth": 3
+        }
+      },
+      "expected": [
+        "loop_limits"
+      ]
+    },
+    {
+      "name": "no_loop_limits",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        }
+      },
+      "expected": [
+        "loop_limits"
       ]
     },
     {
@@ -4515,7 +5799,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "candidate": {
@@ -4570,7 +5859,11 @@
             },
             "period": "month"
           }
-        ]
+        ],
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
+        }
       },
       "expected": [
         "token_budget"
@@ -4635,7 +5928,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -4696,7 +5994,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
@@ -4759,7 +6062,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -4827,7 +6135,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
@@ -4890,7 +6203,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -4968,7 +6286,12 @@
         ],
         "token_budget": {
           "per_run": 50000,
-          "per_month": 1000000
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -5029,7 +6352,12 @@
           ],
           "token_budget": {
             "per_run": 50000,
-            "per_month": 1000000
+            "per_month": 1000000,
+            "per_day": 300000
+          },
+          "loop_limits": {
+            "equivalent_calls": 8,
+            "depth": 3
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }

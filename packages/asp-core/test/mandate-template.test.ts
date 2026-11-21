@@ -14,5 +14,5 @@ test("a wildcard scope covers what sits under it and not the bare prefix", () =>
 });
 test("the vectors cover each field a narrowing can widen", () => {
   const widened = new Set(vec.violations.flatMap((c: { expected: string[] }) => c.expected));
-  for (const f of ["scopes", "forbidden_means", "spend", "irreversible", "subcontract", "nodes", "learning", "self_modification", "checkpoints", "expires", "network", "institution_spend", "token_budget"]) assert.ok(widened.has(f), f);
+  for (const f of ["scopes", "forbidden_means", "spend", "irreversible", "subcontract", "nodes", "learning", "self_modification", "checkpoints", "expires", "network", "institution_spend", "token_budget", "loop_limits"]) assert.ok(widened.has(f), f);
 });
