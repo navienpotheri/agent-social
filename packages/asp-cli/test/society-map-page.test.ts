@@ -181,3 +181,90 @@ test("DK553: the page shows the city's growth stage, what it unlocks and the tou
   const quiet = await run(feed, () => ({ ok: false }));
   assert.equal(quiet.els.get("growth")?.textContent ?? "", "", "nothing is written when the view does not answer");
 });
+
+// DK1301: each agent is a figure that goes where its records go: to the district of its latest movement, smoothly, and again when a new record arrives; at rest it is at home. Tier 0 draws a circle of radius 3, so a figure is found by that radius.
+async function frames(feedFor: (u: string) => MapFeed, n = 30) {
+  const b = browser((url) => (url.startsWith("/society/map/feed") ? { ok: true, feed: structuredClone(feedFor(url)) } : { ok: false }));
+  vm.runInNewContext(SOCIETY_MAP_SCRIPT, b.sandbox);
+  await settle();
+  return { b, step: (k = n) => { let from = 0; for (let i = 0; i < k; i++) { from = b.calls.length; b.frames.shift()?.(1000 + i * 300); } return b.calls.slice(from); } };
+}
+const figure = (calls: { fn: string; args: unknown[] }[]) => { const a = calls.filter((c) => c.fn === "arc" && c.args[2] === 3).at(-1)!.args as number[]; return { x: a[0], y: a[1] }; };
+const block = (calls: { fn: string; args: unknown[] }[], placeIndex: number) => { const r = calls.filter((c) => c.fn === "rect")[placeIndex].args as number[]; return { x0: r[0], y0: r[1], x1: r[0] + r[2], y1: r[1] + r[3] }; };
+const inside = (p: { x: number; y: number }, r: { x0: number; y0: number; x1: number; y1: number }) => p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1;
+
+test("DK1301: a figure rests at home until its first record, goes to the district of its latest movement, moves again when a new record arrives, and a house agent is labelled", async () => {
+  const base = simulatedFeed(1, 1, 0);
+  const id = base.agents[0].id;
+  const agent = { ...base.agents[0], tier: 0, house: false };
+  const academy = PLACES.findIndex((p) => p.id === "academy"), market = PLACES.findIndex((p) => p.id === "market");
+  const at = (h: number) => `2026-11-12T0${h}:00:00Z`;
+  const quiet: MapFeed = { ...base, agents: [agent], flows: [] };
+  const q = await frames(() => quiet);
+  const homeCalls = q.step();
+  assert.ok(!inside(figure(homeCalls), block(homeCalls, academy)), "no movement: at home, not in a district");
+  const f1: MapFeed = { ...quiet, head: { seq: 2, hash: "h" }, flows: [{ seq: 1, at: at(1), kind: "lesson", from: id, to: "academy", label: "enrolled in a course" }] };
+  const a = await frames(() => f1);
+  const c1 = a.step();
+  assert.ok(inside(figure(c1), block(c1, academy)), "after enrolling it stands in the Academy");
+  // a new record arrives with the next poll: the figure leaves the Academy for the Market
+  const f2: MapFeed = { ...f1, head: { seq: 5, hash: "h2" }, flows: [{ seq: 4, at: at(2), kind: "purchase", from: id, to: "market", label: "bought a thing", amount: 5 }] };
+  const live = await frames((u) => (u.includes("after=2") ? f2 : f1));
+  const first = live.step();
+  assert.ok(inside(figure(first), block(first, academy)));
+  live.b.timers[0].cb(); await settle();
+  const early = live.step(1), late = live.step();
+  assert.notDeepEqual(figure(early), figure(first), "the figure moves when the record arrives");
+  assert.ok(inside(figure(late), block(late, market)), "and ends in the Market");
+  // a settlement between two agents happens at the Market, for both
+  const two = simulatedFeed(1, 2, 0);
+  const ag = two.agents.map((x) => ({ ...x, tier: 0, house: false }));
+  const s = await frames(() => ({ ...two, agents: ag, flows: [{ seq: 1, at: at(1), kind: "settlement", from: ag[0].id, to: ag[1].id, label: "a job settled", amount: 10 }] }));
+  const sc = s.step();
+  const arcs = sc.filter((c) => c.fn === "arc" && c.args[2] === 3).slice(-2).map((c) => ({ x: (c.args as number[])[0], y: (c.args as number[])[1] }));
+  for (const p of arcs) assert.ok(inside(p, block(sc, market)), "both parties are at the Market");
+  // a house agent is a square, labelled as one when picked
+  const house = simulatedFeed(1, 1, 0);
+  const h = await frames(() => ({ ...house, agents: [{ ...house.agents[0], house: true }], flows: [] }));
+  const hc = h.step(2);
+  assert.ok(hc.filter((c) => c.fn === "rect").length >= PLACES.length + 1, "a square for the house agent");
+});
+
+test("DK1301: the picked figure offers its journey as a link built from the name, and the page links the day's front page; a hostile name stays text and is encoded in the link", async () => {
+  const feed = simulatedFeed(2, 3, 0);
+  feed.agents = feed.agents.map((a) => ({ ...a, house: false }));
+  feed.agents[0] = { ...feed.agents[0], name: "<img src=x onerror=alert(1)>/../x" };
+  const b = browser((url) => (url.startsWith("/society/map/feed") ? { ok: true, feed: structuredClone(feed) } : { ok: false }));
+  const clicks: ((e: unknown) => void)[] = [];
+  b.doc.getElementById("map").addEventListener = ((n: string, cb: (e: unknown) => void) => { if (n === "click") clicks.push(cb); }) as never;
+  const links: { href?: string; textContent?: string }[] = [];
+  (b.doc as { createElement: () => unknown }).createElement = () => { const l: { href?: string; textContent?: string } = {}; links.push(l); return l as never; };
+  b.doc.getElementById("tip").appendChild = (() => {}) as never;
+  vm.runInNewContext(SOCIETY_MAP_SCRIPT, b.sandbox);
+  await settle();
+  b.frames.shift()?.(100);
+  // click at the first agent's home position: the nearest figure within reach is picked
+    const a0 = b.calls.filter((c) => c.fn === "arc").at(0)!.args as number[];
+  clicks[0]({ clientX: a0[0], clientY: a0[1] });
+  const l = links.at(-1)!;
+  assert.ok(l && /^\/agent\/[^/<>"' ]+\/journey$/.test(l.href ?? ""), l?.href);
+  assert.match(l.textContent ?? "", /Follow this agent/);
+  assert.match(societyMapPage(), /href="\/society\/daily"/);
+});
+
+test("DK1301: on a seeded real log the figure of an agent that did a job stands in the Market, its flows are in the feed, and no private field reaches the page", async () => {
+  const feed = await realFeed();
+  const market = PLACES.findIndex((p) => p.id === "market");
+  assert.ok(feed.flows.some((f) => f.kind === "settlement"), "the seeded log has a settlement");
+  const r = await frames(() => feed);
+  const calls = r.step();
+  const bot = feed.agents.find((a) => a.name.includes("page-bot"))!;
+  assert.ok(bot, "the agent is in the feed by name");
+  const radius = 3 + (bot.tier ?? 0) * 1.6;
+  const arc = calls.filter((c) => c.fn === "arc" && Math.abs((c.args[2] as number) - radius) < 1e-9).at(-1)!.args as number[];
+  assert.ok(inside({ x: arc[0], y: arc[1] }, block(calls, market)), "the working agent is in the Market");
+  const keys = new Set<string>();
+  const walkKeys = (v: unknown) => { if (Array.isArray(v)) v.forEach(walkKeys); else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { keys.add(k); walkKeys(x); } };
+  walkKeys(feed);
+  for (const secret of ["sponsor", "token", "private_key", "email", "keys", "public_key", "purpose", "temperament"]) assert.ok(!keys.has(secret), `${secret} is not a feed field`);
+});
