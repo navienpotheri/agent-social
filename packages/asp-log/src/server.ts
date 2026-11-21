@@ -121,6 +121,8 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** The service clock, for the per-month read and write counts (tests set it). */
+  now?: () => Date;
   /** Routes that need no sign-in because they check their own proof (an unsubscribe link, a provider's signed webhook); checked after the address limits and before the token. */
   publicRoutes?: (req: IncomingMessage, res: ServerResponse) => Promise<boolean>;
   /** A service policy checked before a write runs: a message refuses it (the court's rules, src/court-guard.ts). */
@@ -340,6 +342,17 @@ export function createLogServer(opts: ServerOptions): Server {
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
       }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/usage/statements") {
+        // The months closed for this tenant's identities, each recounted against the log (DK1474, S1416). An admin sees all.
+        const mine = tenant.role === "admin" ? undefined : opts.owners?.of(tenant.name) ?? [];
+        return json(res, 200, { ok: true, result: await opts.handle.log.usageStatementsOf(mine) });
+      }
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/usage" && opts.usage) {
+        // What the tenant used this month, as the service counted it (DK1474, S1416): reads and writes, and what it has stored. An admin sees every tenant.
+        const month = new URLSearchParams((req.url ?? "").split("?")[1] ?? "").get("month") ?? (opts.now ? opts.now() : new Date()).toISOString().slice(0, 7);
+        if (tenant.role === "admin") return json(res, 200, { ok: true, result: { month, tenants: opts.usage.allMonth(month) } });
+        return json(res, 200, { ok: true, result: { month, tenant: tenant.name, ...opts.usage.month(tenant.name, month), stored: opts.usage.get(tenant.name) } });
+      }
       if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/society/farming") {
         // The anti-farming report (S1410, DK1357): an operator's view only, because a published list of what the detector flags would be a guide for a farm.
         if (tenant.role !== "admin") return json(res, 403, { ok: false, error: { code: "FORBIDDEN", message: "the farming report needs an operator token" } });
@@ -378,6 +391,7 @@ export function createLogServer(opts: ServerOptions): Server {
         if (recordQuota > 0 && used.records + incoming.records > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${recordQuota} records (${used.records} written)` } });
         if (byteQuota > 0 && used.bytes + incoming.bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes of records (${used.bytes} written)` } });
       }
+      if (opts.usage && tenant.role !== "admin" && typeof method === "string" && (target === "log" ? LOG_METHODS.has(method) : TENANT_HANDLE_METHODS.has(method))) opts.usage.call(tenant.name, isWrite ? "write" : "read", (opts.now ? opts.now() : new Date()).toISOString());
       if (target === "log" && typeof method === "string" && LOG_METHODS.has(method)) fn = (opts.handle.log as any)[method]?.bind(opts.handle.log);
       else if (target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method)) fn = (opts.handle as any)[method]?.bind(opts.handle);
       else if (target === "handle" && typeof method === "string" && ADMIN_HANDLE_METHODS.has(method)) {

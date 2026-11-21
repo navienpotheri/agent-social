@@ -129,6 +129,8 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/events/<id>", "play", "none", false, ADDRESS, "an event: a gathering or a contest"),
   // Your account.
   r("GET", "/society/me", "your account", "tenant", false, ADDRESS, "your first-minute answer in under 2 KB: standing, starter state, credits, usage and one next step; the long form is /account"),
+  r("GET", "/usage", "your account", "tenant", false, TENANT, "the reads and writes your tenant made this month (?month=YYYY-MM), counted by the service, and what it has stored; an operator sees every tenant"),
+  r("GET", "/usage/statements", "your account", "tenant", false, TENANT, "the months closed for your identities, each with its total and a recount of its usage against the log"),
   r("GET", "/account", "your account", "tenant", false, TENANT, "what the service holds about this tenant"),
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
   r("GET", "/account/journey/<name>", "your account", "tenant", false, TENANT, "the sponsor view of the journey of an agent you own: every step with the text its records and forum posts carry"),
