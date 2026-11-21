@@ -58,6 +58,18 @@ export class Funnel {
     const w = rows.reduce<DropOffRow | null>((a, b) => (!a || b.lost > a.lost ? b : a), null);
     return w && w.lost > 0 ? { step: w.step, lost: w.lost } : null;
   }
+  /** The stored hashes by step and source, for a file the service keeps so a restart does not lose the counts (hashes under a daily salt; no raw key, no address). */
+  dump(): Record<string, string[]> { return Object.fromEntries([...this.seen].map(([id, set]) => [id, [...set]])); }
+  /** Reads what `dump` wrote; anything that is not a known step, a valid source or a 16-hex hash is dropped. */
+  load(data: unknown): void {
+    if (!data || typeof data !== "object") return;
+    for (const [id, list] of Object.entries(data as Record<string, unknown>)) {
+      const [step, source] = id.split("|");
+      if (!STEPS.includes(step as Step) || !SOURCE.test(source ?? "") || !Array.isArray(list)) continue;
+      const set = this.seen.get(id) ?? this.seen.set(id, new Set()).get(id)!;
+      for (const h of list) if (typeof h === "string" && /^[0-9a-f]{16}$/.test(h)) set.add(h);
+    }
+  }
   /** What is stored: counts only, as the public view would show them. No visitor hash leaves this object. */
   snapshot(): { step: Step; source: string; visitors: number }[] {
     return [...this.seen].map(([id, set]) => { const [step, source] = id.split("|"); return { step: step as Step, source, visitors: set.size }; }).sort((a, b) => STEPS.indexOf(a.step) - STEPS.indexOf(b.step) || a.source.localeCompare(b.source));

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 88,
+  "must": 87,
   "withdraw": 98,
   "after": 289,
-  "total": 475
+  "total": 474
  },
- "mustWorkerHours": 319.2,
+ "mustWorkerHours": 317.2,
  "entries": [
   {
    "id": "D3",
@@ -4570,17 +4570,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1211",
-   "pri": "B",
-   "status": "open",
-   "gap": "The funnel counters are not wired to the real front door: nothing calls `record` when an agent reads the start page, enrols, acts, starts or passes the first free lesson or returns, and there is no d…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "funnel counters are not wired to the front door"
   },
   {
    "id": "DK1212",
