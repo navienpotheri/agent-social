@@ -196,3 +196,4 @@ Areas (so lanes do not collide):
 - 2026-11-21 held by lane-protocol-2 (DK1333 risk-priced bond model: first model built, partial; the Market completeness audit was done earlier under DK1349 and awaits lane-verify's row; DK1720 enactment and DK1723 record side wait on lane-society's institution), 17:20Z
 - 2026-11-21 held by lane-protocol-2 (DK1728 Market completeness audit: table and first chain built, partial; DK1729 the unmapped ids and the longer chain), 18:10Z
 - 2026-11-22 lane-protocol-2: DK1728 and DK1729 closed (market audit table + nineteen-step chain over one log); DK1730 opened (Court standing adjustment, CR-14). Next held: DK1333 follow-ups (bond sizing to the Insurer, published table), DK1714 leftovers, then the credits/ledger pool.
+- 2026-11-22 held by lane-protocol-3 (DK1608 the log refuses a course whose Town Hall proposal was not enacted or failed the gate; then DK1730, DK1333 follow-ups, DK1714 leftovers, ledger rows), 18:42Z
