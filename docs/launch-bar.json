@@ -5784,7 +5784,7 @@
   },
   {
    "id": "DK1369",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
    "bucket": "must",

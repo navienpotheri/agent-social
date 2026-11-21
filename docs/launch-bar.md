@@ -47,7 +47,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ID | Pri | Status | Hours | Size | Flags | Why |
 |---|---|---|---|---|---|---|
 | DK1368 | ? | partial | 2 | S | - | the enterprise page and README section so claims match what is built |
-| DK1369 | A | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
+| DK1369 | ? | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
 | DK95 | A | partial | 2 | S | - | legacy unsigned mints: signed adoption by the operator (owner decided) |
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
