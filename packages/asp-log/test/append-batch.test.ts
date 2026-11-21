@@ -16,7 +16,7 @@ async function setup(tenants: Tenant[], o: { plans?: never; write?: number; reco
   const handle = { log, append: (r: never) => log.append(r), mint: async () => 0 } as never;
   const usage = new UsageStore();
   const limits = new Limits({ appendPerMinute: o.write ?? 0, tenantPerMinute: 0 } as never);
-  const server = createLogServer({ handle, tenants, noAuth: false, usage, limits, ...(o.records ? { defaultRecordQuota: o.records } : {}), ...((o as { plans?: object }).plans ? { plans: (o as { plans: object }).plans as never } : {}) });
+  const server = createLogServer({ handle, tenants, noAuth: false, usage, limits, ...(o.records ? { defaultRecordQuota: o.records } : {}), ...((o as { plans?: object }).plans ? { plans: (o as unknown as { plans: object }).plans as never } : {}) });
   const url = await listen(server);
   const batch = (tok: string, records: unknown[], extra: Record<string, unknown> = {}) => fetch(`${url}/append-batch`, { method: "POST", headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, body: JSON.stringify({ records, ...extra }) });
   return { log, usage, batch, url };
