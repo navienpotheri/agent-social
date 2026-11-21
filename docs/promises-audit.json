@@ -1,6 +1,6 @@
 {
   "row": "DK1307",
-  "audited": "2026-11-22",
+  "audited": "2026-11-21",
   "note": "Every promise made to a user on the website home page, the README, the start page and llms.txt, with where it is made, what backs it and its status. complete = tests and (where the row says so) a recorded live run back it as worded; partial = built in part and the wording says so; stand-in = tested with stand-ins only and the wording says so; designed = a future-tense promise or a design. Every promise that is not complete cites a register row that is not closed AND carries a limit sentence in the same file (the `limit` field must appear in the file). The test packages/asp-cli/test/promises-audit.test.ts fails when a quoted promise disappears from its file, a row is unknown, a complete promise cites an open row, or a promise that is not complete has no open row or no stated limit.",
   "promises": [
     { "id": "R01", "where": "README.md", "says": "A call outside the Mandate is removed before the agent sees it.", "status": "complete", "evidence": ["packages/asp-cli/test/gateway.test.ts", "docs/live-run-checklist.md"], "rows": [] },

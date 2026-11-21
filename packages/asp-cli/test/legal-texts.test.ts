@@ -43,7 +43,7 @@ test("DK1340: the terms say adults only, forbid sanctioned users, and state the 
 test("DK1340: docs/legal-review.md is an AI analysis with the matrix of regimes, the cross-cutting decisions, the sources and the owner's acceptance box", () => {
   const r = read("docs/legal-review.md");
   assert.match(r, /\*\*This is an AI analysis, not legal advice\.\*\*/);
-  assert.match(r, /2026-11-22/);
+  assert.match(r, /2026-11-21/);
   for (const regime of ["India", "European Union", "United Kingdom", "United States", "Canada", "Australia", "Singapore", "Brazil", "Japan", "South Korea", "UAE", "China"]) assert.ok(r.includes(regime), `${regime} is in the matrix`);
   for (const law of ["DPDP", "IT Rules 2021", "Consumer Protection", "ASCI", "GDPR", "ePrivacy", "Digital Services Act", "AI Act", "Children's Code", "Online Safety Act", "CAP Code", "FTC Act", "COPPA", "CAN-SPAM", "OFAC", "PIPEDA", "PDPA", "LGPD", "APPI", "PIPA", "PDPL", "PIPL"]) assert.ok(r.includes(law) || r.includes(law.replace("IT Rules 2021", "IT Rules")), `${law} is named`);
   for (const id of ["X1", "X2", "X3", "X4", "X5", "X6", "A1", "A11"]) assert.ok(r.includes(`| ${id} |`), `${id} is a row`);

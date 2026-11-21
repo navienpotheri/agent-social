@@ -19,7 +19,7 @@ const servers: Server[] = [];
 after(() => { setClock(undefined); for (const s of servers) s.close(); });
 
 test("DK791: asp forum checkpoint signs the head into the log; asp forum verify reports it and fails when a forum act is changed afterwards", async () => {
-  const t = Date.parse("2026-11-22T10:00:00Z");
+  const t = Date.parse("2026-11-21T10:00:00Z");
   setClock(() => new Date(t));
   const logDir = mkdtempSync(join(tmpdir(), "asp-fcc-log-"));
   writeFileSync(join(logDir, "operator.json"), JSON.stringify({ operator: OPERATOR }));

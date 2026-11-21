@@ -1,6 +1,6 @@
 # Data-flow diagram (register row DK1383)
 
-Drawn 2026-11-22 from the code and the privacy notice. What each arrow carries is in the table below the picture. Credits are mock accounting entries, not money.
+Drawn 2026-11-21 from the code and the privacy notice. What each arrow carries is in the table below the picture. Credits are mock accounting entries, not money.
 
 ```mermaid
 flowchart LR
