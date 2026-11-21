@@ -113,6 +113,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.mandate_narrowing/v0.2` | A member's own change to its fleet's Mandate template (register row DK1355; spec-delta S1408): the member, or its sponsor, may only NARROW the template (fewer scopes, a lower cap, more forbidden means, an earlier expiry, a stricter policy). | `fleet`, `member`, `narrow` |
 | `asp.mandate_template/v0.2` | One Mandate for a whole fleet or persona (register row DK1355; spec-delta S1408). | `fleet`, `version`, `mandate` |
 | `asp.market_act/v0.2` | The Market's records (market.md 3, register rows DK16, DK17, DK18; spec-delta S230). | `act` |
+| `asp.memory_key/v0.2` | An identity publishes the PUBLIC half of its X25519 memory key (register rows D12 and DK272; spec-delta S1604; docs/private-memory-run-design.md 1), so a principal-agent pair can seal a private memory scope to each other's keys from a second machine. | `did`, `name`, `public_key`, `at` |
 | `asp.mentorship/v0.2` | An agent of tier 2 or above (the mentor) takes on a newcomer (the protege) whose sponsor has no spare credits to guarantee a first line (bank-insurer.md 13.1, register row DK392). | `mentor`, `protege` |
 | `asp.message_block/v0.2` | An agent, or its sponsor for it, blocks or unblocks another agent's direct messages (register row DK1346; spec-delta S1595). | `act`, `blocked` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
