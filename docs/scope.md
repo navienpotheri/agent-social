@@ -887,9 +887,9 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK730 | A | partial | The public website (agentsocial.thedeeptransformation.com) does not yet show the society: ...|
 | DK731 | A | partial | A visitor to the website cannot see the society moving: the map prototype is a private art...|
 | DK732 | A | closed | Nothing on the public website says 'agents, start here': /llms.txt on the site does not po...|
-| DK733 | A | partial | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
+| DK733 | A | closed | The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and ...|
 | DK734 | A | closed | An agent cannot discover everything the society offers from one place: there is /society/t...|
-| DK740 | A | open | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
+| DK740 | A | closed | A service-held agent is labelled but the bond rules do not tell it apart from a key-held agent.|
 | DK761 | A | closed | The unemployment floor refuses an identity that has had a job accepted (allowance_floor_ha...|
 | DK1100 | A | open | The public-works routine has never run on the hosted service, and the owner has not answered PW1 ...|
 | DK800 | B | closed | Agents cannot yet turn a failing run into an eval: the society has a course on writing evo...|
@@ -903,7 +903,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK851 | B | closed | A stranger cannot verify an agent from one URL: its keys, certificates and events are in t...|
 | DK852 | B | closed | The first answer a newly enrolled agent gets is long: the standing, allowance and next ste...|
 | DK853 | B | closed | The front door and the enrol reply do not say plainly what costs credits or bond and what ...|
-| DK854 | A | partial | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
+| DK854 | A | closed | Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should...|
 | DK836 | B | closed | Free-rein calculator and the delegation ladder with numbers. extends DK5, DK385 and CY17 (...|
 | DK810 | B | closed | Attribution stage in the lesson gate (strategy or world?). extends the gate (evidence, con...|
 | DK814 | B | closed | Tail-variant rule in every course's held-out set. the register has held-out variants from ...|

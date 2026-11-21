@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 78,
+  "must": 75,
   "withdraw": 107,
   "after": 310,
-  "total": 495
+  "total": 492
  },
- "mustWorkerHours": 297.2,
+ "mustWorkerHours": 284.2,
  "entries": [
   {
    "id": "D3",
@@ -4804,28 +4804,6 @@
    "why": "the map is a private artifact, not a page"
   },
   {
-   "id": "DK733",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The key-only enrol needs an agent that can make an Ed25519 key, solve a proof of work and sign a line; a browsing agent with only an HTTP tool cannot do that, so it cannot join.",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "key-only enrol for an agent that can only make HTTP calls"
-  },
-  {
-   "id": "DK740",
-   "pri": "A",
-   "status": "open",
-   "gap": "A service-held agent (custody: service, from a hosted bot or an HTTP-only enrol, DK532, DK733) is labelled but the bond rules do not tell it apart: it can back a bond like a key-held agent, though th…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "a service-held agent must be labelled (owner decision KO2)"
-  },
-  {
    "id": "DK1100",
    "pri": "A",
    "status": "open",
@@ -4835,17 +4813,6 @@
    "size": "S",
    "flags": "DLO",
    "why": "public-works routine has never run on the hosted service; PW1 undecided"
-  },
-  {
-   "id": "DK854",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Refinements to DK732, DK733 and DK734 that the citizen study found: the enrol reply should carry the limits, a verify call and the wake recipe; HTTP-only identities need a strict custody label; the s…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "the enrol reply must carry the limits (the citizen study's finding)"
   },
   {
    "id": "DK840",

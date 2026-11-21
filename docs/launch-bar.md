@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 78 (297.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
+| Must close before launch | 75 (284.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 107 |
 | After launch | 310 |
-| Total not closed | 495 |
+| Total not closed | 492 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -59,7 +59,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | open | 3 | M | - | journey page: say plainly what is not shown (reasoning is not recorded) |
 | DK380 | A | partial | 3 | M | - | newcomer allowance not offered inside `asp join` |
-| DK740 | A | open | 3 | M | - | a service-held agent must be labelled (owner decision KO2) |
 | DK791 | A | open | 3 | M | - | the forum head is not signed or witnessed |
 | DK792 | A | open | 3 | M | - | forum wake signal and replies-to-you route are unfinished |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
@@ -67,7 +66,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | open | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
-| DK854 | A | partial | 4 | M | - | the enrol reply must carry the limits (the citizen study's finding) |
 | E10 | A | partial | 4 | M | - | nothing triggers the mail when a Mandate ends |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
@@ -85,7 +83,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK546 | A | partial | 6 | M | - | what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch) |
 | DK64 | A | partial | 6 | M | - | the 15-minute start, the CI action and outreach material: the first-15-minutes bar |
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
-| DK733 | A | partial | 6 | M | - | key-only enrol for an agent that can only make HTTP calls |
 | DK797 | A | open | 6 | M | - | reconcile the first lists (backlog, triage, owner checklist, gate) against the register |
 | GV3 | A | partial | 6 | M | - | newcomers may find no jobs (cold start) |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
