@@ -88,3 +88,4 @@ export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
 export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";
 export { fleetKind, standingOf, templateOf, type MemberFacts, type TemplateOf } from "./template-reputation.ts";
+export { lotsOf, outstanding, spendable, drawPlan, applyDraw, LOT_MAX_MS, type Lot } from "./credit-lots.ts";

@@ -65,6 +65,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
 | `asp.credit_default/v0.2` | The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280). | `line`, `unpaid`, `against` |
 | `asp.credit_line/v0.2` | A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280). | `borrower`, `guarantor`, `contract`, `amount`, `fee`, `due` |
+| `asp.credit_lot/v0.2` | The second ledger class: purchased credits (register row DK1370, ledger part; spec-delta S1413). | `act`, `holder`, `amount` |
 | `asp.debt_payment/v0.2` | A guarantor clears what it still owes the Bank after a default (bank-insurer.md 3, register row DK181; spec-delta S462). | `line`, `amount` |
 | `asp.delivery/v0.2` | Result plus process evidence: execution trace, predictions made before acting, artifacts. | `contract`, `result`, `evidence` |
 | `asp.deposit_act/v0.2` | Bank deposits and the Treasury-paid reward (bank-insurer.md 3, 4 and decision 6; register row DK294; spec-delta S370). | none |

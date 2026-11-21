@@ -34,6 +34,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { LOT_MAX_MS, applyDraw, drawPlan, lotsOf, outstanding, spendable, type Lot } from "./credit-lots.ts";
 import { fleetKind, standingOf, templateOf, type MemberFacts } from "./template-reputation.ts";
 import { RP_MAX_PROMOTION_JOBS, RP_RUNS_PER_JOB, promotionJobsOk, relatedEquivalentJobs, starterRestEarned } from "./related-party.ts";
 import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
@@ -397,6 +398,7 @@ export class EventLog {
     if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
     if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
     if (type === "common_control") await this.projectCommonControl(tx, verified);
+    if (type === "credit_lot") await this.projectCreditLot(tx, verified);
     if (type === "fleet_node") await projectFleetNode(tx, verified);
     if (type === "fleet_move") await projectFleetMove(tx, verified);
     if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
@@ -1029,12 +1031,17 @@ export class EventLog {
   }
 
   /** Debits an account, throwing insufficient_balance rather than letting it go negative. */
-  private async debit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
+  private async debit(tx: LogTx, rawDid: string, amount: number, mayUsePurchased = false): Promise<void> {
     if (amount === 0) return;
     const did = canonicalAccount(rawDid);
     if (did === BURN_DID) throw rule("burn_account_locked", "burned credits do not return: the Burn account is never debited");
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     if (balance < amount) throw rule("insufficient_balance", `${did} has ${balance} credits, needs ${amount}`);
+    // Purchased credits (S1413, DK1370) are a second class: they stay in their lots and buy services; every other spend draws only what is not purchased.
+    if (!mayUsePurchased) {
+      const lots = outstanding(await lotsOf(tx, did));
+      if (lots > 0 && balance - amount < lots) throw rule("purchased_credits_restricted", `${did} holds ${lots} purchased credits, which buy the platform's services and never pay for a job or a third party: ${balance - lots} are free, ${amount} asked`);
+    }
     // A mentor's collateral is held while its protege's line is open (DK1201): the credits stay, and cannot be spent below the hold.
     const held = Number((await tx.getMarker(`hold:${did}`)) ?? 0);
     if (held > 0 && balance - amount < held) throw rule("collateral_held", `${did} holds ${held} credits as a mentor's collateral while its protege's line is open: ${balance - held} are free, ${amount} asked`);
@@ -2034,7 +2041,7 @@ export class EventLog {
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
     await chargeNodeCredits(tx, buyer, b.amount.value, r.issued_at);
-    await this.debit(tx, buyer, b.amount.value);
+    await this.spendOnServices(tx, buyer, b.amount.value, r.issued_at);
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
@@ -2113,8 +2120,117 @@ export class EventLog {
     if (from === b.to) throw rule("transfer_not_allowed", "a transfer to oneself moves nothing");
     const [pf, pt] = [await tx.getPassport(from), await tx.getPassport(b.to)];
     if (!(pt?.sponsor === from || pf?.sponsor === b.to)) throw rule("transfer_not_allowed", `${from} and ${b.to} are not an agent and its sponsor: credits between unrelated parties move only against a job`);
-    await this.debit(tx, from, b.amount.value);
+    // A sponsor funding its agent sends prepaid credits first, so the agent can use them on services; an agent returning credits sends what is not purchased first (S1413).
+    const toAgent = pt?.sponsor === from;
+    const lots = await lotsOf(tx, from);
+    const balance = (await tx.getAccount(canonicalAccount(from)))?.balance ?? 0;
+    if (balance < b.amount.value) throw rule("insufficient_balance", `${from} has ${balance} credits, needs ${b.amount.value}`);
+    const free = balance - outstanding(lots);
+    const live = spendable(lots, r.issued_at);
+    const fromLots = toAgent ? Math.min(b.amount.value, live) : Math.max(0, b.amount.value - free);
+    if (b.amount.value - fromLots > Math.max(0, free)) throw rule("purchased_credits_restricted", `${from} has ${Math.max(0, free)} credits that are not purchased and ${live} unexpired purchased ones: ${b.amount.value} cannot be moved without touching expired purchased credits`);
+    if (fromLots > live) throw rule("purchased_credits_restricted", `${from} would have to move ${fromLots} purchased credits and only ${live} are unexpired`);
+    if (fromLots > 0) await this.moveLots(tx, from, b.to, fromLots, r.issued_at);
+    await this.debit(tx, from, b.amount.value, true);
     await this.credit(tx, b.to, b.amount.value);
+  }
+
+  /** Spends credits at the institutions (S1413): unexpired purchased lots first, earliest expiry first, then credits that are not purchased. Refused when the two together do not cover it. */
+  private async spendOnServices(tx: LogTx, rawDid: string, amount: number, at: string): Promise<void> {
+    const did = canonicalAccount(rawDid);
+    const lots = await lotsOf(tx, did);
+    if (!lots.length) return this.debit(tx, did, amount);
+    const balance = (await tx.getAccount(did))?.balance ?? 0;
+    const free = balance - outstanding(lots);
+    const plan = drawPlan(lots, amount, at, Math.max(0, free));
+    if (!plan.ok) throw rule("insufficient_balance", `${did} has ${spendable(lots, at)} unexpired purchased credits and ${Math.max(0, free)} others, needs ${amount}`);
+    await tx.putMarker(`plots:${did}`, JSON.stringify(applyDraw(lots, plan.draws)));
+    if (plan.fromLots > 0) await this.bumpClass(tx, "pconsumed", plan.fromLots);
+    await this.debit(tx, did, amount, true);
+  }
+
+  private async bumpClass(tx: LogTx, key: "psold" | "pconsumed" | "pexpired" | "prefunded", by: number): Promise<void> { await tx.putMarker(`pclass:${key}`, String(Number((await tx.getMarker(`pclass:${key}`)) ?? 0) + by)); }
+  private async saveLots(tx: LogTx, did: string, lots: Lot[]): Promise<void> {
+    await tx.putMarker(`plots:${canonicalAccount(did)}`, JSON.stringify(lots.filter((l) => l.left > 0)));
+    const holders = ((await tx.getMarker("plot_holders")) ?? "").split(",").filter(Boolean);
+    if (!holders.includes(canonicalAccount(did))) await tx.putMarker("plot_holders", [...holders, canonicalAccount(did)].join(","));
+  }
+  /** Moves `amount` purchased credits from one account's lots to another's (the lots keep their id, expiry and refund window). */
+  private async moveLots(tx: LogTx, from: string, to: string, amount: number, at: string): Promise<void> {
+    const src = await lotsOf(tx, from);
+    const plan = drawPlan(src, amount, at, 0);
+    await this.saveLots(tx, from, applyDraw(src, plan.draws));
+    const dst = await lotsOf(tx, to);
+    for (const d of plan.draws) { const lot = src.find((l) => l.id === d.id)!; const have = dst.find((l) => l.id === d.id); if (have) have.left += d.take; else dst.push({ ...lot, left: d.take }); }
+    await this.saveLots(tx, to, dst);
+  }
+
+  /** A purchased-credit lot (S1413, DK1370 ledger part): see the schema. */
+  private async projectCreditLot(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "grant" | "expire" | "refund"; holder: string; amount: { value: number }; expires?: string; refund_until?: string; reference?: string; lot?: string };
+    if (r.prev !== null) throw rule("credit_lot_not_chained", "a credit lot record starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("credit_lot_unauthorised", `only the operator records a sale, an expiry or a refund of purchased credits`);
+    if (b.amount.value <= 0) throw rule("amount_not_positive", "a lot act is for at least 1 credit");
+    const holder = canonicalAccount(b.holder);
+    if (!(await tx.getPassport(holder)) || isReservedAccount(holder)) throw rule("credit_lot_holder", `${b.holder} is not an identity with a passport: purchased credits belong to a person, an organisation or an agent`);
+    if (b.act === "grant") {
+      if (!this.cosignedBy(r, this.owner)) throw rule("credit_lot_needs_owner", "a sale of purchased credits needs the owner's co-signature: the owner's go for each sale");
+      const at = Date.parse(r.issued_at), exp = Date.parse(b.expires!);
+      if (!(exp > at)) throw rule("credit_lot_expiry", "a lot expires after it is sold");
+      if (exp - at > LOT_MAX_MS) throw rule("credit_lot_expiry_too_long", "a lot expires within three years of its sale");
+      if (b.refund_until && !(Date.parse(b.refund_until) > at && Date.parse(b.refund_until) <= exp)) throw rule("credit_lot_refund_window", "the refund window ends after the sale and not after the expiry");
+      if (await tx.getMarker(`plot_ref:${b.reference}`)) throw rule("credit_lot_reference_known", "one lot per payment reference: this reference was recorded already");
+      await tx.putMarker(`plot_ref:${b.reference}`, r.id);
+      const lots = await lotsOf(tx, holder);
+      lots.push({ id: r.id, left: b.amount.value, expires: b.expires!, ...(b.refund_until ? { refundUntil: b.refund_until } : {}) });
+      await this.saveLots(tx, holder, lots);
+      await this.credit(tx, holder, b.amount.value);
+      const row = await tx.getMint(holder);
+      await tx.putMint({ did: holder, totalMinted: (row?.totalMinted ?? 0) + b.amount.value, signedMinted: (row?.signedMinted ?? 0) + b.amount.value, ...(row?.adoptedMinted ? { adoptedMinted: row.adoptedMinted } : {}) });
+      await this.bumpClass(tx, "psold", b.amount.value);
+      return;
+    }
+    const grant = await tx.getRecord(b.lot!);
+    if (!grant || grant.record.type !== "asp.credit_lot/v0.2" || (grant.record.body as { act: string }).act !== "grant") throw rule("credit_lot_unknown", `${b.lot} is not a sale in this log`);
+    const gb = grant.record.body as { expires: string; refund_until?: string };
+    const lots = await lotsOf(tx, holder);
+    const lot = lots.find((l) => l.id === b.lot);
+    if (!lot || lot.left <= 0) throw rule("credit_lot_empty", `no purchased credits are left of ${b.lot} on ${holder}`);
+    if (b.amount.value > lot.left) throw rule("credit_lot_over", `${lot.left} credits are left of the lot, not ${b.amount.value}`);
+    if (b.act === "expire") {
+      if (Date.parse(gb.expires) > Date.parse(r.issued_at)) throw rule("credit_lot_not_expired", `the lot expires at ${gb.expires}`);
+      if (b.amount.value !== lot.left) throw rule("credit_lot_expire_all", `an expiry takes the whole of what is left (${lot.left})`);
+    } else {
+      if (!this.cosignedBy(r, this.owner)) throw rule("credit_lot_needs_owner", "a refund of purchased credits needs the owner's co-signature");
+      if (!gb.refund_until || Date.parse(gb.refund_until) < Date.parse(r.issued_at)) throw rule("credit_lot_refund_closed", "the refund window of this lot is closed");
+    }
+    lot.left -= b.amount.value;
+    await this.saveLots(tx, holder, lots);
+    await this.debit(tx, holder, b.amount.value, true);
+    await this.credit(tx, BURN_DID, b.amount.value); // the credits leave circulation into the Burn account, which the supply audit counts
+    await this.bumpClass(tx, b.act === "expire" ? "pexpired" : "prefunded", b.amount.value);
+  }
+
+  /** The two ledger classes (S1413, DK1370): what was sold, consumed at the institutions, expired and refunded, what is outstanding, and whether every account's purchased credits fit inside its balance and the classes add up. Read-only. */
+  async creditClassAudit(): Promise<{ sold: number; consumed: number; expired: number; refunded: number; outstanding: number; notSold: number; holders: number; expiredNotBurned: number; verdict: "balanced" | "mismatch"; problems: string[] }> {
+    const totalBalances = (await this.store.ledgerRows()).accounts.reduce((n, a) => n + a.balance, 0);
+    return this.store.transaction(async (tx) => {
+      const get = async (k: string) => Number((await tx.getMarker(`pclass:${k}`)) ?? 0);
+      const [sold, consumed, expired, refunded] = [await get("psold"), await get("pconsumed"), await get("pexpired"), await get("prefunded")];
+      const holders = ((await tx.getMarker("plot_holders")) ?? "").split(",").filter(Boolean);
+      let out = 0, late = 0;
+      const problems: string[] = [];
+      const now = this.now().toISOString();
+      for (const h of holders) {
+        const lots = await lotsOf(tx, h);
+        const o = outstanding(lots);
+        out += o;
+        late += lots.filter((l) => Date.parse(l.expires) <= Date.parse(now)).reduce((n, l) => n + l.left, 0);
+        if (o > ((await tx.getAccount(h))?.balance ?? 0)) problems.push(`${h} holds ${o} purchased credits and a balance of ${(await tx.getAccount(h))?.balance ?? 0}`);
+      }
+      if (out !== sold - consumed - expired - refunded) problems.push(`purchased credits outstanding ${out} differ from sold ${sold} - consumed ${consumed} - expired ${expired} - refunded ${refunded}`);
+      return { sold, consumed, expired, refunded, outstanding: out, notSold: totalBalances - out, holders: holders.filter(Boolean).length, expiredNotBurned: late, verdict: problems.length ? "mismatch" as const : "balanced" as const, problems };
+    });
   }
 
   /** The Treasury balance, and the part of it already promised to open budgets. */

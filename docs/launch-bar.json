@@ -6046,7 +6046,7 @@
   {
    "id": "DK1370",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, th…",
    "bucket": "must",
    "hours": 20,

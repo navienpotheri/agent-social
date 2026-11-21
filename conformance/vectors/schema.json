@@ -13584,6 +13584,154 @@
       "valid": false
     },
     {
+      "name": "valid_credit_lot_grant",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "grant",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "expires": "2027-11-21T00:00:00Z",
+        "reference": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_credit_lot_grant_refund_window",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "grant",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "expires": "2027-11-21T00:00:00Z",
+        "reference": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "refund_until": "2026-12-21T00:00:00Z",
+        "reason": "annual plan, first block"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_credit_lot_expire",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "expire",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "lot": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_credit_lot_refund",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "refund",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 400,
+          "unit": "credit"
+        },
+        "lot": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "reason": "cancelled inside the window"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_lot_grant_no_expiry",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "grant",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reference": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lot_grant_no_reference",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "grant",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "expires": "2027-11-21T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lot_grant_names_a_lot",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "grant",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "expires": "2027-11-21T00:00:00Z",
+        "reference": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "lot": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lot_expire_no_lot",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "expire",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lot_expire_with_expiry",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "expire",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "lot": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "expires": "2027-11-21T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lot_unknown_act",
+      "schema": "credit_lot",
+      "instance": {
+        "act": "resell",
+        "holder": "did:web:example.com:orgs:acme",
+        "amount": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "expires": "2027-11-21T00:00:00Z",
+        "reference": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_fleet_move",
       "schema": "fleet_move",
       "instance": {

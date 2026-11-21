@@ -146,7 +146,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
-| DK1370 | A | open | 20 | L | D | selling prepaid platform credits: the design, two ledger classes, billing and the claims rewrite; the first sale waits for the owner's go and the legal review |
+| DK1370 | A | partial | 20 | L | D | selling prepaid platform credits: the design, two ledger classes, billing and the claims rewrite; the first sale waits for the owner's go and the legal review |
 
 ### Bucket 2: withdraw the claim until done
 
