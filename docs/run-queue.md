@@ -183,3 +183,4 @@ Areas (so lanes do not collide):
 - lane-cli-2: the `asp` command line, the gateway and its enforcement, accounts and tenancy, runtime adapters, enterprise onboarding, scanning (secrets, personal data), containment.
 - launch-bar-2: the website, README, llms.txt and docs claims, mail, the forum front end, the enterprise and legal documents, pricing, procurement, sandbox pages.
 - lane-verify: audits, integration, the gaps register itself, tests that are thin, the Python SDK parity, evals and the long-horizon driver.
+- 2026-11-21 held by lane-society (AG3 reasons for adverse acts: refusal, strike, slash, Clinic, quarantine in words for the agent), 15:10Z
