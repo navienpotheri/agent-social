@@ -201,3 +201,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (DK1608 the log refuses a course whose Town Hall proposal was not enacted or failed the gate; then DK1730, DK1333 follow-ups, DK1714 leftovers, ledger rows), 18:42Z
 - 2026-11-22 held by lane-protocol-3 (DK172 / CR-25 treasury_return: an institution returns its surplus to the Treasury; then DK491 Insurer drivers, BI-14, BI-18), 19:07Z
 - 2026-11-22 lane-protocol-3 done: DK1333 split model, DK1714 service part, GV2/GV4 (G3/G4/G7), DK1730 closed, CR-25/DK172 return, BI-18 stress, DK491 drivers; S1565-S1567, UC-1873-1879. Next BI-14.
+- 2026-11-22 held by lane-protocol-3 (JO3 data_handling on the contract record, then notice_ack, then DK402 and DK1714 wiring), 19:39Z

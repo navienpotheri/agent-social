@@ -15,6 +15,7 @@ import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
+import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
@@ -728,6 +729,37 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- the job-data term (spec-deltas S1569, register row JO3): schema cases and the shared reading and validation ----------
+sv("valid_contract_data_handling_defaults", "contract", contractBody({ data_handling: {} }), true);
+sv("valid_contract_data_handling_explicit", "contract", contractBody({ data_handling: { term: "asp.job-data/v1", commons_sharing: false, retention: "delete_at_settlement", personal_data: "none" } }), true);
+sv("valid_contract_data_handling_commons", "contract", contractBody({ data_handling: { commons_sharing: true } }), true);
+sv("valid_contract_data_handling_retain", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 30 } }), true);
+sv("valid_contract_data_handling_personal", "contract", contractBody({ data_handling: { personal_data: "included" } }), true);
+sv("contract_data_handling_bad_retention", "contract", contractBody({ data_handling: { retention: "keep_forever" } }), false);
+sv("contract_data_handling_bad_personal_data", "contract", contractBody({ data_handling: { personal_data: "maybe" } }), false);
+sv("contract_data_handling_commons_not_boolean", "contract", contractBody({ data_handling: { commons_sharing: "yes" } }), false);
+sv("contract_data_handling_extra_field", "contract", contractBody({ data_handling: { share_with: "anyone" } }), false);
+sv("contract_data_handling_days_not_integer", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 1.5 } }), false);
+{
+  const dh = (d: DataHandling | undefined, rule: string | null) => ({ input: d ?? null, problem: rule });
+  const handling = [
+    { name: "absent", ...dh(undefined, null) },
+    { name: "empty object", ...dh({}, null) },
+    { name: "the default term written out", ...dh({ term: "asp.job-data/v1" }, null) },
+    { name: "an unknown term", ...dh({ term: "asp.job-data/v2" }, "data_handling_unknown_term") },
+    { name: "an empty term", ...dh({ term: "" }, "data_handling_unknown_term") },
+    { name: "retain_days with the default retention", ...dh({ retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retain_days with delete_at_settlement", ...dh({ retention: "delete_at_settlement", retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retention retain_days without retain_days", ...dh({ retention: "retain_days" }, "data_handling_retention_invalid") },
+    { name: "retain_days of 0", ...dh({ retention: "retain_days", retain_days: 0 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 366", ...dh({ retention: "retain_days", retain_days: 366 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1.5", ...dh({ retention: "retain_days", retain_days: 1.5 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1", ...dh({ retention: "retain_days", retain_days: 1 }, null) },
+    { name: "retain_days of 365", ...dh({ retention: "retain_days", retain_days: 365 }, null) },
+    { name: "commons sharing and personal data included", ...dh({ commons_sharing: true, personal_data: "included" }, null) },
+  ].map((c) => ({ ...c, reading: readDataHandling(c.input) }));
+  (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors = { term: JOB_DATA_TERM, maxRetainDays: MAX_RETAIN_DAYS, cases: handling };
+}
 sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); delete d.evidence.trace; return d; })(), false);
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
@@ -1726,5 +1758,6 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

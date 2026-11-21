@@ -2396,8 +2396,8 @@
   },
   {
    "id": "JO3",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "A job's data is not protected: what a poster shares with a performer has no handling rule, no deletion at the end, no confidentiality and no secrets rule",
    "bucket": "withdraw",
    "hours": 0,

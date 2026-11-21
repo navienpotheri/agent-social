@@ -3605,6 +3605,289 @@
       "valid": true
     },
     {
+      "name": "valid_contract_data_handling_defaults",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {}
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_data_handling_explicit",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "term": "asp.job-data/v1",
+          "commons_sharing": false,
+          "retention": "delete_at_settlement",
+          "personal_data": "none"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_data_handling_commons",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "commons_sharing": true
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_data_handling_retain",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "retention": "retain_days",
+          "retain_days": 30
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_data_handling_personal",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "personal_data": "included"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_data_handling_bad_retention",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "retention": "keep_forever"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_data_handling_bad_personal_data",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "personal_data": "maybe"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_data_handling_commons_not_boolean",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "commons_sharing": "yes"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_data_handling_extra_field",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "share_with": "anyone"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_data_handling_days_not_integer",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "data_handling": {
+          "retention": "retain_days",
+          "retain_days": 1.5
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "delivery_without_trace",
       "schema": "delivery",
       "instance": {

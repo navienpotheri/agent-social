@@ -35,6 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { dataHandlingProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -364,7 +365,7 @@ export class EventLog {
     const kind = chain?.kind ?? type!;
 
     let snapshot: JobSnapshot | null = null;
-    if (type === "contract") this.checkSelfHire(verified);
+    if (type === "contract") { this.checkSelfHire(verified); const dh = dataHandlingProblem((verified.body as { data_handling?: DataHandling }).data_handling); if (dh) throw rule(dh.rule, dh.message); }
     if (kind === "contract") {
       const job = chain?.snapshot ? Job.fromSnapshot(chain.snapshot, { schemas: this.schemas }) : new Job({ schemas: this.schemas });
       job.step(verified);

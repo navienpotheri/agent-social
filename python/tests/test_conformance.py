@@ -150,3 +150,20 @@ def test_mandate_violations(case):
 @pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["derive"]])
 def test_derive_mandate(case):
     assert derive_mandate(case["template"], case["contract"], case["narrowing"]) == case["expected"]
+
+
+# ---- the job-data term of a contract (docs/spec-deltas.md S1569, register row JO3) ----
+from asp_core.data_handling import JOB_DATA_TERM, MAX_RETAIN_DAYS, data_handling_problem, read_data_handling  # noqa: E402
+
+DH = load("vectors/data-handling.json")
+
+
+def test_data_handling_constants():
+    assert DH["term"] == JOB_DATA_TERM
+    assert DH["maxRetainDays"] == MAX_RETAIN_DAYS
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in DH["cases"]])
+def test_data_handling(case):
+    assert data_handling_problem(case["input"]) == case["problem"]
+    assert read_data_handling(case["input"]) == case["reading"]

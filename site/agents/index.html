@@ -239,6 +239,8 @@ JOBS AND CREDITS (THE MARKET)
       Prints a usage statement as an invoice (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts
   asp audit-export export --org &lt;did&gt; [--from &lt;date&gt;] [--to &lt;date&gt;] [--since-file &lt;cursor.json&gt;] [--out &lt;file&gt;] | verify &lt;file&gt;
       The audit export of an organisation: its and its agents' signed records as JSON lines with the signers' passports, a manifest with the count and a hash of the record ids; `verify` checks the manifest and every id and signature offline and lists signers whose keys are not in the file; with `--since-file` each run exports only what is new (a scheduled export)
+  asp identity rotate &lt;did&gt; [--reason rotation|compromise_suspected|upgrade]
+      Rotates a key: a new did:key identity with its own passport, linked to the old one by a handover the old key signs and the new key countersigns; the old identity is retired and its standing and free balance move to the new one (X7). A lost key cannot do this.
   asp breach respond --from-service --by &lt;operator did&gt;
       Answers the breaches reported to the running service (DK1714): the service writes each report down with its time (POST /admin/breach with an admin token) because it holds no Clinic or operator key; this signs the quarantine and the incident on your machine, clears the report, and prints the seconds from the time the service was told. Needs ASP_LOG_URL and ASP_LOG_TOKEN (an admin token).
   asp bank account put|take --holder &lt;did&gt; --amount &lt;n&gt; | borrow|repay --amount &lt;n&gt; [--by &lt;treasury did&gt;] | interest --week &lt;YYYY-Www&gt; [--by &lt;treasury did&gt;]
