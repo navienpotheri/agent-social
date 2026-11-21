@@ -9,7 +9,7 @@ import type { ToolCall } from "./judge.ts";
 /** Returns a refusal reason, or undefined to allow. May take a long time (an approval hold). */
 export type Decide = (call: ToolCall) => Promise<string | undefined>;
 /** Token counts, and (for the run log) the reply text collected from a stream. */
-export interface Counters { input: number; output: number; text?: string; /** What the provider says ran: the resolved model and its backend fingerprint, read from the reply (D4). */ model?: string; fingerprint?: string }
+export interface Counters { input: number; output: number; text?: string; /** Thinking text of a stream, kept for the cognition tap (DK79). */ thinking?: string; /** What the provider says ran: the resolved model and its backend fingerprint, read from the reply (D4). */ model?: string; fingerprint?: string }
 
 export interface SseEvent { event?: string; data: string }
 
@@ -167,6 +167,7 @@ export async function relayAnthropicStream(body: ReadableStream<Uint8Array>, res
         break;
       case "content_block_delta": {
         if (d.delta?.type === "text_delta" && typeof d.delta.text === "string" && count.text !== undefined) count.text += d.delta.text;
+        if (d.delta?.type === "thinking_delta" && typeof d.delta.thinking === "string") count.thinking = (count.thinking ?? "") + d.delta.thinking;
         const h = held.get(d.index);
         if (h) { if (d.delta?.type === "input_json_delta") h.json += d.delta.partial_json ?? ""; break; }
         write(res, ev("content_block_delta", { ...d, index: outIndex.get(d.index) ?? d.index }));
