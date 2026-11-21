@@ -3,8 +3,8 @@
  "counts": {
   "must": 67,
   "withdraw": 113,
-  "after": 327,
-  "total": 507
+  "after": 325,
+  "total": 505
  },
  "mustWorkerHours": 328.2,
  "entries": [
@@ -2733,18 +2733,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK386",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Bank has no job-class check (a line is not refused for a job below class routine), no line in the agent's standing note and no monthly report.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "bank job-class check",
-   "says": "no claim"
-  },
-  {
    "id": "DK182",
    "pri": "A",
    "status": "open",
@@ -2756,18 +2744,6 @@
    "why": "",
    "claim": "A newcomer takes a Bank line on the hosted service",
    "where": "deck, site"
-  },
-  {
-   "id": "DK183",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Insurer's terms have loose ends: a claim the reserve could not pay in full is `reduced` but the unpaid part is not recorded as owed and paid later as the reserve recovers; a decision is not held…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "insurer loose ends",
-   "says": "no insurance claim"
   },
   {
    "id": "DK185",
