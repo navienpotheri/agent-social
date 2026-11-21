@@ -364,6 +364,8 @@ import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
+import { MessageUsage, messageCmd } from "./message-cmd.ts";
+import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
 import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
@@ -768,6 +770,7 @@ const OPTIONS = {
   days: { type: "string" },
   multiplier: { type: "string" },
   "rank-checkpoint": { type: "string" },
+  "reply-to": { type: "string" },
   pool: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
@@ -1316,6 +1319,12 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "lens") return await lensCommand(sub, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "message") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await messageCmd(sub, { log: local, io, now, signerFor, ...(io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { service: { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } } : {}), flags: { by: v.by, to: v.to, kind: v.kind, text: v.text, "reply-to": v["reply-to"], did: v.did, since: v.since, json: v.json } }); }
+      catch (e) { if (e instanceof MessageUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "town") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
@@ -3003,6 +3012,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
+    ...(!noAuth && v.tokens ? [messageRoutes({ handle, owners, dir: `${v.tokens}.messages` })] : []),
     ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
