@@ -18,7 +18,7 @@ export interface HudEvent { t: number; seq: number; a: number; b: number; k: num
 export interface FleetHud {
   ok: true; fleet: { id: string; name: string }; from: number; to: number; now: string; head: number;
   groups: HudGroup[]; nodes: HudNode[]; events: HudEvent[]; sampled: boolean; spark: number[];
-  totals: { events: number; credits: number; tokens: number; jobsDone: number; jobsTotal: number; slashes: number; drift: number; refusals: number; related: number; flagged: number; latencyMinutes: number | null; members: number; frozen: boolean; cap: { credits: number | null; tokens: number | null } };
+  totals: { events: number; credits: number; tokens: number; jobsDone: number; jobsTotal: number; slashes: number; drift: number; refusals: number; related: number; flagged: number; latencyMinutes: number | null; members: number; frozen: boolean; halted: { node: string; reason: string; at: string; runs: number }[]; cap: { credits: number | null; tokens: number | null } };
   rail: { purpose: string; template: string | null; capCredits: number | null; capTokens: number | null; frozenMembers: number; frozenNodes: string[]; maxMembers: number | null; org: string };
 }
 
@@ -99,11 +99,20 @@ export function fleetHud(stored: StoredRec[], fleet: string, o: { from?: number;
   const out: HudEvent[] = kept.map(({ ka: _a, kb: _b, ...e }) => e);
   const sorted = (xs: number[]) => [...xs].sort((a, b) => a - b);
   const med = lat.length ? sorted(lat)[Math.floor(lat.length / 2)]! : null;
+  const haltedNodes = new Map<string, { node: string; reason: string; at: string; runs: number }>();
+  for (const s of stored) {
+    if (s.record.type !== T("run_halt")) continue;
+    const hb = s.record.body as { agent: string; reason: string; node?: string };
+    const m = byDid.get(hb.agent);
+    if (!m || !["cycle", "fleet_spend", "breach"].includes(hb.reason)) continue;
+    const node = hb.node ?? m.node ?? "root", cur = haltedNodes.get(node);
+    haltedNodes.set(node, { node, reason: hb.reason, at: s.record.issued_at, runs: (cur?.runs ?? 0) + 1 });
+  }
   const frozenSet = new Set(controls.frozenMembers);
   const flagged = groups.filter((g) => g.flagged).length;
   return {
     ok: true, fleet: { id: f.id, name: f.name }, from, to, now: o.now, head, groups, nodes, events: out, sampled, spark,
-    totals: { ...t, flagged, latencyMinutes: med === null ? null : Math.round(med), members: f.members.length, frozen: controls.frozen, cap: { credits: controls.caps.fleet.credits ?? null, tokens: controls.caps.fleet.tokens ?? null } },
+    totals: { ...t, flagged, latencyMinutes: med === null ? null : Math.round(med), members: f.members.length, frozen: controls.frozen, halted: [...haltedNodes.values()], cap: { credits: controls.caps.fleet.credits ?? null, tokens: controls.caps.fleet.tokens ?? null } },
     rail: { purpose: f.purpose, template: f.template ? [f.template.runtime, f.template.model].filter(Boolean).join(" / ") : null, capCredits: controls.caps.fleet.credits ?? null, capTokens: controls.caps.fleet.tokens ?? null, frozenMembers: frozenSet.size, frozenNodes: controls.frozenNodes ?? [], maxMembers: f.maxMembers, org: f.orgName },
   };
 }
