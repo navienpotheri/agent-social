@@ -101,3 +101,45 @@ export class ActionRecorder {
     return { unprompted: u, total: this.rows.length, permille: this.rows.length ? Math.round((u / this.rows.length) * 1000) : 0 };
   }
 }
+
+// ---- DK1230: the breaker the gateway applies, with the Mandate's limits ----
+export interface LoopLimits { equivalentCalls?: number; depth?: number; dailyTokens?: number }
+export interface GatewayHalt { reason: "equivalent_calls" | "depth" | "token_cap"; detail: string; count: number; limit: number; tool: string }
+const SPAWN = /^(task|agent|spawn[_-]?agent|subagent|dispatch[_-]?agent|mcp__[a-z0-9_-]*__(spawn|delegate)[a-z0-9_-]*)$/i;
+/**
+ * The loop breaker of a real run (register row DK1230; spec-delta S1422): counts the calls a gateway sees and halts the run on the Nth call to one tool with the same arguments (`equivalent_calls`), on a chain of
+ * spawn calls deeper than `depth` (an agent that keeps starting agents: the depth is the number of spawn calls in a row with no other call between), and when the tokens the gateway relayed pass the daily cap.
+ * The limits come from the Mandate (`loop_limits`, `token_budget.per_day`). Pure: no clock, no network; the caller passes the tokens used so far. A limit that is absent is not enforced.
+ */
+export class GatewayBreaker {
+  halted: GatewayHalt | null = null;
+  private readonly seen = new Map<string, number>();
+  private spawnRun = 0;
+  private readonly l: LoopLimits;
+  constructor(l: LoopLimits) { this.l = l; }
+  check(tool: string, args: Record<string, unknown>, tokensUsed: number): GatewayHalt | null {
+    if (this.halted) return this.halted;
+    const halt = (reason: GatewayHalt["reason"], detail: string, count: number, limit: number) => (this.halted = { reason, detail, count, limit, tool });
+    if (SPAWN.test(tool)) this.spawnRun++; else this.spawnRun = 0;
+    if (this.l.depth !== undefined && this.spawnRun > this.l.depth) return halt("depth", `${this.spawnRun} agents started one after another, beyond a depth of ${this.l.depth}`, this.spawnRun, this.l.depth);
+    const key = sha({ tool, args: canon(args) });
+    const count = (this.seen.get(key) ?? 0) + 1;
+    this.seen.set(key, count);
+    if (this.l.equivalentCalls !== undefined && count >= this.l.equivalentCalls) return halt("equivalent_calls", `${tool} was called ${count} times with the same arguments`, count, this.l.equivalentCalls);
+    if (this.l.dailyTokens !== undefined && tokensUsed > this.l.dailyTokens) return halt("token_cap", `${tokensUsed} tokens against a daily cap of ${this.l.dailyTokens}`, tokensUsed, this.l.dailyTokens);
+    return null;
+  }
+}
+
+/** The loop limits of a run (S1422): the Mandate's `loop_limits` and `token_budget.per_day`, and the fleet ceiling's, whichever is lower for each limit; a limit neither states is absent. */
+export function loopLimitsFrom(mandate: unknown, ceiling?: unknown): LoopLimits {
+  type M = { loop_limits?: { equivalent_calls?: number; depth?: number }; token_budget?: { per_day?: number } };
+  const a = (mandate ?? {}) as M, b = (ceiling ?? {}) as M;
+  const low = (x?: number, y?: number) => (x !== undefined && y !== undefined ? Math.min(x, y) : x ?? y);
+  const out: LoopLimits = {};
+  const eq = low(a.loop_limits?.equivalent_calls, b.loop_limits?.equivalent_calls), dp = low(a.loop_limits?.depth, b.loop_limits?.depth), dt = low(a.token_budget?.per_day, b.token_budget?.per_day);
+  if (eq !== undefined) out.equivalentCalls = eq;
+  if (dp !== undefined) out.depth = dp;
+  if (dt !== undefined) out.dailyTokens = dt;
+  return out;
+}

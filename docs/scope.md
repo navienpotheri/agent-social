@@ -872,7 +872,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
 | DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
 | DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
-| DK1230 | A | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
+| DK1230 | A | closed | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
 | DK1231 | B | open | The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access. |
 | DK1232 | B | open | `unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in. |
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |
@@ -1088,6 +1088,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
 | DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
+| DK1477 | A | open | Nothing breaks a loop between agents (A hires B hires A) or across a fleet (a spiral draining its budget): cycle detection and a fleet spend-rate circuit breaker that halts a node, as a signed record, are not built. |
+| DK1478 | A | open | The breaker counts equal calls only: a near-repeat (the same intent with small changes) is not detected, and its false-halt rate is not measured. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |
 | DK1412 | B | open | Backlog items with no register row (adapter parity, orchestrator, ideas): listed by number in docs/backlog-reconciliation.md. |
