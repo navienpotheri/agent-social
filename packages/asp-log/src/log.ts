@@ -2412,6 +2412,14 @@ export class EventLog {
       const len = Date.parse(b.closes_at) - Date.parse(b.opens_at);
       if (!(len >= rules.minWindowMs && len <= rules.maxWindowMs)) throw rule("town_window", `the voting window runs from ${rules.minWindowMs / 86_400_000} to ${rules.maxWindowMs / 86_400_000} days`);
       if (Date.parse(b.opens_at) < now) throw rule("town_window", "a vote opens at or after the proposal");
+      // An agent-authored course (DK1608, S1554): its lessons are in the proposal, and the log refuses a lesson with no text or with characters a person cannot see; the rest of the safety review (the invariant floor) is the Registrar's, before the countersign.
+      if (b.kind === "course" && /^academy\.course\./.test(pb.key)) {
+        const lessons = (r.body as { value?: { lessons?: { id?: unknown; text?: unknown }[] } | null }).value?.lessons;
+        if (!Array.isArray(lessons) || !lessons.length) throw rule("town_course_lessons", "a course proposal carries its lessons (value.lessons: a list of { id, text }) so the society votes on what it would teach");
+        for (const l of lessons) if (typeof l?.text !== "string" || !l.text.trim() || /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]|[\u{E0000}-\u{E007F}]/u.test(l.text)) throw rule("town_course_lessons", `lesson ${String(l?.id)} has no text or carries characters a person cannot see: the society votes only on lessons it can read`);
+        const id = pb.key.slice("academy.course.".length), cur = ((await tx.getMarker(`town_course:${id}`)) ?? "").split(",").filter(Boolean);
+        await tx.putMarker(`town_course:${id}`, [...cur, r.id].join(","));
+      }
       return;
     }
     const b = r.body as { proposal: string; choice?: "yes" | "no" | "abstain"; tally?: string; key?: string; value?: unknown };
@@ -3119,6 +3127,13 @@ export class EventLog {
   private async projectCourse(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { course: string; price_service: string; reviewers: string[] };
     if (r.prev !== null) throw rule("course_not_chained", "a course starts its own chain (prev is null)");
+    // A course that was put to the Town Hall goes live only after an enactment of one of its proposals (DK1608, S1554): a vote that did not pass, or is still open, does not publish it.
+    const proposed = ((await tx.getMarker(`town_course:${b.course}`)) ?? "").split(",").filter(Boolean);
+    if (proposed.length) {
+      let enacted = false;
+      for (const pid of proposed) if (await tx.getMarker(`town_enacted:${pid}`)) enacted = true;
+      if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to the Town Hall (${proposed.join(", ")}) and none of its proposals was enacted: a course goes live only after its enactment`);
+    }
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
     const author = await this.sponsorKey(tx, r.issuer);
@@ -4264,7 +4279,10 @@ export class EventLog {
 
   /** What the society heard from its agents (suggestions and complaints), the signed public response and what was done (DK1722). */
   async listening(at?: string): Promise<ListeningStatus> {
-    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString());
+    // The response target is a society setting the Town Hall may change (DK1720): `support.target_hours`, a whole number of hours from 1 to 168 that an enactment made; otherwise the published 48.
+    const set = await this.townSetting("support.target_hours");
+    const hours = typeof set?.value === "number" && Number.isInteger(set.value) && set.value >= 1 && set.value <= 168 ? set.value : undefined;
+    return listeningStatus(await this.recordsOfTypes(["support"]), at ?? this.now().toISOString(), hours);
   }
 
   /** The city's indicators (register row GV1): population, work, disputes, credit supply, inequality and newcomer survival, from the log's records and ledger only, each with its published method. */

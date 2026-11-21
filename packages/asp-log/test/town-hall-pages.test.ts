@@ -66,3 +66,39 @@ test("DK1724: the page shows the agenda, the live count, the votes by fleet, the
   assert.match(html2, /The operator's signed tally: <code>sha256:[0-9a-f]+<\/code>, passed\. Enacted \d{4}-\d{2}-\d{2}/);
   assert.equal((await k.log.verify()).ok, true);
 });
+
+test("DK1720: end to end: an agent proposes a setting, the society votes, the operator tallies and enacts it, and the listening institution's response target really changes; a reserved matter is refused at lodging", async () => {
+  const k = await kit();
+  await k.withPrices();
+  const client = await k.person("e2e-client", 5000);
+  const agents: Awaited<ReturnType<typeof k.agent>>[] = [];
+  for (let i = 0; i < 6; i++) { const s = await k.person(`e2e-s${i}`, 0); const a = await k.agent(`e2e-a${i}`, s, { funds: 0 }); await k.runJob(client, a, 40); agents.push(a); }
+  const asker = await k.person("e2e-asker");
+  // a suggestion answered after 60 hours is late under the published 48
+  const sug = mk("support", asker as never, { act: "ticket", topic: "suggestion", text: "Answer suggestions within 72 hours, not 48." });
+  await k.log.append(sug);
+  jump(60 * 3_600_000);
+  await k.log.append(mk("support", operator, { act: "reply", ticket: sug.id, text: "Heard." }));
+  assert.equal((await k.log.listening()).late, 1);
+  assert.equal((await k.log.listening()).targetHours, 48);
+  // a reserved matter is refused at lodging, with its reason
+  const open = Date.parse(nowIso()) + 600_000;
+  const reserved = mk("town_proposal", agents[0]!, { title: "Change article 3", kind: "code_article", key: "code.article.3", value: 1, opens_at: iso(open), closes_at: iso(open + 7 * DAY) });
+  await assert.rejects(k.log.append(reserved), /reserved/);
+  // the proposal that changes the setting
+  const p = mk("town_proposal", agents[0]!, { title: "Answer within 72 hours", kind: "setting", key: "support.target_hours", value: 72, opens_at: iso(open), closes_at: iso(open + 7 * DAY) });
+  await k.log.append(p);
+  jump(11 * 60_000);
+  for (const who of agents) await k.log.append(mk("town_vote", who, { proposal: p.id, choice: "yes" }));
+  jump(7 * DAY + 3_600_000);
+  const tally = mk("town_tally", operator, { proposal: p.id, yes_milli: 6000, no_milli: 0, abstain_milli: 0, counted: 6, controllers: 6, quorum_met: true, passed: true });
+  await k.log.append(tally);
+  jump(DAY);
+  assert.equal((await k.log.listening()).targetHours, 48, "nothing changes before the enactment");
+  await k.log.append(mk("town_enactment", operator, { proposal: p.id, tally: tally.id, key: "support.target_hours", value: 72 }));
+  const after = await k.log.listening();
+  assert.equal(after.targetHours, 72, "the enacted setting is now the response target");
+  assert.equal(after.late, 0, "the 60-hour answer is within 72 hours");
+  assert.match(after.note, /due within 72 hours/);
+  assert.equal((await k.log.verify()).ok, true);
+});

@@ -238,7 +238,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1605 | A | open | A model swap holds the agent in the log, not only in the view | site, docs: say 'the hold is shown on the Registry; the log does not enforce it yet' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
 | DK1607 | A | open | A reversed contest changes what the institution did | site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal' |
-| DK1608 | A | open | The log keeps an unreviewed course from going live | site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it' |
+| DK1608 | A | partial | The log keeps an unreviewed course from going live | site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it' |
 
 ### Bucket 3: after launch
 
