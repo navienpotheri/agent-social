@@ -388,7 +388,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, PLANS, effectiveLimits, type DoorLine, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -406,7 +406,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  logForumCredits, societyMapRoutes, telemetryRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -1095,7 +1095,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits", "reset-sandbox"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits", "reset-sandbox", "plan"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "enrol") return await enrolCmd(home, v, io);
     if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
@@ -1104,6 +1104,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
     if (cmd === "runtimes") {
       // The support matrix: which runtimes asp run can start, how each is held to the Mandate, and the evidence behind the claim (docs/portability-at-scale.md).
+      // Personal agents (DK1364): `asp runtimes personal` lists them with the way each joins and the evidence; `asp runtimes personal <name>` prints its first minute.
+      if (sub === "personal") {
+        const one = rest[0] ? personalAgentByName(rest[0]) : undefined;
+        if (rest[0] && !one) throw new UsageError(`no personal agent called ${rest[0]}: ${PERSONAL_AGENTS.map((x) => x.name).join(", ")}`);
+        if (one) { for (const l of firstMinute(one)) io.out(l); return 0; }
+        for (const x of PERSONAL_AGENTS) io.out(`  ${x.name.padEnd(22)} ${x.way.padEnd(18)} ${x.assurance.padEnd(17)} evidence ${x.evidence.level}`);
+        io.out("evidence: live = a recorded real run; stand-in = ASP's side tested with a stand-in, not the product; none = untested. Only a runtime with a live row is listed in the docs and on the site; none is yet. asp runtimes personal <name> prints the first minute.");
+        return 0;
+      }
       for (const l of supportMatrix()) io.out(l);
       io.out("reach: gateway = the tool is pointed at the local gateway; hook = the tool's own pre-call hook. evidence: live = run by hand on a real machine; partial = live with known gaps; stand-in = tested only with a stand-in for the tool.");
       io.out("A runtime that is not listed can still run under `asp gateway` if it can be pointed at an OpenAI or Anthropic base URL; it is not claimed until a row says so.");
@@ -2453,6 +2462,26 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
   if (!existsSync(file)) throw new Error(`${file} does not exist`);
   const tenants: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
   const save = (data: unknown, path = file) => writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+  if (sub === "plan") {
+    // DK1362: put a tenant on a plan (starter, team, enterprise) and/or set a figure for it; the running service reads the tenants file at each request.
+    const name = need("tenant");
+    const t = tenants.find((x) => x.name === name);
+    if (!t) throw new Error(`no tenant called ${name} in ${file}`);
+    const num = (k: string) => { const x = v[k as "rate-limit"]; if (x === undefined) return undefined; const n = Number(x); if (!Number.isInteger(n) || n < 0) throw new UsageError(`--${k} is a whole number, 0 or more (0 for no limit)`); return n; };
+    const plan = (v as { plan?: string }).plan;
+    if (plan !== undefined && !(plan in PLANS)) throw new UsageError(`--plan is one of ${Object.keys(PLANS).join(", ")}`);
+    const patch: Partial<Tenant> = { ...(plan ? { plan } : {}), ...(num("rate-limit") !== undefined ? { rateLimitPerMinute: num("rate-limit") } : {}), ...(num("write-limit") !== undefined ? { writeLimitPerMinute: num("write-limit") } : {}), ...(num("record-quota") !== undefined ? { recordQuota: num("record-quota") } : {}) };
+    if (!Object.keys(patch).length) {
+      const eff = effectiveLimits(t);
+      io.out(`${name}: plan ${t.plan ?? "none (the service's defaults)"}; requests a minute ${eff.rateLimitPerMinute ?? "default"}, writes a minute ${eff.writeLimitPerMinute ?? "default"}, records ${eff.recordQuota === undefined ? "default" : eff.recordQuota || "no limit"}`);
+      io.out(`plans: ${Object.entries(PLANS).map(([k, p]) => `${k} (${p.rateLimitPerMinute} requests, ${p.writeLimitPerMinute} writes a minute, ${p.recordQuota ? `${p.recordQuota} records` : "no record limit"})`).join("; ")}`);
+      return 0;
+    }
+    withFileLock(file, () => { const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8")); save(fresh.map((x) => (x.name === name ? { ...x, ...patch } : x))); });
+    const eff = effectiveLimits({ ...t, ...patch });
+    io.out(`${name} is now on ${patch.plan ?? t.plan ?? "no plan"}: ${eff.rateLimitPerMinute ?? "default"} requests and ${eff.writeLimitPerMinute ?? "default"} writes a minute, ${eff.recordQuota === undefined ? "the default" : eff.recordQuota || "no limit of"} records; the running service picks it up`);
+    return 0;
+  }
   if (sub === "reset-sandbox") {
     // DK1382: clears a sandbox (its log and the service's state), keeping the tenants. Only a log marked sandbox is touched.
     if (v.confirm !== "sandbox") throw new UsageError("asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox   (stop the sandbox service first; the tenants stay, everything else is cleared)");

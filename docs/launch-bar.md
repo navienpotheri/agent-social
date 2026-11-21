@@ -58,7 +58,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1345 | A | open | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
-| DK1364 | A | open | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
+| DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1380 | ? | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
@@ -83,7 +83,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1360 | ? | partial | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
-| DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
+| DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
 | O12 | A | partial | 0.5 | S | O | branch protection on main |

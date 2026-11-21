@@ -107,3 +107,4 @@ export { GraderBook, clusters as failureClusters, type Grade, type RunFacts as G
 export { Trail as ReviewTrail, admit as admitChange, validateChange, split as splitChange, applyChange, revertChange, attribute as attributeChange, checkRuntimes, prune as pruneChanges, promote as promoteChange, type Change as LearnedChange, type LineageEdge } from "./change-review.ts";
 export { serviceFarmingFacts, tenantOfDid } from "./farming-facts.ts";
 export { SANDBOX_BANNER, SANDBOX_CREDITS_PER_REQUEST, SANDBOX_CREDITS_PER_TENANT, checkEnvironment, markSandbox, resetSandbox, sandboxRoutes } from "./tenant-sandbox.ts";
+export { PERSONAL_AGENTS, firstMinute, personalAgentByName, type PersonalAgent, type PersonalWay } from "./personal-agents.ts";

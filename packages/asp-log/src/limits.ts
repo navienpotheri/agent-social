@@ -58,6 +58,14 @@ class Bucket {
     if (this.tokens >= 1) { this.tokens -= 1; return OK; }
     return { ok: false, retryAfterSec: Math.max(1, Math.ceil(((1 - this.tokens) / this.perMinute) * 60)) };
   }
+  /** Takes n at once (a batch): all or nothing. */
+  takeN(now: number, n: number): Verdict {
+    this.tokens = Math.min(this.burst, this.tokens + ((now - this.last) / 60_000) * this.perMinute);
+    this.last = now;
+    if (n > this.burst) return { ok: false, retryAfterSec: 60, why: `a batch of ${n} is more than this tenant's write allowance can pay for at once (${this.burst})` };
+    if (this.tokens >= n) { this.tokens -= n; return OK; }
+    return { ok: false, retryAfterSec: Math.max(1, Math.ceil(((n - this.tokens) / this.perMinute) * 60)) };
+  }
   idleSince(now: number): number { return now - this.last; }
   /** Takes out what other processes used (never below one burst in debt, so a bucket recovers). */
   deduct(n: number): void { this.tokens = Math.max(-this.burst, this.tokens - n); }
@@ -273,13 +281,18 @@ export class Limits {
     return v.ok ? v : { ...v, why: "this tenant is making too many requests" };
   }
 
-  /** A write (append, import) by a signed-in tenant, on top of the general check. */
-  checkWrite(name: string): Verdict {
-    if (this.o.appendPerMinute <= 0) return OK;
+  /** The writes a minute a tenant gets when it has no figure of its own. */
+  get appendRate(): number { return this.o.appendPerMinute; }
+
+  /** A write (append, import) by a signed-in tenant, on top of the general check; a batch pays `cost` at once. */
+  checkWrite(name: string, perMinute?: number, cost = 1): Verdict {
+    const rate = perMinute ?? this.o.appendPerMinute;
+    if (rate <= 0) return OK;
     this.syncBuckets();
-    const v = this.bucket(this.append, name, this.o.appendPerMinute).take(this.now());
-    if (v.ok) this.used.set(this.shared("w", name), (this.used.get(this.shared("w", name)) ?? 0) + 1);
-    return v.ok ? v : { ...v, why: "this tenant is writing too fast" };
+    const b = this.bucket(this.append, name, rate);
+    const v = cost === 1 ? b.take(this.now()) : b.takeN(this.now(), cost);
+    if (v.ok) this.used.set(this.shared("w", name), (this.used.get(this.shared("w", name)) ?? 0) + cost);
+    return v.ok ? v : { ...v, why: v.why ?? "this tenant is writing too fast" };
   }
 
   /** Takes a place among the tenant's in-flight requests; call the returned function when the request ends. Undefined means refused. */

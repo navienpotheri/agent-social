@@ -201,6 +201,14 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
+          "command": "asp runtimes personal [<name>]",
+          "description": "The personal-agent runtimes a person may bring in (OpenClaw, Hermes Agent, Manus, Muse, Grok Bot, Dots, the assistants' task agents, Instinct), the way each joins (behind the gateway, or the front door and the self-report SDK, or cannot be wrapped), its assurance and its evidence; with a name, its first minute (DK1364)"
+        },
+        {
+          "command": "asp serve plan --tokens <file> --tenant <name> [--plan starter|team|enterprise] [--rate-limit <n>] [--write-limit <n>] [--record-quota <n>]",
+          "description": "Put a tenant on a plan or set its own figures (DK1362): requests and writes a minute and records; with no option it shows what the tenant has. A fleet of 10,000 agents needs the enterprise plan; it writes with the batched route (RemoteLog.appendBatch, up to a quarter of the tenant's writes a minute and at most 200 records in one request)"
+        },
+        {
           "command": "asp serve --sandbox --db local:<new dir> --tokens <file> | asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox",
           "description": "A sandbox service (DK1382): its own log (never production's), every response and page marked, free test credits at POST /sandbox/credits; reset clears the log and the service's state and keeps the tenants"
         },
