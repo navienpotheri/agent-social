@@ -47,3 +47,25 @@ One block per row. Each is a row in the CLI, gateway, runtime, accounts or opera
 
 - **Needs:** an uptime service account, a status page host and a backup destination (outside parties and owner actions). The runbook text and the checks the service can answer (`/health`, the ledger invariant) need no owner action and are in the queue.
 - **Question:** Which uptime service and which status page host (the cheapest that is not the deployed service itself), and where do backups go (a bucket in the owner's account)? Until then the website must not say "monitored" or "backed up".
+
+---
+
+# Owner checklist: things that need your accounts or your hands (numbered; answered 2026-11-21 as recommended, so these are steps, not questions)
+
+The lead recorded your decisions (H4, O2, T12, DK1341, DK270). What is left needs your accounts. Each step says what to do, what to paste back, and the row it lets a worker close.
+
+**OP-1. Deploy the production start line and the monitor (O2, T12, DK1341).** On the server: `cd /opt/asp && sudo git pull && sudo GOOGLE_CLIENT_ID=<id> bash docs/deploy/setup-server.sh`. The script now refuses to finish without Google configured (unless `ALLOW_NO_GOOGLE=1`), starts the service with `--signup-require-google --limits-state --rate-limit 600 --write-limit 120`, installs the `asp-monitor` unit and the `/status` page. Then `asp serve raise-limits --tokens /var/lib/asp/tokens.json --rate-limit 600`. Paste back: the last 20 lines of the script and `systemctl is-active asp-log asp-monitor postgresql caddy`.
+
+**OP-2. An outside uptime ping (DK1341).** The monitor runs on the same machine, so if the machine dies nobody is told. Make a free account at an uptime service you choose (any that can check an HTTPS URL every minute and message your phone or mail) and add two checks: `https://<domain>/health` (must answer 200) and `https://<domain>/status.json` (must contain `"checked_at"`, and alert if it does not change for 10 minutes). Paste back: the service's name and a screenshot of the two checks. Until this is done the site must not say the platform is independently monitored.
+
+**OP-3. The alert destinations (DK1341).** In `/etc/asp/asp.env` set `ALERT_WEBHOOK=<a chat or phone webhook URL>` (optional) and make sure `RESEND_API_KEY` and `MAIL_OPERATOR` are set (deploy/README.md, "Turning on mail"). Rerun the setup script (it restarts the monitor). Then run live check 06. Paste back: the two alerts you received (subject lines only).
+
+**OP-4. On-call hours and the support address (DK1341, SC2).** Decide and tell the lead: the hours you will answer an alert (the incident runbook promises "within 1 hour of the first alert, on-call hours") and the exact public support and grievance address (a role mailbox on the project's domain is recommended). Until you confirm the string, nothing publishes an address.
+
+**OP-5. Revoke the OpenRouter key on this machine (O11).** In the OpenRouter dashboard, delete the key that was used for the early tests, and delete it from any `.env` on this machine. Paste back: "revoked".
+
+**OP-6. GitHub settings (O12, O13).** Repository Settings, Branches: protect `main` (require the gate to pass, no force pushes). Settings, Code security: turn on private vulnerability reporting, and set the repository description and topics. Paste back: a screenshot of each page.
+
+**OP-7. The live checks (docs/live-check-cli.md).** Two hours: checks 1 to 6, in that order. Paste back each report block.
+
+**OP-8. The adoption of unsigned mints (DK95).** After the deploy, on the server as the operator with the owner's key: `asp credits adopt ...` as in docs/owner-checklist.md, then `asp credits audit --require-signed` must pass. Paste back its output.

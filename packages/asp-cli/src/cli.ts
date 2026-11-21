@@ -359,6 +359,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
+import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { MentorUsage, mentorCmd } from "./mentor.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
@@ -612,6 +613,17 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   "daily-tokens": { type: "string" },
+  "backup-dir": { type: "string" },
+  "backup-max-hours": { type: "string" },
+  state: { type: "string" },
+  "status-out": { type: "string" },
+  "status-html-out": { type: "string" },
+  incidents: { type: "string" },
+  "alert-webhook": { type: "string" },
+  "alert-mail": { type: "string" },
+  after: { type: "string" },
+  every: { type: "string" },
+  message: { type: "string" },
   "monthly-tokens": { type: "string" },
   "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
@@ -967,6 +979,13 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 async function mainInner(argv: string[], io: Io): Promise<number> {
+  // `asp --version`, `asp -v` and `asp version` say which asp this is (found by the clean-machine check, row T1: `--version` is also a string option of `asp pack`, so it was refused as "argument missing").
+  if (argv.length === 1 && ["--version", "-v", "version"].includes(argv[0])) {
+    let v = "unknown";
+    try { v = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: string }).version ?? v; } catch { /* a copy without its package.json still runs */ }
+    io.out(`asp ${v} (node ${process.version})`);
+    return 0;
+  }
   let parsed;
   try {
     parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true });
@@ -977,7 +996,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   const { values: v, positionals: [cmd, sub, ...rest] } = parsed;
   // The full reference (every command, as the file header writes it): asp --help, asp help all. `asp` alone shows the short home instead.
   if (v.help || (cmd === "help" && sub === "all")) {
-    io.out(readFileSync(new URL(import.meta.url), "utf8").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
+    io.out(readFileSync(new URL(import.meta.url), "utf8").replace(/\r\n/g, "\n").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
     return 0;
   }
   const home = aspHome(v.home ?? io.env.ASP_HOME);
@@ -1037,7 +1056,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
     if (cmd === "enrol") return await enrolCmd(home, v, io);
     if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
@@ -1060,6 +1079,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "today") return todayCmd(home, v, io);
     if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "budget") return await budgetCommand(home, sub, v, io);
+    if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
     if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
@@ -2420,6 +2440,19 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (after.waitingList.length && after.left >= STARTER_UPFRONT) io.out("there is room for the first on the list: they claim with asp account starter");
     return 0;
   }
+  if (sub === "raise-limits") {
+    // T12: tenants signed up before the starting limit was raised keep their own 120 a minute until an operator raises them. Raises, never lowers; an admin is not limited; a tenant with no limit of its own already gets the service's.
+    const n = Number(v["rate-limit"]);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError("asp serve raise-limits --tokens <file> --rate-limit <requests a minute, at least 1>");
+    let raised = 0;
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      for (const t of fresh) if (t.role !== "admin" && t.rateLimitPerMinute !== undefined && t.rateLimitPerMinute < n) { t.rateLimitPerMinute = n; raised++; }
+      if (raised) save(fresh);
+    });
+    io.out(`${raised} tenant(s) raised to ${n} requests a minute (a tenant already at or above ${n}, an admin, and a tenant with no limit of its own are left as they are); the running service picks it up without a restart`);
+    return 0;
+  }
   if (sub === "purge") {
     // Closed accounts keep a small tombstone for the retention period (the privacy notice); this removes the ones past it.
     const keep = tenants.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now());
@@ -3198,6 +3231,15 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const wakeDay = now().slice(0, 10);
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
+  // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
+  const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
+  const companyWarnings = () => budgetWarnings("the company's house agents", companyCap, { today: ceiling.tokensUsed(COMPANY, wakeDay), month: ceiling.monthTokens(COMPANY, wakeDay.slice(0, 7)) });
+  const companyOn = (companyCap.dailyTokens !== undefined || companyCap.monthlyTokens !== undefined) && (await local.log.houseAgents()).some((h) => h.did === by);
+  if (companyOn) {
+    const cw = ceiling.wake(COMPANY, by, wakeDay, now(), { tokens: companyCap.dailyTokens, ...(companyCap.monthlyTokens !== undefined ? { monthTokens: companyCap.monthlyTokens } : {}) });
+    if (!cw.ok) { io.err(`  refused  the company's compute ceiling: ${cw.reason}`); throw new Error(`company_ceiling: ${cw.reason}`); }
+    for (const w of companyWarnings()) io.err(`  warning  ${w}`);
+  }
   // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
   for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
@@ -3535,6 +3577,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (companyOn) { const had = new Set(companyWarnings()); ceiling.addTokens(COMPANY, wakeDay, sum.tokens.input + sum.tokens.output); for (const w of companyWarnings()) if (!had.has(w)) io.err(`  warning  ${w}`); }
   const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
   await gw.close();
@@ -4876,7 +4919,7 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { json: v.json, all: v.all, by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
   } catch (e) {
     if (e instanceof AbuseUsage) throw new UsageError(e.message);
     throw e;
@@ -4929,6 +4972,21 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
     return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function monitorCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  // The alert mail goes to --alert-mail through Resend when RESEND_API_KEY is set, else into a folder next to the state file (so an alert is never silently lost).
+  const to = v["alert-mail"];
+  const from = v["mail-from"] ?? io.env.MAIL_FROM ?? "Agent Social <noreply@localhost>";
+  const key = io.env.RESEND_API_KEY;
+  const transport = key ? new ResendTransport({ apiKey: key }) : new FileTransport(join(home, "monitor-outbox"));
+  const mail = to ? async (subject: string, text: string) => { await transport.send({ from, to, subject, text, html: `<pre>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>` }); } : undefined;
+  try {
+    return await monitorCmd(sub, { io, now, ...(mail ? { mail } : {}), flags: { service: v.service, home: v.home ?? home, state: v.state, "backup-dir": v["backup-dir"], "backup-max-hours": v["backup-max-hours"], "status-out": v["status-out"], "status-html-out": v["status-html-out"], incidents: v.incidents, "alert-webhook": v["alert-webhook"], after: v.after, every: v.every, id: v.id, title: v.title, status: v.status, message: v.message, json: v.json, once: v.once } });
+  } catch (e) {
+    if (e instanceof MonitorUsage) throw new UsageError(e.message);
     throw e;
   }
 }

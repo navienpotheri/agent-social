@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 79 (296.2 worker-hours; 13 need an owner decision, 11 a live run, 5 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 106 |
-| After launch | 312 |
-| Total not closed | 497 |
+| Must close before launch | 75 (282.2 worker-hours; 12 need an owner decision, 11 a live run, 4 an outside party, 16 an owner action) |
+| Withdraw the claim until done | 107 |
+| After launch | 313 |
+| Total not closed | 495 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -99,13 +99,11 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1204 | A | open | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK421 | A | open | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
-| T12 | A | partial | 1 | S | O | apply the chosen 600 reads and 120 writes in the deployed config |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
 | E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
 | GV6 | A | open | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
-| H4 | A | open | 2 | S | D | no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530) |
 | M2 | A | partial | 2 | S | D | disclose that the operator seats and rules, with a published appeal promise |
 | O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
@@ -114,7 +112,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | CY8 | A | open | 3 | M | D | DK532 built the service-held key and the Terms and rights charter carry the exception; left: docs/key-recovery.md and the site still say the service never holds keys, an… |
 | DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
-| O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
 | SC2 | A | open | 3 | M | DX | acceptable-use list and a grievance officer (drafts; the owner names the officer; counsel reads) |
 | T1 | A | open | 3 | M | LO | A stranger must reach `asp runs` from a clean clone; Mac and old Node never tried by hand (I script the check, the owner runs it) |
 | U9 | A | partial | 3 | M | LO | account export and close read live on the host, with a deletion receipt |
@@ -122,7 +119,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK65 | A | partial | 6 | M | L | the deck promises 1,000 tenants and 1M governed runs; a load test, or the claim moves to withdraw |
 | DK79 | A | partial | 6 | M | D | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | DK1340 | A | open | 8 | L | DX | the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it |
-| DK1341 | A | open | 8 | L | OX | operations: uptime monitor, status page, on-call, backup restore drill, incident process |
 | DK1349 | A | partial | 8 | L | D | the credit structure among agents, Bank, Treasury and Insurer and a Market completeness audit; the owner expects a different flow of credits and confirms the structure a… |
 | DK270 | A | open | 8 | L | LO | no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host |
 
@@ -236,6 +232,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1456 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1503 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -553,6 +550,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1350 | A | open | generative expedition worlds are a later feature | expeditions are described as planned; measured worlds are the basis of any claim |
 | DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1502 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

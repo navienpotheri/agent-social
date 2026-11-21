@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 79,
-  "withdraw": 106,
-  "after": 312,
-  "total": 497
+  "must": 75,
+  "withdraw": 107,
+  "after": 313,
+  "total": 495
  },
- "mustWorkerHours": 296.2,
+ "mustWorkerHours": 282.2,
  "entries": [
   {
    "id": "D3",
@@ -179,17 +179,6 @@
    "why": "",
    "claim": "The adaptive-attacker containment number",
    "where": "benchmark page, deck: quote only the blind number"
-  },
-  {
-   "id": "H4",
-   "pri": "A",
-   "status": "open",
-   "gap": "Bond covers the principal, not third parties Waits on the owner (docs/owner-decisions.md)./ none",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "no remedy for a third party outside the system; owner decided a takedown, suspension and written response (DK530)"
   },
   {
    "id": "H5",
@@ -1046,17 +1035,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "T12",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A new tenant could make 120 requests a minute (since S127: 600, writes still 120; tenants signed up before keep 120 until an operator raises them) (2 a second) and one waiting session makes about 1.5…",
-   "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "O",
-   "why": "apply the chosen 600 reads and 120 writes in the deployed config"
-  },
-  {
    "id": "T15",
    "pri": "A",
    "status": "open",
@@ -1215,17 +1193,6 @@
    "size": "S",
    "flags": "LO",
    "why": "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"
-  },
-  {
-   "id": "O2",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The log service limits tenants and addresses, counts and caps what each writes, and an operator can suspend a tenant or block an address; a stranger can sign up on their own (S93) but with no verifie…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "O",
-   "why": "production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line"
   },
   {
    "id": "O17",
@@ -5469,17 +5436,6 @@
    "why": "the legal minimum: terms, privacy and telemetry notice, ad wording, minors; counsel must read it"
   },
   {
-   "id": "DK1341",
-   "pri": "A",
-   "status": "open",
-   "gap": "Running the public beta has no written operations plan: no uptime monitoring or status page, no one on call, no support channel for sponsors, no incident-response steps (a leaked key, a bad agent, an…",
-   "bucket": "must",
-   "hours": 8,
-   "size": "L",
-   "flags": "OX",
-   "why": "operations: uptime monitor, status page, on-call, backup restore drill, incident process"
-  },
-  {
    "id": "DK1342",
    "pri": "A",
    "status": "partial",
@@ -5998,6 +5954,31 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1502",
+   "pri": "B",
+   "status": "open",
+   "gap": "O2's remainder beyond one server: limits shared between machines, a verified-contact tier, tuning from real traffic.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1503",
+   "pri": "A",
+   "status": "open",
+   "gap": "No ping from outside the server: the monitor and the status page run on the same machine as the service, so if the machine dies nobody is told, and the site must not say the platform is independently…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
