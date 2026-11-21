@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 66 (305.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
-| Withdraw the claim until done | 108 |
-| After launch | 323 |
-| Total not closed | 497 |
+| Must close before launch | 67 (315.2 worker-hours; 13 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Withdraw the claim until done | 109 |
+| After launch | 322 |
+| Total not closed | 498 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -67,7 +67,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O6 | A | open | 4 | M | - | scale through the service is unmeasured above 5,000 records |
 | US7 | A | open | 4 | M | - | safe Mandate presets for coding, research and writing |
 | DK9 | A | partial | 5 | M | - | no ledger invariant check against the live service and no alert |
-| CY12 | A | open | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
+| CY12 | A | partial | 6 | M | - | the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built |
 | DK1373 | A | open | 6 | M | - | just-in-time provisioning and deprovisioning from single sign-on |
 | DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
@@ -77,6 +77,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
+| DK1230 | A | open | 10 | L | - | loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (own… |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
@@ -224,6 +225,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1384 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1476 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
 
 ### Bucket 3: after launch
@@ -470,7 +472,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1227 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1228 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1229 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1230 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1231 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1232 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1233 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

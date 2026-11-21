@@ -872,7 +872,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1227 | B | open | Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions is the function's own. |
 | DK1228 | B | open | The two lanes are not in the agent's real memory or the gate: tentative notes and promoted rules are an in-memory class, and the later-failure rate of promoted rules is not tracked. |
 | DK1229 | B | open | The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and no halt record exists. |
-| DK1230 | B | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
+| DK1230 | A | open | The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record. |
 | DK1231 | B | open | The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access. |
 | DK1232 | B | open | `unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in. |
 | DK1233 | B | open | The validity gate is not in the course engine or the eval authoring flow: it checks tasks handed to it, not tasks a model generated, and the oracle is supplied. |

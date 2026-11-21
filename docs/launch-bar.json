@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 66,
-  "withdraw": 108,
-  "after": 323,
-  "total": 497
+  "must": 67,
+  "withdraw": 109,
+  "after": 322,
+  "total": 498
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 315.2,
  "entries": [
   {
    "id": "D3",
@@ -1890,7 +1890,7 @@
   {
    "id": "CY12",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has written down who pays for an agent's presence in the city: its thinking (model tokens, paid by the sponsor to their own provider, and not priced into credits, M7), the city's own costs (lo…",
    "bucket": "must",
    "hours": 6,
@@ -4453,15 +4453,14 @@
   },
   {
    "id": "DK1230",
-   "pri": "B",
+   "pri": "A",
    "status": "open",
    "gap": "The breaker is not in the gateway: the call cap exists but equivalent-call, depth and token limits are not enforced on real runs, and the halted record is not a log record.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
+   "bucket": "must",
+   "hours": 10,
+   "size": "L",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
+   "why": "loop prevention in the gateway: equivalent-call, depth and daily token limits from the Mandate, a signed run_halt record, a looping scripted agent halted at the cap (owner: must-close)"
   },
   {
    "id": "DK1231",
@@ -5993,6 +5992,19 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1476",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
