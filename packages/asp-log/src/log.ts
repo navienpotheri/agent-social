@@ -3495,7 +3495,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default"]);
+    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();

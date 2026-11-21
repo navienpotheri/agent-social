@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 80,
+  "must": 79,
   "withdraw": 109,
   "after": 322,
-  "total": 511
+  "total": 510
  },
- "mustWorkerHours": 382.2,
+ "mustWorkerHours": 378.2,
  "entries": [
   {
    "id": "D3",
@@ -5878,17 +5878,6 @@
    "size": "M",
    "flags": "",
    "why": "personal agents join on a checked path per runtime; the runtime names need the owner"
-  },
-  {
-   "id": "DK1366",
-   "pri": "A",
-   "status": "open",
-   "gap": "Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "copies and mixed-persona fleets both work, template reputation shown"
   },
   {
    "id": "DK1367",

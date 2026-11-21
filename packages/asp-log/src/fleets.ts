@@ -11,6 +11,12 @@ export const fleetNameOf = (did: string): string => did.split(":").pop() ?? did;
 
 export interface FleetMark { id: string; name: string; /** The persona the agent plays in the fleet (its passport's `persona`), when it has one (DK1353, DK1366). */ persona?: string }
 export interface FleetMember { did: string; name: string; joined: string; house: boolean; persona: string | null; node: string | null }
+/** What one group of agents has done, from the settlements of the log: the record of a fleet, of a persona within it, or of every agent that runs one template. */
+export interface GroupRecord { members: number; settled: number; accepted: number; slashes: number; /** Slashes per settled job, in permille; null when nothing has settled. */ slashPermille: number | null }
+/** The record of everyone who runs one template (runtime, model, harness and skills), across every fleet that declares it (DK1366). */
+export interface TemplateRecord extends GroupRecord { key: string; fleets: number }
+export interface PersonaRecord extends GroupRecord { persona: string }
+
 export interface FleetView {
   id: string;
   name: string;
@@ -19,6 +25,11 @@ export interface FleetView {
   purpose: string;
   declared: string;
   template: { runtime?: string; model?: string } | null;
+  /** The record of all agents of this fleet, and of each persona in it. A fleet of copies has one group (no persona); a fleet of different agents has one for each persona. */
+  record: GroupRecord;
+  personas: PersonaRecord[];
+  /** The record of every agent that runs this fleet's template, in this and any other fleet; null when the fleet names no template. Computed from the log, so anyone can recompute it. */
+  templateRecord: TemplateRecord | null;
   maxMembers: number | null;
   members: FleetMember[];
   /** Contracts whose principal and performer are both members of this fleet (work inside the fleet), and how many settled accepted. They are related-party work: they never count toward standing (S1300). */
@@ -65,9 +76,31 @@ export function fleetDirectory(stored: StoredRec[]): FleetDirectory {
   // Contracts and settlements, for the work inside and outside each fleet.
   const contracts = new Map<string, { principal: string; performer: string }>();
   const settledAccepted = new Set<string>();
+  const perf = new Map<string, { settled: number; accepted: number; slashes: number }>();   // by performer
   for (const s of stored) {
     if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string }; contracts.set(s.id, { principal: b.principal, performer: b.performer }); }
-    else if (s.record.type === T("settlement") && (s.record.body as { basis?: string }).basis === "accepted") settledAccepted.add((s.record.body as { contract: string }).contract);
+    else if (s.record.type === T("settlement")) {
+      const sb = s.record.body as { basis?: string; contract: string; bond_slashed?: { value?: number } };
+      if (sb.basis === "accepted") settledAccepted.add(sb.contract);
+      const c = contracts.get(sb.contract);
+      if (c) { const p = perf.get(c.performer) ?? { settled: 0, accepted: 0, slashes: 0 }; p.settled++; if (sb.basis === "accepted") p.accepted++; if ((sb.bond_slashed?.value ?? 0) > 0) p.slashes++; perf.set(c.performer, p); }
+    }
+  }
+  const group = (dids: string[]): GroupRecord => {
+    let settled = 0, accepted = 0, slashes = 0;
+    for (const d of dids) { const p = perf.get(d); if (p) { settled += p.settled; accepted += p.accepted; slashes += p.slashes; } }
+    return { members: dids.length, settled, accepted, slashes, slashPermille: settled ? Math.round((slashes / settled) * 1000) : null };
+  };
+  // Templates: the same runtime, model, harness and skills is the same template, in any fleet.
+  const keyOf = (t: unknown): string | null => (t && typeof t === "object" && Object.keys(t as object).length ? JSON.stringify(canon(t)) : null);
+  const canon = (v: unknown): unknown => (Array.isArray(v) ? v.map(canon) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, canon(x)])) : v);
+  const byTemplate = new Map<string, { fleets: Set<string>; dids: string[] }>();
+  for (const [id, d] of decl) {
+    const key = keyOf((d.rec.record.body as { template?: unknown }).template);
+    if (!key) continue;
+    const t = byTemplate.get(key) ?? byTemplate.set(key, { fleets: new Set(), dids: [] }).get(key)!;
+    t.fleets.add(id);
+    for (const m of members.get(id) ?? []) t.dids.push(m.did);
   }
   const fleets: FleetView[] = [];
   for (const [id, d] of decl) {
@@ -83,6 +116,9 @@ export function fleetDirectory(stored: StoredRec[]): FleetDirectory {
     fleets.push({
       id, name: b.name, org: b.org, orgName: fleetNameOf(b.org), purpose: b.purpose, declared: d.first,
       template: b.template ? { ...(b.template.runtime ? { runtime: b.template.runtime } : {}), ...(b.template.model ? { model: b.template.model } : {}) } : null,
+      record: group(mine.map((m) => m.did)),
+      personas: [...new Set(mine.map((m) => m.persona).filter((x): x is string => !!x))].sort().map((persona) => ({ persona, ...group(mine.filter((m) => m.persona === persona).map((m) => m.did)) })),
+      templateRecord: (() => { const key = keyOf((d.rec.record.body as { template?: unknown }).template); const t = key ? byTemplate.get(key) : undefined; return key && t ? { key, fleets: t.fleets.size, ...group(t.dids) } : null; })(),
       maxMembers: b.max_members ?? null, members: mine, inside: { contracts: insideN, accepted: insideOk }, outside: { accepted: outsideOk }, not_yet: NOT_YET,
     });
   }

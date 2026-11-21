@@ -63,7 +63,7 @@ export const isLive = (c: NameClaim, at: string): boolean => !c.released && !c.r
 export const isVisible = (c: NameClaim, at: string): boolean => isLive(c, at) && !(c.hiddenUntil && Date.parse(c.hiddenUntil) > Date.parse(at));
 
 export interface RecordPage {
-  did: string; names: string[]; kind: string; sponsor: string | null; fleet: string | null; lineage: { edge: string; parent: string }[];
+  did: string; names: string[]; kind: string; sponsor: string | null; fleet: string | null; /** The persona the agent plays in its fleet and the template its fleet declares (DK1366). */ persona: string | null; template: { runtime?: string; model?: string } | null; lineage: { edge: string; parent: string }[];
   purpose: string | null; temperament: string | null;
   /** A house agent (the operator's scripted agent, DK291): true and labelled on every page that shows it. */
   house: boolean; label: string | null;
@@ -96,6 +96,13 @@ export interface PageInputs {
   reputation: { tier: number; slashCount: number; strikes: number; acceptedJobs?: number; qualifyingJobs?: number } | undefined;
 }
 
+/** The template (runtime and model) the fleet an agent names declares, from the fleet record. */
+function fleetTemplate(records: { type: string; body: unknown }[], fleet: unknown): { runtime?: string; model?: string } | null {
+  if (typeof fleet !== "string") return null;
+  const r = records.filter((x) => x.type === "asp.fleet/v0.2" && (x.body as { did?: string }).did === fleet).at(-1);
+  const t = (r?.body as { template?: { runtime?: string; model?: string } } | undefined)?.template;
+  return t ? { ...(t.runtime ? { runtime: t.runtime } : {}), ...(t.model ? { model: t.model } : {}) } : null;
+}
 const cap = (s: unknown, n: number): string | null => (typeof s === "string" ? s.replace(/[\u0000-\u001f]/g, " ").slice(0, n) : null);
 
 /**
@@ -131,7 +138,7 @@ export function buildPage(did: string, inp: PageInputs): RecordPage | null {
   const holdings = holdingsAt(records, did, at);
   const resident = residentStates(records.filter((r) => r.type === "asp.shops_act/v0.2"), at).get(did);
   return {
-    did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, lineage: pb.lineage ?? [],
+    did, names, kind: pb.kind, sponsor: pb.sponsor ?? null, fleet: typeof pb.fleet === "string" ? pb.fleet : pb.fleet?.name ?? null, persona: typeof (pb as unknown as { persona?: unknown }).persona === "string" ? (pb as unknown as { persona: string }).persona : null, template: fleetTemplate(records, pb.fleet), lineage: pb.lineage ?? [],
     purpose: cap(pb.purpose, 500), temperament: cap(pb.temperament, 300), house: pb.house === true, label: pb.house ? "house agent" : null, custody: pb.custody === "service" ? "service" : "local",
     level: identityLevelAt(acts, did, t, pb.sponsor),
     tier: inp.reputation?.tier ?? null, slashCount: inp.reputation?.slashCount ?? 0, strikes: inp.reputation?.strikes ?? 0, acceptedJobs: inp.reputation?.acceptedJobs ?? 0, qualifyingJobs: inp.reputation?.qualifyingJobs ?? 0,
