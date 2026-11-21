@@ -376,7 +376,7 @@ import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
 import { myDataCmd } from "./my-data.ts";
 import { reloadTlsOnSighup } from "./tls-reload.ts";
-import { JOB_DATA_TERM, dataHandlingProblem } from "@agent-social/asp-core";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -6105,7 +6105,13 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       },
       subcontract: { allowed: false },
       nodes: { max_parallel: Math.max(1, Math.trunc(Number(v["node-max-parallel"] ?? "1")) || 1) },
-      learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
+      learning: (() => {
+        // Private memory scopes of the run (D12, DK272; spec-delta S1593): the names the agent may open through the gateway's private-memory tools.
+        const names = v["private-scopes"] ? String(v["private-scopes"]).split(",").map((x) => x.trim()).filter(Boolean) : [];
+        const bad = names.length ? privateScopesProblem(names) : null;
+        if (bad) throw new UsageError(`--private-scopes: ${typeof bad === "string" ? bad : (bad as { message?: string }).message ?? "invalid"}`);
+        return { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false, ...(names.length ? { private_scopes: names } : {}) };
+      })(),
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).

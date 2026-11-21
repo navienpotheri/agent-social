@@ -2991,6 +2991,82 @@
       "valid": true
     },
     {
+      "name": "valid_ruling_outside_mandate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "ruling_outside_mandate_empty",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": []
+      },
+      "valid": false
+    },
+    {
+      "name": "ruling_outside_mandate_not_a_did",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "the coder"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "ruling_outside_mandate_duplicate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "ruling",
+        "about": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "verdict": "for_principal",
+        "fault": {
+          "did:web:example.com:agents:coder": 1000
+        },
+        "outside_mandate": [
+          "did:web:example.com:agents:coder",
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "acceptance_with_outside_mandate",
+      "schema": "attestation",
+      "instance": {
+        "kind": "acceptance",
+        "about": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "verdict": "accepted",
+        "outside_mandate": [
+          "did:web:example.com:agents:coder"
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ruling_citing_code",
       "schema": "attestation",
       "instance": {

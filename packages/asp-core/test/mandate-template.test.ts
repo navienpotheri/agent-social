@@ -2,10 +2,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { deriveMandate, mandateViolations, scopeCovered } from "../src/index.ts";
+import { deriveMandate, mandateViolations, privateScopesProblem, scopeCovered } from "../src/index.ts";
 
 const vec = JSON.parse(readFileSync(new URL("../../../conformance/vectors/mandate-template.json", import.meta.url), "utf8"));
 for (const c of vec.violations) test(`violations: ${c.name}`, () => { assert.deepEqual(mandateViolations(c.ceiling, c.candidate), c.expected); });
+for (const c of vec.privateScopes) test(`private scopes: ${c.name}`, () => { assert.equal(privateScopesProblem(c.input === null ? undefined : c.input), c.problem); });
 for (const c of vec.derive) test(`derive: ${c.name}`, () => { assert.deepEqual(deriveMandate(c.template, c.contract, c.narrowing), c.expected); });
 test("a wildcard scope covers what sits under it and not the bare prefix", () => {
   assert.equal(scopeCovered(["pr.*"], "pr.open"), true);

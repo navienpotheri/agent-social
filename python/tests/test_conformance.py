@@ -182,3 +182,10 @@ def test_known_notices():
 @pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in NA["cases"]])
 def test_notice_ack(case):
     assert notice_ack_problem(case["input"]) == case["problem"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["privateScopes"]])
+def test_private_scopes(case):
+    from asp_core.mandate_template import private_scopes_problem  # noqa: PLC0415
+
+    assert private_scopes_problem(case["input"]) == case["problem"]
