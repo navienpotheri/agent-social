@@ -800,6 +800,14 @@ sv("valid_inspectorate_finding", "inspectorate_finding", fBody(), true);
 sv("inspectorate_finding_no_touches", "inspectorate_finding", fBody({ touches: [] }), false);
 sv("inspectorate_finding_bad_touch_kind", "inspectorate_finding", fBody({ touches: [{ run: "r1", kind: "opened", forbidden: true }] }), false);
 sv("inspectorate_finding_penalty_field", "inspectorate_finding", fBody({ slash: 10 }), false);
+// ---------- the memory key (spec-deltas S1604, register rows D12 and DK272) ----------
+const mkBody = (over: Record<string, unknown> = {}) => ({ did: "did:web:example.com:agents:coder-7", name: "memory-1", public_key: "A".repeat(43), at: "2026-11-22T10:00:00Z", ...over });
+sv("valid_memory_key", "memory_key", mkBody(), true);
+sv("valid_memory_key_rotation", "memory_key", mkBody({ name: "memory-2", revokes: "sha256:" + "8".repeat(64) }), true);
+sv("memory_key_no_key", "memory_key", (({ public_key: _k, ...r }) => r)(mkBody()), false);
+sv("memory_key_empty_name", "memory_key", mkBody({ name: "" }), false);
+sv("memory_key_extra_field", "memory_key", mkBody({ private_key: "x" }), false);
+sv("memory_key_revokes_not_an_id", "memory_key", mkBody({ revokes: "memory-1" }), false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
