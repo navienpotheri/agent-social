@@ -5883,7 +5883,7 @@
   {
    "id": "DK1371",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Bringing a fleet under the protocol is still a manual grind. An enterprise needs a guided, low-effort path: questions, ready personas, imports, a preview, an apply and a rollback.",
    "bucket": "must",
    "hours": 10,
