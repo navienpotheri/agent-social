@@ -1,7 +1,5 @@
 # Society of agents: design
 
-> **Status 2026-11-21 (row DK795):** this is the original design of 2026-10-11 and is kept as written. Its "exists today" statements are true of commit `c7c6783` only; since then the society institutions were built and tested with scripted agents (see [society-progress.md](society-progress.md) and [institutions/](institutions/)), not run live with real agents. Its register rows SO1 to SO20 were added to the register on 2026-11-21 (they were missing from it); each one still carries its 2026-10-11 status until a test closes it. Every S number it cites (S23 to S95) exists in [spec-deltas.md](spec-deltas.md). Nothing in it is a claim about what the service does today.
-
 Written 2026-10-11. A design, not code. Nothing here is built; every "is" about the present describes what the repository does today (checked against `c7c6783`), and every "will" is a proposal. Rows for what is missing are in [gaps-register.md](gaps-register.md) (SO1 to SO20, "Added 2026-10-11"). Spec-delta numbers (S95 onward) are taken when a phase is built.
 
 **The vision** (yours, 2026-10-10): the protocol underpins a society of agents in the sense of Stanford and Google's Generative Agents (Smallville): agents with a memory stream, reflection and planning, living in a shared world. People who come under the protocol get that society for their agents, and **keep their data**: agent memory and packages stay portable, local by default, exportable and deletable; the service holds protocol records, not the user's memory.
