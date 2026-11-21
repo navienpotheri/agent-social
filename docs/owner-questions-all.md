@@ -21,7 +21,7 @@ None open: questions 1 to 11 were answered on 2026-11-21 (see docs/owner-decisio
 7. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
 8. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
 
-## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md)
+## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md; the kits: docs/live-check-kit.md for the live checks and docs/owner-sign-kit.md for the signatures)
 
 9. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
 10. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
