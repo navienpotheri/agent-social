@@ -35,7 +35,7 @@ import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
 import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
-import { dataHandlingProblem, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
+import { dataHandlingProblem, readDataHandling, noticeAckProblem, privateScopesProblem, type DataHandling } from "@agent-social/asp-core";
 import { allowedInWindow, hireCycles, tripped, type Hire as BreakerHire } from "./fleet-breaker.ts";
 import { buildAuditExport, type AuditManifest } from "./audit-export.ts";
 import { creditsFor, meterOf, priceStatement, type Plan, type Usage, type AgentUsage } from "./metering.ts";
@@ -59,6 +59,9 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
+import { honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
+/** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
+export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
 import { CONTEST_COURTS_MS, CONTEST_OPERATOR_MS, charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -375,6 +378,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
+    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
@@ -1556,6 +1560,8 @@ export class EventLog {
     }
     const cbody = contract.record.body as { performer: string };
     if (r.issuer !== cbody.performer) throw new AspError("WRONG_ISSUER", `${r.issuer} is not the performer of ${body.contract}`);
+    const jdc = (r.body as { job_data_chain?: string }).job_data_chain;
+    if (jdc) { await tx.putMarker(`job_data:${body.contract}`, jdc); } // the performer cites the head of its job-data deletion chain (S1602, JO3)
     const chain = await tx.getChain(contract.chain);
     const live = chain?.state === "Running" || chain?.state === "Checkpoint";
     if (body.late) {
@@ -1827,6 +1833,17 @@ export class EventLog {
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
     await noteLock(tx, escrow.backer, body.contract, null);
+    // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
+    if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** Whether a contract's job data is confirmed deleted (S1602, JO3): `not_applicable` while the contract is unsettled or retains data for a stated number of days; `confirmed` with the chain head the performer cited; `unconfirmed` when it settled with none. Reads only. */
+  async jobDataStatus(contract: string): Promise<{ status: "not_applicable" | "confirmed" | "unconfirmed"; chain_head?: string }> {
+    return this.store.transaction(async (tx) => {
+      const head = await tx.getMarker(`job_data:${contract}`);
+      if (head) return { status: "confirmed" as const, chain_head: head };
+      return { status: (await tx.getMarker(`data_unconfirmed:${contract}`)) === "1" ? ("unconfirmed" as const) : ("not_applicable" as const) };
+    });
   }
 
   /**
@@ -2796,6 +2813,62 @@ export class EventLog {
    * A notice acknowledgement (S1591, US8): an unknown notice and a malformed hash are refused by name; when it names an agent the issuer is that agent or its sponsor; every acknowledgement is kept and the latest for an issuer and a
    * notice is the one in force (a marker per issuer and notice, rebuilt on replay).
    */
+  /**
+   * The inspectorate's records (DK1744, S1603; docs/institutions/inspectorate.md): a Court's warrant, a custody item, a registered decoy and a finding, each checked by the rules of inspectorate.ts. The inspectorate reports;
+   * it never holds a key, never opens a sealed memory and never penalises: nothing here moves credits or changes an agent's standing.
+   */
+  private async projectInspectorate(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
+    const now = Date.parse(r.issued_at);
+    if (type === "warrant") {
+      const b = r.body as { subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
+      if (r.issuer !== COURTS_DID) throw rule("warrant_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court grants a warrant`);
+      if (b.requested_by !== INSPECTORATE_DID) throw rule("warrant_wrong_requester", `a warrant is requested by the inspectorate (${INSPECTORATE_DID})`);
+      const pass = await tx.getPassport(b.subject);
+      if (!pass) throw rule("warrant_unknown_agent", `${b.subject} has no passport in this log`);
+      if (pass.sponsor !== b.sponsor) throw rule("warrant_sponsor_mismatch", `${b.subject}'s sponsor is ${pass.sponsor ?? "none"}, not ${b.sponsor}`);
+      if (b.data.includes("key_material")) throw rule("warrant_key_material", "key material is never available by warrant: no key is held, escrowed or opened for anyone");
+      if (b.data.includes("private_memory") && b.produced_by !== b.sponsor) throw rule("warrant_sealed_not_by_principal", "a sealed memory is opened only by the principal producing the extract the scope names: produced_by is the sponsor, and the inspectorate never holds the key");
+      if (b.granted_by.includes(b.subject) || b.granted_by.includes(b.sponsor) || b.granted_by.includes(b.requested_by)) throw rule("warrant_party_on_panel", "a juror who is the subject, its sponsor or the inspectorate does not sit");
+      const bad = warrantProblems({ id: r.id, requestedBy: b.requested_by, grantedBy: b.granted_by, panelSize: b.panel_size, partiesOnPanel: false, subject: b.subject, sponsor: b.sponsor, grounds: b.grounds, data: b.data, grantedAt: now, expiresAt: Date.parse(b.expires_at), notifiedAt: b.notified_at ? Date.parse(b.notified_at) : null, ...(b.delayed_notice_finding ? { delayedNoticeFinding: b.delayed_notice_finding } : {}), scope: b.scope }, now);
+      if (bad.length) throw rule("warrant_invalid", bad.join("; "));
+      await tx.putMarker(`warrant:${r.id}`, "1");
+      return;
+    }
+    if (type === "custody_item") {
+      const b = r.body as { case: string; n: number; what: string; sha256: string; held_by: string; at: string; prev_item: string };
+      if (r.issuer !== b.held_by) throw rule("custody_wrong_issuer", `${r.issuer} is not ${b.held_by}: the holder signs its own item`);
+      const last = JSON.parse((await tx.getMarker(`custody:${b.case}`)) ?? "null") as { n: number; hash: string; held_by: string } | null;
+      if (b.n !== (last ? last.n + 1 : 0)) throw rule("custody_not_next", `the next item of case ${b.case} is ${last ? last.n + 1 : 0}, not ${b.n}`);
+      if (b.prev_item !== (last ? last.hash : "genesis")) throw rule("custody_chain_broken", "the item does not follow the hash of the item before it: the custody chain is broken");
+      if (last && last.held_by !== b.held_by && !/^handover:/.test(b.what)) throw rule("custody_holder_changed", "the holder changes only by a recorded handover (an item whose text begins handover:)");
+      await tx.putMarker(`custody:${b.case}`, JSON.stringify({ n: b.n, held_by: b.held_by, hash: itemHash({ n: b.n, what: b.what, sha256: b.sha256, heldBy: b.held_by, at: Date.parse(b.at) }, b.prev_item) }));
+      return;
+    }
+    if (type === "decoy_registration") {
+      const b = r.body as { decoy: string; text: string; carries_real_secret: boolean; forbidden_by_mandate: boolean; scope: "open_investigation" | "random_audit"; audit_share_permille?: number };
+      if (r.issuer !== COURTS_DID) throw rule("decoy_wrong_issuer", `${r.issuer} is not the Courts: a decoy is registered with a Court`);
+      if (await tx.getMarker(`decoy:${b.decoy}`)) throw rule("decoy_known", `decoy ${b.decoy} is registered already`);
+      const bad = honeypotProblems({ id: b.decoy, registeredWithCourt: true, carriesRealSecret: b.carries_real_secret, text: b.text, forbiddenByMandate: b.forbidden_by_mandate, scope: b.scope }, (b.audit_share_permille ?? 0) / 1000);
+      if (bad.length) {
+        const name = b.carries_real_secret ? "decoy_real_secret" : bad.some((x) => /invite a touch/.test(x)) ? "decoy_entices" : !b.forbidden_by_mandate ? "decoy_not_forbidden" : "decoy_audit_share";
+        throw rule(name, bad.join("; "));
+      }
+      await tx.putMarker(`decoy:${b.decoy}`, r.id);
+      return;
+    }
+    // inspectorate_finding
+    const b = r.body as { decoy: string; agent: string; touches: { run: string; kind: "listed" | "read" | "copied" | "sent"; forbidden: boolean }[] };
+    if (r.issuer !== INSPECTORATE_DID) throw rule("finding_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it files a finding`);
+    const reg = await tx.getRecord(b.decoy);
+    if (!reg || reg.record.type !== "asp.decoy_registration/v0.2") throw rule("finding_unknown_decoy", `${b.decoy} is not a registered decoy in this log`);
+    if (!(await tx.getPassport(b.agent))) throw rule("finding_unknown_agent", `${b.agent} has no passport in this log`);
+    const f = honeypotFinding(b.touches);
+    if (!f.finding) throw rule("finding_not_deliberate", f.why);
+    if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
+    await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
   /** A refusal by the agent's local gateway, signed with the agent's key (S1601, DK1607): so the agent can contest it. Costs no credits; moves nothing. */
   private async projectGatewayRefusal(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { agent: string; rule: string; call_sha256: string };
@@ -3147,6 +3220,61 @@ export class EventLog {
       const raw = await tx.getMarker(`recall:${recall}`);
       return raw ? this.recallCountIn(tx, JSON.parse(raw)) : null;
     });
+  }
+
+  /**
+   * The elections as the public page reads them (DK1743): the holders of each office, every election with its window, its candidates, the number of committed and revealed ballots, the live count and the signed result, and
+   * every recall with its petition, its vote and its result. Built from the signed records and the log's own counts, so the page equals a count taken from the log. Reads only.
+   */
+  async electionsView(at?: string) {
+    const all = await this.recordsOfTypes(["election", "candidacy", "ballot_commit", "ballot_reveal", "election_result", "recall_petition", "recall_vote", "recall_result"]);
+    // the time is the one asked for, else the later of the wall clock and the newest record (a log with a clock of its own shows its own latest state)
+    const now = at ? Date.parse(at) : Math.max(Date.now(), ...all.map((r) => Date.parse(r.issued_at)));
+    const recs = all.filter((r) => Date.parse(r.issued_at) <= now);
+    const T = (x: string) => `asp.${x}/v0.2`;
+    const resultOf = new Map<string, AspRecord>();
+    for (const r of recs) if (r.type === T("election_result")) resultOf.set((r.body as { election: string }).election, r);
+    const elections = [];
+    for (const e of recs.filter((r) => r.type === T("election"))) {
+      const b = e.body as { office: string; opens_at: string; closes_at: string; reveals_close_at: string; thread?: string };
+      const mine = (t: string) => recs.filter((r) => r.type === T(t) && (r.body as { election: string }).election === e.id);
+      const res = resultOf.get(e.id);
+      const state = res ? ((res.body as { void: boolean }).void ? "void" : "decided") : now < Date.parse(b.opens_at) ? "upcoming" : now < Date.parse(b.closes_at) ? "voting" : now < Date.parse(b.reveals_close_at) ? "revealing" : "closed";
+      const tally = await this.electionTally(e.id);
+      elections.push({
+        id: e.id, office: b.office, state, opensAt: b.opens_at, closesAt: b.closes_at, revealsCloseAt: b.reveals_close_at, ...(b.thread ? { thread: b.thread } : {}),
+        candidates: mine("candidacy").map((c) => ({ did: c.issuer, endorsers: ((c.body as { endorsers: string[] }).endorsers ?? []).length })),
+        committed: mine("ballot_commit").length, revealed: mine("ballot_reveal").length,
+        live: tally ? { approvals: tally.approvals, counted: tally.counted, controllers: tally.controllers, unrevealed: tally.unrevealed, elected: tally.elected, void: tally.void } : null,
+        result: res ? { id: res.id, at: res.issued_at, elected: (res.body as { elected: string[] }).elected, void: (res.body as { void: boolean }).void } : null,
+      });
+    }
+    const recalls = [];
+    for (const p of recs.filter((r) => r.type === T("recall_petition") && !(r.body as { recall?: string }).recall)) {
+      const b = p.body as { officer: string; election_result: string; reason?: string };
+      const signers = recs.filter((r) => r.type === T("recall_petition") && (r.id === p.id || (r.body as { recall?: string }).recall === p.id)).sort((x, y) => (x.issued_at < y.issued_at ? -1 : 1));
+      const resRec = (await this.store.transaction((tx) => tx.getRecord(b.election_result)))?.record;
+      const resBody = resRec?.body as { election: string; controllers: number } | undefined;
+      const el = resBody ? recs.find((r) => r.id === resBody.election) : undefined;
+      const need = Math.max(5, Math.ceil((resBody?.controllers ?? 0) / 10));
+      const opensAt = signers.length >= need ? signers[need - 1]!.issued_at : null;
+      const closesAt = opensAt ? new Date(Date.parse(opensAt) + 7 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z") : null;
+      const votes = recs.filter((r) => r.type === T("recall_vote") && (r.body as { recall: string }).recall === p.id).length;
+      const res = recs.find((r) => r.type === T("recall_result") && (r.body as { recall: string }).recall === p.id);
+      // the live count is the log's own and is shown for the present only; a page as of an earlier time shows the counts of records, not the weighted count
+      const live = at ? null : (await this.recallTally(p.id));
+      recalls.push({
+        id: p.id, officer: b.officer, office: (el?.body as { office?: string } | undefined)?.office ?? null, reason: b.reason ?? "", petitioned: signers.length, needed: need,
+        state: res ? ((res.body as { removed: boolean }).removed ? "removed" : "kept") : opensAt ? (now < Date.parse(closesAt!) ? "voting" : "closed") : "petition",
+        opensAt, closesAt, votes, live,
+      });
+    }
+    return {
+      at: new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z"),
+      offices: { steward: await this.officeHolders("steward"), auditor: await this.officeHolders("auditor") },
+      elections, recalls,
+      note: "Offices are few and hold no power over money, the Code, the safety floors or legal matters. A ballot is committed first and revealed after the window; an unrevealed ballot is not counted. The count is the log's own, recomputed from the signed ballots.",
+    };
   }
 
   /** Whether an officer was removed from an office by a recall (S1600): the record of the result, or null. Reads only. */

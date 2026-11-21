@@ -34,6 +34,7 @@ import { ApprovalPile } from "../approval-pile.ts";
 import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
+import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -120,7 +121,7 @@ export interface GatewayOptions {
   /** The cognition tap (DK79): reads messages, thinking, plans, sub-agent calls, skills, memory writes and actions, scrubbed, for the telemetry store. Absent: nothing is read. */
   cognition?: CognitionTap;
   /** Called for every judged call. */
-  onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
+  onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string; /** For a refusal: its class and the hash of the call (never the call), so it can be recorded and contested (S1601). */ rule?: RefusalRule; callSha256?: string }) => void;
   onStop?: (reason: string) => void;
   /** The loop limits of the Mandate (DK1230, S1422): the gateway halts the run on the Nth equivalent call, a chain of spawns beyond the depth, or the daily token cap, and tells `onHalt` once so the halt can be signed into the log. */
   loop?: import("../agent-guards.ts").LoopLimits & { onHalt?: (h: import("../agent-guards.ts").GatewayHalt) => void };
@@ -476,7 +477,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       // The third refused attempt at one kind of thing in ten minutes is recorded as what it is: repeated circumvention is itself a violation (Article 8), in the run log the Action commits to.
       if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
     }
-    opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
+    opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(!allow ? { rule: refusalRule(reason, j.scope), callSha256: callSha256(call.name, call.args) } : {}) });
     opts.telemetry?.observeCall({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
     const isPrivate = PRIVATE_TOOL.test(call.name);
     if (isPrivate && call.id) privateCallIds.add(call.id);

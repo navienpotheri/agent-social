@@ -557,6 +557,54 @@
       "valid": false
     },
     {
+      "name": "valid_action_job_data_chain",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "job_data_chain": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "action_job_data_chain_short",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "job_data_chain": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "action_job_data_chain_uppercase",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "job_data_chain": "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+      },
+      "valid": false
+    },
+    {
+      "name": "action_job_data_chain_prefixed",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "job_data_chain": "sha256:ddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_action",
       "schema": "action",
       "instance": {
@@ -3898,6 +3946,329 @@
         "call_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "at": "2026-11-22T10:00:00Z",
         "call": "rm -rf /"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_warrant",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "run_log"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z",
+        "scope": "the run log of the two runs that touched the decoy, nothing else"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_warrant_private_memory",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "private_memory"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z",
+        "scope": "the run log of the two runs that touched the decoy, nothing else",
+        "produced_by": "did:web:example.com:users:alice",
+        "notified_at": "2026-11-22T10:30:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "warrant_key_material_in_enum",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "key_material"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z",
+        "scope": "the run log of the two runs that touched the decoy, nothing else"
+      },
+      "valid": true
+    },
+    {
+      "name": "warrant_unknown_class",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "browser_history"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z",
+        "scope": "the run log of the two runs that touched the decoy, nothing else"
+      },
+      "valid": false
+    },
+    {
+      "name": "warrant_no_scope",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "run_log"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "warrant_extra_field",
+      "schema": "warrant",
+      "instance": {
+        "subject": "did:web:example.com:agents:coder-7",
+        "sponsor": "did:web:example.com:users:alice",
+        "requested_by": "did:web:asp.local:inspectorate",
+        "granted_by": [
+          "did:web:example.com:users:j1",
+          "did:web:example.com:users:j2"
+        ],
+        "panel_size": 3,
+        "grounds": "two runs read a decoy the Mandate forbade, and the sponsor was told",
+        "data": [
+          "run_log"
+        ],
+        "expires_at": "2026-11-24T10:00:00Z",
+        "scope": "the run log of the two runs that touched the decoy, nothing else",
+        "key": "secret"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_custody_item",
+      "schema": "custody_item",
+      "instance": {
+        "case": "case-7",
+        "n": 0,
+        "what": "copy of the run log",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "held_by": "did:web:asp.local:inspectorate",
+        "at": "2026-11-22T10:00:00Z",
+        "prev_item": "genesis"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_custody_item_next",
+      "schema": "custody_item",
+      "instance": {
+        "case": "case-7",
+        "n": 1,
+        "what": "handover:to the Courts",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "held_by": "did:web:asp.local:inspectorate",
+        "at": "2026-11-22T10:00:00Z",
+        "prev_item": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "custody_item_bad_prev",
+      "schema": "custody_item",
+      "instance": {
+        "case": "case-7",
+        "n": 0,
+        "what": "copy of the run log",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "held_by": "did:web:asp.local:inspectorate",
+        "at": "2026-11-22T10:00:00Z",
+        "prev_item": "first"
+      },
+      "valid": false
+    },
+    {
+      "name": "custody_item_negative_n",
+      "schema": "custody_item",
+      "instance": {
+        "case": "case-7",
+        "n": -1,
+        "what": "copy of the run log",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "held_by": "did:web:asp.local:inspectorate",
+        "at": "2026-11-22T10:00:00Z",
+        "prev_item": "genesis"
+      },
+      "valid": false
+    },
+    {
+      "name": "custody_item_short_hash",
+      "schema": "custody_item",
+      "instance": {
+        "case": "case-7",
+        "n": 0,
+        "what": "copy of the run log",
+        "sha256": "abc",
+        "held_by": "did:web:asp.local:inspectorate",
+        "at": "2026-11-22T10:00:00Z",
+        "prev_item": "genesis"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_decoy_registration",
+      "schema": "decoy_registration",
+      "instance": {
+        "decoy": "decoy-1",
+        "text": "notes/old-api-key-backup.txt (a file of no value)",
+        "carries_real_secret": false,
+        "forbidden_by_mandate": true,
+        "scope": "random_audit",
+        "audit_share_permille": 10
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_decoy_open_investigation",
+      "schema": "decoy_registration",
+      "instance": {
+        "decoy": "decoy-1",
+        "text": "notes/old-api-key-backup.txt (a file of no value)",
+        "carries_real_secret": false,
+        "forbidden_by_mandate": true,
+        "scope": "open_investigation",
+        "audit_share_permille": 10
+      },
+      "valid": true
+    },
+    {
+      "name": "decoy_registration_bad_scope",
+      "schema": "decoy_registration",
+      "instance": {
+        "decoy": "decoy-1",
+        "text": "notes/old-api-key-backup.txt (a file of no value)",
+        "carries_real_secret": false,
+        "forbidden_by_mandate": true,
+        "scope": "always",
+        "audit_share_permille": 10
+      },
+      "valid": false
+    },
+    {
+      "name": "decoy_registration_secret_not_boolean",
+      "schema": "decoy_registration",
+      "instance": {
+        "decoy": "decoy-1",
+        "text": "notes/old-api-key-backup.txt (a file of no value)",
+        "carries_real_secret": "no",
+        "forbidden_by_mandate": true,
+        "scope": "random_audit",
+        "audit_share_permille": 10
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_inspectorate_finding",
+      "schema": "inspectorate_finding",
+      "instance": {
+        "decoy": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "agent": "did:web:example.com:agents:coder-7",
+        "touches": [
+          {
+            "run": "r1",
+            "kind": "read",
+            "forbidden": true
+          },
+          {
+            "run": "r2",
+            "kind": "copied",
+            "forbidden": true
+          }
+        ],
+        "summary": "read and copied the decoy on two runs"
+      },
+      "valid": true
+    },
+    {
+      "name": "inspectorate_finding_no_touches",
+      "schema": "inspectorate_finding",
+      "instance": {
+        "decoy": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "agent": "did:web:example.com:agents:coder-7",
+        "touches": [],
+        "summary": "read and copied the decoy on two runs"
+      },
+      "valid": false
+    },
+    {
+      "name": "inspectorate_finding_bad_touch_kind",
+      "schema": "inspectorate_finding",
+      "instance": {
+        "decoy": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "agent": "did:web:example.com:agents:coder-7",
+        "touches": [
+          {
+            "run": "r1",
+            "kind": "opened",
+            "forbidden": true
+          }
+        ],
+        "summary": "read and copied the decoy on two runs"
+      },
+      "valid": false
+    },
+    {
+      "name": "inspectorate_finding_penalty_field",
+      "schema": "inspectorate_finding",
+      "instance": {
+        "decoy": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "agent": "did:web:example.com:agents:coder-7",
+        "touches": [
+          {
+            "run": "r1",
+            "kind": "read",
+            "forbidden": true
+          },
+          {
+            "run": "r2",
+            "kind": "copied",
+            "forbidden": true
+          }
+        ],
+        "summary": "read and copied the decoy on two runs",
+        "slash": 10
       },
       "valid": false
     },

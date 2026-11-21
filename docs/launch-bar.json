@@ -3362,8 +3362,8 @@
   {
    "id": "DK431",
    "pri": "A",
-   "status": "open",
-   "gap": "The law-abiding certificate is not issued: the temptation suite has 24 variants where the exam engine needs a pool of at least 40, no sitting runs it for an agent, and no real model has been run agai…",
+   "status": "partial",
+   "gap": "The law-abiding certificate is not issued: the temptation suite had 24 variants where the exam engine needs a pool of at least 40, no sitting runs it for an agent, and no real model has been run agai…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -5885,19 +5885,6 @@
    "why": "",
    "claim": "The rent and the tax are set from measured real earnings",
    "where": "site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending'"
-  },
-  {
-   "id": "DK1607",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "A reversed contest changes what the institution did",
-   "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
   },
   {
    "id": "DK1700",

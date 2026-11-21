@@ -2,25 +2,44 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:action",
   "title": "Action body",
-  "description": "The runtime→protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. Self-reported — this cannot catch a genuinely adversarial agent that simply omits a violating action, but it turns accidental scope creep into an immediately-checkable record instead of something only a human might notice later in the Delivery.",
+  "description": "The runtime\u2192protocol compliance bridge: a self-issued, near-real-time report of what scopes a performer's tool calls actually exercised during a run, checked against the job's live Mandate. Self-reported \u2014 this cannot catch a genuinely adversarial agent that simply omits a violating action, but it turns accidental scope creep into an immediately-checkable record instead of something only a human might notice later in the Delivery.",
   "type": "object",
-  "required": ["contract", "scopes_used"],
+  "required": [
+    "contract",
+    "scopes_used"
+  ],
   "additionalProperties": false,
   "properties": {
-    "contract": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
     "scopes_used": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$"
+      },
       "uniqueItems": true
     },
-    "summary": { "type": "string" },
+    "summary": {
+      "type": "string"
+    },
     "assurance": {
       "description": "How strong the evidence behind this Action is, the strongest mechanism that applied: self_reported (the agent signed its own report), runtime_observed (the run's output was parsed as it happened; a violation is detected and stopped, not prevented), gateway_observed (a gateway saw the traffic but could not refuse), gateway_enforced (tool calls were checked and refused before the agent received them), hook_enforced (the runtime's own pre-call hook blocked disallowed calls), sandbox_enforced (the process ran in a sandbox with egress rules). Absent means unspecified. Lets a principal or a Court weigh the Action.",
-      "enum": ["self_reported", "runtime_observed", "gateway_observed", "gateway_enforced", "hook_enforced", "sandbox_enforced"]
+      "enum": [
+        "self_reported",
+        "runtime_observed",
+        "gateway_observed",
+        "gateway_enforced",
+        "hook_enforced",
+        "sandbox_enforced"
+      ]
     },
     "sub_agents": {
       "description": "Whether the runtime ran helpers of its own (parallel agents inside Claude Code, say) that this report cannot tell apart: shared_identity means every call in this Action is signed as one identity although more than one agent may have made them, so the report is coarser than its assurance suggests. Absent means nothing is claimed either way. Helpers run as protocol nodes (asp orchestrate) have keys of their own and are not marked this way. A label for a reader; it grants nothing.",
-      "enum": ["shared_identity"]
+      "enum": [
+        "shared_identity"
+      ]
     },
     "metrics": {
       "description": "What this stretch of the run cost and what ran, measured by whoever observed it (see assurance): the models the agent called, how many model requests and tool calls, tokens in and out, and seconds. A gateway counts from the traffic it relayed; a self-report is the agent's own figure. Counts are for this Action only (the interval since the previous Action of the run), so a trend adds them up. The model name is what the provider was asked for; a digest is recorded only when the provider reports one.",
@@ -32,31 +51,68 @@
           "uniqueItems": true,
           "items": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+              "name"
+            ],
             "additionalProperties": false,
             "properties": {
-              "name": { "type": "string", "minLength": 1 },
-              "provider": { "type": "string" },
-              "digest": { "type": "string" }
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "provider": {
+                "type": "string"
+              },
+              "digest": {
+                "type": "string"
+              }
             }
           }
         },
-        "requests": { "type": "integer", "minimum": 0 },
-        "tool_calls": { "type": "integer", "minimum": 0 },
-        "tokens_in": { "type": "integer", "minimum": 0 },
-        "tokens_out": { "type": "integer", "minimum": 0 },
-        "seconds": { "type": "integer", "minimum": 0 },
-        "rate_limited": { "description": "Network calls refused in this interval because they were over the Mandate's rate limit (network.rate). Not strikes.", "type": "integer", "minimum": 0 },
-        "approval_wait_seconds": { "description": "Seconds in this interval that the run waited for its principal to answer an approval (a gated call held for a yes). Not working time: `seconds` leaves it out, so a slow principal cannot make a good agent look late.", "type": "integer", "minimum": 0 }
+        "requests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_in": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_out": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rate_limited": {
+          "description": "Network calls refused in this interval because they were over the Mandate's rate limit (network.rate). Not strikes.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "approval_wait_seconds": {
+          "description": "Seconds in this interval that the run waited for its principal to answer an approval (a gated call held for a yes). Not working time: `seconds` leaves it out, so a slow principal cannot make a good agent look late.",
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "late": {
       "description": "Marks a report made after the job ended, for the last stretch of activity the performer could not report before the stop (a revoke, a kill or a settlement lands between its reports). The log accepts it only on a Settled job, from the performer, no later than ten minutes after the settlement, and only if activity_ended is no later than thirty seconds after the settlement. The scopes it names are checked against the Mandate like any Action's, and its blocked attempts still count as strikes. Nothing else about a Settled job changes.",
       "type": "object",
-      "required": ["activity_ended"],
+      "required": [
+        "activity_ended"
+      ],
       "additionalProperties": false,
       "properties": {
-        "activity_ended": { "description": "When the last activity this report covers happened.", "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+        "activity_ended": {
+          "description": "When the last activity this report covers happened.",
+          "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+        }
       }
     },
     "blocked_attempts": {
@@ -64,20 +120,54 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["scope", "count"],
+        "required": [
+          "scope",
+          "count"
+        ],
         "additionalProperties": false,
         "properties": {
-          "scope": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$" },
-          "count": { "type": "integer", "minimum": 1 },
-          "targets": { "description": "What the refused calls were aimed at, as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 8. Used by the circumvention detector (DK92) to see a refused action come back in allowed pieces.", "maxItems": 8, "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^(host|path|cmd):[!-~]{1,200}$" } }
+          "scope": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+(\\.[a-z0-9_*]+)*$"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "targets": {
+            "description": "What the refused calls were aimed at, as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 8. Used by the circumvention detector (DK92) to see a refused action come back in allowed pieces.",
+            "maxItems": 8,
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(host|path|cmd):[!-~]{1,200}$"
+            }
+          }
         }
       }
     },
-    "targets": { "description": "What the calls this report covers were aimed at (the calls that ran), as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 64. Never a secret, a query string or a command line.", "maxItems": 64, "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^(host|path|cmd):[!-~]{1,200}$" } },
-    "artifacts": {
-      "description": "Data-flow fingerprinting: a hash of what a tool call's input actually was, never the content itself — provable later in a dispute, never exposed in the log.",
+    "targets": {
+      "description": "What the calls this report covers were aimed at (the calls that ran), as short tokens and never content: host:<name>, path:<relative path>, cmd:<program>. At most 64. Never a secret, a query string or a command line.",
+      "maxItems": 64,
       "type": "array",
-      "items": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(host|path|cmd):[!-~]{1,200}$"
+      }
+    },
+    "artifacts": {
+      "description": "Data-flow fingerprinting: a hash of what a tool call's input actually was, never the content itself \u2014 provable later in a dispute, never exposed in the log.",
+      "type": "array",
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+      }
+    },
+    "job_data_chain": {
+      "description": "The hash of the head of the performer's job-data deletion chain for this contract (register row JO3; spec-delta S1602): `asp job-data delete` writes a hash-chained line for each contract on the performer's machine, and the Action cites the head by its SHA-256 (64 lowercase hexadecimal characters), so the run log's data_deleted and data_retained lines are bound to a signed record. Optional: absent when the contract has no data to delete, and Actions without it stay valid. The log never refuses on it: a settlement of a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by then is marked data_unconfirmed, because the performer may be offline; a later (late) Action that cites it clears the mark.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }

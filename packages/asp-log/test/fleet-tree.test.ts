@@ -58,6 +58,8 @@ describe("the shape of the tree", () => {
     await w.log.append(w.node("eng", "department", "root"));
     await w.log.append(w.node("eng", "department", "root", { version: 2 })); // an amendment
     assert.equal(await refusedBy(w.log.append(w.node("eng", "team", "root", { version: 3 }))), "fleet_node_immutable", "a node never changes kind");
+    await w.log.append(w.node("ops", "department", "root"));
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "ops", { version: 3 }))), "fleet_node_immutable", "a node never changes parent");
     assert.equal((await w.log.verify()).ok, true);
   });
 
@@ -163,6 +165,16 @@ describe("moving an agent between nodes is a signed act", () => {
 });
 
 describe("a budget at a node", () => {
+  test("a member may spend exactly its node's budget, and not one credit more", async () => {
+    const w = await world();
+    await w.log.append(w.node("root", "fleet", undefined, { owner: w.org, budget: { credits: 20 } }));
+    await w.log.append(w.node("eng", "department", "root", { budget: { credits: 10 } }));
+    const a = await w.join("tree-edge-a", "eng", { funds: 200 });
+    const m = await w.openMandate(a);
+    await w.buy(a, "registry.name.claim", 10, { mandate: m }); // exactly the department's 10
+    assert.equal(await refusedBy(w.buy(a, "registry.name.claim", 10, { mandate: m })), "node_budget_exceeded");
+  });
+
   test("the children take no more than the parent has, a node states its share where the parent states a field, and a budget cannot fall below what the children hold", async () => {
     const w = await world();
     await w.log.append(w.node("root", "fleet", undefined, { owner: w.org, budget: { credits: 100, tokens: 1000 } }));
@@ -172,6 +184,7 @@ describe("a budget at a node", () => {
     await w.log.append(w.node("ops", "department", "root", { budget: { credits: 40, tokens: 400 } }));
     await w.log.append(w.node("platform", "team", "eng", { budget: { credits: 30, tokens: 300 } }));
     assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { version: 2, budget: { credits: 20, tokens: 600 } }))), "node_budget_below_children", "its team takes 30");
+    assert.equal(await refusedBy(w.log.append(w.node("eng", "department", "root", { version: 2, budget: { credits: 29, tokens: 600 } }))), "node_budget_below_children", "one short of what its team takes");
     await w.log.append(w.node("eng", "department", "root", { version: 2, budget: { credits: 30, tokens: 600 } }));
     assert.equal(await refusedBy(w.log.append(w.node("ops", "department", "root", { version: 2, budget: { credits: 80, tokens: 400 } }))), "node_budget_exceeds_parent");
   });
