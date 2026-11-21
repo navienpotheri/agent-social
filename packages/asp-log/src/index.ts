@@ -73,7 +73,7 @@ export { CHARTERED, CHARTER_NOTICE_MS, FORUM_DID, type CharterBody } from "./ins
 export { cyclePermille, experiencePermille, holiday, quotePremium, simulateInsurer, type HolderRecord, type SimResult } from "./insurer-dynamics.ts";
 export { KEY_ONLY_BAN_AT, KEY_ONLY_QUARANTINE_AT, KeyOnlyBans, PendingQuarantines, checkKeyProof, keyProofMessage, reviewKeyOnly, slashesOf, type BanEntry, type PendingQuarantine, type KeyOnlyAction, type KeyOnlyReview } from "./key-only.ts";
 export { frontDoorJson, frontDoorRoutes, frontDoorText, startPageHtml, startPageText, frontDoorTools, mentionsOf, SOCIETY_POLL_INTERVAL_SEC, type FrontDoorOptions, type FrontDoorTool } from "./front-door.ts";
-export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
+export { TELEMETRY_KINDS, TELEMETRY_MAX_ITEMS, TELEMETRY_MAX_ITEM_BYTES, TELEMETRY_NOTICE, TelemetryStore, type DeletionReceipt, telemetryHash, type PutResult, type TelemetryEntry, type TelemetryKind } from "./telemetry-store.ts";
 export { renewalNotices, type RenewalNotice } from "./registry.ts";
 export { velocityOf, type VelocityReport, type VelocityWindow } from "./velocity.ts";
 export { GAME_HANDS, GAME_NAME, STAND_MAX, STAND_MIN, commitSeed, playEntrant, runGame, scoreOf, total as gameTotal, transcriptHash, validPolicy, type GameEntrant, type GamePolicy, type GameResult, type GameRun, type HandRecord } from "./game-engine.ts";
@@ -86,6 +86,8 @@ export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
 export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 
+export { fleetDashboard, fleetCsv, spendOf, monthOf, emptyControls, type FleetDashboard, type FleetControlState, type CapPair, type MemberRow } from "./fleet-dashboard.ts";
+export { FleetControls, fleetGuard } from "./fleet-controls.ts";
 export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView } from "./fleets.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";

@@ -352,7 +352,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -402,7 +402,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  logForumCredits, societyMapRoutes, telemetryRoutes, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -1173,7 +1173,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
     if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
     if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
-    if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete"].includes(sub))) return await contentStoreCmd(sub, v, io);
+    if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete", "receipts"].includes(sub))) return await contentStoreCmd(sub, v, io);
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
@@ -2274,10 +2274,12 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
   if (what === "status") { const j = await call("telemetry"); io.out(j.say); io.out(`stored: ${j.stored} item(s); deleted (hash kept): ${j.deleted}`); io.out(j.notice); return 0; }
   if (what === "list") { for (const e of (await call("telemetry/content")).entries) io.out(`${e.hash}  ${e.kind}  ${e.at}  ${e.bytes} bytes${e.deletedAt ? `  deleted ${e.deletedAt}` : ""}`); return 0; }
   if (what === "delete") {
-    if (v.all) { io.out((await call("telemetry/delete-all", "POST", {})).say); return 0; }
+    const show = (j: any) => { io.out(j.say); if (j.receipt) { io.out(`deletion receipt ${j.receipt.id} (${j.receipt.at}): ${j.receipt.deleted.length} item(s); kept: ${j.receipt.kept}`); } };
+    if (v.all) { show(await call("telemetry/delete-all", "POST", {})); return 0; }
     if (!v.hash) throw new UsageError("asp telemetry delete --all, or --hash sha256:<hex>");
-    io.out((await call(`telemetry/content/${encodeURIComponent(v.hash)}`, "DELETE")).say); return 0;
+    show(await call(`telemetry/content/${encodeURIComponent(v.hash)}`, "DELETE")); return 0;
   }
+  if (what === "receipts") { for (const r of (await call("telemetry/receipts")).receipts) io.out(`${r.id}  ${r.at}  ${r.deleted.length} item(s) deleted`); return 0; }
   if (what === "put") {
     const content = v.file ? readFileSync(v.file, "utf8") : v.text;
     if (!content || !v.kind) throw new UsageError("asp telemetry put --kind trajectory|message|text (--file <path> | --text <text>) [--did <did>]");
@@ -2285,7 +2287,7 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
     io.out(`${j.stored ? "stored" : "already stored"}: ${j.hash}`);
     return 0;
   }
-  throw new UsageError("asp telemetry [status|list|put|delete --all|--hash <h>]");
+  throw new UsageError("asp telemetry [status|list|put|receipts|delete --all|--hash <h>]");
 }
 
 /**
@@ -2712,7 +2714,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     if (!opKey) throw new UsageError(`--abuse-intake needs the operator's key (${opDid}) in this machine's keys`);
     abuseIntake = abuseIntakeRoutes({ handle, operator: opKey });
   }
+  // The fleet dashboard and controls (DK1361): for the tenant that owns a fleet's organisation; the state is kept beside the tokens, and the guard refuses a write past a cap or from a frozen member.
+  const fleetControls = new FleetControls(v.tokens ? `${v.tokens}.fleet-controls.json` : undefined);
+  const fleetStored = async () => (await handle.log.since(0, 1_000_000)) as never;
   const routes = [
+    ...(!noAuth ? [fleetDashboardRoutes({ stored: fleetStored, controls: fleetControls, owned: (t: string) => owners.of(t), now: () => new Date(now()).toISOString() })] : []),
     ...(hosted ? [hosted] : []),
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
@@ -2748,7 +2754,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
   // Identities in the tenant's own namespace (blocker 12): the service publishes their DID documents and refuses passports outside the namespace. On when --did-domain is
   // given, or --public-url names a host.
-  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
+  const guards = !noAuth ? [fleetGuard({ controls: fleetControls, since: async (after: number, limit: number) => (await handle.log.since(after, limit)) as never, now: () => new Date(now()).toISOString() }), courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
   // The society watcher (DK52): the contagion and circumvention detectors, run over the whole log on a timer, with signed findings, a public page and a mail to the operator.
   const watchEvery = v["watch-interval"] === undefined ? 0 : Math.max(1, num("watch-interval", 60)) * 1000;

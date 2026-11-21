@@ -7,7 +7,8 @@
  *   GET    /telemetry/content         the list (hashes, kinds, dates; never the text)
  *   GET    /telemetry/content/<hash>  the text, or "deleted" with the hash kept
  *   DELETE /telemetry/content/<hash>  removes the text and keeps the hash
- *   POST   /telemetry/delete-all      removes all the text and keeps every hash
+ *   POST   /telemetry/delete-all      removes all the text and keeps every hash; the answer carries a deletion receipt (DK1378)
+ *   GET    /telemetry/receipts        the tenant's deletion receipts
  * Credits are accounting entries, not money; nothing here changes a standing.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -48,11 +49,15 @@ export function telemetryRoutes(o: TelemetryRoutesOptions) {
         if (!g) return fail(404, "NOT_FOUND", "this tenant stored nothing with that hash");
         return send(200, g.entry.deletedAt ? { ok: true, hash: m[1], deleted: g.entry.deletedAt, kind: g.entry.kind } : { ok: true, hash: m[1], kind: g.entry.kind, at: g.entry.at, content: g.content });
       }
+      if (req.method === "GET" && url.pathname === "/telemetry/receipts") return send(200, { ok: true, receipts: o.store.receipts(t.name) });
       if ((m && req.method === "DELETE") || (req.method === "POST" && url.pathname === "/telemetry/delete-all")) {
         if (!person) return fail(403, "FORBIDDEN", "a machine token cannot delete telemetry");
-        if (m) return o.store.delete(t.name, m[1], o.now()) ? send(200, { ok: true, deleted: 1, say: "The text was deleted. The hash is kept." }) : fail(404, "NOT_FOUND", "nothing stored (or already deleted) with that hash");
-        const n = o.store.deleteAll(t.name, o.now());
-        return send(200, { ok: true, deleted: n, say: `${n} item(s) deleted. The hashes are kept.` });
+        if (m) {
+          const r = o.store.deleteWithReceipt(t.name, o.now(), [m[1]]);
+          return r.deleted ? send(200, { ok: true, deleted: 1, receipt: r.receipt, say: "The text was deleted. The hash is kept. A receipt of the deletion is attached." }) : fail(404, "NOT_FOUND", "nothing stored (or already deleted) with that hash");
+        }
+        const r = o.store.deleteWithReceipt(t.name, o.now());
+        return send(200, { ok: true, deleted: r.deleted, ...(r.receipt ? { receipt: r.receipt } : {}), say: `${r.deleted} item(s) deleted. The hashes are kept.${r.receipt ? " A receipt of the deletion is attached." : ""}` });
       }
       return fail(405, "METHOD_NOT_ALLOWED", "see asp help telemetry");
     } catch (e) { return fail((e as { status?: number }).status ?? 500, "ERROR", (e as Error).message); }

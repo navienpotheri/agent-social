@@ -8,6 +8,8 @@ import { journeyRoutes } from "../packages/asp-package/src/journey-pages.ts";
 import { storyRoutes } from "../packages/asp-package/src/story-pages.ts";
 import { societyMapRoutes } from "../packages/asp-package/src/society-map-routes.ts";
 import { fleetRoutes } from "../packages/asp-package/src/fleet-pages.ts";
+import { fleetDashboardRoutes } from "../packages/asp-package/src/fleet-dashboard-routes.ts";
+import { FleetControls } from "../packages/asp-log/src/index.ts";
 import { coursesRoutes } from "../packages/asp-cli/src/lens-courses/pages.ts";
 import { cohortRoutes } from "../packages/asp-cli/src/lens-courses/cohort-pages.ts";
 import { credit, keysOf, kit, mk, nowIso, operator, party } from "../packages/asp-log/test/society-kit.ts";
@@ -35,6 +37,14 @@ if (withFleets && !empty) {
   const mk2 = async (n: string, fleet: string) => { const a = party(`did:web:example.com:agents:${n}`); await k.log.append(mk("passport", org, { did: a.did, kind: "agent", sponsor: org.did, tier: 1, shape: {}, keys: keysOf(a), fleet }, null, { subject: a.did })); await k.mint(a.did, 200); return a; };
   const pay = [await mk2("payments-lead", FLEETS[0][0]), await mk2("payments-tests", FLEETS[0][0]), await mk2("payments-docs", FLEETS[0][0])];
   const res = [await mk2("research-reader", FLEETS[1][0]), await mk2("research-writer", FLEETS[1][0])];
+  // a small tree for the Payments fleet: a department with a budget, a team and a persona under it (DK1372)
+  const PAYF = FLEETS[0][0];
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "root", version: 1, kind: "fleet", name: "Payments", owner: org.did }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "engineering", version: 1, kind: "department", name: "Engineering", parent: "root", owner: org.did, budget: { credits: 3 } }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "tests", version: 1, kind: "team", name: "Tests", parent: "engineering", owner: org.did, budget: { credits: 1 } }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "reviewers", version: 1, kind: "persona", name: "Reviewers", parent: "engineering", owner: org.did, persona: "reviewer", budget: { credits: 2 } }, null));
+  await k.log.append(mk("fleet_move", org, { fleet: PAYF, member: pay[0].did, to: "reviewers" }, null));
+  await k.log.append(mk("fleet_move", org, { fleet: PAYF, member: pay[1].did, to: "tests" }, null));
   const outside = await k.person("outside-poster", 600);
   await k.runJob(outside, pay[0], 60); await k.runJob(pay[1], pay[0], 40); await k.runJob(outside, res[0], 50);
   for (const by of [pay[0], res[1]]) {
@@ -44,6 +54,13 @@ if (withFleets && !empty) {
     await k.log.append(mk("market_act", by, { act: "posting", intent, board: "main", expires: "2027-06-01T00:00:00Z", deposit }));
   }
 }
+const fleetControls = new FleetControls();
+if (withFleets && !empty) {
+  // The dashboard of the Payments fleet for the demo: a cap nearly reached, one member frozen (DK1361). The demo has no sign-in: every request is the organisation's own.
+  const PAY = "did:web:example.com:fleets:payments";
+  fleetControls.setCap(PAY, "acme-org", "2026-11-01T01:00:00Z", { credits: 2, tokens: 100000 });
+  fleetControls.freeze(PAY, "acme-org", "2026-11-01T01:05:00Z", "did:web:example.com:agents:payments-docs", "reviewing its last run");
+}
 const stored = async () => (await k.log.since(0, 100000)) as never;
 const balances = async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await k.log.balance(d)); return m; };
 const head = async () => { const h = await k.log.head(); return { seq: h.seq, logHash: h.logHash }; };
@@ -51,7 +68,7 @@ const routes = [
   journeyRoutes({ stored, balances, operator: operator.did, now: nowIso }),
   storyRoutes({ stored, balances, operator: operator.did, now: nowIso }),
   societyMapRoutes({ stored, head, rep: async (d) => (await k.log.reputationOf(d)) as never, economy: async () => { const a = await k.log.creditAudit(); return { minted: a.minted, circulating: a.circulating, burned: a.burned, treasury: a.treasury, verdict: a.verdict }; }, alarms: async () => [], events: async () => [], operator: operator.did, now: nowIso }),
-  fleetRoutes({ stored }), coursesRoutes(), cohortRoutes(),
+  fleetRoutes({ stored }), (rq: any, rs: any) => fleetDashboardRoutes({ stored, controls: fleetControls, owned: () => [], now: nowIso })(rq, rs, { tenant: { name: "demo", role: "admin" } }), coursesRoutes(), cohortRoutes(),
 ];
 const server = createServer(async (req, res) => { for (const r of routes) if (await r(req, res)) return; res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); });
 server.listen(port, "127.0.0.1", () => console.log(`pages on http://127.0.0.1:${port}/society/map (${empty ? "empty society" : "seeded society"})`));
