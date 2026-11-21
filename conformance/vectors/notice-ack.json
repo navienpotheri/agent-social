@@ -1,0 +1,97 @@
+{
+  "notices": [
+    "asp.my-data/v1",
+    "asp.privacy/v1",
+    "asp.terms/v1"
+  ],
+  "cases": [
+    {
+      "name": "the statement of the data",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": null
+    },
+    {
+      "name": "the privacy notice",
+      "input": {
+        "notice": "asp.privacy/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": null
+    },
+    {
+      "name": "the terms",
+      "input": {
+        "notice": "asp.terms/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": null
+    },
+    {
+      "name": "a mixed hexadecimal hash",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "problem": null
+    },
+    {
+      "name": "an unknown notice",
+      "input": {
+        "notice": "asp.cookies/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": "notice_ack_unknown_notice"
+    },
+    {
+      "name": "a notice that is not a string",
+      "input": {
+        "notice": 7,
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": "notice_ack_unknown_notice"
+    },
+    {
+      "name": "an uppercase hash",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "problem": "notice_ack_bad_hash"
+    },
+    {
+      "name": "a hash one character short",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": "notice_ack_bad_hash"
+    },
+    {
+      "name": "a hash one character long",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": "notice_ack_bad_hash"
+    },
+    {
+      "name": "a hash with a character that is not hexadecimal",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+      },
+      "problem": "notice_ack_bad_hash"
+    },
+    {
+      "name": "a prefixed hash",
+      "input": {
+        "notice": "asp.my-data/v1",
+        "statement_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "problem": "notice_ack_bad_hash"
+    }
+  ]
+}

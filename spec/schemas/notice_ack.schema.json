@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:notice_ack",
+  "title": "Notice acknowledgement body",
+  "description": "A person's signed acknowledgement that they read a notice (register row US8; spec-delta S1591; docs/consent-record-spec.md): the statement of their data (`asp.my-data/v1`), the privacy notice or the terms, by the hash of the exact text they read. Signed by the person who acknowledges: a sponsor, or a key-only agent for itself; `agent`, when present, is the agent it concerns and the issuer is that agent or its sponsor (notice_ack_wrong_issuer); absent means all agents of the issuer. The log refuses an unknown notice (notice_ack_unknown_notice) and a hash that is not 64 lowercase hexadecimal characters (notice_ack_bad_hash). Every acknowledgement is kept; the latest for an issuer and a notice is in force, and a later one for a changed statement supersedes the earlier without deleting it. It does not make the collection optional: it records that the person was told, in the exact words, and when. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "notice",
+    "statement_sha256"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "notice": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "statement_sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    }
+  }
+}

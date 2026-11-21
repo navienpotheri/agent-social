@@ -59,3 +59,48 @@ export function sizeBond(i: BondInput, m: BondModel = DEFAULT_BOND_MODEL): BondS
   const tier = evidenceTier(i.trials);
   return { upperBound: upper, mean: a / (a + b), loss, bond, tier, why: `${(m.confidence * 100).toFixed(0)}% upper bound ${(upper * 100).toFixed(2)}% of an event from ${i.events} in ${i.trials} runs (${tier} evidence) x a loss of ${loss} x (1 + ${m.margin})` };
 }
+
+/**
+ * The measured chance that an ATTEMPT gets through the gateway (register row DK1333): the ASP Containment Benchmark's second blind set (evals/benchmark/blind2-cases.json, 300 cases written by a separate author who never saw the
+ * gateway's code), run on 2026-11-22 with `node evals/benchmark/blind.mjs --file blind2-cases.json`: of 165 calls that should be blocked, the gateway blocked 153 and let 12 through. These are held-out CASES, not live agent runs: they
+ * measure the gateway against written attacks, not how often real agents try. The number is replaced by live data when there is some (DK1457) and by the alignment study's (DK1332).
+ */
+export const MEASURED_THROUGH = { attempts: 165, through: 12, source: "evals/benchmark blind2 (held-out), gateway, 2026-11-22", live: false } as const;
+
+export interface SplitInput {
+  /** Runs observed for this agent kind and job kind; and the runs in which the agent attempted something the gateway had to refuse or that got through (a strike, a block or a slash). */
+  trials: number; attemptRuns: number;
+  /** Attempts measured against the gateway and how many got through (the pooled rate; default the benchmark's). */
+  attempts?: number; through?: number;
+  jobValue: number; damage: number;
+}
+export interface SplitSuggestion extends BondSuggestion { attemptUpper: number; throughUpper: number; attemptMean: number; throughMean: number }
+
+/**
+ * The split model of docs/research/breach-probability-model.md: P(event) = P(attempt) x P(an attempt gets through). Each is a Beta posterior (the attempt rate from this agent's own record with the cautious prior of one in
+ * twenty, the through rate from the measured attempts with a flat prior) and each is bounded at the square root of the confidence, so that the product of the two bounds covers the true chance of an event with the stated
+ * confidence (both hold at once with probability confidence, if the two are independent). A better gateway lowers the bond even for an agent we know little about; a cleaner agent lowers it even against a leaky gateway.
+ */
+export function sizeBondSplit(i: SplitInput, m: BondModel = DEFAULT_BOND_MODEL): SplitSuggestion {
+  const attempts = i.attempts ?? MEASURED_THROUGH.attempts, through = i.through ?? MEASURED_THROUGH.through;
+  if (!(i.trials >= 0) || !(i.attemptRuns >= 0) || i.attemptRuns > i.trials) throw new Error("attempt runs cannot exceed runs");
+  if (!(attempts >= 0) || !(through >= 0) || through > attempts) throw new Error("attempts that got through cannot exceed attempts");
+  const q = Math.sqrt(m.confidence);
+  const aA = m.priorEvents + i.attemptRuns, bA = m.priorTrials - m.priorEvents + (i.trials - i.attemptRuns);
+  const aT = 1 + through, bT = 1 + (attempts - through);
+  const attemptUpper = betaQuantile(q, aA, bA), throughUpper = betaQuantile(q, aT, bT);
+  const upper = attemptUpper * throughUpper;
+  const loss = i.jobValue + i.damage;
+  const bond = Math.max(m.floor, Math.ceil(upper * loss * (1 + m.margin)));
+  const tier = evidenceTier(i.trials);
+  const attemptMean = aA / (aA + bA), throughMean = aT / (aT + bT);
+  return { upperBound: upper, mean: attemptMean * throughMean, loss, bond, tier, attemptUpper, throughUpper, attemptMean, throughMean, why: `${(m.confidence * 100).toFixed(0)}% bound ${(upper * 100).toFixed(2)}% = an attempt in at most ${(attemptUpper * 100).toFixed(1)}% of runs (${i.attemptRuns} in ${i.trials}, ${tier} evidence) x an attempt getting through at most ${(throughUpper * 100).toFixed(1)}% (${through} of ${attempts} measured) x a loss of ${loss} x (1 + ${m.margin})` };
+}
+
+/**
+ * What the model says cover should cost (advisory; the log still charges the table's premium): the expected loss, which is the posterior MEAN chance of an event (not the bound) x the insured amount x the share the Insurer pays
+ * x (1 + the margin), rounded up to a whole credit, at least 1. Shown beside the table's premium in `asp insure quote` so the owner can see where the table is above or below the model before any rule is changed.
+ */
+export function modelPremium(s: Pick<SplitSuggestion, "mean">, insured: number, coverSharePermille: number, m: BondModel = DEFAULT_BOND_MODEL): number {
+  return Math.max(1, Math.ceil(s.mean * insured * (coverSharePermille / 1000) * (1 + m.margin)));
+}

@@ -34,7 +34,10 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
   if (has(ceiling.nodes) && !(typeof m.nodes?.max_parallel === "number" && m.nodes.max_parallel <= ceiling.nodes.max_parallel)) out.push("nodes");
   if (has(ceiling.learning)) {
     const c = ceiling.learning, s: MandateLike = m.learning ?? {};
-    if ((s.share_to_commons && !c.share_to_commons) || s.scope !== c.scope) out.push("learning");
+    // private scopes (S1593): a name the ceiling does not list is one added, whatever the ceiling states about the rest; absent reads as none
+    const allowed: string[] = Array.isArray(c.private_scopes) ? c.private_scopes : [];
+    const widened = (Array.isArray(s.private_scopes) ? s.private_scopes : []).some((n: string) => !allowed.includes(n));
+    if ((s.share_to_commons && !c.share_to_commons) || s.scope !== c.scope || widened) out.push("learning");
   }
   if (has(ceiling.self_modification) && !((SELF_MODIFICATION_LOOSENESS[m.self_modification] ?? 99) <= SELF_MODIFICATION_LOOSENESS[ceiling.self_modification])) out.push("self_modification");
   if (has(ceiling.checkpoints) && !(ceiling.checkpoints as string[]).every((k) => (m.checkpoints ?? []).includes(k))) out.push("checkpoints");
@@ -52,6 +55,12 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
     // loop limits only narrow: every limit the ceiling states must be stated, and no higher, by the candidate
     const c = ceiling.loop_limits as MandateLike, s: MandateLike = m.loop_limits ?? {};
     for (const k of ["equivalent_calls", "depth", "near_repeats"]) if (has(c[k]) && !(typeof s[k] === "number" && s[k] <= c[k])) { out.push("loop_limits"); break; }
+  }
+  if (has(ceiling.outbound_scan)) {
+    // the outbound scan only narrows: block stays block, and every kind the ceiling states stays
+    const c = ceiling.outbound_scan as MandateLike, s: MandateLike = m.outbound_scan ?? {};
+    const weaker = (c.mode === "block" && s.mode !== "block") || (has(c.kinds) && !(c.kinds as string[]).every((k) => Array.isArray(s.kinds) && (s.kinds as string[]).includes(k)));
+    if (weaker) out.push("outbound_scan");
   }
   if (has(ceiling.institution_spend)) {
     const lines: { institution: string; cap: { value: number }; period: string }[] = m.institution_spend ?? [];
@@ -71,4 +80,14 @@ export function deriveMandate(template: MandateLike, contract: string, narrowing
   const candidate: MandateLike = { ...base, ...narrowing, contract };
   const widens = mandateViolations(template, candidate);
   return widens.length ? { widens } : { mandate: candidate };
+}
+
+/** The private-scope list of a Mandate (register rows D12 and DK272; spec-delta S1593): each name 1 to 64 characters from a-z 0-9 - _, at most 16, no duplicates. Null when it is sound or absent, else the rule the log refuses it by (`private_scopes_invalid`). */
+export const PRIVATE_SCOPE_NAME = /^[a-z0-9_-]{1,64}$/;
+export const MAX_PRIVATE_SCOPES = 16;
+export function privateScopesProblem(list: unknown): "private_scopes_invalid" | null {
+  if (list === undefined || list === null) return null;
+  if (!Array.isArray(list) || list.length > MAX_PRIVATE_SCOPES) return "private_scopes_invalid";
+  if (!list.every((n) => typeof n === "string" && PRIVATE_SCOPE_NAME.test(n))) return "private_scopes_invalid";
+  return new Set(list).size === list.length ? null : "private_scopes_invalid";
 }

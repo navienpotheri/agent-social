@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { withFileLock, type Tenant } from "@agent-social/asp-log";
+import { withFileLock, BREACH_CAUSES, PendingBreaches, type BreachCause, type Tenant } from "@agent-social/asp-log";
 
 export interface AuditEntry { seq: number; at: string; by: string; via: "api" | "local"; action: string; target: string; reason?: string; prev: string; hash: string }
 const GENESIS = "sha256:" + "0".repeat(64);
@@ -45,7 +45,7 @@ export class AdminAudit {
   }
 }
 
-export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string; /** The quarantines the sponsor-less review asks the Clinic for (rows DK540 to DK542, DK546). */ pending?: { list(): unknown[]; ack(dids: string[]): number } }
+export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string; /** The quarantines the sponsor-less review asks the Clinic for (rows DK540 to DK542, DK546). */ pending?: { list(): unknown[]; ack(dids: string[]): number }; /** Breaches reported to the service, waiting for the owner's keys (DK1714). */ breaches?: PendingBreaches }
 
 /** Suspends or resumes a tenant in the tokens file (under the file lock sign-up uses), and records it. Returns an error text or undefined. */
 export function setSuspension(o: AdminOptions, by: string, via: "api" | "local", name: string, suspend: boolean, reason?: string): string | undefined {
@@ -97,12 +97,32 @@ export function adminRoutes(o: AdminOptions) {
         return send(200, { ok: true, tenants: tenants.map((t) => ({ name: t.name, role: t.role, suspended: t.suspended ?? null })) });
       }
       if (o.pending && req.method === "GET" && url.pathname === "/admin/keyonly-pending") return send(200, { ok: true, pending: o.pending.list() });
+      if (o.breaches && req.method === "GET" && url.pathname === "/admin/breach-pending") return send(200, { ok: true, pending: o.breaches.list() });
       if (req.method !== "POST") return send(405, { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "GET or POST" } });
       const body = await readBody(req);
       if (o.pending && url.pathname === "/admin/keyonly-pending/ack") {
         const dids = Array.isArray(body.dids) ? body.dids.filter((d): d is string => typeof d === "string") : [];
         o.audit.add({ at: o.now(), by, via: "api", action: "keyonly_quarantine_ack", target: dids.join(",").slice(0, 200) } as never);
         return send(200, { ok: true, acknowledged: o.pending.ack(dids) });
+      }
+      if (o.breaches && url.pathname === "/admin/breach-pending/ack") {
+        const ids = Array.isArray(body.ids) ? body.ids.filter((d): d is string => typeof d === "string") : [];
+        o.audit.add({ at: o.now(), by, via: "api", action: "breach_ack", target: ids.join(",").slice(0, 200) } as never);
+        return send(200, { ok: true, acknowledged: o.breaches.ack(ids) });
+      }
+      if (o.breaches && url.pathname === "/admin/breach") {
+        // A breach is reported to the service (by the operator, a watcher or the admin token's holder). The service writes it down with its time; it cannot sign the quarantine (the Clinic's key is the owner's).
+        const agent = typeof body.agent === "string" ? body.agent : "";
+        const cause = typeof body.cause === "string" ? body.cause : "";
+        const summary = typeof body.summary === "string" ? body.summary.slice(0, 500) : "";
+        if (!/^did:[a-z0-9]+:[\w:.%-]{1,200}$/i.test(agent) || !(BREACH_CAUSES as readonly string[]).includes(cause) || !summary) return send(400, { ok: false, error: { code: "BAD_REQUEST", message: `agent (a did), cause (${BREACH_CAUSES.join("|")}) and summary are needed` } });
+        const at = o.now();
+        const id = createHash("sha256").update(`${agent}|${at}|${cause}`).digest("hex").slice(0, 16);
+        const fleet = typeof body.fleet === "string" ? body.fleet : undefined, node = typeof body.node === "string" ? body.node : undefined;
+        if (!!fleet !== !!node) return send(400, { ok: false, error: { code: "BAD_REQUEST", message: "fleet and node go together" } });
+        const added = o.breaches.add({ id, agent, cause: cause as BreachCause, summary, at, by, ...(typeof body.detection === "string" ? { detection: body.detection } : {}), ...(fleet ? { fleet, node } : {}) } as never);
+        o.audit.add({ at, by, via: "api", action: "breach_reported", target: agent, reason: `${cause}: ${summary}`.slice(0, 300) } as never);
+        return send(added ? 200 : 409, added ? { ok: true, id, at, next: "the owner runs: asp breach respond --from-service" } : { ok: false, error: { code: "REFUSED", message: `${agent} already has an open breach report` } });
       }
       const reason = typeof body.reason === "string" ? body.reason.slice(0, 300) : undefined;
       const m = /^\/admin\/tenants\/([^/]+)\/(suspend|resume)$/.exec(url.pathname);

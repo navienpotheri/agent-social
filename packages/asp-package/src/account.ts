@@ -353,7 +353,7 @@ export function accountRoutes(o: AccountOptions) {
       send(res, 200, await meView(o, mine));
       return true;
     }
-    if (url.pathname !== "/account" && !url.pathname.startsWith("/account/")) return false;
+    if (url.pathname !== "/account" && !url.pathname.startsWith("/account/") && url.pathname !== "/notices/ack") return false;
     const me = ctx.tenant;
     const method = req.method ?? "GET";
     if (method === "GET" && url.pathname === "/account") {
@@ -369,6 +369,14 @@ export function accountRoutes(o: AccountOptions) {
       return true;
     }
 
+    // The acknowledgement in force for one of the tenant's own identities (S1591, US8): `GET /notices/ack?issuer=<did>&notice=<notice>`; another's identity is refused.
+    if (method === "GET" && url.pathname === "/notices/ack") {
+      const issuer = url.searchParams.get("issuer") ?? "", notice = url.searchParams.get("notice") ?? "";
+      if (!issuer || !notice) { fail(res, 400, "BAD_REQUEST", "?issuer=<did>&notice=<asp.my-data/v1|asp.privacy/v1|asp.terms/v1>"); return true; }
+      if (!o.owners.of(me.name).includes(issuer)) { fail(res, 403, "NOT_YOURS", `${issuer} is not an identity of this tenant: only the acknowledgements of your own identities are read here`); return true; }
+      send(res, 200, { ok: true, issuer, notice, ack: await o.handle.log.noticeAck(issuer, notice) });
+      return true;
+    }
     // The sponsor view of one agent's journey (DK1300): the steps with the text the records and forum posts carry, only for the tenant that owns the agent.
     if (method === "GET" && url.pathname.startsWith("/account/journey/")) {
       if (!o.journey) { fail(res, 404, "NOT_SERVED", "this service does not serve journeys"); return true; }

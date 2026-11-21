@@ -39,3 +39,25 @@ test("calibration: the 95% upper bound covers the true event rate at least 95% o
     assert.ok(rate >= 0.93, `coverage ${rate} at p=${p} n=${n}`);
   }
 });
+
+test("the log sizes a bond from an agent's own record: a newcomer pays the most, and the bond falls as its counted jobs accumulate (inputs are this seeded run, not live data)", async () => {
+  const { kit } = await import("./society-kit.ts");
+  const k = await kit();
+  await k.withPrices();
+  const sponsor = await k.person("bs-sponsor", 10);
+  const client = await k.person("bs-client", 5000);
+  const a = await k.agent("bs-agent", sponsor, { funds: 500 });
+  const job = { jobValue: 50, damage: 100 };
+  const rows: string[] = [];
+  let last = Infinity;
+  for (let jobs = 0; jobs <= 6; jobs++) {
+    const s = await k.log.sizedBondFor(a.did, job);
+    assert.ok(s, "an agent with a passport has a record");
+    rows.push(`${s!.trials} counted runs, ${s!.events} events: bond ${s!.bond} (${s!.tier}, upper bound ${(s!.upperBound * 100).toFixed(1)}%)`);
+    assert.ok(s!.bond <= last, `${s!.bond} after ${last}`);
+    last = s!.bond;
+    if (jobs < 6) await k.runJob(client, a, 40);
+  }
+  assert.equal(await k.log.sizedBondFor("did:web:example.com:agents:nobody", job), null, "no passport, no record, no suggestion");
+  console.log("\nBOND FROM THE LOG'S OWN RECORD (job 50 + damage 100):\n  " + rows.join("\n  "));
+});

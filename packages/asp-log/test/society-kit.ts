@@ -24,7 +24,10 @@ export const events = party(institutionDid("events"));
 export const research = party(institutionDid("research"));
 export const auditor = party("did:web:asp.local:auditor");
 export const telemetry = party("did:web:asp.local:telemetry");
-export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry].map((p) => [p.kid, p.publicKey])));
+export const academy = party(institutionDid("academy"));
+export const bankInstitution = party(institutionDid("bank"));
+export const insurer = party(institutionDid("insurer"));
+export const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry, academy, bankInstitution, insurer].map((p) => [p.kid, p.publicKey])));
 
 let clockMs = Date.parse("2026-11-01T00:00:00Z");
 export const tick = (): string => new Date((clockMs += 60_000)).toISOString().replace(".000Z", "Z");
@@ -56,9 +59,9 @@ export const PRICES = [
   { service: "clinic.restore", institution: institutionDid("clinic"), price: 5, split: { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("clinic"), permille: 800 }] }, class: "remedial" },
 ];
 
-export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean; panelV2From?: string; town?: Partial<import("../src/index.ts").TownRules> } = {}) {
+export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean; panelV2From?: string; town?: Partial<import("../src/index.ts").TownRules>; parties?: { kid: string; publicKey: Uint8Array }[] } = {}) {
   clockMs = Date.parse("2026-11-01T00:00:00Z"); // every log is new, so each test starts its own clock
-  const log = new EventLog(new MemoryStore(), { ...(extra.town ? { town: extra.town } : {}), operator: operator.did, owner: owner.did, fallbackResolver: resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}), ...(extra.panelV2From ? { panelV2From: extra.panelV2From } : {}) });
+  const log = new EventLog(new MemoryStore(), { ...(extra.town ? { town: extra.town } : {}), operator: operator.did, owner: owner.did, fallbackResolver: extra.parties ? staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry, ...extra.parties].map((p) => [p.kid, p.publicKey]))) : resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}), ...(extra.panelV2From ? { panelV2From: extra.panelV2From } : {}) });
   await registerParties(log); // alice (a sponsor), the coder agent, the bank
   let n = 0;
   const holderParty = new Map<string, Party>();

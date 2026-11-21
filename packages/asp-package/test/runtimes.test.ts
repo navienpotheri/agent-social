@@ -19,7 +19,7 @@ test("every runtime descriptor is whole and claims only what its way of being re
 
 test("the descriptors say what the session table in the CLI said before they existed", () => {
   const was: Record<string, [string, boolean, boolean]> = {
-    "claude-code": ["anthropic", false, false], codex: ["openai", true, false], goose: ["openai", true, true], antigravity: ["hooked", true, false], openhands: ["hooked", true, false],
+    "claude-code": ["anthropic", false, false], codex: ["openai", true, false], goose: ["openai", true, true], antigravity: ["hooked", true, false], openhands: ["hooked", true, false], openclaw: ["openai", true, true], hermes: ["openai", true, true],
   };
   assert.deepEqual(RUNTIMES.map((r) => r.name).sort(), Object.keys(was).sort());
   for (const [name, [wire, needsPrompt, needsModel]] of Object.entries(was)) {

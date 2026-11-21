@@ -37,6 +37,14 @@
         }
       }
     },
+    "outside_mandate": {
+      "description": "For rulings (spec-delta S1592, register row DK402): the parties the ruling finds acted outside their Mandate. The Insurer's bond-slash cover does not pay for the performer's act outside its Mandate (bank-insurer.md 5): a claim on a policy for such a performer is denied with the reason outside_mandate. At most 5; only a ruling carries it.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": { "$ref": "urn:asp:v0.2:common#/$defs/did" }
+    },
     "route": { "description": "For rulings: which route decided it (spec-delta S232).", "enum": ["standard", "small_claim", "appeal"] },
     "precedents": {
       "description": "For rulings: earlier rulings relied on, at most 5. Each must be an existing ruling other than this one (precedent_unknown); a ruling that cites one must carry code.",
@@ -103,6 +111,10 @@
     {
       "if": { "properties": { "kind": { "const": "report_ruling" }, "verdict": { "const": "upheld" } }, "required": ["kind", "verdict"] },
       "then": { "required": ["code"] }
+    },
+    {
+      "if": { "properties": { "kind": { "not": { "const": "ruling" } } } },
+      "then": { "not": { "required": ["outside_mandate"] } }
     },
     {
       "if": { "properties": { "kind": { "const": "ruling" } } },

@@ -209,6 +209,9 @@
  *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
  *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
+ *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
+ *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
+ *   asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -363,7 +366,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch, respondToBreach, type BreachCause } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -371,6 +374,9 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
+import { myDataCmd } from "./my-data.ts";
+import { reloadTlsOnSighup } from "./tls-reload.ts";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem } from "@agent-social/asp-core";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -385,6 +391,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
+import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -409,13 +416,13 @@ import {
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
 import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
 import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESETS, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
-import { NEEDS_PASSPHRASE, isSealed, open as openSealed, passphraseFrom, seal } from "@agent-social/asp-package";
+import { NEEDS_PASSPHRASE, isSealed, open as openSealed, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -465,6 +472,8 @@ const OPTIONS = {
   runtime: { type: "string" },
   backend: { type: "string" },
   agent: { type: "string" },
+  acknowledge: { type: "boolean" },
+  plain: { type: "boolean" },
   project: { type: "string" },
   out: { type: "string" },
   verify: { type: "string" },
@@ -571,6 +580,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
   day: { type: "string" },
@@ -599,8 +609,11 @@ const OPTIONS = {
   "no-auth": { type: "boolean" },
   "deadline-binds": { type: "boolean" },
   "outbound-scan": { type: "string" },
+  "outbound-kinds": { type: "string" },
   "untrusted-by-type": { type: "boolean" },
   "agent-runtime": { type: "string" },
+  "private-scopes": { type: "string" },
+  "untrusted-flow": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -641,6 +654,10 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "budget-usd": { type: "string" },
+  session: { type: "string" },
+  "price-in": { type: "string" },
+  "price-out": { type: "string" },
   "daily-tokens": { type: "string" },
   manifest: { type: "string" },
   "stop-after": { type: "string" },
@@ -749,6 +766,8 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  multiplier: { type: "string" },
+  pool: { type: "string" },
   emergency: { type: "string" },
   cause: { type: "string" },
   detection: { type: "string" },
@@ -778,6 +797,10 @@ const OPTIONS = {
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  "ask-first": { type: "boolean" },
+  "commons-sharing": { type: "boolean" },
+  "retain-days": { type: "string" },
+  "personal-data": { type: "string" },
   week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
@@ -1109,6 +1132,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "backup") return await identityBackup(home, rest[0] ?? v.did, v, io);
@@ -1168,12 +1192,35 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
+    if (cmd === "my-data") {
+      const by = v.by;
+      const sign = v.acknowledge && by ? async (sha: string, agent?: string) => {
+        const signer = new Keystore(home).forDid(by);
+        if (!signer) throw new UsageError(`no key for ${by} here: only its holder can sign (asp my-data --acknowledge --by <your did>)`);
+        const handle = await openLog(home, logEnv);
+        const rec = createRecord({ type: "notice_ack", issuer: by, subject: agent ?? null, prev: null, body: { notice: "asp.my-data/v1", statement_sha256: sha, ...(agent ? { agent } : {}) }, issued_at: now() } as never, signer);
+        return (await handle.append(rec as never)).id;
+      } : undefined;
+      return await myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now, ...(sign ? { sign } : {}) });
+    }
     if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "budget") return await budgetCommand(home, sub, v, io);
     if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
     if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
+    if (cmd === "live") return await liveCommand(home, sub, v, io);
+    if (cmd === "pause" || cmd === "resume") {
+      // US1: hold every running session instead of ending it. The gateways poll this file; asp resume removes it.
+      const file = join(home, "paused");
+      if (cmd === "resume") { const was = existsSync(file); rmSync(file, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
+      if (sub === "status") { io.out(existsSync(file) ? `paused since ${readFileSync(file, "utf8").trim()}: every running session holds its next call (asp resume continues them)` : "not paused"); return 0; }
+      mkdirSync(home, { recursive: true });
+      writeFileSync(file, `${now()}
+`);
+      io.out("paused: every running session on this machine holds its next call and continues on asp resume; asp stop --all ends them instead");
+      return 0;
+    }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
@@ -1344,6 +1391,47 @@ function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?
     ...(v["network-host"]?.length ? { hosts: v["network-host"] } : {}),
     ...(perHost !== undefined || total !== undefined ? { rate: { ...(perHost !== undefined ? { per_host_per_minute: perHost } : {}), ...(total !== undefined ? { total_per_minute: total } : {}) } } : {}),
   };
+}
+
+/**
+ * asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade] (register row X7, DK1726; spec-delta S1427): a key cannot change, so a rotation is a NEW did:key identity linked to the old one by a handover the old key signs and the new key countersigns.
+ * The new identity gets its own passport (an agent keeps its sponsor, shape, fleet and node; a person's is self-issued), then the handover moves the old identity's standing and free balance to it and retires the old one. Needs the OLD key in the keystore: a LOST key
+ * cannot hand over (recovery is a sponsor vouching for a new identity, or the recovery code for a person), and a stolen key can, which is why the holder of the old key rotates first.
+ */
+async function identityRotate(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade]");
+  const reason = v.reason ?? "rotation";
+  if (!["rotation", "compromise_suspected", "upgrade"].includes(reason)) throw new UsageError("--reason is rotation, compromise_suspected or upgrade");
+  const keys = new Keystore(home);
+  const oldSigner = keys.forDid(did);
+  if (!oldSigner) throw new Error(`no key for ${did} in ${join(home, "keys")}: a lost key cannot hand over (a person recovers with the recovery code, an agent through its sponsor)`);
+  const local = await openLog(home, logEnv);
+  const old = await local.log.passport(did);
+  if (!old) throw new Error(`${did} has no passport in this log`);
+  const headRec = await local.log.get(old.head);
+  if (!headRec) throw new Error(`the passport of ${did} is not readable`);
+  const ob = headRec.record.body as { kind: "human" | "agent"; sponsor?: string; mentor?: string; shape?: unknown; tier?: number; fleet?: string; node?: string; purpose?: string; persona?: string; fingerprint?: unknown };
+  const seed = randomSeed();
+  const newDid = didKeyFromPublicKey(publicKeyFromSeed(seed));
+  const newSigner = keys.createFromSeed(`${newDid}#key-1`, seed);
+  const kid = `${newDid}#key-1`;
+  let issuer: Signer; let issuerDid: string;
+  const body: Record<string, unknown> = { did: newDid, kind: ob.kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(newSigner.publicKey) }] };
+  if (ob.kind === "agent") {
+    if (!ob.sponsor) throw new Error(`${did} has no sponsor on its passport: nothing to carry over`);
+    const sponsorSigner = keys.forDid(ob.sponsor);
+    if (!sponsorSigner) throw new Error(`no key for the sponsor ${ob.sponsor} in ${home}: the sponsor signs the new agent's passport`);
+    issuer = sponsorSigner; issuerDid = ob.sponsor;
+    Object.assign(body, { sponsor: ob.sponsor, mentor: ob.mentor ?? ob.sponsor, tier: ob.tier ?? 1, shape: ob.shape ?? {}, ...(ob.fleet ? { fleet: ob.fleet } : {}), ...(ob.node ? { node: ob.node } : {}), ...(ob.purpose ? { purpose: ob.purpose } : {}), ...(ob.persona ? { persona: ob.persona } : {}), ...(ob.fingerprint ? { fingerprint: ob.fingerprint } : {}) });
+  } else { issuer = newSigner; issuerDid = newDid; }
+  const passport = await local.append(createRecord({ type: "passport", issuer: issuerDid, subject: newDid, prev: null, body, issued_at: now() }, issuer));
+  const handover = cosign(createRecord({ type: "key_handover", issuer: did, subject: newDid, prev: null, body: { old: did, new: newDid, reason }, issued_at: now() }, oldSigner), newSigner);
+  const res = await local.append(handover);
+  io.out(`rotated ${did}`);
+  io.out(`  new identity ${newDid} (key stored in ${join(home, "keys")}; passport ${passport.id})`);
+  io.out(`  handover      ${res.id} (log seq ${res.seq}): ${did} is retired, its standing and free balance moved to ${newDid}`);
+  io.out(`  Back up the new key now: asp identity backup ${newDid} --out <file>. The old key signs nothing more.`);
+  return 0;
 }
 
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
@@ -2914,7 +3002,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -3042,6 +3130,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
+  if (tls && process.platform !== "win32") { reloadTlsOnSighup(server as never, { cert: resolve(io.cwd, v["tls-cert"]!), key: resolve(io.cwd, v["tls-key"]!) }, io.err); io.out("  tls      a renewed certificate is read again on SIGHUP (kill -HUP <pid>)"); }
   if (sandbox) io.out(`  SANDBOX   ${SANDBOX_BANNER}`);
   io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port}${sandbox ? " [SANDBOX]" : ""} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
@@ -3455,7 +3544,7 @@ function parseFleetRate(text: string | undefined): { total_per_minute: number; p
 
 /** The runtime a gateway command line starts, from the name of its program; any other program is `generic`. */
 function runtimeNameOf(command: string[]): string {
-  const base = (command[0] ?? "").split(/[\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
+  const base = (command[0] ?? "").split(/[\\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
   return ({ claude: "claude-code", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes" } as Record<string, string>)[base] ?? "generic";
 }
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
@@ -3487,7 +3576,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
   const standing = new Budgets(join(home, "budgets.json")).get(by);
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...(standing.monthlyTokens !== undefined ? { monthTokens: standing.monthlyTokens } : {}), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
@@ -3503,6 +3592,17 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     const cw = ceiling.wake(COMPANY, by, wakeDay, now(), { tokens: companyCap.dailyTokens, ...(companyCap.monthlyTokens !== undefined ? { monthTokens: companyCap.monthlyTokens } : {}) });
     if (!cw.ok) { io.err(`  refused  the company's compute ceiling: ${cw.reason}`); throw new Error(`company_ceiling: ${cw.reason}`); }
     for (const w of companyWarnings()) io.err(`  warning  ${w}`);
+  }
+  // DK1769: a cap across all of one sponsor's agents on this machine (asp budget set --agent sponsor:<did> --monthly-tokens <n>): every run of every agent the sponsor issued a Mandate for counts against it; the lower of it and the agent's own cap wins.
+  const sponsorDid = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer;
+  const sponsorKey = sponsorDid ? `sponsor:${sponsorDid}` : undefined;
+  const sponsorCap = sponsorKey ? new Budgets(join(home, "budgets.json")).get(sponsorKey) : undefined;
+  const sponsorOn = !!sponsorKey && !!sponsorCap && (sponsorCap.dailyTokens !== undefined || sponsorCap.monthlyTokens !== undefined);
+  let sponsorTokensLeft: number | undefined;
+  if (sponsorOn) {
+    const sw = ceiling.wake(sponsorKey!, by, wakeDay, now(), { tokens: sponsorCap!.dailyTokens, ...(sponsorCap!.monthlyTokens !== undefined ? { monthTokens: sponsorCap!.monthlyTokens } : {}) });
+    if (!sw.ok) { io.err(`  refused  the sponsor's cap across all their agents (${sponsorDid}): ${sw.reason}`); throw new Error(`sponsor_ceiling: ${sw.reason}`); }
+    sponsorTokensLeft = sw.tokensLeft;
   }
   // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
   for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
@@ -3627,13 +3727,34 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
-    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
+    // Private memory (DK272, D12): the scopes this run may use, sealed to the principal and this agent; the key is opened here, in the gateway, for the length of the run and never reaches the agent or the log.
+    mcp: { asp: { memoryDir: memDir, ...(() => {
+      // The Mandate names the scopes (learning.private_scopes, S1593); --private-scopes may only narrow that list, and names scopes alone when the Mandate has none (the flag of the first build).
+      const fromMandate = ((mandate0 as { learning?: { private_scopes?: string[] } } | undefined)?.learning?.private_scopes) ?? [];
+      const flagged = v["private-scopes"] ? v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      const wanted = flagged.length ? (fromMandate.length ? flagged.filter((x) => fromMandate.includes(x)) : flagged) : fromMandate;
+      if (flagged.length && fromMandate.length && wanted.length < flagged.length) io.err(`  memory   a private scope the Mandate does not list was left out: ${flagged.filter((x) => !fromMandate.includes(x)).join(", ")}`);
+      if (!wanted.length) return {};
+      if (!pkgDir) throw new UsageError("--private-scopes needs the agent's package (--package <dir>): the sealed scopes live in it");
+      const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string } }; } catch { return undefined; } })();
+      const principal = v.principal ?? cfg?.identities?.me;
+      if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
+      const scopes = wanted;
+      const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
+      ensureAgentMemoryKey(pkgDir, pk.publicKey);
+      const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
+      return { privateMemory: new PrivateMemoryRun({ dir: join(pkgDir, "memory", "private"), pair: { principal, agent: by }, agentKey, principalPublic: pk.publicKey, allowed: scopes, onEvent: (e) => runLog?.event("private_memory", { ...e }) }) };
+    })(), ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
     confineTo: resolve(io.cwd, v.project ?? "."),
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
-    ...(v["outbound-scan"] ? { outbound: { mode: (v["outbound-scan"] === "redact" ? "redact" : "block") as "block" | "redact" } } : {}),
+    ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    // A hard dollar cap (an estimate from tokens and a price table): `asp gateway --budget-usd 5 [--price-in <$ per million> --price-out <$ per million>]`.
+    ...(() => { if (v["budget-usd"] === undefined) return {}; const cap = Number(v["budget-usd"]), pi = v["price-in"] === undefined ? undefined : Number(v["price-in"]), po = v["price-out"] === undefined ? undefined : Number(v["price-out"]); if (!(cap > 0) || (pi !== undefined && !(pi >= 0)) || (po !== undefined && !(po >= 0))) throw new UsageError("--budget-usd is a number of dollars above 0; --price-in and --price-out are dollars per million tokens"); return { usdCap: cap, ...(pi !== undefined || po !== undefined ? { price: { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) } } : {}) }; })(),
+    // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
+    ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
     // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
     // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
     ...(() => {
@@ -3651,8 +3772,9 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
     // The sponsor's spend guard (DK1715): default per-run and per-day ceilings in tokens, clamped to what the operator allows, alerts at 50, 80 and 100 percent, and a hard stop at the next model call.
-    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay))),
+    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay)), sponsorTokensLeft ?? Infinity),
     onBudgetAlert: (e) => io.err(`  budget   ${alertLine(e)}`),
+    pauseFile: join(home, "paused"),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
@@ -3751,11 +3873,19 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
     // At the end of the run (owner answer TM1, row DK652): the trajectory and the task go to the telemetry store when it is on, and the Action carries only their hashes.
-    const tmRefs = why === "exit" ? await captureTelemetry(io.env, [
-      ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
-      ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
-      ...cognition.drain().map((i) => ({ kind: i.kind, content: i.content, did: by })),
-    ]) : [];
+    // The cognition items (DK79: messages, plans, reasoning, actions and the like, scrubbed) go to the same store; the Action cites ONE manifest of their hashes, not each of them, so a long run does not make a huge record.
+    const tmRefs = why === "exit" ? await (async () => {
+      const base = await captureTelemetry(io.env, [
+        ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
+        ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
+      ]);
+      const items = cognition.drain();
+      if (!items.length) return base;
+      const stored = await captureTelemetry(io.env, items.map((i) => ({ kind: i.kind, content: i.content, did: by })));
+      if (!stored.length) return base;
+      const manifest = await captureTelemetry(io.env, [{ kind: "text", content: JSON.stringify({ v: 1, what: "cognition items of one run", items: stored.map((r) => ({ kind: r.uri.slice("asp://telemetry/".length), sha256: r.sha256 })) }), did: by }]);
+      return [...base, ...manifest];
+    })() : [];
     const d = gw.drain();
     // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
     const m = d.metrics;
@@ -3862,11 +3992,12 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), spend_usd: sum0.spendUsd, ...(sum0.usdCap !== undefined ? { cap_usd: sum0.usdCap } : {}), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
   const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (sponsorOn) ceiling.addTokens(sponsorKey!, wakeDay, sum.tokens.input + sum.tokens.output);
   if (companyOn) { const had = new Set(companyWarnings()); ceiling.addTokens(COMPANY, wakeDay, sum.tokens.input + sum.tokens.output); for (const w of companyWarnings()) if (!had.has(w)) io.err(`  warning  ${w}`); }
   const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
   { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
@@ -4390,7 +4521,7 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
         : e.kind === "run_end" ? (d.requests !== undefined
-          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked${d.spend_usd !== undefined ? `, est. spend USD ${d.spend_usd}${d.cap_usd !== undefined ? ` of ${d.cap_usd}` : ""}` : ""}`
           // a run under a contract (the package path) records strikes and what was masked, not request counts
           : `exit ${d.exit_code}; ${d.strikes ?? 0} strike(s)${d.redactions !== undefined ? `, ${d.redactions} secret-like value(s) masked` : ""}${d.killed ? `; stopped: ${d.killed}` : ""}`)
         : e.kind === "assistant_text" ? q(d.text)
@@ -5179,7 +5310,7 @@ async function insureCommand(home: string, sub: string | undefined, v: Values, i
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days } });
+    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days, multiplier: v.multiplier, fleet: v.fleet, pool: v.pool } });
   } catch (e) {
     if (e instanceof InsureUsage) throw new UsageError(e.message);
     throw e;
@@ -5262,21 +5393,43 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
  * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
  */
 async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
-  if (sub !== "respond") throw new UsageError("asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]");
+  const usage = "asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>] | asp breach respond --from-service --by <operator did> (the breaches reported to the running service; needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN)";
+  if (sub !== "respond") throw new UsageError(usage);
   const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
-  if (!v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(`asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  const fromService = !!v["from-service"];
+  if (fromService ? !v.by : !v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(fromService ? usage : `asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
   if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
-  signerFor(CLINIC_DID); signerFor(v.by);
-  const started = now();
-  const res = await respondToBreach(local.log, { agent: v.agent, cause: v.cause as BreachCause, summary: v.summary, detectedAt: started, ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}), ...(v.remedy ? { remedy: v.remedy as "takedown" } : {}) }, {
-    sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
-    alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
-    now, operator: v.by,
-  });
-  io.out(`breach response done in ${res.seconds} s: ${res.steps.join(", ")}; incident ${res.incident}`);
-  return 0;
+  signerFor(CLINIC_DID); signerFor(v.by!);
+  const respond = async (e: { agent: string; cause: BreachCause; summary: string; detectedAt: string; detection?: string; fleet?: string; node?: string }) => {
+    const res = await respondToBreach({ append: (r) => local.append(r as never), nodeRunningContracts: (a, b) => local.log.nodeRunningContracts(a, b), runHaltOf: (c) => local.log.runHaltOf(c) }, { ...e, ...(e.detection ? { detection: e.detection } : {}), ...(e.fleet ? { fleet: e.fleet, node: e.node! } : {}) }, {
+      sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+      alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+      now, operator: v.by!,
+    });
+    io.out(`breach response for ${e.agent} done in ${res.seconds} s from ${e.detectedAt}: ${res.steps.join(", ")}; incident ${res.incident}`);
+  };
+  if (!fromService) { await respond({ agent: v.agent!, cause: v.cause as BreachCause, summary: v.summary!, detectedAt: now(), ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}) }); return 0; }
+  // The service wrote the report down with its time and cannot sign (the Clinic's key and the operator's are on this machine): the response is measured from the time the service was told, so the wait for the owner is in the number.
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new UsageError("--from-service needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN");
+  const api = async (path: string, init?: { method: string; body: string }) => {
+    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), { ...(init ?? {}), headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const j = (await res.json().catch(() => undefined)) as { ok?: boolean; error?: { message?: string } } & Record<string, unknown>;
+    if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return j;
+  };
+  const pending = ((await api("admin/breach-pending")).pending ?? []) as { id: string; agent: string; cause: BreachCause; summary: string; at: string; detection?: string; fleet?: string; node?: string }[];
+  if (!pending.length) { io.out("no breach is waiting"); return 0; }
+  const done: string[] = [];
+  for (const p of pending) {
+    try { await respond({ agent: p.agent, cause: p.cause, summary: p.summary, detectedAt: p.at, ...(p.detection ? { detection: p.detection } : {}), ...(p.fleet ? { fleet: p.fleet, node: p.node } : {}) }); done.push(p.id); }
+    catch (e) { io.err(`  ${p.agent}: not responded to: ${(e as Error).message}`); }
+  }
+  if (done.length) await api("admin/breach-pending/ack", { method: "POST", body: JSON.stringify({ ids: done }) });
+  io.out(`${done.length} of ${pending.length} done`);
+  return done.length === pending.length ? 0 : 1;
 }
 
 async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
@@ -5610,7 +5763,7 @@ async function registryCommand(home: string, sub: string | undefined, rest: stri
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { plain: v.plain, by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
   } catch (e) {
     if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;
@@ -5948,6 +6101,18 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     // Outcome verification: an explicit --verifier wins over the Intent's (and is the only way in allocation mode).
     if (v.verifier) body.verifier = v.verifier;
+    // The job-data term (JO3, spec-delta S1569): written explicitly in every new contract, so the performer cannot say it was not bound. The flags change the defaults.
+    {
+      const retainDays = v["retain-days"] !== undefined ? Math.trunc(Number(v["retain-days"])) : undefined;
+      if (v["personal-data"] !== undefined && !["none", "included"].includes(v["personal-data"])) throw new UsageError("--personal-data is none or included");
+      const dh = { term: JOB_DATA_TERM, commons_sharing: v["commons-sharing"] === true, retention: retainDays !== undefined ? ("retain_days" as const) : ("delete_at_settlement" as const), ...(retainDays !== undefined ? { retain_days: retainDays } : {}), personal_data: (v["personal-data"] ?? "none") as "none" | "included" };
+      const bad = dataHandlingProblem(dh);
+      if (bad) throw new UsageError(`${bad.rule}: ${bad.message}`);
+      body.data_handling = dh;
+      io.err("  data     this job's data is shared for the job only: the performer uses it only to do the job, deletes its copies when the job settles"
+        + (retainDays !== undefined ? ` (or within ${retainDays} days after)` : "") + (dh.commons_sharing ? ", and may place it in the commons" : ", and does not place it in the commons")
+        + `. Do not put secrets or personal data in a job that does not need them${dh.personal_data === "included" ? " (you declared that it includes personal data of other people)" : ""}.`);
+    }
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
@@ -5994,12 +6159,20 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       },
       subcontract: { allowed: false },
       nodes: { max_parallel: Math.max(1, Math.trunc(Number(v["node-max-parallel"] ?? "1")) || 1) },
-      learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
+      learning: (() => {
+        // Private memory scopes of the run (D12, DK272; spec-delta S1593): the names the agent may open through the gateway's private-memory tools.
+        const names = v["private-scopes"] ? String(v["private-scopes"]).split(",").map((x) => x.trim()).filter(Boolean) : [];
+        const bad = names.length ? privateScopesProblem(names) : null;
+        if (bad) throw new UsageError(`--private-scopes: ${typeof bad === "string" ? bad : (bad as { message?: string }).message ?? "invalid"}`);
+        return { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false, ...(names.length ? { private_scopes: names } : {}) };
+      })(),
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
+      // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
+      ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
       // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.
       ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); if (tr !== undefined && tr > OPERATOR_MAX_RUN_TOKENS) throw new UsageError(`--tokens-per-run ${tr} is above the ${OPERATOR_MAX_RUN_TOKENS} the operator allows`); if (td !== undefined && td > OPERATOR_MAX_DAY_TOKENS) throw new UsageError(`--tokens-per-day ${td} is above the ${OPERATOR_MAX_DAY_TOKENS} the operator allows`); return { token_budget: { per_run: tr ?? DEFAULT_RUN_TOKENS, ...(tm !== undefined ? { per_month: tm } : {}), per_day: td ?? (tm !== undefined ? Math.min(DEFAULT_DAY_TOKENS, tm) : DEFAULT_DAY_TOKENS) } }; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
@@ -6674,9 +6847,10 @@ const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
 };
 const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.url));
 const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
+const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code|codex|goose|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose|openclaw|hermes|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
@@ -6908,6 +7082,20 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
+  if (v["ask-first"] && !v.yes) {
+    let go = false;
+    if (process.stdin.isTTY) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+      go = /^y(es)?$/i.test((await rl.question("  Start this run as described above? [y/N] ")).trim());
+      rl.close();
+    } else io.err("  confirm  no one can answer here: run it in a terminal, or add --yes once you have read the plan above");
+    if (!go) {
+      sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 1 });
+      io.err("  confirm  the run was not started");
+      return 1;
+    }
+  }
 
   // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
   if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");
@@ -6916,6 +7104,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
   const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
+    : runtime === "openclaw" || runtime === "hermes" ? [process.execPath, GATEWAY_AGENT_RUNTIME, runtime, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
       : [...bin, ...(v.model ? ["--model", v.model] : [])];
@@ -7005,7 +7194,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -7428,6 +7617,39 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   const rl = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
   if (rl) io.out(`  run log   ${rl}  (on this machine; asp run-log show|verify reads it; asp run-log keep seals a copy on the service)`);
   return 0;
+}
+
+/** asp live preflight | report (live-run readiness): see live-cmd.ts. */
+async function liveCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub === "preflight") {
+    const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string; agent?: string; bank?: string }; service?: string }; } catch { return undefined; } })();
+    return await livePreflight({
+      home, env: io.env, out: (l) => io.out(l),
+      flags: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
+      stopAll: async (h) => await stopCmd(h, undefined, { all: true } as Values, { ...io, out: () => undefined, err: () => undefined }),
+      mandateOf: async (contract) => { const chain = (await (await openLog(home, logEnv)).log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2"); const b = chain.at(-1)?.record.body as { scopes?: string[] } | undefined; return b ? { scopes: b.scopes ?? [] } : undefined; },
+      identities: () => cfg?.identities,
+    });
+  }
+  if (sub === "report") {
+    const all = sessionsOf(home);
+    const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
+    if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
+    if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
+    const { start, end } = pick[0];
+    const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
+    let log: { records: number; actions: number } | undefined;
+    try {
+      const l = (await openLog(home, logEnv)).log;
+      const chain = await l.chain(start.contract);
+      const actions = chain.length ? (await l.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
+      log = { records: chain.length, actions: actions.length };
+    } catch { /* the log could not be read: the report says what it has */ }
+    const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}) });
+    if (v.json) io.out(JSON.stringify(report, null, 2)); else printReport(report, (l) => io.out(l));
+    return report.runLog.chainOk === false ? 1 : 0;
+  }
+  throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json]");
 }
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */

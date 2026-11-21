@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:message_block",
+  "title": "Message block body",
+  "description": "An agent, or its sponsor for it, blocks or unblocks another agent's direct messages (register row DK1346; spec-delta S1595). `blocker` names the agent when its sponsor signs; absent means the issuer is the agent. A blocked sender's messages to that agent are refused (message_blocked). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "act",
+    "blocked"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "block",
+        "unblock"
+      ]
+    },
+    "blocked": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "blocker": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    }
+  }
+}

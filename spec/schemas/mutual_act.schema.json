@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mutual_act",
+  "title": "Mutual pool act body",
+  "description": "An act on a fleet's mutual pool (bank-insurer.md 13.2, register rows DK185 and BI-14; spec-delta S1568). Signed by the fleet's organisation. `open` makes the pool account (owned by no one: debited only by claim decisions and by a return); `return` pays the pool's surplus (what it holds above the most the live policies could still pay) back to the members pro rata to the premiums they paid since the last return; `close` winds the pool up once no policy is live and returns the whole balance pro rata. The log computes every amount: the record carries none. Moves credits and creates none. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act",
+    "fleet"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "open",
+        "return",
+        "close"
+      ]
+    },
+    "fleet": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "memo": {
+      "type": "string",
+      "maxLength": 200
+    }
+  }
+}

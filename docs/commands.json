@@ -22,7 +22,7 @@
           "description": "Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN)"
         },
         {
-          "command": "asp run <claude-code|codex|goose|antigravity|openhands> --prompt \"...\"",
+          "command": "asp run <claude-code|codex|goose|openclaw|hermes|antigravity|openhands> --prompt \"...\"",
           "description": "Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts"
         },
         {
@@ -56,6 +56,22 @@
         {
           "command": "asp forecast [--days n] [--json] [--contract <id>]",
           "description": "What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days; with --contract <id>, for one job on the market: the credits at stake (escrow and bond) and what a session of its performer has used"
+        },
+        {
+          "command": "asp live preflight [--runtime <name>] [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--price-in <n> --price-out <n>] [--contract <id>] [--json]",
+          "description": "Check this machine before a live run with a real model and print a green/amber/red table; exit 1 when anything is red. Checks Node and git, that the ASP home is writable, that the runtime is installed (--runtime), that a local port opens, that the key is set in its environment variable (it prints only that it is set and how long it is, never the key), that a gateway starts and answers, that the log service answers, that your identities and the Mandate are loaded, that a hard dollar cap is set and how the model is priced, and that asp stop --all stops a running session (on a throwaway home). Nothing is sent to a model provider"
+        },
+        {
+          "command": "asp live report [--session <id>] [--json]",
+          "description": "Summarise what a live session proved, from its own hash-checked run log and the session index: calls allowed and refused and why, the estimated spend against the cap, the identities used, what was held (outbound scan, untrusted text and flow, injection, circumvention), and the records the log holds for the job. It says what it could not read; dollar figures are estimates, not the provider's bill"
+        },
+        {
+          "command": "asp gateway ... --budget-usd <n> [--price-in <n> --price-out <n>]",
+          "description": "A hard cap in US dollars for a run (also asp run --budget-usd): the spend is estimated from the tokens each reply reports and a price table (dollars per million tokens; a model not in the table is priced high, and --price-in and --price-out override), and once it reaches the cap, or the next call could pass it (its whole request plus the largest reply it allows), no call is made to the provider and the run stops. An estimate for stopping, not the provider's bill"
+        },
+        {
+          "command": "asp gateway ... --private-scopes <a,b> --package <dir> [--principal <did>]",
+          "description": "Give the agent private memory for this run: the named scopes, sealed to you and this agent (an X25519 key for each, the agent's sealed to yours), opened only inside the gateway for the length of the run and offered to the agent as the tools asp_memory_private_list, _read and _write (256 KiB a scope, 16 scopes, names a-z 0-9 - _). The run log holds a scope, a size and a hash, never the text; no other agent of yours, and no host with only a node key, can read a scope. The agent's text still reaches its model provider when it reads a scope into a prompt (DK272, D12)"
         },
         {
           "command": "asp stop [<id> | --all]",
@@ -415,6 +431,26 @@
           "description": "The owner's signature on the monetary policy (docs/institutions/economy/credits.md): with --by it signs the text's hash with the owner's own key and writes credits.ratified.json next to it; without, it checks that the statement matches the text now (a policy edited after signing is caught)"
         },
         {
+          "command": "asp run <runtime> --ask-first [--yes]",
+          "description": "Show the plan in words before anything runs, what the agent may and may not do, and wait for your answer; without a terminal the run does not start unless you add --yes"
+        },
+        {
+          "command": "asp pause [status]",
+          "description": "Hold every running session on this machine at its next call instead of ending it; asp stop --all ends them"
+        },
+        {
+          "command": "asp resume",
+          "description": "Let the sessions held by asp pause continue"
+        },
+        {
+          "command": "asp market contract ... [--commons-sharing] [--retain-days <n>] [--personal-data none|included]",
+          "description": "Every new contract carries the job-data term (JO3): the poster's data is shared for the job only and the performer deletes its copies when the job settles; the flags allow the commons, a retention of 1 to 365 days after settlement, or declare personal data of other people. The term is written explicitly and said in words"
+        },
+        {
+          "command": "asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]",
+          "description": "Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read, and with --by <your did> signs it into the log as a notice_ack record"
+        },
+        {
           "command": "asp credits guard [--json]",
           "description": "The monetary guard measures (credits.md 5.6): issuance rate, starter pool use, hoarding, the Treasury share and an audit mismatch, each with its threshold and the action the specification names; the measures the log cannot compute yet are listed with the reason. Exit 1 when a measure is over its threshold. It only reads: acting on a trigger is the operator's decision"
         },
@@ -441,6 +477,14 @@
         {
           "command": "asp insure quote|buy --contract <id> --cover bond_slash|failed_job --by <holder did> [--amount <insured credits>] | claim --policy <id> --event <settlement id> --by <holder did> | decide --claim <id> | reserve | report [--days YYYY-MM]",
           "description": "The Insurer (report: the month's policies, premiums, claim decisions with their reasons, and the reserve against its floor): cover against a bond slash (50 % of the slash after a 20 % deductible, nothing for fraud) or a failed job (up to 30 % of the price to the principal), bought before the job starts, priced by the rules (8 % or 4 % of the insured amount, 6 % of the price, plus 10 % per recent strike) and split 800 to the reserve, 150 to the Treasury, 50 burned; a claim is decided by the policy's terms, paid from the reserve and never beyond it, and no policy is sold that would leave the reserve below its floor. Credits are accounting entries, not insurance in a legal sense."
+        },
+        {
+          "command": "asp insure stress [--multiplier <1-10>]",
+          "description": "The Insurer's stress replay (BI-18): the last 90 days of premiums and paid claims replayed with the claims multiplied (2 doubles them), in simulation only, saying whether the reserve would hold, stop sales or run dry, and the still-moving line (claims per 100 policies, rate dispersion, whether the reserve moved). Writes nothing."
+        },
+        {
+          "command": "asp insure pool-open|pool-return|pool-close --fleet <fleet did> --by <the fleet's organisation did>",
+          "description": "The fleet mutual pool (BI-14): the fleet's organisation opens it, returns its surplus to the members pro rata (only what no live policy could still need) and closes it. Members buy into it with `asp insure buy ... --pool <fleet did>`; `asp insure quote ... --pool <fleet did>` shows the fleet-rated premium. The log computes every amount."
         },
         {
           "command": "asp residency allowance --agent <did> --per-day <tokens> --total <tokens> | dispatch --agent <did> --mode home|city|split --allowance <id> --mandate <id> --package-sha256 <hash> [--subsidy-grant <id>] [--delegation <id>] | statement --dispatch <id> --meter <file>",
@@ -523,8 +567,16 @@
           "description": "The audit export of an organisation: its and its agents' signed records as JSON lines with the signers' passports, a manifest with the count and a hash of the record ids; `verify` checks the manifest and every id and signature offline and lists signers whose keys are not in the file; with `--since-file` each run exports only what is new (a scheduled export)"
         },
         {
+          "command": "asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade]",
+          "description": "Rotates a key: a new did:key identity with its own passport, linked to the old one by a handover the old key signs and the new key countersigns; the old identity is retired and its standing and free balance move to the new one (X7). A lost key cannot do this."
+        },
+        {
           "command": "asp breach respond --agent <did> --cause <exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>] [--remedy takedown|suspension|written_response]",
           "description": "The whole breach response in one command (DK1714): the agent quarantined at once, the node's running contracts halted, sponsor and operator alerted, the restitution path opened and a signed incident record, with the seconds taken printed. Needs the Clinic's key and the operator's in the keystore."
+        },
+        {
+          "command": "asp breach respond --from-service --by <operator did>",
+          "description": "Answers the breaches reported to the running service (DK1714): the service writes each report down with its time (POST /admin/breach with an admin token) because it holds no Clinic or operator key; this signs the quarantine and the incident on your machine, clears the report, and prints the seconds from the time the service was told. Needs ASP_LOG_URL and ASP_LOG_TOKEN (an admin token)."
         },
         {
           "command": "asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did>",
@@ -567,12 +619,16 @@
           "description": "Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it"
         },
         {
+          "command": "asp gateway ... --untrusted-flow",
+          "description": "Hold an outward call (the network, a push, another server's tool) that carries a host, address, email, command line or long opaque string copied from a tool result and not given by the principal or named in the Mandate. It treats every tool result as data (a file, a ticket, a shell's output, a web page) and holds only the calls that copy something out of it, so it costs far fewer harmless calls than holding every outward call after a read; a destination spelled out in pieces, or an attack that copies nothing, is not found (DK1713)"
+        },
+        {
           "command": "asp gateway ... --untrusted-by-type",
           "description": "Treat what a tool brought in from outside the project (a web page, a search, another server's tool) as untrusted by where it came from: the next outward calls are held whether or not the detector finds orders in it; a legitimate push right after a web read waits (off by default; DK1713)"
         },
         {
-          "command": "asp gateway ... --outbound-scan block|redact",
-          "description": "Look at the content of every tool call and model request for a key or token, a card number (Luhn-checked; published test cards are not one) and an email address (example and reserved domains are not one): block refuses it, redact masks it in a model request; each hit is a run-log record of the kind and a hash, never the value (DK1716)"
+          "command": "asp gateway ... --outbound-scan block|redact|off [--outbound-kinds <kinds>]",
+          "description": "Look at the content of every tool call and model request for what should not leave: by default a key or token and a card number (Luhn-checked; published test cards are not one), and by choice an email address, an international phone number, a national id (a US social security number, an Aadhaar number with its check digit) and an IBAN (checked). block refuses it, redact masks it in a model request (a tool call that carries one is always refused); the default is redact. The Mandate's outbound_scan field is the sponsor's standing choice and a flag only adds to it (block wins, kinds are joined); off works only when the Mandate states no choice. Each hit is a run-log record of the kind and a hash, never the value (DK1716)"
         },
         {
           "command": "asp gateway ... --wake-allow <did>[,<did>...]",
@@ -895,7 +951,11 @@
       "group": "The Registry (civil register)",
       "commands": [
         {
-          "command": "asp registry lookup <did|name> [--json]",
+          "command": "asp registry compare <did> <did> [<did> ...]",
+          "description": "Put two or more agents side by side on the figures the log computes (tier, accepted jobs, jobs counted for standing, bonds slashed, strikes, certificates), then each one's record in plain words, with a warning when an agent has too few accepted jobs to judge"
+        },
+        {
+          "command": "asp registry lookup <did|name> [--plain] [--json]",
           "description": "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"
         },
         {

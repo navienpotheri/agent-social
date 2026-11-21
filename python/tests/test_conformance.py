@@ -150,3 +150,42 @@ def test_mandate_violations(case):
 @pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["derive"]])
 def test_derive_mandate(case):
     assert derive_mandate(case["template"], case["contract"], case["narrowing"]) == case["expected"]
+
+
+# ---- the job-data term of a contract (docs/spec-deltas.md S1569, register row JO3) ----
+from asp_core.data_handling import JOB_DATA_TERM, MAX_RETAIN_DAYS, data_handling_problem, read_data_handling  # noqa: E402
+
+DH = load("vectors/data-handling.json")
+
+
+def test_data_handling_constants():
+    assert DH["term"] == JOB_DATA_TERM
+    assert DH["maxRetainDays"] == MAX_RETAIN_DAYS
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in DH["cases"]])
+def test_data_handling(case):
+    assert data_handling_problem(case["input"]) == case["problem"]
+    assert read_data_handling(case["input"]) == case["reading"]
+
+
+# ---- the notice acknowledgement (docs/spec-deltas.md S1591, register row US8) ----
+from asp_core.notice_ack import KNOWN_NOTICES, notice_ack_problem  # noqa: E402
+
+NA = load("vectors/notice-ack.json")
+
+
+def test_known_notices():
+    assert list(KNOWN_NOTICES) == NA["notices"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in NA["cases"]])
+def test_notice_ack(case):
+    assert notice_ack_problem(case["input"]) == case["problem"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["privateScopes"]])
+def test_private_scopes(case):
+    from asp_core.mandate_template import private_scopes_problem  # noqa: PLC0415
+
+    assert private_scopes_problem(case["input"]) == case["problem"]

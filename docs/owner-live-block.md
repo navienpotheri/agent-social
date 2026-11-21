@@ -12,3 +12,5 @@ Written 2026-11-21 from the owner's answers (docs/owner-decisions.md, C1 to C15)
 | 6 | Publishes the asp-run GitHub Action and runs it once in his own pipeline | [docs/live-check-kit.md](live-check-kit.md) section 2 | DK64 |
 | 7 | Arranges the timed walkthrough by a person with no prior knowledge (names the person) | docs/live-run-checklist.md | DK1371 |
 | 8 | Does the two live cases: a laptop sleeping mid-session and a multi-GB repository; and the trial of the commands with people who have not seen the tool | [docs/live-check-kit.md](live-check-kit.md) section 6, with the list of people | T2, U16 |
+
+**The live agent run of 2026-11-23:** the steps, the time budget, the cost cap and the results template are in [live-run-plan.md](live-run-plan.md).

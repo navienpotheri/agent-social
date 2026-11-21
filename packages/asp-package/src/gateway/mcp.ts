@@ -76,6 +76,8 @@ function walk(dir: string): string[] {
 }
 
 export interface AspToolsOptions {
+  /** Private memory for this run (DK272, D12): sealed scopes opened only here, offered to the agent as three tools. */
+  privateMemory?: import("../private-memory-run.ts").PrivateMemoryRun;
   /** The run's copy of the agent's memory; notes live in <memoryDir>/auto. */
   memoryDir?: string;
   commons?: { url: string; token?: string; cite?: (entry: string, context: string) => Promise<unknown> };
@@ -180,6 +182,17 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
     );
   }
 
+  if (o.privateMemory) {
+    const pm = o.privateMemory;
+    tools.push(
+      { name: "asp_memory_private_list", description: "List the private memory scopes you may use in this run (sealed to you and your principal: no other agent can read them).", inputSchema: { type: "object", properties: {} },
+        run: async () => { const l = pm.list(); return textResult(l.length ? l.join(", ") : "No private scopes yet."); } },
+      { name: "asp_memory_private_read", description: "Read one private memory scope by name. It is sealed to you and your principal.", inputSchema: { type: "object", properties: { scope: { type: "string" } }, required: ["scope"] },
+        run: async (a) => { try { const t = pm.read(a.scope); return textResult(t || "That scope is empty."); } catch (e) { return textResult((e as Error).message, true); } } },
+      { name: "asp_memory_private_write", description: "Replace one private memory scope with new text (at most 256 KiB; an agent has at most 16 scopes). It is sealed to you and your principal; read the old text first if you want to keep it.", inputSchema: { type: "object", properties: { scope: { type: "string" }, text: { type: "string" } }, required: ["scope", "text"] },
+        run: async (a) => { try { const r = pm.write(a.scope, a.text); return textResult(`Saved ${r.bytes} bytes to the private scope ${String(a.scope)}.`); } catch (e) { return textResult((e as Error).message, true); } } },
+    );
+  }
   if (o.commons) {
     const c = o.commons;
     const call = async (method: string, path: string): Promise<any> => {

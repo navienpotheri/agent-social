@@ -98,8 +98,14 @@ test("per-command approval: only risky commands (or the ones you match) are aske
     assert.equal(mine.length, 1);
     command = "make docs";
     assert.match((await session(["--ask-match", "re:\\bdeploy\\b"], neverAsked)).out, /tool_use:Bash/);
-    // A masked or cut-short command is shown but cannot be remembered: no "a" is offered.
+    // Since DK1716 the default outbound policy refuses a tool call that carries a key before anyone is asked: the person is never shown (or asked to approve) a command with a secret in it.
     command = "GH_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789 git reset --hard";
+    const withKey: string[] = [];
+    const refusedKey = await session(["--ask", "risky"], async (q) => { withKey.push(q); return "y"; });
+    assert.equal(withKey.length, 0, "a command carrying a key is not asked about: the outbound scan refused it first");
+    assert.ok(!/tool_use:Bash/.test(refusedKey.out), "and it did not reach the agent");
+    // A cut-short command is shown but cannot be remembered: no "a" is offered.
+    command = "git reset --hard " + "x".repeat(400);
     const masked: string[] = [];
     await session(["--ask", "risky"], async (q) => { masked.push(q); return "n"; });
     assert.match(masked[0], /\[y\/N\] $/);

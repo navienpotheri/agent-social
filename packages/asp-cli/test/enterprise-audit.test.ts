@@ -62,6 +62,9 @@ test("DK1364: docs/personal-agents.md has a way in, an assurance level, a first 
   assert.match(d, /\*\*No personal-agent runtime below has a recorded real run yet\*\*/);
   for (const f of ["README.md", "site/index.html", "site/llms.txt", "site/start.txt"]) {
     const t = read(f);
-    for (const name of ["OpenClaw", "Hermes Agent", "Manus", "Grok Bot", "Instinct"]) assert.ok(!t.includes(name), `${f} must not list ${name} until it has a recorded run`);
+    for (const name of ["OpenClaw", "Hermes Agent", "Manus", "Grok Bot", "Instinct"]) {
+      // A name may appear only in a line that says it is tested with a stand-in and not run live: never as supported (P8 requires the runtime table to list what the code runs).
+      for (const line of t.split(String.fromCharCode(10)).filter((l) => l.includes(name))) assert.match(line, /stand-in|not been run live|not run live|has not been run/i, `${f} must not list ${name} as supported until it has a recorded run: ${line.slice(0, 80)}`);
+    }
   }
 });

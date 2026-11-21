@@ -15,6 +15,8 @@ import { signBytes } from "../packages/asp-core/src/crypto.ts";
 import { brier as tBrier, calibration as tCalibration, klBits as tKl, meanSurprisal as tMeanSurprisal, normativePosterior as tNormative, surprisal as tSurprisal } from "../packages/asp-log/src/telemetry.ts";
 import { GENERATOR, WORLD_DID, dayBody, generateDay, seedCommitment } from "../packages/asp-log/src/world.ts";
 import { deriveMandate, mandateViolations } from "../packages/asp-core/src/mandate-template.ts";
+import { KNOWN_NOTICES } from "../packages/asp-core/src/notice-ack.ts";
+import { JOB_DATA_TERM, MAX_RETAIN_DAYS, readDataHandling, type DataHandling } from "../packages/asp-core/src/data-handling.ts";
 import { suggestRisk, onlyRemovesRule, type RiskTerms, type RiskInput } from "../packages/asp-log/src/market-risk.ts";
 
 const OUT = fileURLToPath(new URL("./vectors/", import.meta.url));
@@ -694,6 +696,11 @@ const codeRef = { version: "0.3", sha256: "6e2b9c9d3df853aa0d63e59b5a05b91cdf2ec
 sv("valid_report_ruling_upheld", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: codeRef }, true);
 sv("report_ruling_upheld_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld" }, false);
 sv("valid_report_ruling_dismissed_without_code", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "dismissed" }, true);
+sv("valid_ruling_outside_mandate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder"] }, true);
+sv("ruling_outside_mandate_empty", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: [] }, false);
+sv("ruling_outside_mandate_not_a_did", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["the coder"] }, false);
+sv("ruling_outside_mandate_duplicate", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "for_principal", fault: { "did:web:example.com:agents:coder": 1000 }, outside_mandate: ["did:web:example.com:agents:coder", "did:web:example.com:agents:coder"] }, false);
+sv("acceptance_with_outside_mandate", "attestation", { kind: "acceptance", about: fakeId("d"), verdict: "accepted", outside_mandate: ["did:web:example.com:agents:coder"] }, false);
 sv("valid_ruling_citing_code", "attestation", { kind: "ruling", about: fakeId("c"), verdict: "split", fault: { "did:web:example.com:agents:coder": 500 }, code: { version: "0.3", articles: ["3"] } }, true);
 sv("code_without_articles", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: [] } }, false);
 sv("code_article_out_of_range", "attestation", { kind: "report_ruling", about: fakeId("report"), verdict: "upheld", code: { version: "0.3", articles: ["13"] } }, false);
@@ -728,6 +735,81 @@ sv("verification_bad_verdict", "attestation", { kind: "verification", about: fak
 sv("verification_without_verdict", "attestation", { kind: "verification", about: fakeId("d") }, false);
 sv("verification_bad_claim_grade", "attestation", { kind: "verification", about: fakeId("d"), verdict: "confirmed", claims: [{ index: 0, grade: "certain" }] }, false);
 sv("valid_contract_with_verifier", "contract", contractBody({ verifier: "did:web:example.com:agents:verifier" }), true);
+// ---------- direct messages (spec-deltas S1595, register row DK1346): schema cases ----------
+const dmBody = (over: Record<string, unknown> = {}) => ({ to: "did:web:example.com:agents:coder-7", kind: "note", body_sha256: "b".repeat(64), bytes: 120, ...over });
+sv("valid_agent_message", "agent_message", dmBody(), true);
+sv("valid_agent_message_reply", "agent_message", dmBody({ kind: "reply", reply_to: "sha256:" + "8".repeat(64) }), true);
+sv("agent_message_no_hash", "agent_message", (({ body_sha256: _h, ...r }) => r)(dmBody()), false);
+sv("agent_message_uppercase_hash", "agent_message", dmBody({ body_sha256: "B".repeat(64) }), false);
+sv("agent_message_zero_bytes", "agent_message", dmBody({ bytes: 0 }), false);
+sv("agent_message_too_big", "agent_message", dmBody({ bytes: 4097 }), false);
+sv("agent_message_unknown_kind", "agent_message", dmBody({ kind: "shout" }), false);
+sv("agent_message_carries_the_text", "agent_message", dmBody({ text: "hello" }), false);
+sv("agent_message_to_not_a_did", "agent_message", dmBody({ to: "coder-7" }), false);
+const mbBody = (over: Record<string, unknown> = {}) => ({ act: "block", blocked: "did:web:example.com:agents:spammer-1", ...over });
+sv("valid_message_block", "message_block", mbBody(), true);
+sv("valid_message_unblock_by_sponsor", "message_block", mbBody({ act: "unblock", blocker: "did:web:example.com:agents:coder-7" }), true);
+sv("message_block_unknown_act", "message_block", mbBody({ act: "mute" }), false);
+sv("message_block_no_target", "message_block", (({ blocked: _b, ...r }) => r)(mbBody()), false);
+// ---------- the notice acknowledgement (spec-deltas S1591, register row US8): schema cases and the shared validation ----------
+const ackBody = (over: Record<string, unknown> = {}) => ({ notice: "asp.my-data/v1", statement_sha256: "a".repeat(64), ...over });
+sv("valid_notice_ack", "notice_ack", ackBody(), true);
+sv("valid_notice_ack_privacy", "notice_ack", ackBody({ notice: "asp.privacy/v1" }), true);
+sv("valid_notice_ack_terms_for_an_agent", "notice_ack", ackBody({ notice: "asp.terms/v1", agent: "did:web:example.com:agents:coder-7" }), true);
+sv("notice_ack_no_hash", "notice_ack", (({ statement_sha256: _h, ...r }) => r)(ackBody()), false);
+sv("notice_ack_no_notice", "notice_ack", (({ notice: _n, ...r }) => r)(ackBody()), false);
+sv("notice_ack_agent_not_a_did", "notice_ack", ackBody({ agent: "coder-7" }), false);
+sv("notice_ack_extra_field", "notice_ack", ackBody({ read_at: "2026-11-22T00:00:00Z" }), false);
+{
+  const nk = (b: Record<string, unknown>, rule: string | null, name: string) => ({ name, input: b, problem: rule });
+  (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors = {
+    notices: KNOWN_NOTICES,
+    cases: [
+      nk(ackBody(), null, "the statement of the data"),
+      nk(ackBody({ notice: "asp.privacy/v1" }), null, "the privacy notice"),
+      nk(ackBody({ notice: "asp.terms/v1" }), null, "the terms"),
+      nk(ackBody({ statement_sha256: "0123456789abcdef".repeat(4) }), null, "a mixed hexadecimal hash"),
+      nk(ackBody({ notice: "asp.cookies/v1" }), "notice_ack_unknown_notice", "an unknown notice"),
+      nk(ackBody({ notice: 7 }), "notice_ack_unknown_notice", "a notice that is not a string"),
+      nk(ackBody({ statement_sha256: "A".repeat(64) }), "notice_ack_bad_hash", "an uppercase hash"),
+      nk(ackBody({ statement_sha256: "a".repeat(63) }), "notice_ack_bad_hash", "a hash one character short"),
+      nk(ackBody({ statement_sha256: "a".repeat(65) }), "notice_ack_bad_hash", "a hash one character long"),
+      nk(ackBody({ statement_sha256: "g".repeat(64) }), "notice_ack_bad_hash", "a hash with a character that is not hexadecimal"),
+      nk(ackBody({ statement_sha256: "sha256:" + "a".repeat(57) }), "notice_ack_bad_hash", "a prefixed hash"),
+    ],
+  };
+}
+// ---------- the job-data term (spec-deltas S1569, register row JO3): schema cases and the shared reading and validation ----------
+sv("valid_contract_data_handling_defaults", "contract", contractBody({ data_handling: {} }), true);
+sv("valid_contract_data_handling_explicit", "contract", contractBody({ data_handling: { term: "asp.job-data/v1", commons_sharing: false, retention: "delete_at_settlement", personal_data: "none" } }), true);
+sv("valid_contract_data_handling_commons", "contract", contractBody({ data_handling: { commons_sharing: true } }), true);
+sv("valid_contract_data_handling_retain", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 30 } }), true);
+sv("valid_contract_data_handling_personal", "contract", contractBody({ data_handling: { personal_data: "included" } }), true);
+sv("contract_data_handling_bad_retention", "contract", contractBody({ data_handling: { retention: "keep_forever" } }), false);
+sv("contract_data_handling_bad_personal_data", "contract", contractBody({ data_handling: { personal_data: "maybe" } }), false);
+sv("contract_data_handling_commons_not_boolean", "contract", contractBody({ data_handling: { commons_sharing: "yes" } }), false);
+sv("contract_data_handling_extra_field", "contract", contractBody({ data_handling: { share_with: "anyone" } }), false);
+sv("contract_data_handling_days_not_integer", "contract", contractBody({ data_handling: { retention: "retain_days", retain_days: 1.5 } }), false);
+{
+  const dh = (d: DataHandling | undefined, rule: string | null) => ({ input: d ?? null, problem: rule });
+  const handling = [
+    { name: "absent", ...dh(undefined, null) },
+    { name: "empty object", ...dh({}, null) },
+    { name: "the default term written out", ...dh({ term: "asp.job-data/v1" }, null) },
+    { name: "an unknown term", ...dh({ term: "asp.job-data/v2" }, "data_handling_unknown_term") },
+    { name: "an empty term", ...dh({ term: "" }, "data_handling_unknown_term") },
+    { name: "retain_days with the default retention", ...dh({ retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retain_days with delete_at_settlement", ...dh({ retention: "delete_at_settlement", retain_days: 30 }, "data_handling_retention_invalid") },
+    { name: "retention retain_days without retain_days", ...dh({ retention: "retain_days" }, "data_handling_retention_invalid") },
+    { name: "retain_days of 0", ...dh({ retention: "retain_days", retain_days: 0 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 366", ...dh({ retention: "retain_days", retain_days: 366 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1.5", ...dh({ retention: "retain_days", retain_days: 1.5 }, "data_handling_retention_invalid") },
+    { name: "retain_days of 1", ...dh({ retention: "retain_days", retain_days: 1 }, null) },
+    { name: "retain_days of 365", ...dh({ retention: "retain_days", retain_days: 365 }, null) },
+    { name: "commons sharing and personal data included", ...dh({ commons_sharing: true, personal_data: "included" }, null) },
+  ].map((c) => ({ ...c, reading: readDataHandling(c.input) }));
+  (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors = { term: JOB_DATA_TERM, maxRetainDays: MAX_RETAIN_DAYS, cases: handling };
+}
 sv("delivery_without_trace", "delivery", (() => { const d: any = deliveryBody(fakeId("c")); delete d.evidence.trace; return d; })(), false);
 sv("envelope_bad_type", "envelope", { ...h[0], type: "asp.contract/v1" }, false);
 sv("envelope_extra_field", "envelope", { ...h[0], note: "hi" }, false);
@@ -1165,6 +1247,8 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   const polBase = { holder: "did:web:example.com:agents:alice-coder", contract: "sha256:" + "d".repeat(64), cover: "bond_slash", insured_amount: { value: 20, unit: "credit" }, premium: { value: 2, unit: "credit" }, valid_from: "2026-11-12T00:00:00Z", valid_to: "2027-01-12T00:00:00Z" };
   sv("valid_policy", "policy", polBase, true);
   sv("valid_policy_failed_job", "policy", { ...polBase, cover: "failed_job" }, true);
+  sv("valid_policy_mutual", "policy", { ...polBase, mutual: "did:web:example.com:orgs:acme:fleets:coders" }, true);
+  sv("policy_mutual_not_a_did", "policy", { ...polBase, mutual: "the coders" }, false);
   sv("policy_bad_cover", "policy", { ...polBase, cover: "everything" }, false);
   sv("policy_no_premium", "policy", { ...polBase, premium: undefined }, false);
   sv("policy_extra_field", "policy", { ...polBase, exclusions: [] }, false);
@@ -1420,7 +1504,7 @@ const worldRules = [
     purpose: "Work for the enterprise", floor: "asp.floor/v1", scopes: ["repo.read", "repo.write", "pr.*"], forbidden_means: ["rm -rf"], spend: { cap: 100, unit: "credit", per_action_max: 20 },
     irreversible: { policy: "checkpoint" }, subcontract: { allowed: true, max_depth: 2 }, nodes: { max_parallel: 4 }, learning: { scope: "memory", share_to_commons: true }, self_modification: "principal_approves",
     overlay: null, checkpoints: ["plan"], expires: "2027-06-01T00:00:00Z", revocable: true, network: { hosts: ["api.example.com", "*.example.org"] },
-    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 12 }, ...over,
+    institution_spend: [{ institution: "academy", cap: { value: 60, unit: "credit" }, period: "month" }], token_budget: { per_run: 50000, per_month: 1000000, per_day: 300000 }, loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 12 }, outbound_scan: { mode: "block", kinds: ["secret", "card number"] }, ...over,
   });
   const fl = "did:web:example.com:orgs:acme:fleets:coders";
   sv("valid_mandate_template", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate() }, true);
@@ -1438,6 +1522,10 @@ const worldRules = [
   sv("mandate_template_zero_loop_depth", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 0 } }) }, false);
   sv("mandate_template_one_equivalent_call", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { equivalent_calls: 1 } }) }, false);
   sv("mandate_template_near_repeats_two", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { near_repeats: 2 } }) }, false);
+  sv("mandate_template_outbound_scan_bad_mode", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ outbound_scan: { mode: "mask" } }) }, false);
+  sv("mandate_template_outbound_scan_unknown_kind", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ outbound_scan: { kinds: ["passport"] } }) }, false);
+  sv("mandate_template_outbound_scan_empty", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ outbound_scan: {} }) }, false);
+  sv("valid_mandate_template_outbound_scan_more_kinds", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address", "iban"] } }) }, true);
   sv("mandate_template_unknown_loop_field", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { max_loops: 3 } }) }, false);
   sv("valid_mandate_template_loop_depth_only", "mandate_template", { fleet: fl, version: 1, mandate: tmplMandate({ loop_limits: { depth: 2 } }) }, true);
   sv("mandate_template_missing_field", "mandate_template", { fleet: fl, version: 1, mandate: (({ scopes: _s, ...r }) => r)(tmplMandate()) }, false);
@@ -1546,6 +1634,31 @@ const worldRules = [
   sv("incident_unknown_step", "incident", incBody({ steps: [{ step: "shrug" }] }), false);
   sv("incident_credit_restitution", "incident", incBody({ restitution: { open: true, remedy: "credits" } }), false);
   sv("incident_no_detected_at", "incident", (({ detected_at: _d, ...r }) => r)(incBody()), false);
+  // ---------- the standing adjustment (spec-deltas S1565): schema cases ----------
+  const adjBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", jobs: ["sha256:" + "5".repeat(64), "sha256:" + "6".repeat(64)], finding: "sha256:" + "7".repeat(64), reason: "the jobs came from a pair that hired each other", ...over });
+  sv("valid_standing_adjustment", "standing_adjustment", adjBody(), true);
+  sv("standing_adjustment_no_jobs", "standing_adjustment", adjBody({ jobs: [] }), false);
+  sv("standing_adjustment_duplicate_jobs", "standing_adjustment", adjBody({ jobs: ["sha256:" + "5".repeat(64), "sha256:" + "5".repeat(64)] }), false);
+  sv("standing_adjustment_no_finding", "standing_adjustment", (({ finding: _f, ...r }) => r)(adjBody()), false);
+  sv("standing_adjustment_no_reason", "standing_adjustment", adjBody({ reason: "" }), false);
+  sv("standing_adjustment_extra_field", "standing_adjustment", adjBody({ slash: 5 }), false);
+  sv("standing_adjustment_job_not_a_record_id", "standing_adjustment", adjBody({ jobs: ["a job"] }), false);
+  // ---------- the treasury return (spec-deltas S1566): schema cases ----------
+  const retBody = (over: Record<string, unknown> = {}) => ({ institution: "did:web:asp.local:institutions:registry", period: "2026-11", amount: { value: 120, unit: "credit" }, ...over });
+  sv("valid_treasury_return", "treasury_return", retBody(), true);
+  sv("valid_treasury_return_memo", "treasury_return", retBody({ memo: "the first of the month" }), true);
+  sv("treasury_return_bad_period", "treasury_return", retBody({ period: "2026-13" }), false);
+  sv("treasury_return_no_amount", "treasury_return", (({ amount: _a, ...r }) => r)(retBody()), false);
+  sv("treasury_return_extra_field", "treasury_return", retBody({ to: "did:web:asp.local:treasury" }), false);
+  sv("treasury_return_no_institution", "treasury_return", (({ institution: _i, ...r }) => r)(retBody()), false);
+  // ---------- the fleet mutual pool (spec-deltas S1568): schema cases ----------
+  const muBody = (over: Record<string, unknown> = {}) => ({ act: "open", fleet: "did:web:example.com:orgs:acme:fleets:coders", ...over });
+  sv("valid_mutual_open", "mutual_act", muBody(), true);
+  sv("valid_mutual_return", "mutual_act", muBody({ act: "return", memo: "end of the quarter" }), true);
+  sv("valid_mutual_close", "mutual_act", muBody({ act: "close" }), true);
+  sv("mutual_unknown_act", "mutual_act", muBody({ act: "dissolve" }), false);
+  sv("mutual_carries_an_amount", "mutual_act", muBody({ act: "return", amount: { value: 5, unit: "credit" } }), false);
+  sv("mutual_no_fleet", "mutual_act", (({ fleet: _f, ...r }) => r)(muBody()), false);
   sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
   // ---------- the key handover (spec-deltas S1427): schema cases ----------
   const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
@@ -1596,11 +1709,28 @@ const worldRules = [
     ["no_institution_spend", { institution_spend: [] }],
     ["a_lower_token_budget", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_token_run", { token_budget: { per_run: 60000, per_month: 800000 } }], ["a_higher_token_month", { token_budget: { per_run: 40000, per_month: 2000000 } }],
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
-    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
+    ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["a_redact_mode", { outbound_scan: { mode: "redact", kinds: ["secret", "card number"] } }], ["a_dropped_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret"] } }], ["an_added_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address"] } }], ["no_outbound_scan", { outbound_scan: undefined }], ["no_outbound_mode", { outbound_scan: { kinds: ["secret", "card number"] } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
+  {
+    const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };
+    const learn = (over: Record<string, unknown>) => ({ ...TP.learning, ...over });
+    for (const [name, ceiling, learning] of [
+      ["private_scopes_the_same", TP, learn({})], ["private_scopes_a_subset", TP, learn({ private_scopes: ["notes"] })], ["private_scopes_none_left", TP, learn({ private_scopes: [] })],
+      ["private_scopes_a_name_added", TP, learn({ private_scopes: ["notes", "secrets"] })], ["private_scopes_a_different_name", TP, learn({ private_scopes: ["secrets"] })],
+      ["private_scopes_dropped_is_none", TP, (({ private_scopes: _p, ...r }) => r)(TP.learning as Record<string, unknown>)],
+      ["private_scopes_added_to_a_ceiling_with_none", T, { ...(T.learning as object), private_scopes: ["notes"] }], ["private_scopes_none_under_none", T, T.learning],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, learning } });
+  }
   const mt = {
     version: "asp.conformance/v0.2",
     violations: cases.map((c) => ({ ...c, expected: mandateViolations(c.ceiling, c.candidate) })),
+    privateScopes: [
+      ["absent", undefined, null], ["empty", [], null], ["one name", ["notes"], null], ["all the characters", ["a-z_0-9"], null], ["sixteen names", Array.from({ length: 16 }, (_, i) => `s${i}`), null], ["a name of 64 characters", ["a".repeat(64)], null],
+      ["seventeen names", Array.from({ length: 17 }, (_, i) => `s${i}`), "private_scopes_invalid"], ["a duplicate", ["notes", "notes"], "private_scopes_invalid"], ["an empty name", [""], "private_scopes_invalid"],
+      ["a name of 65 characters", ["a".repeat(65)], "private_scopes_invalid"], ["an uppercase name", ["Notes"], "private_scopes_invalid"], ["a name with a space", ["my notes"], "private_scopes_invalid"], ["a name with a slash", ["a/b"], "private_scopes_invalid"],
+      ["a name that is not a string", [7], "private_scopes_invalid"], ["not a list", "notes", "private_scopes_invalid"],
+    ].map(([name, input, problem]) => ({ name, input: input ?? null, problem })),
     derive: [
       { name: "no_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: null },
       { name: "a_valid_narrowing", template: T, contract: "sha256:" + "2".repeat(64), narrowing: { scopes: ["repo.read"], spend: { cap: 40, unit: "credit", per_action_max: 5 } } },
@@ -1699,5 +1829,7 @@ write("lifecycle.json", { version: "asp.conformance/v0.2", cases: lifecycle });
 write("telemetry.json", { version: "asp.conformance/v0.2", note: "exact: every number is identical in both languages; otherwise equal to 1e-9", cases: telemetry });
 write("risk.json", risk);
 write("mandate-template.json", (globalThis as unknown as { __mandateTemplateVectors: unknown }).__mandateTemplateVectors);
+write("notice-ack.json", (globalThis as unknown as { __noticeAckVectors: unknown }).__noticeAckVectors);
+write("data-handling.json", (globalThis as unknown as { __dataHandlingVectors: unknown }).__dataHandlingVectors);
 write("world.json", { version: "asp.conformance/v0.2", generator: GENERATOR, commitments: ["", "vector-seed", "another-seed"].map((x) => ({ seed: x, commitment: seedCommitment(x) })), generate: worldGen, rules: worldRules });
 console.log(`canonical ${canonical.length}, schema ${schema.length}, records ${records.length}, lifecycle ${lifecycle.length}`);

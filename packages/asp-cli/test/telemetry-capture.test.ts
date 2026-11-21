@@ -53,17 +53,23 @@ test("DK652: a run sends its trajectory and task to the store and only the hashe
     const r1 = await run();
     assert.ok(r1.code === 0 || r1.code === 10, `${r1.err}\n${r1.out}`);
     let listed: string[] = [];
-    for (let i = 0; i < 20 && listed.length < 2; i++) { listed = (await call(["telemetry", "list"])).out.split(String.fromCharCode(10)).filter(Boolean); if (listed.length < 2) await new Promise((r) => setTimeout(r, 500)); }
-    assert.equal(listed.length, 2, `a trajectory and a message are stored: ${listed.join(" | ")}`);
-    assert.ok(listed.some((l) => /trajectory/.test(l)) && listed.some((l) => /message/.test(l)));
+    for (let i = 0; i < 20 && listed.length < 3; i++) { listed = (await call(["telemetry", "list"])).out.split(String.fromCharCode(10)).filter(Boolean); if (listed.length < 2) await new Promise((r) => setTimeout(r, 500)); }
+    // The trajectory and the task, and (DK79) the run's cognition items: the task as a goal, the messages, the actions, with one manifest of their hashes.
+    assert.ok(listed.length >= 3, `a trajectory, a message and the cognition items are stored: ${listed.join(" | ")}`);
+    for (const kind of ["trajectory", "message", "goal", "action"]) assert.ok(listed.some((l) => l.includes(`  ${kind}  `)), `${kind} is stored: ${listed.join(" | ")}`);
     const hashes = listed.map((l) => /(sha256:[0-9a-f]{64})/.exec(l)![1]);
+    const manifestHash = listed.map((l) => /(sha256:[0-9a-f]{64})  text  /.exec(l)?.[1]).find(Boolean);
+    assert.ok(manifestHash, "one manifest of the cognition hashes is stored");
     const lg = await openLog(f.aspHome, { ASP_LOG_URL: url, ASP_LOG_TOKEN: cfg.token } as never);
     const actions = (await lg.log.recordsOfTypes(["action"])) as unknown as { body: { artifacts?: { uri: string; sha256: string }[] } }[];
     const refs = actions.flatMap((a) => a.body.artifacts ?? []).filter((x) => x.uri.startsWith("asp://telemetry/"));
-    assert.deepEqual(refs.map((x) => x.sha256).sort(), [...hashes].sort(), "the Action cites the hashes of what was stored");
+    // The Action cites the trajectory, the task and ONE manifest of the cognition items, all of them stored; not each cognition item.
+    assert.deepEqual(refs.map((x) => x.uri.slice("asp://telemetry/".length)).sort(), ["message", "text", "trajectory"]);
+    assert.ok(refs.every((x) => hashes.includes(x.sha256)), "and each cited hash is of something stored");
+    assert.ok(refs.some((x) => x.sha256 === manifestHash), "one of them is the manifest");
     assert.ok(!JSON.stringify(actions).includes("zebra-quartz"), "the task text is not in the signed log");
     const stored = readdirSync(join(`${tokens}.telemetry`, "tm-run-agent", "content"));
-    assert.equal(stored.length, 2);
+    assert.equal(stored.length, listed.length, "every listed item has its text");
 
     // There is no off switch (DK1303): the command refuses and the next run still sends.
     assert.notEqual((await call(["telemetry", "off"])).code, 0);

@@ -399,7 +399,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | E11 | A | open | The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the... |
 | E12 | B | open | The memory section reads lineage edges from the log; it is untested with a real write-back, shows only edge de... |
 | E13 | A | open | Alerts go only to the contract's principal. The agent's sponsor (who is liable for it), the reporter of an uph... |
-| E14 | B | open | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
+| E14 | B | partial | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
 | U1 | A | partial | The sign-up page and Google sign-in exist (S94: /join, verified email, declaration, 3 tenants a Google account... |
 | U2 | A | partial | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no sign-in,... |
 | U4 | A | designed | No run mail (one per Mandate, highlights) |
@@ -465,7 +465,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | O12 | A | partial | Branch protection on main is not set |
 | O13 | A | open | The website and a demo do not exist, and the published description, topics and private vulnerability reporting... |
 | O14 | B | partial | What CI does not cover: macOS, Node versions between 22.18 and 24 and newer than 24, the real-agent evaluation... |
-| O15 | B | open | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
+| O15 | B | partial | Certificates are the operator's problem: the service reads the files once at start (a renewed certificate need... |
 | O17 | B | open | The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they... |
 | O18 | A | open | Suspending and blocking are local commands that edit files next to the service: there is no remote admin inter... |
 | O19 | A | partial | Sign-up with Google (S94) puts a verified Google account behind each tenant, but the command-line route (proof... |
@@ -574,12 +574,12 @@ Copied from the register on 2026-10-27; the register is the authority for status
 |---|---|---|---|
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
-| US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
+| US3 | B | partial | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
 | US4 | A | closed | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
 | US7 | A | partial | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
-| US8 | A | open | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
+| US8 | A | partial | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
 
 ### The job's view
 
@@ -1087,7 +1087,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1472 | A | partial | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | closed | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1475 | A | closed | The drip farm (each hop once) is invisible to the job graph; only a non-structural signal could tell it from honest rings, and none is built or measured. |
-| DK1476 | A | partial | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
+| DK1476 | A | closed | A Mandate has no token budget of its own; only a fleet's node budget and the gateway's daily ceiling limit thinking. |
 | DK1477 | A | closed | Nothing breaks a loop between agents (A hires B hires A) or across a fleet (a spiral draining its budget): cycle detection and a fleet spend-rate circuit breaker that halts a node, as a signed record, are not built. |
 | DK1478 | A | closed | The breaker counts equal calls only: a near-repeat (the same intent with small changes) is not detected, and its false-halt rate is not measured. |
 | DK1474 | A | closed | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
@@ -1117,8 +1117,10 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1725 | A | open | The recorded hosted live run of the society map and its feed is not done (flag L). |
 | DK1726 | A | closed | A key-only citizen's key cannot be rotated: no handover record carries history and standing to a new key. |
 | DK1727 | A | partial | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
-| DK1728 | A | partial | No audit maps every Market, Bank and Insurer requirement to a test or a row, and no seeded end-to-end test runs the whole flow with the supply audit balanced. |
-| DK1729 | A | open | The Market audit found nine requirements no test names (BI-12, BI-14, BI-18, CR-9, CR-10, CR-11, CR-14, CR-22, CR-25) and an end-to-end chain that stops at settlement. |
+| DK1728 | A | closed | No audit maps every Market, Bank and Insurer requirement to a test or a row, and no seeded end-to-end test runs the whole flow with the supply audit balanced. |
+| DK1729 | A | closed | The Market audit found nine requirements no test names (BI-12, BI-14, BI-18, CR-9, CR-10, CR-11, CR-14, CR-22, CR-25) and an end-to-end chain that stops at settlement. |
+| DK1730 | B | open | A Court cannot adjust a count: no signed `standing_adjustment` removes a found farm's jobs from the qualifying count (CR-14). |
+| DK1769 | B | closed | A sponsor has no token cap across all of their agents (`asp budget set --agent sponsor:<did>`; split from DK1476). |
 | DK1751 | A | partial | A paper becomes a testable property before a course: claim, falsifier, measure, pre-registered pass mark. |
 | DK1752 | A | open | A paper-derived course template and a lint for held-out leakage. |
 | DK1753 | A | partial | Cohort sessions for a paper-derived course: schedule, tutors, mock-credit cost, what each session produces. |
