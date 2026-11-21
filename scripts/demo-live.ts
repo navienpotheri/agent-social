@@ -1,6 +1,6 @@
 /**
  * Serves the live dashboard, the society pages with graphs and the fleet page from a synthetic month on 127.0.0.1, for looking at them and for the screenshots in docs/prototypes/dk1601 (register row DK1601):
- * `node scripts/demo-live.ts [port]`. The records are made up in memory (fake names, fake keys); nothing is stored and nothing leaves the machine. The demo has no sign-in: every request is the organisation's own.
+ * `node scripts/demo-live.ts [port]` (the demo keeps writing records, so the live page at /fleet/Atlas/live#t=demo shows them arrive). The records are made up in memory (fake names, fake keys); nothing is stored and nothing leaves the machine. The demo has no sign-in: every request is the organisation's own.
  * Pages: /fleet/Atlas/dashboard, /fleet/Atlas/live, /society/fleets/Atlas, /society/daily?day=2026-11-20.
  */
 import { createServer } from "node:http";
@@ -40,6 +40,21 @@ controls.setCap(FLEET, "atlas-org", NOW, { credits: 40 }, dids[4]);
 controls.freeze(FLEET, "atlas-org", "2026-11-19T09:00:00Z", dids[8], "the Clinic recommended quarantine");
 controls.freezeNode(FLEET, "atlas-org", "2026-11-19T09:05:00Z", "ops", "an incident in Operations");
 const stored = async () => out as never;
-const dash = fleetDashboardRoutes({ stored, controls, owned: () => [], now: () => NOW });
-const routes = [fleetLiveRoute(), (rq: any, rs: any) => dash(rq, rs, { tenant: { name: "demo", role: "admin" } }), fleetRoutes({ stored }), storyRoutes({ stored, balances: async () => new Map(), now: () => NOW })];
+let clock = Date.parse(NOW);
+const iso = () => new Date(clock).toISOString().replace(/\.\d{3}Z$/, "Z");
+const dash = fleetDashboardRoutes({ stored, controls, owned: () => [], now: iso });
+// The demo is alive: every 2 seconds a few new records are written (spend, runs, now and then a slash or a drift diagnosis), so the live page can show them arriving.
+let tickN = 0;
+setInterval(() => {
+  clock += 20_000; tickN++;
+  const n = 1 + (tickN % 3);
+  for (let k = 0; k < n; k++) {
+    const did = dids[(tickN * 7 + k * 5) % dids.length]!;
+    if ((tickN + k) % 2) push("purchase", did, iso(), { service: "registry.name.claim", institution: "did:web:asp.local:registry", amount: { value: 2 + ((tickN + k) % 5), unit: "credit" } });
+    else push("action", did, iso(), { metrics: { tokens_in: 3000 + ((tickN * 131 + k * 17) % 4000), tokens_out: 700 + ((tickN * 29) % 600) } });
+  }
+  if (tickN % 11 === 0) push("clinic_diagnosis", "did:web:asp.local:clinic", iso(), { agent: dids[tickN % dids.length]!, severity: "warn" }, dids[tickN % dids.length]!);
+  if (tickN % 17 === 0) { const c = push("contract", "did:web:example.com:users:client", iso(), { principal: "did:web:example.com:users:client", performer: dids[tickN % 9]!, price: { value: 40 } }); push("settlement", "did:web:asp.local:bank", iso(), { contract: c, basis: "ruling", bond_slashed: { value: 3 } }, c); }
+}, 2000);
+const routes = [fleetLiveRoute(), (rq: any, rs: any) => dash(rq, rs, { tenant: { name: "demo", role: "admin" } }), fleetRoutes({ stored }), storyRoutes({ stored, balances: async () => new Map(), now: iso })];
 createServer(async (req, res) => { for (const r of routes) if (await r(req, res)) return; res.writeHead(404); res.end("not found"); }).listen(port, "127.0.0.1", () => console.log(`live demo on http://127.0.0.1:${port}/fleet/Atlas/dashboard`));
