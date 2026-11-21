@@ -52,7 +52,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
 | AG3 | A | partial | 3 | M | - | a refusal, slash or ruling comes without reasons the agent can use |
-| DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
+| DK1 | ? | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | open | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
 | DK1715 | A | partial | 3 | M | - | default spend ceilings in the starter Mandate, alerts at 50, 80, 100 percent and a hard stop |
 | T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
@@ -89,8 +89,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O12 | A | partial | 0.5 | S | O | branch protection on main |
 | O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
 | DK1204 | A | partial | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
-| DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
-| DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
+| DK1340 | ? | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
+| DK421 | ? | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
 | DK64 | A | partial | 1 | S | OL | 15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's… |
 | LW1 | ? | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
