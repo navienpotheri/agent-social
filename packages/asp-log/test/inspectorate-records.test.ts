@@ -15,7 +15,7 @@ async function world() {
   const insp = party(INSPECTORATE_DID);
   await k.log.append(mk("passport", insp, { did: INSPECTORATE_DID, kind: "human", keys: keysOf(insp) }, null, { subject: INSPECTORATE_DID }));
   const sponsor = await k.person("insp-sponsor");
-  const agent = await k.agent("insp-agent", sponsor, 1);
+  const agent = await k.agent("insp-agent", sponsor);
   const j1 = await k.person("insp-j1"), j2 = await k.person("insp-j2");
   const warrant = (over: Record<string, unknown> = {}, by: Party = courts) => mk("warrant", by, { subject: agent.did, sponsor: sponsor.did, requested_by: INSPECTORATE_DID, granted_by: [j1.did, j2.did], panel_size: 3, grounds: "two runs read a decoy the Mandate forbade, and the sponsor was told", data: ["run_log"], expires_at: iso(Date.parse(nowIso()) + 48 * HOUR), scope: "the run log of the two runs that touched the decoy, nothing else", ...over }, null, { subject: agent.did });
   const decoy = (over: Record<string, unknown> = {}, by: Party = courts) => mk("decoy_registration", by, { decoy: "decoy-1", text: "notes/old-backup.txt (a file of no value)", carries_real_secret: false, forbidden_by_mandate: true, scope: "open_investigation", ...over }, null, { subject: null });
