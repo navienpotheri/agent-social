@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 71,
-  "withdraw": 108,
+  "withdraw": 107,
   "after": 322,
-  "total": 501
+  "total": 500
  },
  "mustWorkerHours": 331.2,
  "entries": [
@@ -6023,19 +6023,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1475",
-   "pri": "A",
-   "status": "open",
-   "gap": "The drip farm is invisible to the job graph: rings of single hops occur by chance among honest sponsors, so only a signal that is not structure can tell them apart (when the hops and the cover work w…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
