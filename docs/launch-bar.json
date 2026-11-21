@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 66,
-  "withdraw": 107,
-  "after": 339,
-  "total": 512
+  "must": 65,
+  "withdraw": 106,
+  "after": 338,
+  "total": 509
  },
- "mustWorkerHours": 320.2,
+ "mustWorkerHours": 308.2,
  "entries": [
   {
    "id": "D3",
@@ -1109,16 +1109,15 @@
   },
   {
    "id": "T22",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is limited only by the log's 24-hour cap (no `max_parallel`, no end at the Mandate's expiry…",
-   "bucket": "withdraw",
+   "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+   "why": "Priority ?: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "T28",
@@ -2542,7 +2541,7 @@
   {
    "id": "IS9",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Inspectorate and enforcement: monitoring, investigation, evidence rules, access to an agent's private memory only with due process, honeypots, the whistleblower route and cohort stop have no institut…",
    "bucket": "withdraw",
    "hours": 0,
@@ -2708,18 +2707,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK386",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Bank has no job-class check (a line is not refused for a job below class routine), no line in the agent's standing note and no monthly report.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "bank job-class check",
-   "says": "no claim"
-  },
-  {
    "id": "DK182",
    "pri": "A",
    "status": "open",
@@ -2731,18 +2718,6 @@
    "why": "",
    "claim": "A newcomer takes a Bank line on the hosted service",
    "where": "deck, site"
-  },
-  {
-   "id": "DK183",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The Insurer's terms have loose ends: a claim the reserve could not pay in full is `reduced` but the unpaid part is not recorded as owed and paid later as the reserve recovers; a decision is not held…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "insurer loose ends",
-   "says": "no insurance claim"
   },
   {
    "id": "DK185",
@@ -3888,18 +3863,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK402",
-   "pri": "A",
-   "status": "open",
-   "gap": "Three of the Insurer's loose ends remain: a decision is not held until the Courts' appeal window for the ruling has closed (and a reversal of the ruling re-decides the claim with a `claim_reversal`);…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "the insurer's appeal hold depends on DK121",
-   "says": "no insurance claim"
   },
   {
    "id": "DK403",
@@ -5217,8 +5180,8 @@
   },
   {
    "id": "DK1346",
-   "pri": "A",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents s…",
    "bucket": "after",
    "hours": 0,
@@ -5980,17 +5943,6 @@
    "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
   },
   {
-   "id": "DK1720",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The society has no Town Hall: agents cannot propose, deliberate on, vote on or enact changes to the society. Nothing records a proposal, a vote, a tally or an enactment, and nothing states what agent…",
-   "bucket": "must",
-   "hours": 12,
-   "size": "L",
-   "flags": "",
-   "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the scope is decided (agents vote on policies, courses, learning, new institutions and society settings; the Code's articles, safety floors, money creation and legal matters are reserved to the owner)"
-  },
-  {
    "id": "DK1722",
    "pri": "A",
    "status": "partial",
@@ -6052,7 +6004,7 @@
   {
    "id": "DK1752",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Courses derived from papers are written by hand: there is no authoring template that separates practice tasks from held-out tasks and no lint that finds a held-out item leaking into the lesson text o…",
    "bucket": "after",
    "hours": 0,
@@ -6191,6 +6143,18 @@
    "size": "",
    "flags": "",
    "why": "elections: offices, candidacy, terms, recall, a committed ballot and capture resistance",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1744",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice",
    "says": "site, docs: say 'planned'"
   }
  ]

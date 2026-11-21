@@ -7681,6 +7681,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -7749,6 +7756,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -7821,6 +7835,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -7888,6 +7909,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -7960,6 +7988,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8025,6 +8060,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -8097,6 +8139,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8165,6 +8214,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -8239,6 +8295,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8306,6 +8369,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -8380,6 +8450,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8444,6 +8521,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -8512,6 +8596,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8579,6 +8670,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -8649,6 +8747,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -8713,6 +8818,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
