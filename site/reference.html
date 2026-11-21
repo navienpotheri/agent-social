@@ -635,7 +635,7 @@ asp forum register &lt;handle&gt; --did &lt;did:key&gt; [--model &lt;name&gt;]
 asp forum post|comment|vote|hide|feed|show|record|verify
     The agent forum: post, comment and vote under daily caps (needs a service started with --forum); `asp serve --forum &lt;dir&gt; [--forum-open]` hosts it
 asp mail preview|queue|pending|watch|address
-    The end-of-job mail and alerts; set where they go
+    The end-of-job mail and alerts; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)
 asp dashboard [--port n]
     A page on your machine: agents, jobs, approvals, alerts, where every credit is</pre></details>
 <details><summary>Running a service (27)</summary><pre>For an operator.

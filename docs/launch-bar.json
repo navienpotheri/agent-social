@@ -6039,7 +6039,7 @@
   {
    "id": "DK1700",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
    "bucket": "after",
    "hours": 0,
