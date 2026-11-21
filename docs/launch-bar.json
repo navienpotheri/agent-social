@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 86,
+  "must": 85,
   "withdraw": 98,
   "after": 289,
-  "total": 473
+  "total": 472
  },
- "mustWorkerHours": 314.2,
+ "mustWorkerHours": 310.2,
  "entries": [
   {
    "id": "D3",
@@ -4583,17 +4583,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1220",
-   "pri": "A",
-   "status": "open",
-   "gap": "There are no commands for a mentorship or the tutorial job: `asp bank mentor` (the protege proposes, the mentor countersigns) and the tutorial job in `asp first-week` are not written, so only a scrip…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
-   "flags": "",
-   "why": "no commands for a mentorship or the tutorial job"
   },
   {
    "id": "DK1221",

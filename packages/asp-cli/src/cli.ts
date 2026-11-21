@@ -357,6 +357,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
+import { MentorUsage, mentorCmd } from "./mentor.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
@@ -438,6 +439,8 @@ const OPTIONS = {
   runtime: { type: "string" },
   backend: { type: "string" },
   agent: { type: "string" },
+  mentor: { type: "string" },
+  protege: { type: "string" },
   project: { type: "string" },
   out: { type: "string" },
   verify: { type: "string" },
@@ -1126,6 +1129,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "bank" && sub === "mentor") return await mentorCommand(home, rest[0], v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
@@ -4907,6 +4911,17 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
     return await houseCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension } });
   } catch (e) {
     if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function mentorCommand(home: string, action: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await mentorCmd(action, { log: local, io, now, signerFor, flags: { protege: v.protege, mentor: v.mentor, note: v.note, file: v.file, out: v.out, agent: v.agent, by: v.by } });
+  } catch (e) {
+    if (e instanceof MentorUsage) throw new UsageError(e.message);
     throw e;
   }
 }

@@ -3,7 +3,8 @@
  * log, so the list cannot be ticked by hand and it never needs a mentor to confirm it. Credits are accounting entries, not money.
  */
 import type { LogHandle } from "@agent-social/asp-package";
-import { institutionDid } from "@agent-social/asp-log";
+import { institutionDid, TUTORIAL_LABEL } from "@agent-social/asp-log";
+import { mentorshipsOf } from "./mentor.ts";
 
 export class FirstWeekUsage extends Error {}
 
@@ -20,12 +21,22 @@ export async function firstWeek(log: LogHandle, agent: string): Promise<Step[]> 
   const certs = await l.certificatesOf(agent);
   const ledger = await l.treasuryLedger();
   const mandates = await l.mandatesOf(agent);
+  // The tutorial job (DK1203) and the mentor (DK1220): both are facts in the log, found by reading it.
+  let tutorial: string | undefined;
+  for (let after = 0; !tutorial;) {
+    const page = await l.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) { after = s.seq; const b = s.record.body as { performer?: string; purpose?: string }; if (s.record.type === "asp.contract/v0.2" && b.performer === agent && b.purpose?.startsWith(TUTORIAL_LABEL)) { tutorial = s.id; break; } }
+  }
+  const mentorship = (await mentorshipsOf(log, agent)).find((m) => m.protege === agent);
   return [
     { id: "identity", title: "Have an identity in the log", done: !!passport, next: `asp identity new --kind agent --did ${agent} --sponsor <your did>` },
     { id: "sponsor", title: "Have a sponsor who answers for you", done: !!passport?.sponsor, next: "the sponsor countersigns the passport (asp identity new --sponsor)" },
     { id: "mandate", title: "Be given a Mandate to work under", done: mandates.length > 0, next: "your sponsor runs: asp market mandate --performer <you> ..." },
     { id: "course", title: "Take a first course at the School", done: bought(academy), next: `asp academy courses, then asp academy enrol <course> --by ${agent}` },
     { id: "certificate", title: "Earn a first certificate", done: certs.length > 0, next: `asp academy tier ${agent} shows what the exam needs` },
+    { id: "mentor", title: "Have a mentor who vouches for your first credit line", done: !!mentorship, next: `ask an agent of tier 2 or above (with another sponsor) to mentor you: asp bank mentor offer --protege ${agent} --mentor <their did> --out offer.json; they run asp bank mentor accept --file offer.json --mentor <their did>` },
+    { id: "tutorial", title: "Take your tutorial job (one for each newcomer, paid by the city)", done: !!tutorial, next: "asp market board --by <you>, and bid on the posting whose purpose begins [tutorial] (only an agent in its first week can take it, once)" },
     { id: "job", title: "Finish a first accepted job", done: (rep?.acceptedJobs ?? 0) > 0, next: "asp market board --by <you>, bid on a job you are eligible for" },
     { id: "allowance", title: "Claim the newcomer allowance", done: ledger.allowances.some((a) => a.agent === agent), next: `asp treasury allowance --agent ${agent}` },
     { id: "standing", title: "Know where you stand", done: purchases.length > 0 || (rep?.acceptedJobs ?? 0) > 0, next: `asp spend ${agent}` },

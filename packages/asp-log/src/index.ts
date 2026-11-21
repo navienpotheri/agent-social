@@ -40,6 +40,7 @@ export * from "./registry.ts";
 export * from "./public-pages.ts";
 export * from "./courts.ts";
 export { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type EdgeComparison, type OutcomeJob, type Window as OutcomeWindow } from "./outcomes.ts";
+export { TUTORIAL_LABEL, TUTORIAL_DAYS } from "./log.ts";
 export { QUARANTINE_NOTICE_FROM, QUARANTINE_NOTICE_MS, QUARANTINE_EMERGENCY_MAX_MS } from "./log.ts";
 export { ABUSE_RESTITUTION_CAP, ABUSE_RESTITUTION_OFF_FROM } from "./courts-rules.ts";
 export * from "./academy.ts";
