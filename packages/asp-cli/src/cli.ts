@@ -209,6 +209,7 @@
  *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
  *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
+ *   asp my-data [--agent <did>] [--acknowledge] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
@@ -371,6 +372,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
+import { myDataCmd } from "./my-data.ts";
 import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
@@ -465,6 +467,7 @@ const OPTIONS = {
   runtime: { type: "string" },
   backend: { type: "string" },
   agent: { type: "string" },
+  acknowledge: { type: "boolean" },
   project: { type: "string" },
   out: { type: "string" },
   verify: { type: "string" },
@@ -1165,6 +1168,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
     if (cmd === "today") return todayCmd(home, v, io);
+    if (cmd === "my-data") return myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now });
     if (cmd === "trend") return todayCmd(home, v, io, true);
     if (cmd === "budget") return await budgetCommand(home, sub, v, io);
     if (cmd === "monitor") return await monitorCommand(home, sub, v, io);

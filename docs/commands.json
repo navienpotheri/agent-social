@@ -415,6 +415,10 @@
           "description": "The owner's signature on the monetary policy (docs/institutions/economy/credits.md): with --by it signs the text's hash with the owner's own key and writes credits.ratified.json next to it; without, it checks that the statement matches the text now (a policy edited after signing is caught)"
         },
         {
+          "command": "asp my-data [--agent <did>] [--acknowledge] [--json]",
+          "description": "Your data in the city in plain words: what stays on your machine, what the city keeps and in which categories, what it is used for, and how to list and delete it; --acknowledge records, on your machine, the date and hash of the statement you read"
+        },
+        {
           "command": "asp credits guard [--json]",
           "description": "The monetary guard measures (credits.md 5.6): issuance rate, starter pool use, hoarding, the Treasury share and an audit mismatch, each with its threshold and the action the specification names; the measures the log cannot compute yet are listed with the reason. Exit 1 when a measure is over its threshold. It only reads: acting on a trigger is the operator's decision"
         },

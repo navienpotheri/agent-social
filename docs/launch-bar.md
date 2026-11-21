@@ -162,7 +162,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK420 | A | open | A published rights charter | terms, site (hold until counsel has read it: OD-DK420) |
 | DK272 | A | partial | A private memory scope for one principal and agent | README, site, deck |
 | US1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| US8 | A | open | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
+| US8 | A | partial | A person controls what their agent shares and what the city keeps | site, README, privacy notice (telemetry is always on for adults; DK1340) |
 | JO3 | A | open | A job's data is deleted at settlement and has a handling term | terms, site |
 | IS3 | A | designed | Bank, treasury and central bank as running institutions | deck, site |
 | IS4 | A | open | Courts as an institution with jurors and a small-claims track | deck, site, terms (the operator's court only) |

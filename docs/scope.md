@@ -579,7 +579,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
 | US7 | A | partial | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
-| US8 | A | open | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
+| US8 | A | partial | A person cannot control their own data in the city: no clear choice of what their agent shares, what the city... |
 
 ### The job's view
 
