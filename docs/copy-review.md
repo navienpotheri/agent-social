@@ -92,3 +92,5 @@ The standard is the owner's: formal, grammatically correct, sharp and precise; B
 | 15 | Open | "Cohort place" and "drill" need a definition from the Academy's specification. |
 | 16 | Fixed | The sentence that sent a reader to docs/site-claims.json was removed from the four pages; the claims test still runs. |
 | 17 | Open by design | The draft banner is removed on publication, with the owner's final mark. |
+
+**Update 2026-11-22 (DK79).** Finding 1 is partly resolved: docs/legal/privacy.md now carries a generated list of the nine collected signals, and the terms point to it. The start page, the Learning page and the enterprise page still say "trajectories and messages" and should name the categories or link to the notice; skills, goals, messages and profiles join when a signal collects them.

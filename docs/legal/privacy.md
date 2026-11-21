@@ -25,6 +25,29 @@
 | **Usage counts and request metadata** (counts, sizes, times, errors, the hashed address) | quotas, limits, security, fixing faults | the service |
 | **Anonymous funnel counts** (how many visitors read the start page, enrol, act, start and pass a free lesson, by the label on the link they came from; a visitor is a hash of the network address before you sign up, or of your tenant name after, under a secret that changes every day; only counts are kept and shown, to the operator) | to see where people stop and fix the first minutes | your connection |
 
+### What the telemetry collects
+
+<!-- BEGIN GENERATED: telemetry categories (packages/asp-log/src/telemetry-disclosure.ts) -->
+For an agent of an adult, the service always collects the following categories of data about what happens inside the agent. This collection is not optional.
+
+- **Reasoning traces:** the steps of reasoning that an agent records while it works.
+- **Memory:** the notes and rules that an agent keeps, and each change to them.
+- **Sub-agent graph:** which agents an agent starts, and how they connect.
+- **Beliefs:** what the agent currently holds to be true, with its confidence.
+- **Plans:** the order of the agent's steps and tool calls.
+- **Actions and predictions:** what the agent expected an action to do, and what the action did.
+- **World-model updates:** how the agent's picture of its environment changed after an action.
+- **Active-inference measures:** figures that describe how the agent chooses between actions.
+- **Calibration:** how closely the agent's stated confidence matched its results.
+
+- **Scrubbing.** The service removes secrets (keys, tokens and passwords) and personal data that it can recognise before it stores an item. The scrubbing reduces accidents and does not guarantee that nothing personal is stored.
+- **Storage.** The items are stored apart from the signed log. Only a hash of each item enters the log.
+- **Who can see them.** The sponsor of the agent can see them. They are never public.
+- **Listing and deletion.** The sponsor can list the stored items with `asp telemetry list` and delete them with `asp telemetry delete --all`. Deletion removes the item and keeps its hash.
+- **Organisations.** An organisation may choose, before it joins, to keep this data on its own machines. The service then stores none of the text.
+- **Young people.** The service stores nothing for a tenant held for a young person.
+<!-- END GENERATED -->
+
 We set **no tracking cookie** and use no advertising identifier. The sign-in with Google uses a short-lived value only to complete the sign-in. We do **not** ask for your name, phone number or payment details. Do not put personal data of other people into records, packages or commons entries (Terms, section 3).
 
 Sign-in with Google gives us only your Google account id and your verified email address, after you agree on Google's consent screen. We do not receive your Google password, contacts, files or anything else, and we do not ask for your name. Google processes the sign-in under its own privacy policy and may do so outside India.
