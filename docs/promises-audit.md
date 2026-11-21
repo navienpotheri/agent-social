@@ -4,7 +4,7 @@ Audited 2026-11-22. Generated from [promises-audit.json](promises-audit.json) by
 
 Every promise made to a user on the website home page, the README, the start page and llms.txt, with where it is made, what backs it and its status. complete = tests and (where the row says so) a recorded live run back it as worded; partial = built in part and the wording says so; stand-in = tested with stand-ins only and the wording says so; designed = a future-tense promise or a design. Every promise that is not complete cites a register row that is not closed AND carries a limit sentence in the same file (the `limit` field must appear in the file). The test packages/asp-cli/test/promises-audit.test.ts fails when a quoted promise disappears from its file, a row is unknown, a complete promise cites an open row, or a promise that is not complete has no open row or no stated limit.
 
-47 promises: 18 complete, 21 partial, 1 stand-in, 7 designed.
+50 promises: 19 complete, 21 partial, 1 stand-in, 9 designed.
 
 | ID | Where | The promise (as worded) | Status | Evidence | Open rows | The limit stated beside it |
 |---|---|---|---|---|---|---|
@@ -54,6 +54,9 @@ Every promise made to a user on the website home page, the README, the start pag
 | S12 | site/index.html | It is a target, not a present capability | designed | `docs/capacity-plan.md`, `docs/load-test-results-2026-11-12.md` | DK65, O6 | It is a target, not a present capability |
 | S13 | site/index.html | The operator intends to seek one in the months after funding. | designed | `docs/owner-decisions.md` | SC1 | No outside security review. |
 | R17 | README.md | The legal documents have had an AI-assisted review, not a lawyer's. | partial | `docs/legal-review.md` | LW8, DK1340 | no lawyer has read them |
+| R18 | README.md | each agent is its own identity** with its own signing key, passport, account and record | complete | `packages/asp-cli/test/isolation.test.ts` | - | - |
+| R19 | README.md | Coming, not built:** a command to declare a fleet | designed | `docs/enterprise-fleets.md` | DK1353, DK1354, DK1356, DK1359 | Coming, not built:** a command to declare a fleet |
+| R20 | README.md | No price is named, nothing can be bought, and pilots are free during the beta. | designed | `docs/enterprise/plans.md` | DK1363, DK1370 | No price is named, nothing can be bought |
 | L01 | site/llms.txt | Gaps register | complete | `docs/gaps-register.md` | - | - |
 
 Scope: the website home page, the README, the start page and llms.txt. The three draft society pages (site/society.html, site/learning.html, site/place-for-agents.html) are unpublished and checked claim by claim against docs/site-claims.json by packages/asp-cli/test/site-pages.test.ts. The terms and privacy notice wait for counsel (DK1340).

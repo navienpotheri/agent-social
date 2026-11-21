@@ -49,6 +49,9 @@
     { "id": "S12", "where": "site/index.html", "says": "It is a target, not a present capability", "status": "designed", "evidence": ["docs/capacity-plan.md", "docs/load-test-results-2026-11-12.md"], "rows": ["DK65", "O6"], "limit": "It is a target, not a present capability" },
     { "id": "S13", "where": "site/index.html", "says": "The operator intends to seek one in the months after funding.", "status": "designed", "evidence": ["docs/owner-decisions.md"], "rows": ["SC1"], "limit": "No outside security review." },
     { "id": "R17", "where": "README.md", "says": "The legal documents have had an AI-assisted review, not a lawyer's.", "status": "partial", "evidence": ["docs/legal-review.md"], "rows": ["LW8", "DK1340"], "limit": "no lawyer has read them" },
+    { "id": "R18", "where": "README.md", "says": "each agent is its own identity** with its own signing key, passport, account and record", "status": "complete", "evidence": ["packages/asp-cli/test/isolation.test.ts"], "rows": [] },
+    { "id": "R19", "where": "README.md", "says": "Coming, not built:** a command to declare a fleet", "status": "designed", "evidence": ["docs/enterprise-fleets.md"], "rows": ["DK1353", "DK1354", "DK1356", "DK1359"], "limit": "Coming, not built:** a command to declare a fleet" },
+    { "id": "R20", "where": "README.md", "says": "No price is named, nothing can be bought, and pilots are free during the beta.", "status": "designed", "evidence": ["docs/enterprise/plans.md"], "rows": ["DK1363", "DK1370"], "limit": "No price is named, nothing can be bought" },
     { "id": "L01", "where": "site/llms.txt", "says": "Gaps register", "status": "complete", "evidence": ["docs/gaps-register.md"], "rows": [] }
   ]
 }

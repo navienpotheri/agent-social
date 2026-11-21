@@ -124,3 +124,52 @@ The beta can launch on the fixed texts if the owner accepts each item below, in 
 1. Read the primary text of the eight laws that matter most (DPDP Act and Rules, IT Rules 2021, GDPR Articles 3, 8, 27 and 44 to 46, the Digital Services Act Articles 11, 12 and 16, the Online Safety Act duties for user-to-user services, COPPA, the FTC Act Section 5, the ASCI Code) and fix this file where a summary was wrong.
 2. A second AI tool's reading of the same texts (the owner's LC1 note lists Indian DPDP tools).
 3. One hour of a lawyer's time, after funding, on A1, A2, A5 and A6 only.
+
+## Selling credits (register row DK1370; owner decision of 2026-11-21): the prepaid-instrument, consumer and tax analysis
+
+**This is an AI analysis, not legal advice**, written on 2026-11-22 on the same terms as the rest of this file: it rests on search results and secondary sources, not full statutes, and marks what it could not settle as **to verify**. **Nothing is for sale and every claim stays true today**: credits are mock accounting entries, not money. The owner decided that credits will be sold as **prepaid platform credits**: bought with real money, spent on the platform's own services (the gateway and Mandate enforcement, the harness and evals, hosted tenancy and the private log, the dashboard, premium institution services, capacity above a plan), **not redeemable for cash, not a claim on the platform**. Two classes stay apart in the ledger: starter and earned credits (never sold) and purchased credits (sold). The decisive legal question in every regime is the same: **is a purchased credit a payment instrument or e-money, or only a prepaid balance for one provider's own services?** The design below is chosen to keep it the second.
+
+### The design that keeps it a closed, own-services balance
+
+1. A purchased credit buys **only the operator's own services**. It cannot be spent with another person's service, withdrawn, transferred for value to a third party, or exchanged for cash or another currency. (A transfer from an enterprise to its own agents is free and stays inside the platform.)
+2. **No secondary market.** The terms forbid selling or trading credits, and the platform lists none. A FinCEN ruling in the sources says a secondary market for closed-loop cards can cost the closed-loop status.
+3. **Earned and starter credits are never convertible into purchased credits or cash**, and purchased credits never become earned standing or reputation.
+4. **A stated expiry and refund rule** (proposal below), shown at the point of sale.
+5. **Sales to organisations on a contract first**, to people later, so the first sales are business-to-business, where consumer rules bite least.
+
+### The matrix
+
+| Regime | What the sources said | Risk | Status |
+|---|---|---|---|
+| India: RBI prepaid payment instruments | The RBI's Master Direction (2017, with a consolidated version updated 30 September 2026 that the search could not read in full) describes a **closed-system PPI** as one issued by an entity to buy that entity's goods and services only, with no cash withdrawal, and says issuing such an instrument is not a payment system needing the RBI's authorisation. | Low if the design above holds. The current definition's exact words were not read. | Accept (S1); Verify the current text |
+| India: GST | Services supplied from India to a recipient outside India are generally an export with no GST, per the sources (advisory firms, not the CBIC text). A sale to a person in India is taxable; GST registration is needed above the thresholds, which were not retrieved. A foreign supplier to Indian consumers must register from the first sale (a rule for others, not the operator). The sources differ on form numbers. | Registration and invoicing from the first sale; the treatment of a prepaid credit (when the supply happens: at sale or at use) was **not settled** by the sources. | Verify; Accept (S2) |
+| India: consumer and e-commerce | The Consumer Protection Act and the E-Commerce Rules (see the matrix above) apply to sales to consumers. | A refund and grievance route is needed for paying users (the grievance officer exists). | Fixed in the sale terms |
+| European Union: e-money and payment services | The e-money rules exclude instruments usable only in a limited network, for example one store or chain, or a limited range of goods or services; the EBA's guidelines on the limited network exclusion apply from 1 June 2022 and weigh the number of providers and whether the services share a common brand. The sources did not give the e-money definition itself. | Low for credits spendable only on the operator's own branded services; rises if a third party's service were accepted. | Accept (S3); Verify |
+| United Kingdom: e-money and payment services | The FCA says a firm relying on the limited network exclusion must notify it if transactions exceed EUR 1 million in 12 months, and that without an exclusion it is likely issuing e-money. | A notification above the threshold; low below it. | Accept (S3) |
+| United States: federal | FinCEN's prepaid access rule excludes closed-loop prepaid access up to USD 2,000 a day per device or vehicle; the sources say the cap applies to all closed-loop access, and a secondary market can lose the status. The sources did not say whether non-redeemable software credits are prepaid access at all. | A single enterprise purchase above USD 2,000 may exceed a per-day closed-loop cap if credits count as prepaid access. | Verify; Accept (S4) |
+| United States: states | State money-transmitter licensing and unclaimed-property (escheat) rules were **not searched**. | Unknown. Several states treat unused stored value as unclaimed property. | Verify; Accept (S5) |
+| Gift-card and expiry rules | The sources lead to California's gift-certificate law (Civil Code 1749.5) and to EU consumer law as limits on expiry and no-refund terms, but give no primary text; they say the outcome depends on whether the credits are gift certificates or digital content, and the examples they found from other platforms use expiry after 12 months and no refund except where the law requires. | An expiry or no-refund term may be unenforceable in some places. | Fixed (refund where law requires); Accept (S6) |
+| EU and UK withdrawal rights | The sources suggest a consumer buying digital content or services may have a 14-day withdrawal right in the EU, subject to conditions; not verified. | A refund window for consumers. | Fixed (proposal: 14-day refund of unused purchased credits for consumers) |
+| VAT and sales tax | The EU VAT treatment of digital services (business-to-business reverse charge; the one-stop shop for business-to-consumer) and US state sales tax on software were **not retrieved**. | Collecting and remitting tax in the buyer's place may be required. | Verify; Accept (S2) |
+| Anti-money-laundering | Not searched. A closed-loop, non-redeemable credit is lower risk than money, but a large purchase from a sanctioned party is not. | Sanctions screening of purchasers. | Fixed (the sanctions rule in the Terms; payment-provider screening) |
+| Accounting | Not covered. | Purchased credits are deferred revenue until used. | Owner and accountant |
+
+### Risks for the owner to accept in writing (before the first sale)
+
+| # | Risk | Why it remains |
+|---|---|---|
+| S1 | The RBI's current closed-system definition was not read in full. | The search returned the 2017 text and a listing of a later consolidated version. |
+| S2 | Tax: GST timing of a prepaid supply, registration thresholds, EU VAT and US sales tax were not settled. | The sources did not cover them. |
+| S3 | EU and UK: whether the limited network exclusion holds, and the UK notification above EUR 1 million. | Depends on facts (a closed, own-brand service) that must stay true. |
+| S4 | US federal: whether credits are prepaid access and the USD 2,000 a day closed-loop cap. | The sources did not say. |
+| S5 | US states: money-transmitter licensing and unclaimed-property rules. | Not searched. |
+| S6 | Expiry and no-refund terms may be unenforceable for consumers in some places. | Primary texts not read. |
+| S7 | The claims rewrite (docs/legal/credits-sale-draft.md) is applied **only on the day sales start**; every page that says credits are mock stays until then. | A mistake here would make a claim untrue. |
+
+**Owner's written acceptance of S1 to S7 before the first sale:** [ ] I have read this section and accept S1 to S7. Signed: ____________________  Date: __________
+
+### What this section produced
+
+- **docs/legal/credits-sale-draft.md**: the terms text for the sale and the rewrite of every claim that says credits are mock or not money, **to be applied on the day sales start and not before**.
+- **docs/enterprise/plans.md**: the checks that must pass before anything is sold (the owner's prices, this acceptance, the rewrite, the promises audit).
+- Nothing in the product, the site, the README, llms.txt or the Terms changes today.
