@@ -399,7 +399,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | E11 | A | open | The mail has no links: no run page, full report or hosted run log exist, so it names the run log's path on the... |
 | E12 | B | open | The memory section reads lineage edges from the log; it is untested with a real write-back, shows only edge de... |
 | E13 | A | open | Alerts go only to the contract's principal. The agent's sponsor (who is liable for it), the reporter of an uph... |
-| E14 | B | open | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
+| E14 | B | partial | Alert detection is by shape, not by event: a kill is any revoked settlement with a slashed bond (a principal's... |
 | U1 | A | partial | The sign-up page and Google sign-in exist (S94: /join, verified email, declaration, 3 tenants a Google account... |
 | U2 | A | partial | The dashboard exists as a local tool for one person on one machine; there is no hosted dashboard, no sign-in,... |
 | U4 | A | designed | No run mail (one per Mandate, highlights) |

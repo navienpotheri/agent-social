@@ -325,7 +325,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | E6 | A | partial | retention and encryption at rest are not built | the run log is a local file; an optional end-to-end copy exists |
 | E7 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | E13 | A | partial | alerts go to the principal; sponsor, reporter and operator later | alerts go to the contract's principal |
-| E14 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| E14 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X1 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | X3 | A | open | an upkeep rule, never closes | the register is the source of truth |
