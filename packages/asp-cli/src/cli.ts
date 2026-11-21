@@ -7674,6 +7674,8 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
 
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
+  // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
+  if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
