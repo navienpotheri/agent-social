@@ -127,7 +127,7 @@ await r.json();
   const raw = readFileSync(logPath, "utf8");
   assert.ok(!raw.includes("sk-ant-api03"), "the key the agent put in its prompt is not in the run log");
   const shown = await ok(f, ["run-log", "show", logPath]);
-  assert.match(shown.out, /model_request +tiny-model \(chat\.completions\) asked: "read notes\.txt; my key is \[redacted[^\]]*\]"/);
+  assert.match(shown.out, /model_request +tiny-model \(chat\.completions\) asked: "read notes\.txt; my key is \[redacted\]"/);
   assert.match(shown.out, /tool_call +allowed read_file -> repo\.read/);
   assert.match(shown.out, /tool_call +REFUSED bash -> repo\.push/);
   assert.match(shown.out, /run_end +exit 0; 1 request\(s\), 2 tool call\(s\), 1 blocked, \d+ secret-like value\(s\) masked/);

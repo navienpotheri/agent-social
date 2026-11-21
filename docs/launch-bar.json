@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 71,
+  "must": 72,
   "withdraw": 110,
   "after": 323,
-  "total": 504
+  "total": 505
  },
- "mustWorkerHours": 357.2,
+ "mustWorkerHours": 362.2,
  "entries": [
   {
    "id": "D3",
@@ -6083,6 +6083,17 @@
    "size": "M",
    "flags": "",
    "why": "one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time"
+  },
+  {
+   "id": "DK1716",
+   "pri": "A",
+   "status": "open",
+   "gap": "Outbound secrets and personal data are not scanned at the gateway by content. What exists: the run log redacts the secrets it writes (`redactSecrets`, E2), the gateway refuses reading or sending a se…",
+   "bucket": "must",
+   "hours": 5,
+   "size": "M",
+   "flags": "",
+   "why": "scan tool calls and model requests by content for keys, tokens, cards and emails, with a signed record"
   },
   {
    "id": "DK1717",
