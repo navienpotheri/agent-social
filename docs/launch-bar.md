@@ -36,9 +36,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 75 (282.2 worker-hours; 12 need an owner decision, 11 a live run, 4 an outside party, 16 an owner action) |
-| Withdraw the claim until done | 107 |
-| After launch | 313 |
-| Total not closed | 495 |
+| Withdraw the claim until done | 108 |
+| After launch | 314 |
+| Total not closed | 497 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -233,6 +233,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1458 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1503 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1504 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -551,6 +552,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1502 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1505 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

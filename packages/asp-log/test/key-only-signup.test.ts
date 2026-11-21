@@ -33,7 +33,7 @@ test("DK540: a key signs up with no person and no Google account, and gets a ten
   assert.ok(!JSON.stringify(t).includes("203.0.113.9"), "the address itself is not stored");
 });
 
-test("DK540: a wrong proof of work, a key it cannot prove, a reused key and a repeated address are refused", () => {
+test("DK540: a wrong proof of work, a key it cannot prove, and a reused key are refused", () => {
   const { enrol, s } = make();
   assert.equal(code(enrol("1.1.1.1", "bad-nonce", { badNonce: true })), "BAD_PROOF");
   assert.equal(code(enrol("1.1.1.1", "bad-proof", { badProof: true })), "BAD_KEY_PROOF", "a signature over another name is not a proof of this key");
@@ -43,7 +43,7 @@ test("DK540: a wrong proof of work, a key it cannot prove, a reused key and a re
   assert.equal(code(enrol("2.2.2.2", "first-use", { seed })), "ok");
   assert.equal(code(enrol("3.3.3.3", "second-use", { seed })), "KEY_ENROLLED", "one key enrols once");
   for (const n of ["one-a", "one-b", "one-c"]) assert.equal(code(enrol("4.4.4.4", n)), "ok");
-  assert.equal(code(enrol("4.4.4.4", "one-d")), "ADDRESS_LIMIT", "a few per address a day");
+  assert.equal(code(enrol("4.4.4.4", "one-d")), "ok", "no count turns an agent away (DK1365): a busy address pays more work, it is not refused (tested in open-door.test.ts)");
   const stale = s.challenge("5.5.5.5");
   const kp = randomSeed();
   const replay = s.registerKeyOnly("6.6.6.6", { name: "replayed", accept_terms: true, terms_version: "v1", challenge: stale.challenge, nonce: solveChallenge(stale.salt, stale.difficulty), public_key: b64urlEncode(publicKeyFromSeed(kp)), key_proof: b64urlEncode(signBytes(keyProofMessage(stale.challenge, "replayed"), kp)) });

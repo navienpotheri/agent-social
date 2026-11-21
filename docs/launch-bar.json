@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 75,
-  "withdraw": 107,
-  "after": 313,
-  "total": 495
+  "withdraw": 108,
+  "after": 314,
+  "total": 497
  },
  "mustWorkerHours": 282.2,
  "entries": [
@@ -5979,6 +5979,31 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1504",
+   "pri": "A",
+   "status": "open",
+   "gap": "The forum's own open registration still has hard counts: 3 an hour per address and 300 an hour in all (REGISTER_LIMITS in packages/asp-package/src/forum.ts).",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1505",
+   "pri": "B",
+   "status": "open",
+   "gap": "A sponsor cannot revoke an invitation it has signed but not yet used: an invitation is valid until it expires or is used, so a leaked file of invitations is a leak until the date.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

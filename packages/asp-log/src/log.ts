@@ -11,12 +11,13 @@ import { projectRefusal } from "./refusal.ts";
 import { projectFoundingAct, readFounding, stateAt as foundingStateAt } from "./founding.ts";
 import { compareAcrossEdges, edgesOf, outcomeJobs, windowOf, type CompareOptions } from "./outcomes.ts";
 import { projectProbeResult, projectLadderStep, checkLadderOnMandate } from "./drift.ts";
+import { invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 import { projectHandback, projectSponsorAllowance, projectDispatch, projectRecall, projectResidencyStatus } from "./residency.ts";
 import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse } from "./subsidy.ts";
 import { jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
-  AspError, Job, isNetworkScope, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
+  AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
@@ -498,7 +499,7 @@ export class EventLog {
 
   /** Registry rules: one passport chain per DID, issued by the DID itself or its sponsor. */
   private async projectPassport(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; kind: string; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
+    const body = r.body as { did: string; kind: string; invitation?: FleetInvitation; custody?: "local" | "service"; sponsor?: string; fleet?: string; tier?: number; lineage?: { edge: string; parent: string }[]; keys: { id: string; public_key: string }[]; house?: true };
     const current = await tx.getPassport(body.did);
     if (!current) await tx.putMarker(`passport_born:${body.did}`, r.issued_at);
     if ((current?.head ?? null) !== r.prev) {
@@ -511,7 +512,8 @@ export class EventLog {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
     }
     // Issuance limit (register row DK124, RG-11; spec-delta S456): a sponsor opens at most 10 new agent passports a day. The operator's own house agents are not counted. The count is the sponsor's, by the day of the record, so replay gives the same answer.
-    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator) {
+    // A member of a declared fleet (DK1354, S1459) is bounded by the fleet's own member cap, checked below, not by this count: an enterprise brings thousands of agents under one declared fleet.
+    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator && !body.fleet) {
       const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
       const opened = Number((await tx.getMarker(dayKey)) ?? 0);
       if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
@@ -529,8 +531,10 @@ export class EventLog {
     } else if (await tx.getMarker(`house:${body.did}`)) throw rule("house_label_permanent", `${body.did} is a house agent: the label is never removed`);
     // A passport that names a sponsor needs that sponsor's consent (S87): the sponsor issues it or countersigns it. The sponsor is liable for the agent, so an
     // agent cannot pick one on its own; and changing sponsors needs the old sponsor's consent as well as the new one's.
+    // A fleet invitation (DK1354, S1459) is the sponsor's consent for an agent that issues its own passport: checked here, and used once.
+    const invited = body.invitation && !current ? await this.checkInvitation(tx, r, { ...body, invitation: body.invitation }) : false;
     if (body.sponsor && (!current || current.sponsor !== body.sponsor)) {
-      const consents = (did: string) => r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
+      const consents = (did: string) => (invited && did === body.sponsor) || r.issuer === did || (r.cosigs ?? []).some((c) => c.kid.startsWith(`${did}#`));
       if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
       if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
     }
@@ -561,7 +565,7 @@ export class EventLog {
     }
 
     const newSponsor = body.sponsor ?? sponsor;
-    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet);
+    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, current?.fleet === body.fleet);
     await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
@@ -585,6 +589,8 @@ export class EventLog {
         revokedAt: null, expiresAt: null, mandate: null,
       });
     }
+    // The fleet's member count is kept in a marker so a fleet of 10,000 is not read in full at every join (DK1354, S1459); a log from before the marker is counted once, from its members.
+    if (body.fleet && current?.fleet !== body.fleet) await tx.putMarker(`fleet_n:${body.fleet}`, String((await this.fleetCount(tx, body.fleet)) + 1));
     await tx.putPassport({ did: body.did, head: r.id, sponsor: newSponsor, fleet: body.fleet ?? null });
     // A copy does not begin with a clean record (DK11, deck slides 7 and 13): at its first passport it takes its original's tier ceiling, slashes and recent strikes. What it earns afterwards is its own.
     const original = !current && body.kind === "agent" ? (body.lineage ?? []).find((l) => l.edge === "fork")?.parent : undefined;
@@ -624,13 +630,37 @@ export class EventLog {
   }
 
   /** An agent joins a fleet by naming it; the fleet must be declared, share the agent's sponsor and have room. */
-  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string): Promise<void> {
+  /** Checks a fleet invitation on a first passport and marks its nonce used. Returns true when it stands in for the sponsor's consent. */
+  private async checkInvitation(tx: LogTx, r: AspRecord, body: { did: string; sponsor?: string; fleet?: string; invitation: FleetInvitation }): Promise<boolean> {
+    const inv = body.invitation;
+    if (r.issuer !== body.did) throw rule("invitation_self_issued", "a passport that carries a fleet invitation is issued by the agent itself");
+    if (!body.fleet || inv.fleet !== body.fleet) throw rule("invitation_fleet_mismatch", `the invitation is for ${inv.fleet}, the passport names ${body.fleet ?? "no fleet"}`);
+    const fleet = await tx.getFleet(inv.fleet);
+    if (!fleet) throw rule("fleet_unknown", `fleet ${inv.fleet} is not declared`);
+    if (body.sponsor !== fleet.org) throw rule("fleet_sponsor_mismatch", `fleet ${inv.fleet} belongs to ${fleet.org}; the passport names ${body.sponsor ?? "no sponsor"}`);
+    if (Date.parse(inv.expires) <= Date.parse(r.issued_at)) throw rule("invitation_expired", `the invitation expired at ${inv.expires}`);
+    if (inv.kid.split("#")[0] !== fleet.org) throw rule("invitation_bad_signature", `the invitation is signed by ${inv.kid}, not by ${fleet.org}`);
+    const key = (await tx.keysForDid(fleet.org)).find((k) => k.kid === inv.kid && !k.revokedAt);
+    let good = false;
+    try { good = !!key && verifyBytes(b64urlDecode(inv.sig), new TextEncoder().encode(invitationMessage(inv)), b64urlDecode(key.publicKey)); } catch { good = false; }
+    if (!good) throw rule("invitation_bad_signature", `the invitation's signature does not verify against a current key of ${fleet.org}`);
+    if (await tx.getMarker(`invite_used:${inv.nonce}`)) throw rule("invitation_used", "this invitation has already been used: one invitation joins one agent");
+    await tx.putMarker(`invite_used:${inv.nonce}`, body.did);
+    return true;
+  }
+
+  private async fleetCount(tx: LogTx, fleetDid: string): Promise<number> {
+    const n = await tx.getMarker(`fleet_n:${fleetDid}`);
+    return n !== undefined ? Number(n) : (await tx.fleetMembers(fleetDid)).length;
+  }
+
+  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string, alreadyMember = false): Promise<void> {
     if (kind !== "agent") throw rule("fleet_member_kind", `only agents join fleets, not a ${kind}`);
     const fleet = await tx.getFleet(fleetDid);
     if (!fleet) throw rule("fleet_unknown", `fleet ${fleetDid} is not declared`);
     if (sponsor !== fleet.org) throw rule("fleet_sponsor_mismatch", `fleet ${fleetDid} belongs to ${fleet.org}; ${did} is sponsored by ${sponsor}`);
     if (fleet.maxMembers !== null) {
-      const others = (await tx.fleetMembers(fleetDid)).filter((m) => m.did !== did);
+      const others = { length: (await this.fleetCount(tx, fleetDid)) - (alreadyMember ? 1 : 0) };
       if (others.length >= fleet.maxMembers) throw rule("fleet_full", `fleet ${fleetDid} has ${fleet.maxMembers} members`);
     }
   }

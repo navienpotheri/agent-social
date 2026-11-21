@@ -361,6 +361,7 @@ import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { MentorUsage, mentorCmd } from "./mentor.ts";
+import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
@@ -584,6 +585,7 @@ const OPTIONS = {
   "http-enrol": { type: "boolean" },
   "http-enrol-per-address": { type: "string" },
   "http-enrol-per-hour": { type: "string" },
+  "http-enrol-per-minute": { type: "string" },
   salt: { type: "string" },
   policies: { type: "string" },
   commit: { type: "string" },
@@ -613,6 +615,9 @@ const OPTIONS = {
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
   "daily-tokens": { type: "string" },
+  manifest: { type: "string" },
+  "stop-after": { type: "string" },
+  invitation: { type: "string" },
   "backup-dir": { type: "string" },
   "backup-max-hours": { type: "string" },
   state: { type: "string" },
@@ -1155,6 +1160,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "fleet") return await fleetCommand(home, sub, v, io);
     if (cmd === "bank" && sub === "mentor") return await mentorCommand(home, rest[0], v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
@@ -2605,7 +2611,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
       keyOnly: !v["no-key-only-signup"], bans: keyOnlyBans,
-      httpEnrol: { enabled: !!v["http-enrol"], perAddressPerHour: num("http-enrol-per-address", 2), perHour: num("http-enrol-per-hour", 20) },
+      httpEnrol: { enabled: !!v["http-enrol"], drainPerMinute: num("http-enrol-per-minute", 120) },
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
       // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
       exclusive: (fn) => withFileLock(tokensFile, fn),
@@ -4996,6 +5002,17 @@ async function budgetCommand(home: string, sub: string | undefined, v: Values, i
     return await budgetCmd(sub, { home, io, now, log: () => openLog(home, logEnv), flags: { agent: v.agent, "daily-tokens": v["daily-tokens"], "monthly-tokens": v["monthly-tokens"], "warn-at": v["warn-at"], json: v.json } });
   } catch (e) {
     if (e instanceof BudgetUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function fleetCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine to sign the fleet and its agents`); return s; };
+  try {
+    return await fleetCmd(sub, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], invitation: v.invitation, service: v.service, name: v.name, "accept-terms": v["accept-terms"], days: v.days } });
+  } catch (e) {
+    if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;
   }
 }
