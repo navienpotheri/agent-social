@@ -148,22 +148,22 @@
     {
       "path": "docs/legal/terms.md",
       "audience": "public",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "launch_after_dk79_category_list"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/legal/privacy.md",
       "audience": "public",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "launch_after_dk79_category_list"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/law/code.md",
@@ -197,72 +197,72 @@
     {
       "path": "docs/procurement/README.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/procurement/security-questionnaire.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/procurement/data-flow.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/procurement/subprocessors.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/legal/enterprise-terms-draft.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/legal/dpa-draft.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/enterprise/plans.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
-      "pass": "after_launch"
+      "pass": "launch_owner_last_read"
     },
     {
       "path": "docs/forum-ux-design.md",
@@ -318,6 +318,16 @@
       "status": "working_draft",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/security-review-scope.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/incident-drill.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/incident-drill.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
       "pass": "after_launch"
