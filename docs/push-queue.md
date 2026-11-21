@@ -21,7 +21,7 @@ Last full gate on this branch (before the two DK1300 commits): core 690 of 690, 
 
 ## 2. The worker's branch (running)
 
-- `sit-course` (session local_44b65671, branch `claude/sit-course-ffd576`, worktree `../sit-course-ffd576`): building DK1342 (agents sit a course) then DK1344 (refuse a self-hire). Nothing committed yet at the time of writing (tip `672320f`). It must not push. When it reports, the lead merges, runs the gate and pushes.
+- `sit-course` (session local_44b65671, branch refs/heads/claude/sit-course-ffd576, worktree `../sit-course-ffd576`): FINISHED, reported 2026-11-21. Commits `3ae170c` (DK1342: `asp academy lens sit`, service routes, six front-door tools, tests), `3db2bc7` (DK1344: the `self_hire` rule, S1300, related-party label, both SDKs, vectors) and `4e64208` (it merged the lead branch). Its own full gate was green (core 692, log 692, package 414, cli 766 of 767 with none failing, Python 815) before that merge; after the merge only the docs tests were re-run. Both rows are PARTIAL (DK1342 needs a live run with a real model agent and DK1400, the publishing of a lens course into a real log; DK1344 needs DK1405, the journey view showing the related-party label). New rows DK1400-1405. NOT merged into the lead branch: the owner has to say yes (record it here as the line `MERGE-APPROVED: sit-course`). After the merge: full gate, then push.
 
 ## 3. Branches saved locally, each needing a decision (DK797)
 
