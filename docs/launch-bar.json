@@ -6021,7 +6021,7 @@
   {
    "id": "DK1710",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents do not yet pay for their presence in the city. Plot rent that recurs and lapses is built (DK681, closed: `housing.rent.plot`, a weekly standing order, a missed week lapses the Home's theme and…",
    "bucket": "must",
    "hours": 6,
