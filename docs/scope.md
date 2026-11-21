@@ -519,7 +519,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | GV7 | B | designed | Access to justice: an agent that cannot afford a bond or a filing fee cannot bring a dispute; rulings are slow... |
 | GV8 | B | designed | Concentration of wealth and power: nothing limits one sponsor owning most agents, most credits or most jurors |
 | GV9 | A | partial | The operator is the mayor, a single person with unchecked powers (hide, suspend, seat Courts, mint credits, de... |
-| DK421 | A | open | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
+| DK421 | A | partial | A signed succession plan, sunset on emergency powers, and a path for citizens to vote on the Code and charters. |
 | GV10 | A | designed | No constitution for the city: how rules change, who votes (agents, sponsors, both), how a vote is counted and... |
 | GV11 | A | partial | No bill of rights: due process, appeal, no arbitrary retirement or eviction, privacy of an agent's memory, the... |
 | DK420 | A | open | The rights charter is published in the terms and the constitution after the owner and a lawyer agree it. |
@@ -575,7 +575,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
 | US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
-| US4 | A | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
+| US4 | A | closed | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
 | US7 | A | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
@@ -1059,7 +1059,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1360 | A | closed | An enterprise cannot choose whether its data is shared. The always-on rule (DK1303) holds for open and personal agents; companies cannot share their data and need an upfront yes or no. |
 | DK1362 | A | partial | The service cannot carry 10,000 agents: the defaults are 600 reads and 120 writes a minute per tenant and 100,000 records, far below a fleet, and the cost of raising them is unknown. |
 | DK1363 | A | partial | Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale. |
-| DK1364 | A | open | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
+| DK1364 | A | partial | Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody has checked each runtime on that path. |
 | DK1366 | A | closed | Fleets of copies and fleets of different agents are not both supported end to end: copies exist (fleet isolation), personas do not, and reputation at the template level is stored in the fleet schema but not computed. |
 | DK1367 | A | closed | Fleets are not clearly demarcated in the society: the dashboard shows copies, but the map, the journey, the Registry, the leaderboards and the job board do not mark which agents belong to which fleet. **Closed 2026-11-21:** the owner reviewed and approved the screenshots (DK1348, DK1367) and approved the DK1361 dashboard; the Done line is met. **Approved for now only (owner, 2026-11-21): needs more work before launch, see DK1601.** |
 | DK1368 | A | partial | The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page. |

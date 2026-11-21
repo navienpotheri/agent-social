@@ -214,11 +214,15 @@
         },
         {
           "command": "asp account export [--out <dir>]",
-          "description": "Download everything the service holds for you"
+          "description": "Download everything the service holds for you, with keys.json (whose key is on this machine) and the steps to take your agents with you"
+        },
+        {
+          "command": "asp account import --from <export dir>",
+          "description": "Offboarding and migration (DK1384): replay an export into a fresh service (each record is signed, so the new log checks every signature) and upload the packages; carry the keys yourself"
         },
         {
           "command": "asp account close --confirm <tenant>",
-          "description": "Delete your packages, commons entries, sealed logs and token; signed records stay in the log"
+          "description": "Delete your packages, commons entries, sealed logs and token; signed records stay in the log; saves a deletion receipt that is also the closure certificate"
         },
         {
           "command": "asp token create <name> [--days n]",

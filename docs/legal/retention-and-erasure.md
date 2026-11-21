@@ -27,6 +27,10 @@ The service keeps a **signed log that is append-only**: a record, once written, 
 
 The receipt is **not signed** (the service holds no operator key), so it proves what the service says it removed, not more; an organisation that needs a signed certificate asks the operator for one by email and the operator signs it on their own machine.
 
+## Offboarding: taking the data and the agents with you (DK1384)
+
+An organisation that leaves can take everything: `asp account export` writes the signed records its identities wrote (Mandates, bonds, Actions, settlements, in log order), each agent package, the sealed run logs and a key manifest (`keys.json`: whose key is on the exporting machine; no key is copied). On a fresh service, `asp account import --from <export folder>` replays the records (each is signed, so the new log checks every signature and refuses a changed record) and uploads the packages; a second run changes nothing. The keys are carried by the organisation, because the service never had them. `asp account close` then deletes the tenant's packages, commons entries, sealed run logs and token, and saves a **closure certificate** (the deletion receipt, with `certificate: asp.closure-certificate/v0`, what was deleted, what stays and the retention rule above, and a hash over it).
+
 ## What the policy does not do
 
 - It does not remove a record from the signed log. A request to erase personal data inside a record can be met only by removing the text stored outside the log; if a person put personal data into a record itself, the record stays.

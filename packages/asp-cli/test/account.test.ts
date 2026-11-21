@@ -71,7 +71,7 @@ test("account: a tenant sees what the service holds, exports all of it, and clos
     const out = join(dir, "export-a");
     const exp = await asp(a, ["account", "export", "--out", out], envA);
     assert.equal(exp.code, 0, exp.err);
-    assert.deepEqual(readdirSync(out).sort(), ["README.txt", "account.json", "commons.json", "packages", "records.ndjson", "telemetry.json"]);
+    assert.deepEqual(readdirSync(out).sort(), ["README.txt", "account.json", "commons.json", "keys.json", "packages", "records.ndjson", "telemetry.json"]);
     assert.deepEqual(readdirSync(join(out, "packages")), ["coder.aspkg.tgz"]);
     const records = readFileSync(join(out, "records.ndjson"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     assert.ok(records.length >= 2 && records.every((r) => [A_HUMAN, A_AGENT].includes(r.record.issuer) || [A_HUMAN, A_AGENT].includes(r.record.subject)), "only records signed by or about A's identities");
