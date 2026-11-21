@@ -461,6 +461,8 @@ const OPTIONS = {
   file: { type: "string" },
   skill: { type: "string" },
   holder: { type: "string" },
+  mentor: { type: "string" },
+  protege: { type: "string" },
   heldout: { type: "string" },
   exam: { type: "string" },
   revouch: { type: "string" },
@@ -1125,7 +1127,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
-    if (cmd === "bank") return await bankCommand(home, sub, v, io);
+    if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
     if (cmd === "house") return await houseCommand(home, sub, v, io);
     if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
     if (cmd === "prizes") return await prizesCommand(home, v, io);
@@ -4915,11 +4917,11 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
   }
 }
 
-async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget } });
+    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget, mentor: v.mentor, protege: v.protege, note: v.note, out: v.out, file: v.file, rest } });
   } catch (e) {
     if (e instanceof BankUsage) throw new UsageError(e.message);
     throw e;

@@ -29,7 +29,7 @@ test("GV5: a newcomer's first week is read from the log, step by step, and every
 
   const out: string[] = [];
   await firstWeekCmd(agent.did, { log: handle, io: { out: (l) => out.push(l) } });
-  assert.match(out[0], /^did:web:example.com:agents:fw-agent: \d of 8 steps of the first week are done$/);
+  assert.match(out[0], /^did:web:example.com:agents:fw-agent: \d of 10 steps of the first week are done$/);
   assert.ok(out.some((l) => l.includes("[x] Take a first course at the School")));
   assert.ok(out.some((l) => l.includes("[ ] Claim the newcomer allowance") && l.includes("next: asp treasury allowance")));
   await assert.rejects(firstWeekCmd(undefined, { log: handle, io: { out: () => undefined } }), /asp first-week --agent/);
