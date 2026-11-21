@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 267 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 268 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -336,7 +336,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (76)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (77)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -350,6 +350,8 @@ asp credits fund --from &lt;did&gt; --to &lt;did&gt; --amount &lt;n&gt; [--memo 
     A sponsor funds its own agent, or an agent returns credits to its sponsor, by a signed internal_transfer. It is the only free transfer: between any other two parties the log refuses it and says credits between unrelated parties move only against a job
 asp credits ratify [--by &lt;owner did&gt;] [--file &lt;policy.md&gt;] [--policy &lt;name&gt;] [--public-key &lt;hex&gt;]
     The owner's signature on the monetary policy (docs/institutions/economy/credits.md): with --by it signs the text's hash with the owner's own key and writes credits.ratified.json next to it; without, it checks that the statement matches the text now (a policy edited after signing is caught)
+asp run &lt;runtime&gt; --ask-first [--yes]
+    Show the plan in words before anything runs, what the agent may and may not do, and wait for your answer; without a terminal the run does not start unless you add --yes
 asp pause [status]
     Hold every running session on this machine at its next call instead of ending it; asp stop --all ends them
 asp resume

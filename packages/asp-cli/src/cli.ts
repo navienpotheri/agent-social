@@ -210,6 +210,7 @@
  *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
  *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
  *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
+ *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
  *   asp my-data [--agent <did>] [--acknowledge] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
  *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
  *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
@@ -779,6 +780,7 @@ const OPTIONS = {
   "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  "ask-first": { type: "boolean" },
   week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
@@ -6909,6 +6911,20 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
+  if (v["ask-first"] && !v.yes) {
+    let go = false;
+    if (process.stdin.isTTY) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+      go = /^y(es)?$/i.test((await rl.question("  Start this run as described above? [y/N] ")).trim());
+      rl.close();
+    } else io.err("  confirm  no one can answer here: run it in a terminal, or add --yes once you have read the plan above");
+    if (!go) {
+      sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 1 });
+      io.err("  confirm  the run was not started");
+      return 1;
+    }
+  }
 
   // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
   if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");
