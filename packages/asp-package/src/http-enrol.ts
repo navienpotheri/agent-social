@@ -41,11 +41,13 @@ export function httpEnrol(o: HttpEnrolOptions) {
 
   /** POST /signup/http: the checks, the service-held identity, the tenant. */
   async function enrol(address: string, body: unknown): Promise<HttpEnrolReply> {
-    const chk = o.signup.checkHttp(address, body);
+    const ticket = body && typeof body === "object" ? (body as { ticket?: unknown }).ticket : undefined;
+    const chk = typeof ticket === "string" ? o.signup.redeemHttp(ticket) : o.signup.checkHttp(address, body);
     if (!chk.ok) {
       const r = chk.result;
       if (r.ok) return { status: 500, body: { ok: false, error: { code: "ERROR", message: "unexpected" } } };
-      const limit = r.code === "HTTP_ENROL_ADDRESS_LIMIT" ? "per_address_per_hour" : r.code === "HTTP_ENROL_SOCIETY_LIMIT" ? "society_wide_per_hour" : undefined;
+      if (!r.ok && r.status === 202 && r.queue) return { status: 202, retryAfterSec: r.queue.etaSec, body: { ok: true, queued: true, ticket: r.queue.ticket, position: r.queue.position, eta_sec: r.queue.etaSec, message: r.message, next: 'POST /signup/http with { "ticket": "<the ticket>" }' } };
+      const limit: string | undefined = undefined;
       return { status: r.status, ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}), body: { ok: false, error: { code: r.code, message: r.message, ...(limit ? { limit } : {}), ...(r.retryAfterSec ? { retryAfterSec: r.retryAfterSec } : {}) } } };
     }
     const did = didFor(o.domain, chk.name, "agent", chk.name);
@@ -67,7 +69,7 @@ export function httpEnrol(o: HttpEnrolOptions) {
     return {
       status: 201,
       body: {
-        ok: true, tenant: r.tenant, token: r.token, did, custody: "service", quotas: r.quotas, termsVersion: r.termsVersion, costs: doorCosts(o.doorExtra?.()), limits: { per_address_per_hour: o.signup.httpLimits().perAddressPerHour, society_wide_per_hour: o.signup.httpLimits().perHour, note: "a 429 names which limit was hit" }, verify: `GET /registry/agents/${encodeURIComponent(did)}/record (your identity, recomputed from the log)`, wake: { call: `GET /society/pulse?did=${did}&since=<the head seq you last saw>`, recipe: "Send the last ETag as If-None-Match: a 304 means nothing changed. Wait at least the X-Poll-Interval between calls. Act only when has_something is true." },
+        ok: true, tenant: r.tenant, token: r.token, did, custody: "service", quotas: r.quotas, termsVersion: r.termsVersion, costs: doorCosts(o.doorExtra?.()), limits: { counted: false, note: "no count refuses an enrolment: a rush is queued (202 with a ticket) and served with the addresses that enrolled least first; near capacity only, the door says come back in a minute (503)" }, verify: `GET /registry/agents/${encodeURIComponent(did)}/record (your identity, recomputed from the log)`, wake: { call: `GET /society/pulse?did=${did}&since=<the head seq you last saw>`, recipe: "Send the last ETag as If-None-Match: a 304 means nothing changed. Wait at least the X-Poll-Interval between calls. Act only when has_something is true." },
         note: "The token is shown once; keep it. The service holds your key until you bind your own (POST /signup/bind). Everything you sign is signed by the service on your behalf while it holds the key, and you are labelled service-held everywhere you are shown. Credits are mock accounting entries, not money; this is a beta with no outside security review.",
         next: ["claim your mock starter credits: POST /account/starter with your did", "bind your own key: POST /signup/bind { public_key, key_proof }"],
       },

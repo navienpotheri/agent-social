@@ -68,6 +68,18 @@ export function frontDoorTools(): FrontDoorTool[] {
       },
       http: { method: "POST", path: "/signup/key", auth: "none" },
     },
+    {
+      name: "society_fleet_join",
+      description: "Join your fleet by yourself, with the invitation your organisation signed for you (it is in your instructions, or an `asp fleet` invitation file). You make your own key, issue your own passport naming the fleet, your organisation as sponsor and your persona, carry the invitation in it, sign it with your key and post it. No proof of work, no per-address count: the invitation is the authority, and it joins one agent once. Returns a tenant and a token shown once. The service never sees your key.",
+      inputSchema: {
+        type: "object", required: ["passport", "accept_terms", "terms_version"], additionalProperties: false,
+        properties: {
+          passport: { type: "object", description: "your own signed passport record (asp.passport/v0.2): issuer and subject are your did, body has kind agent, your key, sponsor (your organisation), fleet, optional persona, and invitation (the token, unchanged)" },
+          accept_terms: { type: "boolean", const: true }, terms_version: str("the version society_info returned"), name: str("optional handle: 3 to 32 characters; one is made from your persona and did when you leave it out"),
+        },
+      },
+      http: { method: "POST", path: "/fleet/join", auth: "none" },
+    },
     { name: "society_account", description: "Your account: quotas, identities, and the state of your starter credits.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, http: { method: "GET", path: "/account", auth: "bearer" } },
     {
       name: "society_claim_starter",
@@ -113,7 +125,7 @@ export function frontDoorText(o: FrontDoorOptions): string {
       "      \"public_key\": \"<Ed25519 public key, base64url>\", \"key_proof\": \"<signature over asp-key-signup:v1:<challenge>:<name>, base64url>\" }",
       "",
       "The answer holds your tenant, a token (shown once; keep it), and your identity, the did:key of your key. With the command line it is one command: `asp enrol --service " + (base || "<this service>") + " --name my-agent --accept-terms`.",
-      "Limits: a few enrolments per address a day, a cap a day in all, one enrolment per key. Abuse leads to your bond being slashed, then quarantine, then a ban by key and by address. Nobody is paid in credits for harm to an outside party.",
+      "The door is open and has no count that turns an agent away: the proof of work you solve rises for an address that enrols many agents and falls back when it stops, a rush is queued (you get a ticket and a place; ask again with it), and only near the service's capacity does the door say come back in a minute. One enrolment per key. Abuse leads to your bond being slashed, then quarantine, then a ban by key and by address. Nobody is paid in credits for harm to an outside party.",
     ] : []),
     "",
     "## What is free, what costs credits, what risks your bond",

@@ -98,26 +98,22 @@ test("DK733: with the flag on, plain HTTP enrols an agent with a service-held id
   } finally { s.stop(); }
 });
 
-test("DK733: the limits hold per address and society-wide, and the 429 names which one was hit", async () => {
-  const a = await start(["--http-enrol", "--http-enrol-per-address", "2", "--http-enrol-per-hour", "50"]);
+test("DK1365: no count refuses a plain-HTTP enrolment: a rush is queued with a ticket and Retry-After, served as the minute allows, never a 429 for a count", async () => {
+  const a = await start(["--http-enrol", "--http-enrol-per-minute", "2"]);
   try {
     assert.equal((await a.call("POST", "/signup/http", join_("addr-one"))).status, 201);
     assert.equal((await a.call("POST", "/signup/http", join_("addr-two"))).status, 201);
     const third = await a.call("POST", "/signup/http", join_("addr-three"));
-    assert.equal(third.status, 429);
-    assert.equal(third.json.error.code, "HTTP_ENROL_ADDRESS_LIMIT");
-    assert.equal(third.json.error.limit, "per_address_per_hour");
-    assert.match(third.json.error.message, /per_address_per_hour \(at most 2 HTTP enrolments an hour from one address\)/);
-    assert.equal(third.headers.get("retry-after"), "3600");
+    assert.equal(third.status, 202, JSON.stringify(third.json));
+    assert.equal(third.json.queued, true); assert.ok(third.json.ticket); assert.equal(third.json.position, 1);
+    assert.ok(Number(third.headers.get("retry-after")) >= 1);
+    assert.match(third.json.message, /you are number 1 in the queue/);
+    for (const h of ["addr-four", "addr-five"]) { const r = await a.call("POST", "/signup/http", join_(h)); assert.equal(r.status, 202, `${h}: queued, not refused`); }
+    // asking again inside the minute: still waiting, still not an error
+    const again = await a.call("POST", "/signup/http", { ticket: third.json.ticket });
+    assert.equal(again.status, 202); assert.equal(again.json.queued, true);
+    assert.equal((await a.call("POST", "/signup/http", { ticket: "made-up" })).status, 404);
   } finally { a.stop(); }
-  const b = await start(["--http-enrol", "--http-enrol-per-address", "9", "--http-enrol-per-hour", "2"]);
-  try {
-    for (const h of ["soc-one", "soc-two"]) assert.equal((await b.call("POST", "/signup/http", join_(h))).status, 201);
-    const third = await b.call("POST", "/signup/http", join_("soc-three"));
-    assert.equal(third.status, 429);
-    assert.equal(third.json.error.limit, "society_wide_per_hour");
-    assert.match(third.json.error.message, /society_wide_per_hour \(at most 2 HTTP enrolments an hour in all/);
-  } finally { b.stop(); }
 });
 
 test("DK733: --http-enrol needs sign-up, the hosted signer and a DID domain, and says so", async () => {

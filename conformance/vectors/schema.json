@@ -709,6 +709,110 @@
       "valid": false
     },
     {
+      "name": "valid_passport_fleet_invitation",
+      "schema": "passport",
+      "instance": {
+        "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "persona": "developer",
+        "invitation": {
+          "fleet": "did:web:example.com:fleets:acme-eng",
+          "persona": "developer",
+          "nonce": "nnnnnnnnnnnnnnnnnnnnnn",
+          "expires": "2027-01-01T00:00:00Z",
+          "kid": "did:web:example.com:orgs:acme#key-1",
+          "sig": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_invitation_missing_nonce",
+      "schema": "passport",
+      "instance": {
+        "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "invitation": {
+          "fleet": "did:web:example.com:fleets:acme-eng",
+          "expires": "2027-01-01T00:00:00Z",
+          "kid": "did:web:example.com:orgs:acme#key-1",
+          "sig": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "passport_invitation_extra_field",
+      "schema": "passport",
+      "instance": {
+        "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "invitation": {
+          "fleet": "did:web:example.com:fleets:acme-eng",
+          "nonce": "nnnnnnnnnnnnnnnnnnnnnn",
+          "expires": "2027-01-01T00:00:00Z",
+          "kid": "did:web:example.com:orgs:acme#key-1",
+          "sig": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+          "master": true
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "passport_persona_not_a_label",
+      "schema": "passport",
+      "instance": {
+        "did": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ],
+        "persona": "Chief Executive Officer!"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_passport_house",
       "schema": "passport",
       "instance": {

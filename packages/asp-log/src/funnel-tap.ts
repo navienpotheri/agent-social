@@ -6,7 +6,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { Funnel, STEPS, type Step } from "./funnel.ts";
+import { Funnel, STEPS, PERSON_STEPS, type PersonStep, type Step } from "./funnel.ts";
 import { clientAddress } from "./limits.ts";
 
 const SOURCE = /^[a-z0-9][a-z0-9-]{0,23}$/;
@@ -17,6 +17,8 @@ export interface FunnelTapOptions { file?: string; trustProxy?: boolean; now?: (
 
 export class FunnelTap {
   readonly funnel: Funnel;
+  /** The road a person takes in (U10, S1451): the join page, the form, the account, a first write, a return. Kept in the same file, apart from the agents' road, and shown to an operator only. */
+  readonly person: Funnel;
   private readonly secret: string;
   private readonly trustProxy: boolean;
   private readonly now: () => Date;
@@ -34,6 +36,8 @@ export class FunnelTap {
     this.secret = o.secret ?? (typeof saved.secret === "string" && saved.secret.length >= 32 ? saved.secret : randomBytes(24).toString("hex"));
     this.funnel = new Funnel((day) => `${this.secret}|${day}`);
     this.funnel.load(saved.seen);
+    this.person = new Funnel((day) => `${this.secret}|person|${day}`, PERSON_STEPS);
+    this.person.load((saved as { people?: unknown }).people);
   }
 
   private day(): string { return this.now().toISOString().slice(0, 10); }
@@ -58,6 +62,19 @@ export class FunnelTap {
       if (key !== addr && this.bySource.has(addr) && !this.bySource.has(key)) this.bySource.set(key, this.bySource.get(addr)!);
       // A step an enrolled identity takes ("enrolled", "first_act", a pass, "returned") is counted once for that tenant ever (a fixed salt); a step an address takes before it enrols is counted once a day.
       if (this.funnel.record(step, source, key, key === addr ? this.day() : "ever")) { this.dirty = true; this.save(false); }
+      // A person's road shares the two steps that are about a tenant acting.
+      if (key !== addr && (step === "first_act" || step === "returned") && this.person.record(step, source, key, "ever")) { this.dirty = true; this.save(false); }
+    } catch { /* counting never fails a request */ }
+  }
+
+  /** Counts a step on a person's road in: the visitor is the tenant when given, else the request's address; the source is remembered as for agents. */
+  personStep(step: PersonStep, req: Req, who?: { tenant?: string }): void {
+    try {
+      const addr = `addr:${this.addressOf(req)}`;
+      const key = who?.tenant ? `tenant:${who.tenant}` : addr;
+      let source = this.sourceOf(req, key);
+      if (key !== addr && source === "direct") source = this.bySource.get(addr) ?? "direct";
+      if (this.person.record(step, source, key, key === addr ? this.day() : "ever")) { this.dirty = true; this.save(false); }
     } catch { /* counting never fails a request */ }
   }
 
@@ -73,7 +90,7 @@ export class FunnelTap {
     if (!force && t - this.lastSave < 2000) return;
     try {
       const tmp = `${this.file}.tmp`;
-      writeFileSync(tmp, JSON.stringify({ secret: this.secret, seen: this.funnel.dump() }), { mode: 0o600 });
+      writeFileSync(tmp, JSON.stringify({ secret: this.secret, seen: this.funnel.dump(), people: this.person.dump() }), { mode: 0o600 });
       renameSync(tmp, this.file);
       this.dirty = false; this.lastSave = t;
     } catch { /* kept in memory; tried again at the next count */ }
@@ -81,7 +98,7 @@ export class FunnelTap {
 
   /** The view served to an operator: counts only. */
   view(source?: string) {
-    return { ok: true, steps: this.funnel.dropOff(source), worst: this.funnel.worstStep(source), sources: this.funnel.sources(), ...(source ? { source } : {}), note: "Anonymous counts by step. An address is counted once a step a day; an enrolled tenant once a step ever. No address, key or name is kept in a form that can be read back. Credits are mock accounting entries; this is a beta." };
+    return { ok: true, people: { steps: this.person.dropOff(source), worst: this.person.worstStep(source), sources: this.person.sources() }, steps: this.funnel.dropOff(source), worst: this.funnel.worstStep(source), sources: this.funnel.sources(), ...(source ? { source } : {}), note: "Anonymous counts by step. An address is counted once a step a day; an enrolled tenant once a step ever. No address, key or name is kept in a form that can be read back. Credits are mock accounting entries; this is a beta." };
   }
   text(source?: string): string {
     const v = this.view(source);

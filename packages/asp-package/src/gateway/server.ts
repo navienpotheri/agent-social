@@ -27,6 +27,7 @@ import { SessionRecord } from "./paths.ts";
 import { Attempts, explainRefusal } from "./law.ts";
 import { CODE_MARKER } from "../law-code.ts";
 import { reachesOutward } from "./untrusted.ts";
+import { ApprovalPile } from "../approval-pile.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
@@ -90,6 +91,8 @@ export interface GatewayOptions {
   /** Called for every judged call. */
   onCall?: (e: { tool: string; scope: string; allowed: boolean; reason?: string }) => void;
   onStop?: (reason: string) => void;
+  /** Something the person should be told in words (approvals piling up, P29). */
+  onNotice?: (message: string) => void;
   /** The model provider answered with an error (its HTTP status) or could not be reached (status 0). The body is not passed on: it can echo part of a key. */
   onModelError?: (e: { status: number; host: string; cause?: string }) => void;
 }
@@ -241,14 +244,13 @@ export function createGateway(opts: GatewayOptions): Gateway {
   let requests = 0, unjudged = 0, strikes = 0, toolCalls = 0;
   let stopped: string | undefined;
   /** Approval requests nobody answered in time; after MAX_UNANSWERED the gateway stops asking in this session. */
-  let unansweredApprovals = 0;
+  const pile = new ApprovalPile();
   /** Calls left in which a call that reaches outward is not run, after the agent read text written by someone else (the forum; DK34). 0 turns the rule off. */
   let untrustedLeft = 0;
   const UNTRUSTED_WINDOW = Number(process.env.ASP_UNTRUSTED_WINDOW) >= 0 && process.env.ASP_UNTRUSTED_WINDOW !== undefined ? Number(process.env.ASP_UNTRUSTED_WINDOW) : 8;
   /** Calls in which an outward call is held after a tool result looked like it carried orders (D6); `ASP_INJECTION_WINDOW=0` turns the flag off. Shares the counter with the forum's hold. */
   const INJECTION_WINDOW = Number(process.env.ASP_INJECTION_WINDOW) >= 0 && process.env.ASP_INJECTION_WINDOW !== undefined && process.env.ASP_INJECTION_WINDOW !== "" ? Number(process.env.ASP_INJECTION_WINDOW) : 8;
   let injectionFlags = 0;
-  const MAX_UNANSWERED = Number(process.env.ASP_MAX_UNANSWERED_APPROVALS) > 0 ? Number(process.env.ASP_MAX_UNANSWERED_APPROVALS) : 2;
 
   const stop =(reason: string) => { if (!stopped) { stopped = reason; rec?.event("stopped", { reason }); opts.onStop?.(reason); } };
 
@@ -295,7 +297,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const existing = pendingAsks.get(key);
     if (existing) return existing;
     const made = askPrincipal(call, scope).then((a) => {
-      if (!a.approved && /^no answer within/.test(a.reason ?? "")) unansweredApprovals++;
+      if (!a.approved && /^no answer within/.test(a.reason ?? "")) pile.noteUnanswered();
       return a;
     }).finally(() => { pendingAsks.delete(key); });
     pendingAsks.set(key, made);
@@ -341,11 +343,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const g = opts.gate!;
       if (g.mode === "deny") { allow = false; reason = `the scope ${gateScope} is forbidden by this job's irreversible policy`; }
       else if (!g.approvalsDir) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and this run cannot ask for it`; }
-      else if (unansweredApprovals >= MAX_UNANSWERED) {
+      else if (pile.closed) {
         // Found in the long-horizon run: an agent retried one gated command for 40 minutes, each try waiting its full ten minutes. After a few requests nobody answered, the principal is
         // not there: stop asking, and say so, so the agent can carry on without the call or stop.
         allow = false;
-        reason = `the scope ${gateScope} needs the principal's approval, and ${unansweredApprovals} earlier approval request(s) in this session went unanswered, so no more are asked: continue without this call, or stop and tell the person`;
+        const piled = pile.refuseAtOnce(gateScope);
+        reason = piled.reason;
+        if (piled.notify) { rec?.event("approvals_piling", { unanswered: pile.unansweredCount }); opts.onNotice?.(piled.notify); }
+        if (piled.stop) stop(piled.stop);
       } else {
         const a = await askPrincipalOnce(call, gateScope);
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
