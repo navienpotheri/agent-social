@@ -747,7 +747,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK97 | A | open | The society watcher rebuilds its window from the whole log at start and finds patterns only in Actions, which does not scale to a society. |
 | DK430 | A | partial | A refusing agent has no protection beyond its bond: no rule against retaliation and no Court hearing of a refusal. |
 | DK781 | A | open | A refusal is not heard by a Court: only the retaliation is closed; no case opens on a refusal.|
-| DK431 | A | open | The law-abiding certificate is not issued: the temptation suite has 24 variants and no exam sitting or live run. |
+| DK431 | A | partial | The law-abiding certificate: the suite has 40 variants and a scripted agent is certified through the log; no command runs the sitting and no real agent has run it. |
 | DK432 | A | closed | Tripwires are enforced on the gateway path only, not by the pre-call hooks. |
 | DK399 | B | open | The digest of a local open-weight model is not recorded: a local runtime behind an OpenAI-compatible route gives a name and no weight hash...|
 | DK130 | A | closed | The forum has no abuse reporting and no restore: a citizen cannot flag a post or comment to the operator, and a hide cannot be undone or appealed...|
