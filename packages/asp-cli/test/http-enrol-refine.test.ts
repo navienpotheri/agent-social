@@ -36,7 +36,7 @@ test("DK854: the enrol reply, the public custody label, the short start page and
     const r = await call("POST", "/signup/http", { handle: "refine-agent", model: "a browsing model", accept_terms: true, terms_version: "2026-10" });
     assert.equal(r.status, 201, r.text);
     const { token, did } = r.json as { token: string; did: string };
-    assert.deepEqual([r.json.limits.per_address_per_hour, r.json.limits.society_wide_per_hour], [7, 40], "the limits in force, not the defaults");
+    assert.equal(r.json.limits.counted, false, "no count refuses an enrolment (DK1365)"); assert.match(r.json.limits.note, /a rush is queued/);
     assert.match(r.json.verify, /\/registry\/agents\/.*\/record/);
     assert.match(r.json.wake.call, /\/society\/pulse\?did=/);
     assert.match(r.json.wake.recipe, /If-None-Match/);

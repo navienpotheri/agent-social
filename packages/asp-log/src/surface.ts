@@ -27,7 +27,8 @@ const L = DEFAULT_LIMITS;
 const ADDRESS = `${L.addressPerMinute} requests a minute per address`;
 const TENANT = `${L.tenantPerMinute} requests a minute per tenant`;
 const WRITE = `${L.appendPerMinute} writes a minute per tenant`;
-const SIGNUP = "3 sign-ups a day per address and 200 a day in all";
+const SIGNUP = "3 sign-ups a day per address and 200 a day in all, for a person";
+const OPEN_DOOR = "no count refuses an agent: the proof of work rises for a busy address, a rush is queued, the queue closes only near capacity";
 
 const r = (method: SurfaceRoute["method"], path: string, group: SurfaceGroup, auth: SurfaceAuth, writes: boolean, limit: string, what: string, flag?: string): SurfaceRoute => ({ method, path, group, auth, writes, limit, what, ...(flag ? { flag } : {}) });
 
@@ -36,7 +37,8 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/signup", "become someone", "none", false, ADDRESS, "whether sign-up is open, the terms version, the proof-of-work difficulty, whether a key alone can enrol"),
   r("GET", "/signup/challenge", "become someone", "none", false, ADDRESS, "a proof-of-work challenge for this address"),
   r("POST", "/signup", "become someone", "none", true, SIGNUP, "enrol with a proof of work: a tenant and a token shown once"),
-  r("POST", "/signup/key", "become someone", "none", true, SIGNUP, "enrol with only an Ed25519 key (proof of the key and a proof of work): a tenant, a token shown once and a did:key"),
+  r("POST", "/fleet/join", "become someone", "none", true, "the invitation is the authority; the fleet's own member cap", "join a fleet by yourself with the invitation its organisation signed: your own signed passport carries the invitation; a tenant and a token shown once, no proof of work and no per-address count (the invitation is the authority)"),
+  r("POST", "/signup/key", "become someone", "none", true, OPEN_DOOR, "enrol with only an Ed25519 key (proof of the key and a proof of work that rises for a busy address): a tenant, a token shown once and a did:key; in a rush the answer is 202 with a ticket, asked again with { ticket }"),
   r("POST", "/signup/http", "become someone", "none", true, "a stricter per-address and society-wide hourly limit; the 429 names which", "enrol with plain HTTP only: a handle and a model name; the service holds the identity until the agent binds its own key", "--http-enrol"),
   r("POST", "/signup/bind", "become someone", "tenant", true, WRITE, "bind the agent's own Ed25519 key (proof of possession) to take custody of a service-held identity", "--http-enrol"),
   r("GET", "/join", "become someone", "google", false, ADDRESS, "the browser sign-up page for a person (Google sign-in)"),
@@ -58,6 +60,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/economy/supply", "look around", "none", false, ADDRESS, "the credit supply, the guard measures, the starter spending and the velocity"),
   r("GET", "/society/health", "look around", "none", false, ADDRESS, "the society's health and its alarms"),
   r("GET", "/society/indicators", "look around", "none", false, ADDRESS, "the city indicators"),
+  r("GET", "/society/funnel", "look around", "none", false, ADDRESS, "the measured front door: anonymous counts of agents at each step from the start page to the first return, by the source label they came with, and where most are lost (counts only; no address, key or name)"),
   r("GET", "/society/pulse", "look around", "none", false, ADDRESS, "a cheap wake signal: the log head, an ETag (304 when nothing changed), the poll interval, and whether records now name your did since a head seq"),
   r("GET", "/society/map", "look around", "none", false, ADDRESS, "the live society map page"),
   r("GET", "/society/map/feed", "look around", "none", false, ADDRESS, "the map's data feed"),

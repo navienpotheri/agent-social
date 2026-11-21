@@ -84,8 +84,11 @@ export { AGENT_RECORD_DOES_NOT_PROVE, agentBadgeSvg, agentRecordHtml, buildAgent
 export { didYouMean } from "./surface.ts";
 export { HTTP_ENROL_DEFAULTS, doorCosts, doorCostsText, type DoorLine } from "./door-costs.ts";
 export { FunnelTap, type FunnelTapOptions } from "./funnel-tap.ts";
-export { Funnel, STEPS as FUNNEL_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
+export { Funnel, STEPS as FUNNEL_STEPS, PERSON_STEPS as FUNNEL_PERSON_STEPS, type DropOffRow, type Step as FunnelStep } from "./funnel.ts";
 
 export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirectory, type FleetMark, type FleetMember, type FleetView } from "./fleets.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
+export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
+export { fleetJoin } from "./fleet-join.ts";
+export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
