@@ -69,3 +69,7 @@ The launch-bar worker's first block (the launch bar DK1312 drafted, DK1405 and D
 ## PUSHED 2026-11-21 (third push): claude/open-forum
 
 Second block of the launch-bar worker: DK1343 closed (the duplicate ids were E16 and X4, now E17 and X8; a new test keeps ids unique), launch bar section 3 as one exact question per blocked row (30 rows), and a launch-bar correction (commit 0637de1: E8, CY8, T21, U16 and CY12 are not stale text and need real work; none was started). Full gate on the merge before the correction: core 692 of 692, log 694 of 694, package 418 of 418, command line 792 of 793 with none failing, Python 815; after the docs-only correction: typecheck clean and the launch-bar, register-ids, scope, testing-map and commands-doc tests pass (12 of 12). The worker is idle until the 5-hour reset (16:20 IST); the 16:25 task continues the loop.
+
+## PUSHED 2026-11-21 (fourth push): claude/open-forum
+
+Contents: the owner decisions of 2026-11-21 (docs/owner-decisions.md), rows DK1349 to DK1352 and the launch bar updates, the society and insurance design documents taken from the saved branches, the audit reconciliation table, and lane-protocol report 1 (8 rows closed: DK794, DK795, DK796, DK121, DK1450, T26, DK1451, DK1452; DK1349 partial with the structure document and one owner question). Full gate on the merged tree: core 699 of 699, log 720 of 720, package 418 of 418, command line 792 of 793 with none failing, Python 822, typecheck clean. Four workers run: lane-protocol, lane-cli, launch-bar (site lane), lane-society.
