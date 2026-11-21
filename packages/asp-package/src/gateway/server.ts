@@ -213,7 +213,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
   const pendingBlockedTargets = new Map<string, Set<string>>();
   const pendingTargets = new Set<string>();
   const pendingArtifacts = new Map<string, { uri: string; sha256: string }>();
-  const tokens: { input: number; output: number; text: string; thinking?: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
+  const tokens: { input: number; output: number; cacheRead?: number; cacheWrite?: number; text: string; thinking?: string; model?: string; fingerprint?: string } = { input: 0, output: 0, text: "" };
   const rec = opts.runLog;
   let lastActivity = Date.now();
   const limiter: Limiter = opts.rateLedger ? new SharedRateLimiter(opts.rateLedger) : new RateLimiter();
@@ -262,10 +262,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
     tokens.text = ""; tokens.thinking = undefined;
-    return { input: tokens.input, output: tokens.output, at: Date.now(), model: body?.model };
+    return { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead ?? 0, cacheWrite: tokens.cacheWrite ?? 0, at: Date.now(), model: body?.model };
   };
-  const endModelCall = (snap: { input: number; output: number; at: number; model?: unknown }, text: string, thinking?: string) => {
-    spendUsd += costUsd(tokens.input - snap.input, tokens.output - snap.output, priceFor(snap.model, opts.price));
+  const endModelCall = (snap: { input: number; output: number; cacheRead?: number; cacheWrite?: number; at: number; model?: unknown }, text: string, thinking?: string) => {
+    spendUsd += costUsd(tokens.input - snap.input, tokens.output - snap.output, priceFor(snap.model, opts.price), (tokens.cacheRead ?? 0) - (snap.cacheRead ?? 0), (tokens.cacheWrite ?? 0) - (snap.cacheWrite ?? 0));
     opts.cognition?.observeReply({ text, ...(thinking ? { thinking } : {}) });
     rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
     tokens.text = ""; tokens.thinking = undefined;
@@ -688,6 +688,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (!up.ok) { rec?.event("model_error", { status: up.status, body: text.slice(0, 300) }); opts.onModelError?.({ status: up.status, host: new URL(up.url || "http://provider").host }); res.writeHead(up.status, { "content-type": up.headers.get("content-type") ?? "application/json" }); res.end(text); return; }
     const reply = JSON.parse(text);
     tokens.input += reply.usage?.input_tokens ?? 0;
+    tokens.cacheRead = (tokens.cacheRead ?? 0) + (reply.usage?.cache_read_input_tokens ?? 0);
+    tokens.cacheWrite = (tokens.cacheWrite ?? 0) + (reply.usage?.cache_creation_input_tokens ?? 0);
     tokens.output += reply.usage?.output_tokens ?? 0;
     noteModel(body.model, opts.anthropicUpstream, { model: reply.model });
     endModelCall(snap, replyText(reply), thinkingOf(reply));
