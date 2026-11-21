@@ -63,3 +63,22 @@ test("DK1378: the retention and erasure policy says what is kept, what an erasur
   assert.match(read("docs/legal/privacy.md"), /deletion receipt/);
   assert.match(read("docs/legal-review.md"), /docs\/legal\/retention-and-erasure\.md/);
 });
+
+test("US4: a support route with response times and a compensation path is written in docs/support.md and in `asp help support`, with the same address and times, and it promises no money in the beta", async () => {
+  const doc = read("docs/support.md");
+  const { TOPICS } = await import("../../asp-package/src/guide.ts");
+  const topic = TOPICS.find((t: { name: string }) => t.name === "support");
+  assert.ok(topic, "asp help support exists");
+  const help = topic!.body.join(" ");
+  for (const text of [doc, help]) {
+    assert.ok(text.includes(ADDRESS));
+    assert.match(text, /48 hours/);
+    assert.match(text, /24 hours/);
+    assert.match(text, /15 days/);
+    assert.match(text, /7 days/);
+    assert.match(text, /2 working days/);
+    assert.match(text, /no money is paid/i);
+  }
+  assert.match(doc, /Compensation path/);
+  assert.match(read("docs/legal/enterprise-terms-draft.md"), /48 hours/);
+});

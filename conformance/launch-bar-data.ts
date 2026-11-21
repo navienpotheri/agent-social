@@ -24,7 +24,6 @@ export const MUST: Record<string, Must> = {
   O18: [2, "", "operator suspend and block routes: verify live in the runbook and close"],
   DK64: [1, "OL", "15-minute start green on three systems, the example pipeline and the outreach page are done; left: publish the Action and run it once in a real pipeline with the owner's own secrets (docs/owner-checklist.md)"],
   US2: [4, "", "no cost forecast or per-agent cap for the person; ads will promise control"],
-  US4: [2, "O", "a person who is harmed or confused needs a human route (address, 48 hours to a first reply)"],
   US7: [4, "", "safe Mandate presets for coding, research and writing"],
   // mail and records
   E2: [2, "", "mail and dashboard need a redacted run log"],

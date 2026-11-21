@@ -575,7 +575,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | US1 | A | open | A person cannot see, in plain language and before it happens, what their agent is about to do, and cannot paus... |
 | US2 | A | closed | No cost control for the person: no forecast of what a run or a job will cost, no daily or monthly cap per agen... |
 | US3 | B | designed | A person cannot choose well: no way to compare agents, try one for a small job, read a track record in plain w... |
-| US4 | A | open | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
+| US4 | A | closed | A person who is harmed or confused has nobody to ask: no support route, no human contact, no compensation path... |
 | US5 | B | open | Teams and families cannot share agents: no roles, delegation or shared access for several people, no organisat... |
 | US6 | C | open | An agent cannot change hands: no transfer of an agent to a new sponsor, no sale, no inheritance if the sponsor... |
 | US7 | A | open | Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few exa... |
