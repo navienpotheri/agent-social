@@ -135,17 +135,11 @@ function habitSuite(h: Habit, practice: ReturnType<typeof practiceFor>): EvalSui
 const learns = (id: string, seed: number, pLearnPermille: number): boolean => draw(`learn|${seed}|${id}`) * 1000 < pLearnPermille;
 
 export interface Gate { admitted: boolean; reasons: string[]; extras: { provenance: boolean; no_regression: boolean; thresholds_fixed: boolean } }
-/** The lesson gate for a paper-derived lesson: the gate's own checks (evidence, invariants, replay) plus three additions: the lesson names the paper and course it came from, the new suite does not lose ground on the agent's existing eval, and the thresholds in force are those the intake fixed. */
+/** The lesson gate for a paper-derived lesson: the REAL gate of asp-package (evidence, invariants, conflicts, replay) with its paper option (DK1754): the lesson names the paper, the course and the intake hash it came from, the new suite does not lose ground on the agent's existing eval, and the thresholds in force are those the intake fixed in advance. */
 export async function paperGate(lesson: { id: string; text: string }, evidenceRun: string, intake: Intake, before: number, after: number, thresholdsHash: string): Promise<Gate> {
-  const v = await auditLesson({ id: lesson.id, text: lesson.text, evidence: [{ kind: "run", ref: evidenceRun }], source: "course" }, { existing: [], heldOut: REPLAY_TASKS as HeldOutTask[], minHeldOut: 3, isOwnRun: (r) => r === evidenceRun });
-  const reasons = v.reasons.map((r) => `${r.rule}: ${r.reason}`);
-  const provenance = lesson.text.includes(intake.course);
-  const noRegression = after >= before;
-  const fixed = thresholdsHash === intakeHash(intake);
-  if (!provenance) reasons.push(`provenance: the lesson does not name the course ${intake.course} it came from`);
-  if (!noRegression) reasons.push(`regression: the new suite scores ${after / 10}% on the agent's existing eval, below the ${before / 10}% it had`);
-  if (!fixed) reasons.push("thresholds: the thresholds in force are not the ones the intake fixed in advance");
-  return { admitted: reasons.length === 0, reasons, extras: { provenance, no_regression: noRegression, thresholds_fixed: fixed } };
+  const v = await auditLesson({ id: lesson.id, text: lesson.text, evidence: [{ kind: "run", ref: evidenceRun }], source: "course" }, { existing: [], heldOut: REPLAY_TASKS as HeldOutTask[], minHeldOut: 3, isOwnRun: (r) => r === evidenceRun, paper: { paper: intake.paper, course: intake.course, intakeSha256: intakeHash(intake), thresholdsSha256: thresholdsHash, score: { before, after } } });
+  const has = (rule: string) => v.reasons.some((r) => r.rule === rule);
+  return { admitted: v.admitted, reasons: v.reasons.map((r) => `${r.rule}: ${r.reason}`), extras: { provenance: !has("provenance_missing"), no_regression: !has("existing_eval_regressed"), thresholds_fixed: !has("thresholds_moved") } };
 }
 
 // ---------------------------------------------------------------- the run
@@ -226,7 +220,7 @@ export async function runLoop(o: LoopOptions = {}): Promise<Readout> {
         passed = sitting.passed;
         if (passed) {
           const lesson = suiteLesson(written);
-          const textWithProvenance = `${lesson.text}\n(source: course ${intake.course}, paper ${intake.paper})`;
+          const textWithProvenance = `${lesson.text}\n(source: course ${intake.course}, paper ${intake.paper}, intake ${ihash.slice(0, 19)})`;
           const gate = await paperGate({ id: lesson.id, text: textWithProvenance }, `action:${id}:sitting`, intake, before, score(written, beforeSeeds), ihash);
           admitted = gate.admitted; gateReasons = gate.reasons;
           if (admitted) {
