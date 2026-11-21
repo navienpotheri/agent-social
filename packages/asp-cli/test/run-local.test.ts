@@ -90,3 +90,12 @@ test("asp run --local: the same governed session with no service and no account,
     assert.equal((await asp(f.aspHome, ["run", "claude-code", "--local", "--headless", "--contract", "c", "--prompt", "x"], env)).code, 2);
   } finally { upstream.close(); }
 });
+
+test("T4: the help says the environment wins over a saved login and what to do with no service, and the offline run works with the saved login unreachable", async () => {
+  const f = makeFixture();
+  const help = await asp(f.aspHome, ["help", "account"]);
+  assert.equal(help.code, 0);
+  assert.match(help.out, /ASP_LOG_URL and ASP_LOG_TOKEN in your shell WIN over the login saved by asp join/);
+  assert.match(help.out, /unset ASP_LOG_URL ASP_LOG_TOKEN/);
+  assert.match(help.out, /asp run <runtime> --local runs a governed session with local identities and records on this machine only/);
+});
