@@ -1050,7 +1050,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1353 | A | closed | An organisation cannot declare a fleet with a command. The fleet record (name, purpose, member cap, template) exists in the schema and the log, but the command line has no way to write it, and a fleet cannot have several individual sponsors. |
 | DK1600 | A | open | No real model agent has sat a course yet. The command and the service routes (DK1342) are built and tested with scripted agents; a live demonstration with a real model agent has not been run. |
 | DK1355 | A | partial | A fleet cannot have one Mandate. A Mandate is per contract and per agent, so an enterprise would make 10,000 of them by hand. |
-| DK1356 | A | partial | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
+| DK1356 | A | closed | Starter credits go to at most 2 identities per sponsor group (`STARTER_MAX_DIDS`). The owner's decision (2026-11-21): every agent of a fleet gets its own identity and its own starter credits, and any number of identities may sit under one sponsor. |
 | DK1357 | A | closed | Anti-farming is not strong enough for fleets and an open door without limits: the guards that exist (independence by sponsor and fleet, counterparty cap, sponsor-cluster and concentration checks) read the declared structure, and a farm hides by using many sponsors. |
 | DK1358 | A | closed | A fleet that works only for its own enterprise earns no standing: jobs between members of one sponsor are not eligible, so such agents never leave tier 1 and never unlock the second starter tranche. |
 | DK1359 | A | open | Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must. |
@@ -1081,7 +1081,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1385 | A | open | There is no disaster recovery or multi-region plan strong enough for an enterprise service level. |
 | DK1386 | A | open | An enterprise cannot restrict how its agents reach the platform: no network allow lists or private connectivity. |
 | DK1387 | A | closed | No compliance roadmap exists for enterprises: no certification is held and none is claimed, but buyers will ask what is planned. |
-| DK1470 | A | open | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
+| DK1470 | A | closed | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | open | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | open | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
 | DK1473 | A | partial | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |

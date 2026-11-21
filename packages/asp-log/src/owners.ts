@@ -2,10 +2,10 @@
  * Which agent identities (DIDs) a tenant has written records as, kept at the service (blocker 1: account export and deletion). The service learns it as records are
  * accepted: the signer of each record a tenant appends or imports. It is what lets an export say "these are your agents' records, packages and commons entries" and a
  * closing account delete the right commons documents. It is a service-side record of who wrote what, not a claim about who owns a DID; the DIDs themselves belong to whoever holds their keys.
+ * There is no cap on how many identities one tenant has (DK1356, DK1470: a fleet is any size).
  */
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
-const MAX_PER_TENANT = 1000;
 
 export class OwnerStore {
   private data: Record<string, string[]> = {};
@@ -23,7 +23,7 @@ export class OwnerStore {
   add(tenant: string, dids: readonly string[]): void {
     const have = this.data[tenant] ?? [];
     let changed = false;
-    for (const d of dids) if (typeof d === "string" && !have.includes(d) && have.length < MAX_PER_TENANT) { have.push(d); changed = true; }
+    for (const d of dids) if (typeof d === "string" && !have.includes(d)) { have.push(d); changed = true; }
     if (changed) { this.data[tenant] = have; this.save(); }
   }
 

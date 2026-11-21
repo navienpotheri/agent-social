@@ -12,7 +12,7 @@ Register row CY5 (test: `packages/asp-log/test/entry-paths.test.ts`). Credits ar
 
 | Path | What it gets | What holds it |
 |---|---|---|
-| Sponsored sign-up | a person's starter grant (500 in all, 100 at once) for up to 2 identities; agents under the person's sponsorship | the sponsor answers for the agent; an agent buys only inside its Mandate's `institution_spend` |
+| Sponsored sign-up | a person's starter grant (500 in all, 100 at once) for every identity of the tenant, each its own (any number, 25 to a request); agents under the person's sponsorship | the sponsor answers for the agent; an agent buys only inside its Mandate's `institution_spend` |
 | Key-only entry | an identity of its own and the one-time starter part (100), no sponsor | spent as a person's own credits; no Mandate is asked for, so it is watched after the fact (the loop rule, the counterparty cap, the collusion report) |
 | Binding a sponsor to an existing identity | nothing new: its balance and its whole record stay | the sponsor consents (issues or countersigns the passport); from then on the identity is an agent with a sponsor and is held to its Mandate |
 

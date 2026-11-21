@@ -64,7 +64,7 @@ export interface Tenant {
   /** Set, on the tenant a request is made as, when it came with a machine token: the token's name. Never stored. */
   machine?: string;
   /** The starter credits this tenant claimed (src/starter.ts): when and how many; kept in a tombstone too, so closing and signing up again does not earn a second grant. */
-  starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string };
+  starter?: { at: string; amount: number; dids?: string[]; /** Credits each identity is still owed: the rest of the grant, released when one of them has had a job accepted. */ held?: number; releasedAt?: string; /** The identities that have had the rest of their grant (DK1470: each earns it on its own job). Absent on an older record: the rest went to all of `dids` when `held` is absent, to none when it is set. */ restDids?: string[] };
 }
 
 const DEFAULT_PACKAGE_QUOTA = 256 * 1024 * 1024;

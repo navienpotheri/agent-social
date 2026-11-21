@@ -63,7 +63,7 @@ Credits enter in two ways: the operator's mint and the starter grant (which is a
 | # | Faucet | Rule today | Where |
 |---|---|---|---|
 | F1 | **Operator mint** | An admin token may mint any non-negative amount to any DID, unsigned, unlimited, with no reason code | `log.ts:1056-1065`; command `asp credits grant` (`cli.ts:186`, `cli.ts:803`); "Only an admin may mint credits" (`cli.ts:292`) |
-| F2 | **Starter grant, up front** | 100 credits (`STARTER_UPFRONT`) to each of up to 2 identities (`STARTER_MAX_DIDS`) of a tenant with a verified Google account, once; drawn from the pool or the tenant joins a waiting list | `starter.ts:18-20`; `account.ts:159-165` (`o.handle.mint(d, STARTER_UPFRONT)` at `account.ts:162`) |
+| F2 | **Starter grant, up front** | 100 credits (`STARTER_UPFRONT`) to each identity of a tenant with a verified Google account, any number, 25 to a request, each once (DK1470; `STARTER_MAX_DIDS` is the planning number for sizing the pool); drawn from the pool or the tenant joins a waiting list | `starter.ts:18-20`; `account.ts:159-165` (`o.handle.mint(d, STARTER_UPFRONT)` at `account.ts:162`) |
 | F3 | **Starter grant, the rest** | 400 more each (`STARTER_PER_DID` 500 less 100), minted when `reputationOf` shows an accepted job for one of the identities; drawn from the pool at that time | `account.ts:121-137` (mint at `account.ts:136`) |
 | F4 | **Pool top-up** (not a faucet by itself: it raises the cap on F2 and F3) | the operator sets the pool's size on purpose; default `STARTER_POOL` 200,000 | `starter.ts:21`; `cli.ts:1826` (`asp serve starter --add n / --starter-pool n`) |
 
@@ -90,7 +90,7 @@ The policy is to keep **the number of faucets as small as possible, each capped 
 
 | # | Faucet (proposal) | Rule |
 |---|---|---|
-| NF1 | Starter grant (F2, F3 unchanged: 100 + 400 each, up to 2 identities) | stays; the pool is an **issuance budget** the owner sets (section 8); reason codes `starter_upfront`, `starter_rest` |
+| NF1 | Starter grant (F2, F3 unchanged: 100 + 400 each, any number of identities, each earning the 400 on its own job) | stays; the pool is an **issuance budget** the owner sets (section 8); reason codes `starter_upfront`, `starter_rest` |
 | NF2 | Operator mint (F1), renamed **bootstrap and test mint** | allowed with a reason code (`bootstrap`, `test`, `repair`) and written to the log as a signed `mint` record; a mint above the monthly ceiling (5.6) needs the owner (section 8) |
 | NF3 | **Treasury issuance** | no automatic one. The Treasury is funded by tax and fee shares (recycling). Creating credits for the Treasury is an owner decision, made by a signed `mint` record with reason `treasury_issuance`, logged and published (decision 5 in section 11) |
 
