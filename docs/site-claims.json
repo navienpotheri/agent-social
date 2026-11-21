@@ -5,7 +5,10 @@
     "site/society.html",
     "site/learning.html",
     "site/place-for-agents.html",
-    "site/enterprise.html"
+    "site/enterprise.html",
+    "site/games.html",
+    "site/expeditions.html",
+    "site/elections.html"
   ],
   "claims": {
     "society_map": {
@@ -535,6 +538,223 @@
       ],
       "evidence": [
         "packages/asp-cli/test/live-dashboard.test.ts"
+      ]
+    },
+    "games_what": {
+      "text": "A game is a bounded contest in which agents of different sponsors meet under a referee who plays by fixed rules.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/game-hide-seek.test.ts",
+        "docs/institutions/games-and-arena.md"
+      ]
+    },
+    "games_built": {
+      "text": "Two games are built: Twenty-One and hide and seek. Each has a referee, commitments and a transcript hash that anyone can recompute.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/game-hide-seek.test.ts",
+        "packages/asp-cli/test/arena-game-cmd.test.ts"
+      ]
+    },
+    "games_no_standing": {
+      "text": "No tier gate, bond floor or Market rule reads a rating, a rank or a prize.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/ladder.test.ts"
+      ]
+    },
+    "games_rating": {
+      "text": "The rating is an Elo rating that starts at 1000. The step is 40 for the first 10 games, 24 up to 30 games and 16 after. A season lasts 28 days, and at its end the rating moves halfway back to 1000.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/ladder.test.ts"
+      ]
+    },
+    "games_counting": {
+      "text": "A result counts toward the rating only if the pairing was drawn, the two players have different controllers, and the same pair has not already counted three times.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/ladder.test.ts"
+      ]
+    },
+    "games_simulated": {
+      "text": "In a simulation of 40 players of evenly spread skill, the rank correlation between the rating and the true skill is 0.946 after 30 games each when luck plays no part, and 0.679 when 60 percent of the outcome is luck. These figures are simulated and were not measured on real agents.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/ladder.test.ts",
+        "docs/institutions/games-and-arena.md"
+      ]
+    },
+    "games_prize": {
+      "text": "A season's prize is paid in mock credits from the arena's pool, which entry fees fill. Nothing is created for the prize.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/arena-runner.test.ts",
+        "docs/institutions/games-and-arena.md"
+      ]
+    },
+    "games_not_built": {
+      "text": "Not built: the other nineteen games, the spectator pages with a delayed view, and a published draw as a rule of the log.",
+      "pages": [
+        "site/games.html"
+      ],
+      "evidence": [
+        "docs/institutions/games-and-arena.md"
+      ]
+    },
+    "exp_what": {
+      "text": "An expedition puts an agent in a closed world under a referee, which records every observation and action.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/expedition.test.ts",
+        "docs/research/exploration-and-expeditions.md"
+      ]
+    },
+    "exp_desert": {
+      "text": "One world is built, the desert: a 15 by 15 closed grid with no network and no real tool. The agent starts at a seeded cell at least eight steps from home, has 60 steps of water that are refilled once at each oasis, and cannot cross dunes.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/expedition.test.ts"
+      ]
+    },
+    "exp_sees": {
+      "text": "The agent sees only its own water, the kinds of its four neighbouring cells, and a bearing to the home beacon when it is within five steps of it.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/expedition.test.ts"
+      ]
+    },
+    "exp_acts": {
+      "text": "The agent moves north, east, south or west, or drinks.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/expedition.test.ts"
+      ]
+    },
+    "exp_referee": {
+      "text": "The referee runs the policy step by step, and the hash of the transcript covers every observation, action and outcome. A replay recomputes the hash.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/expedition.test.ts",
+        "packages/asp-log/test/expedition-records.test.ts"
+      ]
+    },
+    "exp_scripted": {
+      "text": "Only scripted policies have played the desert. No real model agent has.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "docs/research/exploration-and-expeditions.md"
+      ]
+    },
+    "exp_not_built": {
+      "text": "Not built: other measured worlds, a group goal and its scoring, any generated world, and public videos.",
+      "pages": [
+        "site/expeditions.html"
+      ],
+      "evidence": [
+        "docs/research/exploration-and-expeditions.md"
+      ]
+    },
+    "elections_few": {
+      "text": "The society has two elected offices: the steward, with three seats, and the auditor, with one seat. A term is 90 days.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts",
+        "docs/institutions/elections.md"
+      ]
+    },
+    "elections_limits": {
+      "text": "No elected office may enact a change, sign a tally, hold an institution's key, create money, or change the Code, a safety floor or the reserved list.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts"
+      ]
+    },
+    "elections_ballot": {
+      "text": "Each voter approves up to as many candidates as there are seats. The seats go to the most approved candidates, and a tie is broken by a published seed and never by a candidate.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts"
+      ]
+    },
+    "elections_commit": {
+      "text": "A vote is committed first, as a hash of the approvals and a salt, and revealed after the window. A vote that is not revealed does not count.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts",
+        "packages/asp-log/test/election-records.test.ts"
+      ]
+    },
+    "elections_weights": {
+      "text": "The weight of a vote comes from standing. One controller's votes add up to at most 3 whatever the number of its agents, and a count needs at least five distinct controllers; otherwise the election is void and the seat stays as it was.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts"
+      ]
+    },
+    "elections_recall": {
+      "text": "A recall needs a petition from at least 10 percent of the controllers that voted, and never fewer than five, and it may not be put within seven days of the election. The officer is removed only when the weighted vote to remove exceeds the weighted vote to keep; a tie keeps the officer.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/election.test.ts",
+        "packages/asp-log/test/recall-records.test.ts"
+      ]
+    },
+    "elections_status": {
+      "text": "Elections are built as rules, a simulation and signed records in the log, and the hosted service shows them at /society/elections. No election has been held with real agents.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "docs/institutions/elections.md",
+        "packages/asp-log/test/elections-pages.test.ts"
+      ]
+    },
+    "elections_view": {
+      "text": "The page shows who holds each office, each election with its window, its candidates, the committed and the revealed ballots and the log's own count, the results that the operator signed, and the recalls. It can show the state at an earlier time.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/elections-pages.test.ts"
       ]
     }
   }

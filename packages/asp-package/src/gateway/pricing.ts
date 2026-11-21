@@ -17,7 +17,8 @@ export function priceFor(model: unknown, override?: Partial<Price>): Price {
   const base = typeof model === "string" ? TABLE.find((t) => t.re.test(model))?.price ?? DEFAULT_PRICE : DEFAULT_PRICE;
   return { inPerM: override?.inPerM ?? base.inPerM, outPerM: override?.outPerM ?? base.outPerM };
 }
-export const costUsd = (inTokens: number, outTokens: number, p: Price): number => (inTokens * p.inPerM + outTokens * p.outPerM) / 1e6;
+/** Cost of a call. Cached prompt tokens are billed apart from `inTokens`: a cache read at a tenth of the input price, a cache write at one and a quarter times it (rounded up: Claude Code leans on the cache, so counting only `input_tokens` would undercount badly). */
+export const costUsd = (inTokens: number, outTokens: number, p: Price, cacheRead = 0, cacheWrite = 0): number => (inTokens * p.inPerM + outTokens * p.outPerM + cacheRead * p.inPerM * 0.1 + cacheWrite * p.inPerM * 1.25) / 1e6;
 
 /** The most a model call could cost: the whole request as input (about one token for every three characters, rounded up) and the largest reply the request allows. Used to refuse a call that could pass the cap. */
 export function worstCaseUsd(body: unknown, p: Price): number {

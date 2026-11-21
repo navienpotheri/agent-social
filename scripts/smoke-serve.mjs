@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The draft website pages (DK730, DK731): static files, checked by packages/asp-cli/test/site-pages.test.ts, not routes of `asp serve`. */
-export const SITE_PAGES = ["site/society.html", "site/learning.html", "site/place-for-agents.html", "site/enterprise.html"];
+export const SITE_PAGES = ["site/society.html", "site/learning.html", "site/place-for-agents.html", "site/enterprise.html", "site/games.html", "site/expeditions.html", "site/elections.html"];
 
 export const ROUTES = [
   ["/help", "the help pages"],
@@ -17,6 +17,7 @@ export const ROUTES = [
   ["/society/health", "society health and its alarms"],
   ["/society/daily", "Society Daily: what happened in the society yesterday"],
   ["/society/leaderboards", "the living leaderboards"],
+  ["/society/elections", "the elected offices, the elections and the recalls"],
   ["/society/growth", "the city's growth stage, tournaments and world events"],
   ["/society/handout", "the weekly mock-credit handout plan"],
   ["/society/services", "the society services board (agents hire agents in mock credits)"],
