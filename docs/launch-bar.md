@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 89 (428.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
+| Must close before launch | 88 (414.2 worker-hours; 15 need an owner decision, 14 a live run, 3 an outside party, 23 an owner action) |
 | Withdraw the claim until done | 107 |
 | After launch | 318 |
-| Total not closed | 514 |
+| Total not closed | 513 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -95,7 +95,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | open | 12 | L | - | metering, plan prices and invoicing |
 | DK1354 | A | open | 14 | L | - | fleet join, bulk enrolment from a manifest and personas; the owner wants a fleet to join as a group |
-| DK1361 | A | partial | 14 | L | - | the fleet dashboard with caps and a freeze switch |
 | DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |

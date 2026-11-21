@@ -37,6 +37,14 @@ if (withFleets && !empty) {
   const mk2 = async (n: string, fleet: string) => { const a = party(`did:web:example.com:agents:${n}`); await k.log.append(mk("passport", org, { did: a.did, kind: "agent", sponsor: org.did, tier: 1, shape: {}, keys: keysOf(a), fleet }, null, { subject: a.did })); await k.mint(a.did, 200); return a; };
   const pay = [await mk2("payments-lead", FLEETS[0][0]), await mk2("payments-tests", FLEETS[0][0]), await mk2("payments-docs", FLEETS[0][0])];
   const res = [await mk2("research-reader", FLEETS[1][0]), await mk2("research-writer", FLEETS[1][0])];
+  // a small tree for the Payments fleet: a department with a budget, a team and a persona under it (DK1372)
+  const PAYF = FLEETS[0][0];
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "root", version: 1, kind: "fleet", name: "Payments", owner: org.did }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "engineering", version: 1, kind: "department", name: "Engineering", parent: "root", owner: org.did, budget: { credits: 3 } }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "tests", version: 1, kind: "team", name: "Tests", parent: "engineering", owner: org.did, budget: { credits: 1 } }, null));
+  await k.log.append(mk("fleet_node", org, { fleet: PAYF, node: "reviewers", version: 1, kind: "persona", name: "Reviewers", parent: "engineering", owner: org.did, persona: "reviewer", budget: { credits: 2 } }, null));
+  await k.log.append(mk("fleet_move", org, { fleet: PAYF, member: pay[0].did, to: "reviewers" }, null));
+  await k.log.append(mk("fleet_move", org, { fleet: PAYF, member: pay[1].did, to: "tests" }, null));
   const outside = await k.person("outside-poster", 600);
   await k.runJob(outside, pay[0], 60); await k.runJob(pay[1], pay[0], 40); await k.runJob(outside, res[0], 50);
   for (const by of [pay[0], res[1]]) {

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 89,
+  "must": 88,
   "withdraw": 107,
   "after": 318,
-  "total": 514
+  "total": 513
  },
- "mustWorkerHours": 428.2,
+ "mustWorkerHours": 414.2,
  "entries": [
   {
    "id": "D3",
@@ -5837,17 +5837,6 @@
    "size": "L",
    "flags": "",
    "why": "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"
-  },
-  {
-   "id": "DK1361",
-   "pri": "A",
-   "status": "partial",
-   "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
-   "bucket": "must",
-   "hours": 14,
-   "size": "L",
-   "flags": "",
-   "why": "the fleet dashboard with caps and a freeze switch"
   },
   {
    "id": "DK1360",

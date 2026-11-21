@@ -20,7 +20,7 @@ const NOW = "2026-11-20T12:00:00Z", MONTH = monthOf(NOW);
 type Stored = { seq: number; id: string; record: { type: string; issuer: string; subject?: string | null; issued_at: string; body: Record<string, unknown> } };
 
 /** A synthetic log of a fleet of `n` agents: passports (tier 1), a fleet record, and for each agent a purchase and an action this month. */
-function synthetic(n: number) {
+function synthetic(n: number, tree = false) {
   const out: Stored[] = [];
   let seq = 0;
   const push = (type: string, issuer: string, body: Record<string, unknown>, subject: string | null = null, at = "2026-11-02T10:00:00Z") => { seq++; out.push({ seq, id: `sha256:${String(seq).padStart(64, "0")}`, record: { type: `asp.${type}/v0.2`, issuer, subject, issued_at: at, body } }); return `sha256:${String(seq).padStart(64, "0")}`; };
@@ -30,6 +30,13 @@ function synthetic(n: number) {
     const did = `did:web:example.com:agents:big-${String(i).padStart(5, "0")}`;
     dids.push(did);
     push("passport", ORG, { did, kind: "agent", sponsor: ORG, fleet: FLEET, tier: 1, shape: {}, keys: [] }, did);
+  }
+  if (tree) {
+    // 10 departments, 10 teams under each, members spread over the teams by a signed move; a persona node under the first team
+    for (let d = 0; d < 10; d++) push("fleet_node", ORG, { fleet: FLEET, node: `dept-${d}`, version: 1, kind: "department", name: `Department ${d}`, parent: "root", owner: ORG, ...(d === 0 ? { budget: { credits: 30 } } : {}) }, null);
+    for (let t = 0; t < 100; t++) push("fleet_node", ORG, { fleet: FLEET, node: `team-${t}`, version: 1, kind: "team", name: `Team ${t}`, parent: `dept-${t % 10}`, owner: ORG }, null);
+    push("fleet_node", ORG, { fleet: FLEET, node: "coders", version: 1, kind: "persona", name: "Coders", parent: "team-0", owner: ORG, persona: "coder" }, null);
+    dids.forEach((did, i) => push("fleet_move", ORG, { fleet: FLEET, member: did, to: i % 50 === 0 ? "coders" : `team-${i % 100}` }, null, "2026-11-03T10:00:00Z"));
   }
   const outside = "did:web:example.com:users:client";
   dids.forEach((did, i) => {
@@ -74,7 +81,8 @@ test("DK1361: the dashboard of a fleet from the records: members with tier, slas
   assert.equal(fleetDashboard(stored, FLEET, { month: MONTH, now: NOW, page: 99 })!.page.number, 3, "a page past the end is the last page");
   assert.equal(fleetDashboard(stored, "Nope", { month: MONTH, now: NOW }), undefined);
   assert.equal(fleetDashboard(stored, FLEET, { month: "2026-10", now: NOW })!.totals.credits, 0, "another month has no spend");
-  assert.ok(fleetDashboard(stored, FLEET, { month: MONTH, now: NOW })!.not_yet.some((x) => /DK1372/.test(x)), "what is not built yet is said");
+  assert.ok(fleetDashboard(stored, FLEET, { month: MONTH, now: NOW })!.not_yet.some((x) => /DK1359/.test(x)), "what is not built yet is said");
+  assert.deepEqual(d.tree.map((t) => [t.node, t.membersHere, t.membersUnder]), [["root", 250, 250]], "no tree declared: every member at the root");
 });
 
 test("DK1361: the controls: a freeze and a cap are kept with who and when, survive a restart, and refuse bad values", () => {
@@ -228,7 +236,7 @@ test("DK1361: the page and the export: HTML for a browser with the alerts, the c
   assert.doesNotMatch(html, /<script|https?:\/\//, "no script and no outside address");
   const csv = await (await s.call("/fleet/Big/export?format=csv", "acme")).text();
   const lines = csv.trim().split("\n");
-  assert.equal(lines[0], "did,name,tier,slashes_30d,drift,credits_spent,tokens,frozen,credit_cap,token_cap");
+  assert.equal(lines[0], "did,name,node,persona,tier,slashes_30d,drift,credits_spent,tokens,frozen,credit_cap,token_cap");
   assert.equal(lines.length, 131, "every member, not a page");
   assert.ok(lines.some((l) => l.includes(s.dids[2]) && l.includes(",true,")));
   const json = (await (await s.call("/fleet/Big/export?format=json", "acme")).json()) as { members: unknown[]; page: { pages: number } };
@@ -291,4 +299,80 @@ test("DK1361: through the service: a frozen member's write over POST /rpc is ref
   controls.unfreeze(FLEET, "acme", NOW, dids[7]);
   assert.equal((await rpc(dids[7])).ok, true);
   assert.equal(written.length, 3);
+});
+
+test("DK1361: the fleet tree: departments, teams and personas with their members and spend rolled up against each node's budget, a member's node and persona, and a frozen node freezing everyone under it", () => {
+  const { stored, dids } = synthetic(400, true);
+  const controls = new FleetControls();
+  controls.freezeNode(FLEET, "acme", NOW, "dept-3", "an incident in one department");
+  const d = fleetDashboard(stored, FLEET, { month: MONTH, now: NOW, controls: controls.get(FLEET), pageSize: 500 })!;
+  const row = (n: string) => d.tree.find((t) => t.node === n)!;
+  assert.equal(d.tree[0].node, "root");
+  assert.equal(row("root").membersUnder, 400);
+  assert.deepEqual([row("dept-1").depth, row("team-1").depth, row("coders").depth], [2, 3, 4], "the tree is shown depth first");
+  assert.deepEqual(d.tree.slice(0, 3).map((t) => t.node), ["root", "dept-0", "team-0"], "a department is followed by its teams");
+  assert.equal(row("team-0").membersHere + row("team-0").membersUnder > 0, true);
+  assert.equal(row("coders").persona, "coder");
+  assert.equal(row("dept-0").budget.credits, 30);
+  assert.equal(row("dept-0").overBudget, true, "department 0 spent more than 30 credits this month");
+  assert.ok(row("dept-0").credits > 30);
+  assert.ok(d.alerts.some((a) => a.kind === "node_over_budget" && a.subject === "Department 0"), "an alert says a node is over its budget");
+  assert.equal(row("root").credits, d.totals.credits, "the root's spend is the fleet's");
+  const sumTeams = d.tree.filter((t) => t.kind === "team").reduce((n, t) => n + t.membersHere, 0) + row("coders").membersHere;
+  assert.equal(sumTeams, 400, "every member sits at one node");
+  const m0 = d.members.find((m) => m.did === dids[0])!;
+  assert.deepEqual([m0.node, m0.persona === null], ["coders", true]);
+  // a frozen node freezes everyone under it, teams included
+  assert.equal(row("dept-3").frozen && row("team-3").frozen && row("team-13").frozen, true);
+  assert.equal(row("dept-4").frozen, false);
+  const frozenMembers = d.members.filter((m) => m.frozen).map((m) => m.node);
+  assert.ok(frozenMembers.length > 0 && frozenMembers.every((n) => /^team-(3|13|23|33|43|53|63|73|83|93)$/.test(n) || n === "dept-3"), "only members under department 3");
+  assert.ok(d.alerts.some((a) => a.kind === "node_frozen" && a.subject === "Department 3"));
+  const csv = fleetCsv(stored, FLEET, { month: MONTH, now: NOW, controls: controls.get(FLEET) })!;
+  assert.ok(csv.split("\n").some((l) => l.includes(",team-3,")), "the export carries each member's node");
+});
+
+test("DK1361: the guard refuses a write by a member under a frozen node and lets the rest through; the route freezes and unfreezes a node, and an unknown node is a 404", async () => {
+  const { stored, dids } = synthetic(120, true);
+  const controls = new FleetControls();
+  const guard = fleetGuard({ controls, since: async (after, limit) => (stored as { seq: number }[]).filter((x) => x.seq > after).slice(0, limit) as never, now: () => NOW });
+  const probe = (did: string) => ({ type: "asp.purchase/v0.2", issuer: did, body: { amount: { value: 1 } } });
+  const ask = (did: string) => guard({ tenant: { role: "tenant" }, method: "append", args: [probe(did)] });
+  // member i sits at team-(i % 100); team-3 is under dept-3
+  assert.equal(await ask(dids[3]), undefined);
+  controls.freezeNode(FLEET, "acme", NOW, "dept-3");
+  assert.match((await ask(dids[3])) ?? "", /FLEET_FROZEN: the node dept-3 of the fleet Big is frozen/);
+  assert.match((await ask(dids[13])) ?? "", /FLEET_FROZEN: the node dept-3/, "team-13 is under dept-3 too");
+  assert.equal(await ask(dids[4]), undefined, "another department is not held");
+  controls.unfreezeNode(FLEET, "acme", NOW, "dept-3");
+  assert.equal(await ask(dids[3]), undefined);
+  const routes = fleetDashboardRoutes({ stored: async () => stored, controls, owned: (t) => (t === "acme" ? [ORG] : []), now: () => NOW });
+  const server = createServer(async (req, res) => { if (!(await routes(req, res, { tenant: { name: "acme", role: "tenant" } }))) { res.writeHead(404); res.end(); } });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r)); servers.push(server);
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const post = (path: string, body: unknown) => fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  assert.equal((await post("/fleet/Big/freeze", { node: "no-such-node" })).status, 404);
+  const ok = (await (await post("/fleet/Big/freeze", { node: "team-5" })).json()) as { frozenNodes: string[] };
+  assert.deepEqual(ok.frozenNodes, ["team-5"]);
+  assert.match((await ask(dids[5])) ?? "", /node team-5/);
+  assert.equal(await ask(dids[6]), undefined);
+  await post("/fleet/Big/unfreeze", { node: "team-5" });
+  assert.equal(await ask(dids[5]), undefined);
+  const html = await (await fetch(`${base}/fleet/Big/dashboard`, { headers: { accept: "text/html" } })).text();
+  assert.match(html, /<h2>Fleet tree<\/h2>/);
+  assert.match(html, /Department 0/);
+  assert.match(html, /<th>Node<\/th>/);
+  assert.ok(controls.get(FLEET).audit.some((a) => a.act === "freeze_node" && a.target === "team-5"), "a node freeze is in the audit trail");
+});
+
+test("DK1361: a tree of 10,000 members (10 departments, 100 teams, a persona) is built, rolled up and exported within the stated time", () => {
+  const { stored } = synthetic(10_000, true);
+  const t0 = performance.now();
+  const d = fleetDashboard(stored, FLEET, { month: MONTH, now: NOW })!;
+  const ms = performance.now() - t0;
+  assert.equal(d.tree.length, 1 + 10 + 100 + 1);
+  assert.equal(d.tree[0].membersUnder, 10_000);
+  assert.equal(d.members.length, 100);
+  assert.ok(ms < 1500, `the dashboard with its tree took ${Math.round(ms)} ms`);
+  console.log(`DK1361 timing, tree of 10,000: ${Math.round(ms)} ms`);
 });

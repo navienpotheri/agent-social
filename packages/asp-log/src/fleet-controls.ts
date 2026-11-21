@@ -15,10 +15,24 @@ export class FleetControls {
     this.file = file;
     if (file) { try { this.state = JSON.parse(readFileSync(file, "utf8")) as Record<string, FleetControlState>; } catch { this.state = {}; } }
   }
-  get(fleet: string): FleetControlState { return this.state[fleet] ?? emptyControls(); }
+  get(fleet: string): FleetControlState { const s = this.state[fleet] ?? emptyControls(); s.frozenNodes ??= []; return s; }
   private touch(fleet: string): FleetControlState { return (this.state[fleet] ??= emptyControls()); }
   private save(): void { if (!this.file) return; const tmp = `${this.file}.tmp`; writeFileSync(tmp, JSON.stringify(this.state), { mode: 0o600 }); renameSync(tmp, this.file); }
 
+  /** Freezes a node of the fleet tree (and so every member at it or under it; DK1372). */
+  freezeNode(fleet: string, by: string, at: string, node: string, detail?: string): void {
+    const s = this.touch(fleet);
+    s.frozenNodes ??= [];
+    if (!s.frozenNodes.includes(node)) s.frozenNodes.push(node);
+    s.audit.push({ at, by, act: "freeze_node", target: node, ...(detail ? { detail: detail.slice(0, 200) } : {}) });
+    this.save();
+  }
+  unfreezeNode(fleet: string, by: string, at: string, node: string): void {
+    const s = this.touch(fleet);
+    s.frozenNodes = (s.frozenNodes ?? []).filter((n) => n !== node);
+    s.audit.push({ at, by, act: "unfreeze_node", target: node });
+    this.save();
+  }
   /** Freezes the fleet (no target) or one member. */
   freeze(fleet: string, by: string, at: string, target?: string, detail?: string): void {
     const s = this.touch(fleet);
@@ -61,6 +75,8 @@ export function fleetGuard(o: FleetGuardOptions) {
   const fleetName = new Map<string, string>();
   const memberOf = new Map<string, string>();
   const members = new Map<string, Set<string>>();
+  const nodeOf = new Map<string, string>();               // member -> node of its fleet tree
+  const nodeParent = new Map<string, string | null>();    // "fleet|node" -> parent node
   const spend = new Map<string, Map<string, Spend>>();
   const fleetSpend = new Map<string, Map<string, Spend>>();
   const bump = (m: Map<string, Map<string, Spend>>, month: string, key: string, credits: number, tokens: number) => {
@@ -71,7 +87,10 @@ export function fleetGuard(o: FleetGuardOptions) {
   const apply = (s: StoredRec) => {
     const r = s.record, b = r.body as Record<string, any>;
     if (r.type === "asp.fleet/v0.2") fleetName.set(b.did, b.name);
+    else if (r.type === "asp.fleet_node/v0.2") nodeParent.set(`${b.fleet}|${b.node}`, typeof b.parent === "string" ? b.parent : null);
+    else if (r.type === "asp.fleet_move/v0.2") nodeOf.set(b.member, b.to);
     else if (r.type === "asp.passport/v0.2" && b.kind === "agent") {
+      if (typeof b.node === "string") nodeOf.set(b.did, b.node); else nodeOf.delete(b.did);
       const was = memberOf.get(b.did);
       const now = typeof b.fleet === "string" && fleetName.has(b.fleet) ? b.fleet : undefined;
       if (was && was !== now) members.get(was)?.delete(b.did);
@@ -100,6 +119,12 @@ export function fleetGuard(o: FleetGuardOptions) {
       const name = fleetName.get(fid) ?? fid;
       const ctl = o.controls.get(fid);
       if (ctl.frozen) return `FLEET_FROZEN: the fleet ${name} is frozen by its organisation: writes by its agents are refused until it is unfrozen`;
+      const frozenNodes = ctl.frozenNodes ?? [];
+      if (frozenNodes.length) {
+        for (let at: string | null | undefined = nodeOf.get(did), i = 0; at && i < 16; at = nodeParent.get(`${fid}|${at}`), i++) {
+          if (frozenNodes.includes(at)) return `FLEET_FROZEN: the node ${at} of the fleet ${name} is frozen by its organisation: writes by ${did} are refused until it is unfrozen`;
+        }
+      }
       if (ctl.frozenMembers.includes(did)) return `FLEET_FROZEN: ${did} is frozen by its organisation: its writes are refused until it is unfrozen`;
       const mine = spend.get(month)?.get(did) ?? { credits: 0, tokens: 0 };
       const fleetUsed = fleetSpend.get(month)?.get(fid) ?? { credits: 0, tokens: 0 };
