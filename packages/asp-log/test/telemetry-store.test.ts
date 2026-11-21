@@ -12,7 +12,8 @@ const IDENTIFIER = /^sha256:[0-9a-f]{64}$/; // what the signed log accepts in a 
 
 test("DK651: on by default; the content is stored apart and the hash is what a signed record may carry", () => {
   const s = new TelemetryStore();
-  assert.equal(s.optedOut("some-tenant"), false, "on by default");
+  assert.equal((s as unknown as { optedOut?: unknown }).optedOut, undefined, "there is no opt-out (DK1303)");
+  assert.equal((s as unknown as { setOptOut?: unknown }).setOptOut, undefined, "there is no off switch (DK1303)");
   const r = s.put("some-tenant", "trajectory", "step 1: read the file; step 2: wrote the fix", { at: AT });
   assert.equal(r.ok, true);
   if (!r.ok) return;
@@ -25,18 +26,16 @@ test("DK651: on by default; the content is stored apart and the hash is what a s
   assert.equal(s.get("another-tenant", r.hash), undefined, "one tenant cannot read another's content");
 });
 
-test("DK651: off in one step stores nothing new (and can delete what is there); on again resumes", () => {
+test("DK1303: there is no off switch: collection stays on for an adult tenant, deletion removes the text and keeps the hash, a minor's tenant stores nothing, and the notice says so plainly", () => {
   const s = new TelemetryStore();
-  const a = s.put("quiet-tenant", "message", "hello partner", { at: AT });
-  assert.equal(a.ok, true);
-  const off = s.setOptOut("quiet-tenant", true, AT);
-  assert.equal(off.deleted, 0, "what is stored stays until deleted unless asked");
-  const refused = s.put("quiet-tenant", "message", "second message", { at: AT });
-  assert.equal(refused.ok === false && refused.code, "TELEMETRY_OFF");
-  assert.equal(s.list("quiet-tenant").length, 1);
-  assert.equal(s.setOptOut("quiet-tenant", true, AT, true).deleted, 1, "off with delete removes the text");
-  s.setOptOut("quiet-tenant", false, AT);
-  assert.equal(s.put("quiet-tenant", "message", "third message", { at: AT }).ok, true);
+  assert.equal(s.put("quiet-tenant", "message", "hello partner", { at: AT }).ok, true);
+  assert.equal(s.put("quiet-tenant", "message", "second message", { at: AT }).ok, true, "nothing turns it off");
+  assert.equal(s.list("quiet-tenant").length, 2);
+  assert.equal(s.put("young-tenant", "message", "hi", { at: AT, minor: true }).ok, false, "a young person's tenant stores nothing");
+  assert.match(TELEMETRY_NOTICE, /not optional/);
+  assert.match(TELEMETRY_NOTICE, /only a hash|Only a hash/);
+  assert.match(TELEMETRY_NOTICE, /young person/);
+  assert.doesNotMatch(TELEMETRY_NOTICE, /turn this off|telemetry off/);
 });
 
 test("DK651: deletion removes the text from disk and keeps the hash, the kind and the date; a deleted hash still says it existed", () => {
@@ -64,8 +63,8 @@ test("DK651: nothing is stored for a young person's tenant, and the notice says 
   const r = s.put("young-tenant", "text", "anything", { minor: true, at: AT });
   assert.equal(r.ok === false && r.code, "minor_tenant_no_telemetry");
   assert.equal(s.list("young-tenant").length, 0);
-  assert.match(TELEMETRY_NOTICE, /By default/);
-  assert.match(TELEMETRY_NOTICE, /turn this off in one step/);
+  assert.match(TELEMETRY_NOTICE, /not optional/);
+  assert.match(TELEMETRY_NOTICE, /not optional/);
   assert.match(TELEMETRY_NOTICE, /Only a hash/);
   assert.match(TELEMETRY_NOTICE, /young person/);
   assert.equal(telemetryHash("x").length, 71);

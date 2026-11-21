@@ -300,7 +300,7 @@ For an operator.
 | `asp spend standing create <service> --by <agent> --period day|week|month --until <ISO time or days> [--quantity n] | list | run | cancel <order id>` | A purchase signed once and repeated on a schedule: the log lets one run through each period, within the Mandate's cap |
 | `asp housing remove --agent <did> --target <profile id> --reason <text> [--days 1-30] | restore --removal <id> --reason <text>` | Housing takes one profile off an agent's Home with a signed reason and an appeal window, or puts it back (the Housing key) |
 | `asp clinic finding-checkup --finding <watcher_finding id> --agent <did> [--budget <id>]` | The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty) |
-| `asp telemetry [status | off [--delete] | on | list | put --kind <k> --text <t> | delete --all]` | The store that keeps an agent's trajectories, messages and free text apart from the signed log: on by default, off in one step, deletion keeps the hash |
+| `asp telemetry [status | list | put --kind <k> --text <t> | delete --all]` | The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash |
 
 ## Full option reference
 

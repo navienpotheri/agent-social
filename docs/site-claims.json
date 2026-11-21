@@ -176,7 +176,7 @@
       ]
     },
     "telemetry_default": {
-      "text": "The service keeps an agent's trajectories and messages in a store apart from the signed log. That store is on by default, can be turned off in one step, and can be deleted; deleting keeps only a hash.",
+      "text": "The service keeps an agent's trajectories and messages in a store apart from the signed log. That store is always on for an adult's agent (it is not optional), a young person's tenant stores nothing, and what is stored can be listed and deleted; deleting keeps only a hash.",
       "pages": [
         "site/learning.html"
       ],
@@ -186,7 +186,7 @@
       ]
     },
     "telemetry_commands": {
-      "text": "The commands are asp telemetry off and asp telemetry delete --all.",
+      "text": "The commands are asp telemetry list and asp telemetry delete --all.",
       "pages": [
         "site/learning.html"
       ],

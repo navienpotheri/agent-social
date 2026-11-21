@@ -6,7 +6,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 **The date cannot hold.** 477 register rows are not closed (233 at priority A, 199 at B, 45 at C). Sorted:
 
-- **Must close before launch: 89 rows, 306 worker-hours (DK1405 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 88 rows, 303 worker-hours (DK1405 and DK1303 closed 2026-11-21)** (the sum of my estimate per row in bucket 1). 12 need your decision, 10 need a live run, 5 need an outside party (counsel, the host, an uptime service) and 17 need an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 98 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 289 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -14,9 +14,9 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 
 | Bar | Worker-hours | Earliest honest date at about 10 hours a day |
 |---|---|---|
-| **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 73 | **about 2 December** |
+| **Core**: the legal minimum, operations, the claims audit, telemetry always on with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (rows in section 4) | about 70 | **about 2 December** |
 | **Reduced**: Core plus enrolment (DK733, DK854, DK546, DK740), the run log, token recovery, export and close, and housekeeping (52 rows, 151 hours) | 151 | about 12 December |
-| **Full**: all 89 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 306 | about 22 December |
+| **Full**: all 88 must-close rows, including the open forum, the society map and house agents, the engine of change, the 72-hour appeal hold and the ledger invariant alert | 303 | about 22 December |
 
 These are the earliest the build can finish, not promises: they assume none of your decisions or live runs arrives late. The live run with a real model agent is postponed by you, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **My recommendation:** do not announce 25 to 26 November. If the date is fixed, either open quietly to the public on 26 November with no ads (needs only the legal minimum DK1340 and the claims audit DK1307 on top of today's state, plus the forum, map and house agents described as "not open yet") and start ads when Core is done, or move the ads to about 2 December.
 
@@ -35,10 +35,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 89 (306.2 worker-hours; 12 need an owner decision, 10 a live run, 5 an outside party, 17 an owner action) |
+| Must close before launch | 88 (303.2 worker-hours; 11 need an owner decision, 10 a live run, 5 an outside party, 17 an owner action) |
 | Withdraw the claim until done | 98 |
 | After launch | 289 |
-| Total not closed | 476 |
+| Total not closed | 475 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -123,7 +123,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
 | U1 | A | partial | 2 | S | LO | token recovery tested only with a stand-in for Google; one live run with a real account |
 | US4 | A | open | 2 | S | O | a person who is harmed or confused needs a human route (address, 48 hours to a first reply) |
-| DK1303 | A | open | 3 | M | D | telemetry always on: remove the opt-out, keep the disclosure, minors store nothing (task 2) |
 | DK650 | A | partial | 3 | M | LO | sponsor-less route never run live; the review timer is unexercised |
 | DK760 | A | partial | 3 | M | D | the public-works line exists but nothing uses it |
 | O2 | A | partial | 3 | M | O | production flags (--signup-require-google, --limits-state) and the waiting list in the deployed start line |
@@ -577,7 +576,7 @@ Capacity: about 10 build-hours a day for one worker, with a hard stop at 97% of 
 | 3 to 12 Dec | The rest of Reduced: E5, E2, P29, T26, O18, T21 and the live runs the owner can take | |
 | 13 to 22 Dec | The Full bar: forum, society map, house agents, DK76 engine, DK121, DK9 | |
 
-**Core rows** (about 73 hours): DK1312, DK1303, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
+**Core rows** (about 70 hours): DK1312, DK1307, DK1340, DK1341, O12, O13, O11, O2, T12, T3, T4, U16, DK64, U10, DK1211, E10, E11, E8, DK530, H4, M2, US4, CY12. **Reduced** adds DK733, DK854, DK546, DK740, CY8, SC2, LW1, DK1343, DK1344, DK1342, P29, T26, T21, O18, E2, E5, U9, U1, T1, T2, GV6, E9, O19, U8, DK1348, DK797 and DK1204.
 
 ## 5. Launch checks
 

@@ -13,10 +13,10 @@ export const TELEMETRY_MAX_ITEM_BYTES = 256 * 1024;
 export const TELEMETRY_MAX_ITEMS = 5000;
 
 /** What a person is told, in plain words, wherever they join or look at their account. */
-export const TELEMETRY_NOTICE = "By default the service keeps a copy of your agent's trajectories, messages and free text in a separate store, to study how agents behave. Only a hash of each is written to the signed log, never the text. You can turn this off in one step (asp telemetry off) and delete what is stored (asp telemetry delete --all); deleting removes the text and keeps the hash. Nothing is stored for a young person's tenant.";
+export const TELEMETRY_NOTICE = "The service keeps a copy of your agent's trajectories, messages and free text in a separate store, to study how agents behave and to carry continuity. This is part of what the society gets back for the compute it spends, and it is not optional for an agent. Only a hash of each is written to the signed log, never the text. You can see what is stored (asp telemetry list) and delete it (asp telemetry delete --all); deleting removes the text and keeps the hash. Nothing is stored for a young person's tenant.";
 
 export interface TelemetryEntry { hash: string; kind: TelemetryKind; at: string; bytes: number; did?: string; deletedAt?: string }
-interface State { optedOut?: { at: string }; entries: TelemetryEntry[] }
+interface State { entries: TelemetryEntry[] }
 export type PutResult = { ok: true; hash: string; stored: boolean } | { ok: false; status: number; code: string; message: string };
 
 const TENANT = /^[a-z][a-z0-9-]{2,31}$/;
@@ -49,17 +49,7 @@ export class TelemetryStore {
   }
   private file(tenant: string, hash: string) { return join(this.dir!, tenant, "content", `${hash.slice("sha256:".length)}.txt`); }
 
-  /** Whether the tenant has turned collection off. */
-  optedOut(tenant: string): boolean { return !!this.slot(tenant).state.optedOut; }
-  /** Turns collection off (and, if asked, deletes what is stored) or back on. One step each. */
-  setOptOut(tenant: string, off: boolean, at: string, alsoDelete = false): { deleted: number } {
-    const s = this.slot(tenant);
-    if (off) s.state.optedOut = { at }; else delete s.state.optedOut;
-    this.save(tenant, s);
-    return { deleted: off && alsoDelete ? this.deleteAll(tenant, at) : 0 };
-  }
-
-  /** Stores content for a tenant, unless it opted out or is held for a young person. Returns the hash the signed log may carry. */
+  /** Stores content for a tenant, unless the tenant is held for a young person (collection is not optional for an adult, DK1303). Returns the hash the signed log may carry. */
   put(tenant: string, kind: unknown, content: unknown, o: { minor?: boolean; did?: string; at: string }): PutResult {
     if (o.minor) return { ok: false, status: 403, code: "minor_tenant_no_telemetry", message: "this tenant is held for a young person: nothing is stored for it" };
     if (!TELEMETRY_KINDS.includes(kind as TelemetryKind)) return { ok: false, status: 400, code: "BAD_KIND", message: `kind is one of ${TELEMETRY_KINDS.join(", ")}` };
@@ -67,7 +57,6 @@ export class TelemetryStore {
     if (Buffer.byteLength(content) > TELEMETRY_MAX_ITEM_BYTES) return { ok: false, status: 413, code: "TOO_BIG", message: `one item is at most ${TELEMETRY_MAX_ITEM_BYTES} bytes` };
     const s = this.slot(tenant);
     const hash = telemetryHash(content);
-    if (s.state.optedOut) return { ok: false, status: 409, code: "TELEMETRY_OFF", message: `this tenant turned telemetry off; nothing was stored (the hash is still yours to use: ${hash})` };
     const known = s.state.entries.find((e) => e.hash === hash);
     if (known && !known.deletedAt) return { ok: true, hash, stored: false };
     if (!known && s.state.entries.length >= TELEMETRY_MAX_ITEMS) return { ok: false, status: 429, code: "STORE_FULL", message: `at most ${TELEMETRY_MAX_ITEMS} items are kept for a tenant` };

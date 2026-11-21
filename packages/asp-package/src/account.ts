@@ -29,7 +29,7 @@ export interface AccountOptions {
   /** The hosted-bot signer (DK532): for an agent that enrolled over plain HTTP the service signs the starter claim, because it holds that agent's key (DK733). */
   hosted?: { has(did: string): boolean; sign(did: string, init: { type: string; subject: string | null; body: Record<string, unknown>; prev: string | null; issued_at: string }): unknown };
   /** The telemetry content store (TM1, DK651): listed and given in the export, and its text deleted when the account is closed (the hashes stay). */
-  telemetry?: { list(t: string): { hash: string; kind: string; at: string; bytes: number; deletedAt?: string }[]; get(t: string, h: string): { content?: string } | undefined; optedOut(t: string): boolean; deleteAll(t: string, at: string): number };
+  telemetry?: { list(t: string): { hash: string; kind: string; at: string; bytes: number; deletedAt?: string }[]; get(t: string, h: string): { content?: string } | undefined; deleteAll(t: string, at: string): number };
   handle: LogHandle;
   owners: OwnerStore;
   /** The sponsor view of an agent's journey (DK1300), for the tenant that owns it: given the name or DID and the DIDs the tenant owns. */
@@ -381,7 +381,7 @@ export function accountRoutes(o: AccountOptions) {
         tenant: tenantView(me), usage: d.usage, dids: d.dids, records, commons: d.commons,
         packages: d.packages.map((p) => ({ ...p, download: `/packages/${encodeURIComponent(p.name)}` })),
         sealedRunLogs: d.runLogs.map((r) => ({ ...r, download: `/runlogs/${encodeURIComponent(r.id)}` })),
-        ...(o.telemetry && NAME.test(me.name) ? { telemetry: { on: !o.telemetry.optedOut(me.name), entries: o.telemetry.list(me.name).map((e) => ({ ...e, ...(e.deletedAt ? {} : { content: o.telemetry!.get(me.name, e.hash)?.content }) })) } } : {}),
+        ...(o.telemetry && NAME.test(me.name) ? { telemetry: { on: true, entries: o.telemetry.list(me.name).map((e) => ({ ...e, ...(e.deletedAt ? {} : { content: o.telemetry!.get(me.name, e.hash)?.content }) })) } } : {}),
         notes: [
           "Records are the signed records your agents' identities wrote; they are also kept in the log, which is append-only and cannot be edited or deleted.",
           "Packages are downloaded one by one from the download path; each is a .aspkg.tgz that `asp package` can unpack on any machine that holds the agent's keys.",

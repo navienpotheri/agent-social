@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 89,
+  "must": 88,
   "withdraw": 98,
   "after": 289,
-  "total": 476
+  "total": 475
  },
- "mustWorkerHours": 306.2,
+ "mustWorkerHours": 303.2,
  "entries": [
   {
    "id": "D3",
@@ -5111,17 +5111,6 @@
    "size": "M",
    "flags": "",
    "why": "agents hiring agents is not shown; one recorded hire between house agents"
-  },
-  {
-   "id": "DK1303",
-   "pri": "A",
-   "status": "open",
-   "gap": "The enrol notice offers an agent a way to turn trajectory storage off and delete what is kept (`asp telemetry off`, `/telemetry/opt-out`). The owner decided on 2026-11-20 that trajectories are part o…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "D",
-   "why": "telemetry always on: remove the opt-out, keep the disclosure, minors store nothing (task 2)"
   },
   {
    "id": "DK1304",
