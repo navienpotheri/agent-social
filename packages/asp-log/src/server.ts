@@ -45,6 +45,10 @@ export interface Tenant {
   quotaBytes?: number;
   /** Requests per minute for this tenant, replacing the service's default. */
   rateLimitPerMinute?: number;
+  /** Writes a minute for this tenant, replacing the service default (S1418, DK1362); a plan sets it. */
+  writeLimitPerMinute?: number;
+  /** The plan this tenant is on (S1418): the service's plan table fills in the limits the tenant does not set itself. */
+  plan?: string;
   /** Records this tenant may write to the log, and bytes of them, replacing the service's defaults (0 for no limit). Admins have none. */
   recordQuota?: number;
   byteQuota?: number;
@@ -100,6 +104,12 @@ export const LOG_METHODS = new Set([
 const TENANT_HANDLE_METHODS = new Set(["append", "importRecords"]);
 const ADMIN_HANDLE_METHODS = new Set(["mint"]);
 
+/** The most records one batch holds (S1418). */
+export const MAX_BATCH = 500;
+
+/** What a plan allows a tenant (S1418): requests and writes a minute, records and bytes it may write. 0 is no limit. */
+export interface PlanLimits { rateLimitPerMinute?: number; writeLimitPerMinute?: number; recordQuota?: number; byteQuota?: number }
+
 export interface ServerOptions {
   handle: LogHandle;
   /** Self-serve sign-up (GET /signup, GET /signup/challenge, POST /signup), open to anyone who can reach the service. Absent means no sign-up. */
@@ -121,6 +131,8 @@ export interface ServerOptions {
   blocked?: () => string[];
   /** Counts of what each tenant has written, and the defaults a tenant without its own quota gets (0 for none). Without a store nothing is counted. */
   usage?: UsageStore;
+  /** Limits by plan (S1418, DK1362): a tenant with `plan` takes what the table says for the limits it does not set itself. */
+  plans?: Record<string, PlanLimits>;
   /** The service clock, for the per-month read and write counts (tests set it). */
   now?: () => Date;
   /** Routes that need no sign-in because they check their own proof (an unsubscribe link, a provider's signed webhook); checked after the address limits and before the token. */
@@ -319,7 +331,8 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.publicRoutes && (await opts.publicRoutes(req, res))) return;
       const base = authenticate(req, opts);
       // The extra limits a tenant's sponsors hold through the Shops' resource items (DK75): added to the defaults while the holdings last, gone when they lapse. Read from the log, at most once a minute a tenant.
-      const tenant = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
+      const withExtras = base && base.role !== "admin" && opts.owners ? await withResourceExtras(base, opts, extrasCache) : base;
+      const tenant = withExtras && withExtras.role !== "admin" && withExtras.plan && opts.plans?.[withExtras.plan] ? { ...opts.plans[withExtras.plan], ...Object.fromEntries(Object.entries(withExtras).filter(([, v]) => v !== undefined)) } as Tenant : withExtras;
       if (!tenant) {
         // A failed sign-in is a token that was presented and is wrong. A request with no token at all (the forum probe each `asp run` makes, a browser, a health check) guesses nothing, and counting it
         // locked the whole address out after ten sessions, so the sessions after that waited out the lockout (gap T23: a 300 s hang in the approval tests).
@@ -341,6 +354,30 @@ export function createLogServer(opts: ServerOptions): Server {
         const src = q.get("source") ?? undefined;
         if (q.get("format") === "text") { const t = opts.funnel.text(src); res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "content-length": Buffer.byteLength(t) }); return void res.end(t); }
         return json(res, 200, opts.funnel.view(src));
+      }
+      if (req.method === "POST" && req.url === "/append-batch") {
+        // A batch of records in one request (S1418, DK1362): each is appended in order and judged on its own; every record takes a place in the tenant's write limit and counts in its quota, so a batch is not a way round them.
+        let body: { records?: unknown[]; stopOnError?: boolean };
+        try { body = JSON.parse(await readBody(req, maxBody)); } catch (e) { return json(res, (e as { status?: number }).status ?? 400, { ok: false, error: { code: "BAD_REQUEST", message: (e as Error).message } }); }
+        const records = Array.isArray(body.records) ? body.records : [];
+        if (!records.length || records.length > MAX_BATCH) return json(res, 400, { ok: false, error: { code: "BAD_REQUEST", message: `a batch holds 1 to ${MAX_BATCH} records` } });
+        if (limits) { const v = limits.checkWrite(tenant.name, records.length, tenant.writeLimitPerMinute); if (!v.ok) return tooMany(res, v); }
+        const bytes = JSON.stringify(records).length;
+        if (opts.usage && tenant.role !== "admin") {
+          const used = opts.usage.get(tenant.name);
+          const recordQuota = tenant.recordQuota ?? opts.defaultRecordQuota ?? 0, byteQuota = tenant.byteQuota ?? opts.defaultByteQuota ?? 0;
+          if (recordQuota > 0 && used.records + records.length > recordQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used ${used.records} of its ${recordQuota} records; the batch has ${records.length}` } });
+          if (byteQuota > 0 && used.bytes + bytes > byteQuota) return json(res, 403, { ok: false, error: { code: "QUOTA_EXCEEDED", message: `this tenant has used its quota of ${byteQuota} bytes` } });
+        }
+        const results: ({ ok: true; id: string; seq: number } | { ok: false; error: { code: string; detail?: string; message: string } })[] = [];
+        let accepted = 0, acceptedBytes = 0;
+        for (const r of records) {
+          if (body.stopOnError && results.some((x) => !x.ok)) { results.push({ ok: false, error: { code: "SKIPPED", message: "an earlier record of the batch was refused and stopOnError is set" } }); continue; }
+          try { const a = await opts.handle.append(r as never); results.push({ ok: true, id: a.id, seq: a.seq }); accepted++; acceptedBytes += JSON.stringify(r).length; }
+          catch (e) { const err = e as { code?: string; detail?: string; message?: string }; results.push({ ok: false, error: { code: err.code ?? "ERROR", ...(err.detail ? { detail: err.detail } : {}), message: err.message ?? String(e) } }); }
+        }
+        if (opts.usage && tenant.role !== "admin") { opts.usage.add(tenant.name, accepted, acceptedBytes); for (let i = 0; i < accepted; i++) opts.usage.call(tenant.name, "write", (opts.now ? opts.now() : new Date()).toISOString()); }
+        return json(res, 200, { ok: true, result: { accepted, refused: records.length - accepted, results } });
       }
       if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/audit/export") {
         // The audit export (DK1374, S1417): JSON lines of an organisation's signed records, for the tenant that owns the organisation (an operator: any). ?org=&from=&to=&after=
@@ -380,7 +417,7 @@ export function createLogServer(opts: ServerOptions): Server {
       let fn: ((...a: unknown[]) => unknown) | undefined;
       const isWrite = target === "handle" && typeof method === "string" && TENANT_HANDLE_METHODS.has(method);
       if (limits && isWrite) {
-        const v = limits.checkWrite(tenant.name);
+        const v = limits.checkWrite(tenant.name, 1, tenant.writeLimitPerMinute);
         if (!v.ok) return tooMany(res, v);
       }
       if (tenant.minor && isWrite) {
