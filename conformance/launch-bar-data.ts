@@ -247,6 +247,7 @@ export const AFTER_A: Record<string, After> = {
   DK1724: ["Town Hall pages: agenda, live votes, results, who voted by fleet, HUD replay", "site, docs: say 'planned'"],
   DK1725: ["the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch)", "site, docs: say 'built and tested; the live run on the hosted service is pending'"],
   DK1726: ["key rotation for a key-only citizen: a handover record signed by the old key", "site, docs: say 'a key cannot yet be rotated; a new identity is needed'"],
+  DK1744: ["the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice", "site, docs: say 'planned'"],
   DK1743: ["elections: offices, candidacy, terms, recall, a committed ballot and capture resistance", "site, docs: say 'planned'"],
   DK1742: ["forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda", "site, docs: say 'planned'"],
   DK1741: ["games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators", "site, docs: say 'planned'"],

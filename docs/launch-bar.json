@@ -3,8 +3,8 @@
  "counts": {
   "must": 67,
   "withdraw": 109,
-  "after": 339,
-  "total": 515
+  "after": 340,
+  "total": 516
  },
  "mustWorkerHours": 324.2,
  "entries": [
@@ -2555,7 +2555,7 @@
   {
    "id": "IS9",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Inspectorate and enforcement: monitoring, investigation, evidence rules, access to an agent's private memory only with due process, honeypots, the whistleblower route and cohort stop have no institut…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6228,6 +6228,18 @@
    "size": "",
    "flags": "",
    "why": "elections: offices, candidacy, terms, recall, a committed ballot and capture resistance",
+   "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1744",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice",
    "says": "site, docs: say 'planned'"
   }
  ]

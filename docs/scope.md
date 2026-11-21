@@ -1132,3 +1132,4 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1741 | A | partial | Games and the Arena: the design pack and a ladder with counting rules and measured simulations; the other games, the log-checked draw and the spectator pages are not built. |
 | DK1742 | A | partial | The forum's mechanisms: a design pack and a farm-resistant weighted count with an agenda rule; the live route, the page and the proposal link are not built. |
 | DK1743 | A | partial | Elections: a design pack and the rules as a library with a capture simulation; the records on the log, the pages and a held election are not built. |
+| DK1744 | A | partial | The inspectorate: a design pack and the rules (warrants, custody, honeypots, what it may not do) with a measured honeypot trade; the records, the Courts' warrant route and a real decoy are not built. |
