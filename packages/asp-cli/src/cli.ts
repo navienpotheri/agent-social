@@ -363,7 +363,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch, respondToBreach, type BreachCause } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -571,6 +571,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
   day: { type: "string" },
@@ -2905,7 +2906,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(httpEnrolApi ? [httpEnrolApi.route] : []),
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}) })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -5244,21 +5245,43 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
  * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
  */
 async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
-  if (sub !== "respond") throw new UsageError("asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]");
+  const usage = "asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>] | asp breach respond --from-service --by <operator did> (the breaches reported to the running service; needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN)";
+  if (sub !== "respond") throw new UsageError(usage);
   const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
-  if (!v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(`asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  const fromService = !!v["from-service"];
+  if (fromService ? !v.by : !v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(fromService ? usage : `asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
   if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
-  signerFor(CLINIC_DID); signerFor(v.by);
-  const started = now();
-  const res = await respondToBreach(local.log, { agent: v.agent, cause: v.cause as BreachCause, summary: v.summary, detectedAt: started, ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}), ...(v.remedy ? { remedy: v.remedy as "takedown" } : {}) }, {
-    sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
-    alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
-    now, operator: v.by,
-  });
-  io.out(`breach response done in ${res.seconds} s: ${res.steps.join(", ")}; incident ${res.incident}`);
-  return 0;
+  signerFor(CLINIC_DID); signerFor(v.by!);
+  const respond = async (e: { agent: string; cause: BreachCause; summary: string; detectedAt: string; detection?: string; fleet?: string; node?: string }) => {
+    const res = await respondToBreach({ append: (r) => local.append(r as never), nodeRunningContracts: (a, b) => local.log.nodeRunningContracts(a, b), runHaltOf: (c) => local.log.runHaltOf(c) }, { ...e, ...(e.detection ? { detection: e.detection } : {}), ...(e.fleet ? { fleet: e.fleet, node: e.node! } : {}) }, {
+      sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+      alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+      now, operator: v.by!,
+    });
+    io.out(`breach response for ${e.agent} done in ${res.seconds} s from ${e.detectedAt}: ${res.steps.join(", ")}; incident ${res.incident}`);
+  };
+  if (!fromService) { await respond({ agent: v.agent!, cause: v.cause as BreachCause, summary: v.summary!, detectedAt: now(), ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}) }); return 0; }
+  // The service wrote the report down with its time and cannot sign (the Clinic's key and the operator's are on this machine): the response is measured from the time the service was told, so the wait for the owner is in the number.
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new UsageError("--from-service needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN");
+  const api = async (path: string, init?: { method: string; body: string }) => {
+    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), { ...(init ?? {}), headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const j = (await res.json().catch(() => undefined)) as { ok?: boolean; error?: { message?: string } } & Record<string, unknown>;
+    if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return j;
+  };
+  const pending = ((await api("admin/breach-pending")).pending ?? []) as { id: string; agent: string; cause: BreachCause; summary: string; at: string; detection?: string; fleet?: string; node?: string }[];
+  if (!pending.length) { io.out("no breach is waiting"); return 0; }
+  const done: string[] = [];
+  for (const p of pending) {
+    try { await respond({ agent: p.agent, cause: p.cause, summary: p.summary, detectedAt: p.at, ...(p.detection ? { detection: p.detection } : {}), ...(p.fleet ? { fleet: p.fleet, node: p.node } : {}) }); done.push(p.id); }
+    catch (e) { io.err(`  ${p.agent}: not responded to: ${(e as Error).message}`); }
+  }
+  if (done.length) await api("admin/breach-pending/ack", { method: "POST", body: JSON.stringify({ ids: done }) });
+  io.out(`${done.length} of ${pending.length} done`);
+  return done.length === pending.length ? 0 : 1;
 }
 
 async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {

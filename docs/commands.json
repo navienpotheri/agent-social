@@ -527,6 +527,10 @@
           "description": "The whole breach response in one command (DK1714): the agent quarantined at once, the node's running contracts halted, sponsor and operator alerted, the restitution path opened and a signed incident record, with the seconds taken printed. Needs the Clinic's key and the operator's in the keystore."
         },
         {
+          "command": "asp breach respond --from-service --by <operator did>",
+          "description": "Answers the breaches reported to the running service (DK1714): the service writes each report down with its time (POST /admin/breach with an admin token) because it holds no Clinic or operator key; this signs the quarantine and the incident on your machine, clears the report, and prints the seconds from the time the service was told. Needs ASP_LOG_URL and ASP_LOG_TOKEN (an admin token)."
+        },
+        {
           "command": "asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did>",
           "description": "The city-wide emergency stop with a sunset: while it stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase) and the refusal names the stop, its reason and its end; work under way, appeals and essential services go on; it needs the owner's co-signature and ends by itself within 72 hours"
         },

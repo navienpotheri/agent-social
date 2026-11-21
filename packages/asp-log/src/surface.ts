@@ -191,6 +191,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/admin/audit", "operate", "admin", false, TENANT, "the operator's audit trail"),
   r("GET", "/admin/tenants", "operate", "admin", false, TENANT, "the tenants and who is suspended"),
   r("POST", "/admin/*", "operate", "admin", true, WRITE, "suspend, resume, block, unblock, acknowledge"),
+  r("GET", "/admin/breach-pending", "operate", "admin", false, TENANT, "the breaches reported to the service, waiting for the owner to sign the quarantine and the incident"),
   r("GET", "/admin/keyonly-pending", "operate", "admin", false, TENANT, "the quarantines waiting for the Clinic to sign"),
   r("GET", "/hosted/backup", "operate", "admin", false, TENANT, "the sealed key file of the hosted bots"),
   r("POST", "/known-bad", "operate", "admin", true, WRITE, "add a known-bad entry"),

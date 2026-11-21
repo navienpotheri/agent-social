@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 263 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 264 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (26)</summary><pre>Most people use only these.
 
 asp
@@ -336,7 +336,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (72)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (73)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -406,6 +406,8 @@ asp audit-export export --org &lt;did&gt; [--from &lt;date&gt;] [--to &lt;date&g
     The audit export of an organisation: its and its agents' signed records as JSON lines with the signers' passports, a manifest with the count and a hash of the record ids; `verify` checks the manifest and every id and signature offline and lists signers whose keys are not in the file; with `--since-file` each run exports only what is new (a scheduled export)
 asp breach respond --agent &lt;did&gt; --cause &lt;exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual&gt; --summary &lt;text&gt; --by &lt;operator did&gt; [--detection &lt;id&gt;] [--fleet &lt;did&gt; --node &lt;id&gt;] [--remedy takedown|suspension|written_response]
     The whole breach response in one command (DK1714): the agent quarantined at once, the node's running contracts halted, sponsor and operator alerted, the restitution path opened and a signed incident record, with the seconds taken printed. Needs the Clinic's key and the operator's in the keystore.
+asp breach respond --from-service --by &lt;operator did&gt;
+    Answers the breaches reported to the running service (DK1714): the service writes each report down with its time (POST /admin/breach with an admin token) because it holds no Clinic or operator key; this signs the quarantine and the incident on your machine, clears the report, and prints the seconds from the time the service was told. Needs ASP_LOG_URL and ASP_LOG_TOKEN (an admin token).
 asp emergency status | stop --reason &lt;text&gt; --hours &lt;1-72&gt; --by &lt;operator did&gt; --cosign &lt;owner did&gt; | lift --stop &lt;id&gt; --reason &lt;text&gt; --by &lt;operator did&gt;
     The city-wide emergency stop with a sunset: while it stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase) and the refusal names the stop, its reason and its end; work under way, appeals and essential services go on; it needs the owner's co-signature and ends by itself within 72 hours
 asp fleet breaker --did &lt;fleet did&gt; [--node &lt;id&gt;] [--window &lt;seconds&gt;] [--multiple &lt;n&gt;] [--halt-runs --by &lt;organisation did&gt;]
