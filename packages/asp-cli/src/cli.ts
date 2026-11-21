@@ -6679,9 +6679,10 @@ const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
 };
 const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.url));
 const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
+const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code|codex|goose|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose|openclaw|hermes|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
@@ -6921,6 +6922,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
   const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
+    : runtime === "openclaw" || runtime === "hermes" ? [process.execPath, GATEWAY_AGENT_RUNTIME, runtime, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
       : [...bin, ...(v.model ? ["--model", v.model] : [])];
