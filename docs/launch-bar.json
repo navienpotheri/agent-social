@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 67,
-  "withdraw": 113,
+  "withdraw": 112,
   "after": 326,
-  "total": 506
+  "total": 505
  },
  "mustWorkerHours": 328.2,
  "entries": [
@@ -5877,19 +5877,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service does not yet pass what it knows about sponsors to the anti-farming report. Common control by a shared payment instrument, a verified domain or an address cluster needs facts only t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1476",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A Mandate has spend caps in credits but no token (compute) budget of its own: a single agent outside a fleet is limited by the gateway's daily ceiling only, and a sponsor without a fleet has no cap a…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

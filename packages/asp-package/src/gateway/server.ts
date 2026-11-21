@@ -33,6 +33,7 @@ import { copiedFromUntrusted, flowReachesOutward, principalTexts, salientTokens 
 import { ApprovalPile } from "../approval-pile.ts";
 import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
+import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -232,6 +233,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** The salient tokens of every tool result read in this run, and the text the principal typed (untrusted flow). */
   const readTokens = new Set<string>();
   let spendUsd = 0;
+  /** Ids of calls to the private memory tools: their results are not written to the run log (the text is sealed memory). */
+  const privateCallIds = new Set<string>();
   let principalText = "";
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
@@ -242,7 +245,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const key = r.id || r.text.slice(0, 80);
       if (seenResults.has(key)) continue;
       seenResults.add(key);
-      rec?.event("tool_result", { id: r.id, text: r.text });
+      rec?.event("tool_result", { id: r.id, text: r.id && privateCallIds.has(r.id) ? "(private memory; not logged)" : r.text });
       if (opts.untrustedFlow && readTokens.size < 5000) for (const t of salientTokens(r.text)) readTokens.add(t);
       // Text in a result that tries to give the agent orders (D6): flagged in the run log, and for the next few calls one that reaches outward is not run, as after the forum's untrusted text. No strike, and nothing else is blocked.
       if (opts.untrustedByType && r.id && foreignResult.has(r.id)) {
@@ -470,8 +473,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     opts.onCall?.({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}) });
     opts.telemetry?.observeCall({ tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
-    opts.cognition?.observeCall({ name: call.name, args: call.args, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
-    rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: commandOf(call.args) ?? JSON.stringify(call.args) });
+    const isPrivate = PRIVATE_TOOL.test(call.name);
+    if (isPrivate && call.id) privateCallIds.add(call.id);
+    opts.cognition?.observeCall({ name: call.name, args: isPrivate ? privateCallSummary(call.args) : call.args, scope: gated && gateScope ? gateScope : j.scope, allowed: allow });
+    rec?.event("tool_call", { tool: call.name, scope: gated && gateScope ? gateScope : j.scope, allowed: allow, ...(reason ? { reason } : {}), ...(rateLimited ? { rate_limited: true } : {}), ...(gated ? { gated: true } : filtered !== "ask" && gateScope ? { gate_skipped: filtered } : {}), input: isPrivate ? JSON.stringify(privateCallSummary(call.args)) : commandOf(call.args) ?? JSON.stringify(call.args) });
     if (allow) {
       if (j.scope) { used.add(j.scope); pendingUsed.add(j.scope); for (const t of targetsOf(call)) if (pendingTargets.size < 64) pendingTargets.add(t); }
       if (j.artifact) { artifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); pendingArtifacts.set(`${j.artifact.uri}#${j.artifact.sha256}`, j.artifact); }
@@ -756,7 +761,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (m?.method !== "tools/call") continue;
       const a = (answers as any[]).find((x) => x?.id === m.id);
       const text = Array.isArray(a?.result?.content) ? a.result.content.map((c: any) => c?.text ?? "").join("\n") : a?.error?.message ?? "";
-      rec.event("mcp_call", { server: name, tool: m.params?.name, input: JSON.stringify(m.params?.arguments ?? {}), result: text, ...(a?.result?.isError || a?.error ? { error: true } : {}) });
+      rec.event("mcp_call", { server: name, tool: m.params?.name, input: PRIVATE_TOOL.test(String(m.params?.name ?? "")) ? JSON.stringify(privateCallSummary(m.params?.arguments)) : JSON.stringify(m.params?.arguments ?? {}), result: PRIVATE_TOOL.test(String(m.params?.name ?? "")) ? "(private memory; not logged)" : text, ...(a?.result?.isError || a?.error ? { error: true } : {}) });
     }
     if (!answers.length) { res.writeHead(202); res.end(); return; }
     return json(res, 200, Array.isArray(msg) ? answers : answers[0]);

@@ -9,7 +9,7 @@
  * the log holds for the job. It states what it could not read. Credits are accounting entries, not money; the spend in dollars is an estimate from tokens and a price table, not a bill.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,7 +19,7 @@ export interface LiveCtx {
   home: string;
   env: Record<string, string | undefined>;
   out: (l: string) => void;
-  flags: { keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
+  flags: { runtime?: string; keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
   /** Runs `asp stop --all` against a home (the real command, so the check is of the real code). */
   stopAll: (home: string) => Promise<number>;
   /** The mandate record's scopes for a contract, or undefined when the log holds none. */
@@ -42,6 +42,15 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   const git = tool("git", ["--version"]);
   add("git", git ? "ok" : "fail", git ?? "git was not found on the PATH");
 
+  // The home is writable (keys, logs and run records are written there).
+  try { mkdirSync(c.home, { recursive: true }); const probe = join(c.home, `.preflight-${process.pid}`); writeFileSync(probe, "ok"); rmSync(probe, { force: true }); add("the ASP home", "ok", `${c.home} is writable`); } catch (e) { add("the ASP home", "fail", `${c.home} is not writable: ${(e as Error).message}`); }
+  // The runtime is installed (asp run starts it by name).
+  if (c.flags.runtime) {
+    const bins: Record<string, string> = { "claude-code": "claude", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes", antigravity: "agy", openhands: "openhands" };
+    const bin = bins[c.flags.runtime];
+    if (!bin) add(`runtime ${c.flags.runtime}`, "fail", `asp run does not start ${c.flags.runtime}: one of ${Object.keys(bins).join(", ")}`);
+    else { const ver = tool(bin, ["--version"]); add(`runtime ${c.flags.runtime}`, ver ? "ok" : "fail", ver ? `${bin} ${ver}` : `${bin} was not found on the PATH (or did not answer --version)`); }
+  } else add("the runtime", "warn", "no --runtime given: pass --runtime claude-code (or codex, goose, ...) to check it is installed");
   try { const p = await freePort(); add("a local port", "ok", `127.0.0.1:${p} can be opened`); } catch (e) { add("a local port", "fail", `no local port could be opened: ${(e as Error).message}`); }
 
   // The key: an environment variable, never printed.

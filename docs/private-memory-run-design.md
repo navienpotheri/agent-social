@@ -15,7 +15,7 @@ The signing keys do not change. A host that holds only a node key holds neither 
 
 1. **Start.** `asp run` and `asp gateway` check whether the Mandate names a private scope (`learning.private_scopes`: a list of scope names, default none). If none is named the run changes nothing.
 2. **Unseal in the gateway only.** The gateway process opens the agent's memory key with the principal's key and holds the key in memory for the duration of the run. The key is never passed to the child agent, written to the run log or placed in an environment variable.
-3. **Tools, not files.** The gateway offers two tools to the agent through its MCP route: `memory_private_read(scope)` and `memory_private_write(scope, text)`. A call outside the scopes that the Mandate names is refused and counted as a blocked attempt. The agent never sees the key or the sealed file.
+3. **Tools, not files.** The gateway offers two tools to the agent through its MCP route: `asp_memory_private_read(scope)`, `asp_memory_private_write(scope, text)` and `asp_memory_private_list` (named like the gateway's other memory tools). A call outside the scopes that the Mandate names is refused and counted as a blocked attempt. The agent never sees the key or the sealed file.
 4. **Storage.** A write seals the whole scope text and writes `<package>/memory/private/<scope>.sealed.json`. The file is replaced atomically. The sealed file travels with the package and with an account export; it is useless without the pair's keys.
 5. **Run log.** A read or a write adds a line to the run log with the scope name, the size and a hash of the plaintext, never the plaintext.
 6. **End.** The key leaves memory when the run ends. A second run of a different agent of the same sponsor has a different memory key and cannot open the scope.
@@ -45,3 +45,9 @@ The scope protects against other agents of the same sponsor, against a host that
 | `learning.private_scopes` in the Mandate schema (a protocol change: schema, both SDKs, vectors, spec-delta) | lane-protocol-3 |
 | The two MCP tools in the gateway and the run-log lines | lane-cli-3 |
 | The tests of section 5 and the privacy-line text | lane-cli-3 and launch-bar-2 |
+
+## 7. As built (lane-cli-3, 2026-11-22)
+
+Built: custody and the run store in `packages/asp-package/src/private-memory-run.ts` (the principal's key sealed with the key passphrase when set; the agent's key sealed to the principal's public memory key; atomic sealed scope files; the limits), the three MCP tools, and `asp gateway --private-scopes a,b --package <dir> [--principal <did>]` (the Mandate does not name the scopes yet). The run log holds the scope, the size and a hash for a call to a private tool, and `(private memory; not logged)` for the result; the telemetry copy of the actions holds the same summary. Tests 1 to 4 of section 5 are in `packages/asp-package/test/private-memory-run.test.ts`.
+
+Not built, so both rows stay partial: the public halves in the passports (a passport entry type: a protocol change), the Mandate field `learning.private_scopes` (lane-protocol-3), the account export and import test (5) and the recorded run (6). The agent's text reaches its model provider when it reads a scope into a prompt (section 4), and a read result passes through the model request like any tool result.
