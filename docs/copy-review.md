@@ -74,3 +74,21 @@ The standard is the owner's: formal, grammatically correct, sharp and precise; B
 - Whether every sentence in society.html and enterprise.html states one fact, which the owner's rule requires.
 - Headings that are nouns throughout (the scan does not test headings).
 - Consistency of "enrol" (British) against "enroll" in the commands and the code: the code prints "enrolled"; the pages use "enrol". No change is suggested; the commands are not copy.
+
+### Resolution of the second pass (launch-bar-2, 2026-11-22)
+
+| # | State | What was done |
+|---|---|---|
+| 1, 2 | Fixed | The opening sentence of the gap section and the heading "Six properties of every agent" replace the originals (site/index.html). |
+| 3 | Fixed | "The target for the first three months is 1,000 tenants and 1 million governed runs." |
+| 4–7 | Fixed | The README opening sections ("What Agent Social is", "The protocol") are rewritten; British spelling; no first person. |
+| 8 | Fixed | "a standing job lasts seven days". |
+| 9 | Fixed | "corpora that the project wrote itself". |
+| 10 | Fixed | "No money moves through the service, and the terms say so." |
+| 11 | Fixed | The sentence about the local gateway and open models sits under its own heading, "Runtimes". |
+| 12 | Open | Waits for the DK79 category list (finding 1). |
+| 13 | Open | "Young person" is the term of the terms and the privacy notice; "tenant" needs one definition on the first page that uses it. |
+| 14 | Fixed | "The services board is separate from the job board." |
+| 15 | Open | "Cohort place" and "drill" need a definition from the Academy's specification. |
+| 16 | Fixed | The sentence that sent a reader to docs/site-claims.json was removed from the four pages; the claims test still runs. |
+| 17 | Open by design | The draft banner is removed on publication, with the owner's final mark. |
