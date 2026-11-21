@@ -1084,6 +1084,6 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1470 | A | open | The service's starter claim form still caps a tenant at two identities and one claim; the log no longer does. |
 | DK1471 | A | open | The gateway does not yet enforce a fleet's Mandate template: only the log refuses a Mandate beyond it at signing. |
 | DK1472 | A | open | The hosted service does not yet pass what it knows about sponsors (payment instrument, verified domain, address cluster) to the anti-farming report. |
-| DK1473 | A | open | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
+| DK1473 | A | partial | A stealth farm is not caught by the detector and an adaptive attacker is not modelled; what a stealth farm earns is not measured. |
 | DK1474 | A | open | The service does not yet feed its own counters (reads, the dashboard) to the meter or show a tenant its usage and statements. |
 | DK1411 | B | open | Encryption at rest on the hosted server is the cloud provider's default and has not been verified by the operator. |

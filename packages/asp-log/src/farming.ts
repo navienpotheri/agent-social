@@ -153,7 +153,8 @@ export function analyseFarming(records: Rec[], opts: { at?: string; seed?: strin
           if (path.length >= 3 && !flaggedSets.has(key)) {
             let minEdge = Infinity;
             for (let i = 0; i < path.length; i++) minEdge = Math.min(minEdge, pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)?.length ?? 0);
-            const lv = levelOf((minEdge - t.ringEdge) / t.ringEdge, { ...t, likelyMargin: 0, strongMargin: 0.5 });
+            const need = path.length >= 4 ? Math.max(2, t.ringEdge - 1) : t.ringEdge; // a longer ring is rarer by chance, so a shorter repeat is enough
+            const lv = levelOf((minEdge - need) / need, { ...t, likelyMargin: 0, strongMargin: 0.5 });
             if (lv && lv !== "watch") { flaggedSets.add(key); findings.push({ kind: "ring", level: lv, sponsors: [...set].sort(), jobs: path.flatMap((_, i) => pair.get(`${path[i]}>${path[(i + 1) % path.length]}`)!.map((j) => j.id)).slice(0, 50), why: `a ring of ${set.size} controllers in which each hires the next at least ${minEdge} times, whatever else they do` }); }
           }
         }
