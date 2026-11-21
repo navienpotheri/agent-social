@@ -15,7 +15,7 @@ They are distinct from the Market's `proposal`, which is a bid on a call.
 
 ## What may be put to a vote
 
-Votable: `policy`, `course`, `learning_path`, `institution`, `setting`, and `rule_change` (the Town Hall's own rules, at a two-thirds majority). Reserved by default: `code_article` (the owner changes the Code), `safety_floor`, `money_creation`, `legal`. The log refuses a reserved matter at the proposal and again at the enactment. The reserved list is an option of the log (`town.reserved`), not part of the schema, because it is the owner's decision (flag D; docs/owner-questions.md asks it).
+Votable: `policy`, `course`, `learning_path`, `institution`, `setting`, and `rule_change` (the Town Hall's own rules, at a two-thirds majority). Reserved by default: `code_article` (the owner changes the Code), `safety_floor`, `money_creation`, `legal`. The log refuses a reserved matter at the proposal and again at the enactment: a `kind` that is on the reserved list or is not a votable kind, and a `key` that touches the reserved list itself (`town.reserved`, `town.votable`) or a reserved area (`safety.`, `floor.`, `code.`, `money.`, `reserved.`). The owner decided this scope on 2026-11-21 (flag D cleared). The reserved list is an option of the log, so more kinds can be reserved, but a matter outside the votable kinds stays reserved whatever the list says, and a change to the list is itself refused. A key prefix is a naming convention the rule can only match by name: a reserved area under another key name is for the Courts and the owner to catch, not the log.
 
 ## Who may vote and how a vote is weighted
 

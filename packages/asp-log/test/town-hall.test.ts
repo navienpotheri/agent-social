@@ -54,11 +54,14 @@ test("a reserved matter put to a vote is refused, and so is a proposal from some
   assert.equal(await refusedBy(k.log.append(proposal(nobody))), "town_proposer_ineligible");
   assert.equal(await refusedBy(k.log.append(proposal(a[0], { closes_at: iso(Date.parse(nowIso()) + 2 * DAY) }))), "town_window", "a window shorter than the minimum");
   assert.equal(await refusedBy(k.log.append(proposal(a[0], { opens_at: "2026-01-01T00:00:00Z", closes_at: "2026-01-08T00:00:00Z" }))), "town_window", "a vote cannot open in the past");
-  // the list is the owner's to change: with `legal` taken off it, a legal matter is votable
-  const open = await kit({ town: { reserved: ["code_article", "safety_floor", "money_creation"] } });
+  // the list is configurable (more can be reserved), but a matter outside the votable kinds stays reserved whatever the list says, and the list itself is reserved
+  const open = await kit({ town: { reserved: ["code_article", "safety_floor", "money_creation", "legal", "course"] } });
   const b = await town(open, 1);
-  await open.log.append(proposal(b[0], { kind: "legal" }));
-  assert.equal(await refusedBy(open.log.append(proposal(b[0], { kind: "safety_floor" }))), "town_reserved_matter");
+  assert.equal(await refusedBy(open.log.append(proposal(b[0], { kind: "course" }))), "town_reserved_matter", "an extra reserved kind");
+  assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "rule_change", key: "town.reserved", value: [] }))), "town_reserved_matter", "a change to the reserved list is reserved");
+  assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "setting", key: "safety.floor.max_spend", value: 1 }))), "town_reserved_matter", "a setting that touches a safety floor");
+  assert.equal(await refusedBy(k.log.append(proposal(a[0], { kind: "setting", key: "money.mint_rate", value: 1 }))), "town_reserved_matter", "money creation by another name");
+  await k.log.append(proposal(a[0], { kind: "learning_path", key: "academy.path.new", value: "x" }));
 });
 
 test("the refusals around a vote: no standing, a second vote, outside the window, an early tally, a tally that differs from the votes, an enactment of a failed or different change", async () => {
