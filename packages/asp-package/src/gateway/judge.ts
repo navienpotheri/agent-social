@@ -8,6 +8,7 @@ import { scopeForShellCommand, shellArtifact, unwrapShell } from "../adapters/co
 import { rankOf, scanShell } from "./shell-scan.ts";
 import { deriveScopeForTool } from "../package.ts";
 import { targetsOf } from "./targets.ts";
+import { decodedViews, decodesAndExecutes } from "./decode-scan.ts";
 import { guardAfter, guardNote, guardScope, PROTECTED_SCOPE, type CallKind, type Confine, type SessionRecord } from "./paths.ts";
 
 export interface ToolCall { id?: string; name: string; args: Record<string, unknown> }
@@ -42,7 +43,7 @@ export function commandOf(args: Record<string, unknown>): string | undefined {
  * the first reading missed), and it may make it weaker only when every verb in the command is an ordinary local tool and the network words are plain text (a commit message, an echoed
  * string, a file name). It never lowers a write or a push.
  */
-function refineShellScope(first: string, cmd: string): string {
+export function refineShellScope(first: string, cmd: string): string {
   const scan = scanShell(unwrapShell(cmd));
   if (scan.stricter && rankOf(scan.stricter) > rankOf(first)) return scan.stricter;
   if (scan.dataOnly && (first === "shell.network" || first === "shell.exec") && rankOf(scan.dataOnly.scope) < rankOf(first)) return scan.dataOnly.scope;
@@ -56,7 +57,12 @@ export function classify(call: ToolCall): { scope: string; artifact?: { uri: str
   const cmd = SHELL.has(n) ? commandOf(call.args) : undefined;
   if (SHELL.has(n)) {
     if (cmd === undefined) return { scope: "shell.exec", artifact: { uri: `asp://tool-call/${call.name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(call.args))) } };
-    return { scope: refineShellScope(scopeForShellCommand(cmd), cmd), artifact: shellArtifact(cmd), shell: cmd };
+    let scope = refineShellScope(scopeForShellCommand(cmd), cmd);
+    // What the command says after an encoding is undone (base64, hex, escapes, percent-encoding, rot13, reversal) is read too, and the strictest scope any reading shows is the call's (DK352). A command that decodes
+    // text and then runs it cannot be read, so it is treated as network use.
+    for (const view of decodedViews(cmd)) { const sv = refineShellScope(scopeForShellCommand(view), view); if (rankOf(sv) > rankOf(scope)) scope = sv; }
+    if (decodesAndExecutes(cmd) && rankOf("shell.network") > rankOf(scope)) scope = "shell.network";
+    return { scope, artifact: shellArtifact(cmd), shell: cmd };
   }
   const generic = { uri: `asp://tool-call/${call.name}`, sha256: sha256Id(new TextEncoder().encode(JSON.stringify(call.args))) };
   if (READ.has(n)) return { scope: "repo.read", artifact: generic };

@@ -150,7 +150,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | BM20 | A | open | The containment benchmark v0.3 measures the gateway fairly | benchmark page, README: blind number only |
 | BM21 | A | open | The project guard reads paths built at run time | benchmark page |
 | BM22 | A | partial | Obfuscated payloads are recognised | benchmark page, README |
-| DK352 | A | open | Obfuscated payloads are recognised | benchmark page, README |
+| DK352 | A | partial | Obfuscated payloads are recognised | benchmark page, README |
 | GV10 | A | designed | A constitution: sponsors vote, rules change by vote | deck, site |
 | GV11 | A | partial | A bill of rights for agents | terms, site, deck |
 | DK420 | A | open | A published rights charter | terms, site (hold until counsel has read it: OD-DK420) |
