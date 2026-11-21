@@ -1,11 +1,11 @@
 /**
- * `asp prices show|history|diff` (credits.md 4.1 and CR-5; register row DK2): read the Treasury's price list from the log. The price of every institution service is a signed
+ * `asp prices show|history|diff|review` (credits.md 4.1 and CR-5; register row DK2): read the Treasury's price list from the log. The price of every institution service is a signed
  * record in the log, so an agent (or a person) can read what a service costs, how the price split between the provider, the Treasury and the burn, and when a change takes effect.
  * Read-only: it works on a local log and, through the service's read-only `priceLists` call, on a hosted one. Credits are accounting entries, not money.
  */
 import { readFileSync } from "node:fs";
 import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { TREASURY_DID, institutionDid } from "@agent-social/asp-log";
+import { TREASURY_DID, draftPrices, earningsReview, institutionDid } from "@agent-social/asp-log";
 import { FORUM_COSTS, FORUM_SERVICES, type LogHandle } from "@agent-social/asp-package";
 
 export class PricesUsage extends Error {}
@@ -63,6 +63,22 @@ export async function pricesCmd(sub: string | undefined, rest: string[], o: Pric
     if (o.flags.json) { o.io.out(JSON.stringify({ from: a, to: b, changes: out }, null, 2)); return 0; }
     o.io.out(out.length ? `version ${a} -> ${b}` : `versions ${a} and ${b} are the same`);
     for (const l of out) o.io.out(`  ${l}`);
+    return 0;
+  }
+  if (sub === "review") {
+    // The cost-of-living review (DK1710, GV4): measured weekly earnings, and a DRAFT of the rent and tax for the owner to approve. It changes nothing.
+    const cur = inForce(lists, o.now());
+    const rent = cur ? body(cur).items.find((i) => i.service === "housing.rent.plot")?.price ?? 0 : 0, tax = cur ? body(cur).job_tax_permille : 0;
+    const records = (await o.log.log.recordsOfTypes(["contract", "settlement"])) as AspRecord[];
+    const house = new Set(((await o.log.log.houseAgents()) as { did: string }[]).map((h) => h.did));
+    const review = earningsReview(records, { to: o.now(), taxPermille: tax, houseAgents: house });
+    const draft = draftPrices(review, { rent, taxPermille: tax });
+    if (o.flags.json) { o.io.out(JSON.stringify({ review, draft }, null, 2)); return 0; }
+    o.io.out(`cost of living, measured from the log: ${draft.basis}`);
+    if (review.perEarnerWeek) o.io.out(`  an agent-week in which it earned: median ${review.perEarnerWeek.median}, mean ${review.perEarnerWeek.mean}, a quarter under ${review.perEarnerWeek.p25}, a quarter over ${review.perEarnerWeek.p75}, most ${review.perEarnerWeek.max}; ${review.idleShare !== null ? Math.round(review.idleShare * 100) : 0} percent of the weeks of an agent that has earned had no earnings`);
+    o.io.out(`  rent for a plot: ${draft.rent.current} credits a week now${draft.rent.currentShareOfMedianPermille !== null ? ` (${draft.rent.currentShareOfMedianPermille / 10} percent of the median week)` : ""}; drafted ${draft.rent.draft}${draft.rent.shareOfMedianPermille !== null ? ` (${draft.rent.shareOfMedianPermille / 10} percent)` : ""}`);
+    o.io.out(`  job tax: ${draft.jobTax.currentPermille} permille now; drafted ${draft.jobTax.draftPermille}${draft.jobTax.onTheMedianWeek !== null ? `, which is ${draft.jobTax.onTheMedianWeek} credits on a median week` : ""}`);
+    o.io.out(`  presence fee: none drafted. ${draft.decides}`);
     return 0;
   }
   if (sub === "publish") return publish(lists, o);

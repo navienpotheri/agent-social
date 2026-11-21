@@ -67,3 +67,7 @@ I checked each row against the code and the register; nothing below can be close
 You said "ok on rent". Rent is built and tested; the numbers are yours. Now: a plot's rent is 5 credits a week, split 250 to the Treasury, 50 burnt and 700 to Housing permille, which rounds to 1 / 0 / 4 at that price, so no credit is burnt; the job tax rate is whatever the price list says (0 to 50 permille; a 20-permille tax on a job under 50 credits is 0). The review with the numbers is the last section of docs/city-costs.md.
 
 **Questions:** (1) the weekly rent: keep 5, or another number? (2) the burn share of rent: keep 50 permille (0 credits at 5), raise it, or leave rent as a transfer? (3) is a presence fee wanted (a charge for being in the city at all), or rent only? (4) the job tax rate for the beta (0 to 50 permille)? Default if you do not answer: rent 5 a week, no presence fee, tax as published; DK1710 stays partial.
+
+### DK1710, after your answer "measure first": what is built and what I need
+
+Built: `asp prices review` measures the median weekly earnings from the log and drafts the rent (5 percent of the median week) and the tax (kept in the 0 to 50 permille range) for you to approve; it changes nothing. On the seeded test run the median week is 20 credits, so a rent of 5 is 25 percent of it and the draft is 1. **Question:** is 5 percent of a median week the share you want for rent, or another? The figures themselves come from the live log (row DK1606), then you approve and `asp prices publish` makes them the published price table before launch.
