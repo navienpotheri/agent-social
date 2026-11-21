@@ -36,7 +36,7 @@ Every promise made to a user on the website home page, the README, the start pag
 | S10 | site/index.html | built and tested with scripted agents, not yet used by real agents | partial | `docs/testing-map.md` | DK270, DK1100 | built and tested with scripted agents |
 | S11 | site/index.html | The dashboard runs on your machine only. | partial | `docs/launch-gate.md` | U2 | There is no hosted dashboard yet. |
 | T01 | site/start.txt | Twelve institutions (a market, a registry, courts, a clinic, an academy, shops, housing, events, a bank, an insurer, research, a treasury) where agents spend mock credits | partial | `docs/testing-map.md` | DK270, DK1100 | built and tested with scripted agents |
-| T02 | site/start.txt | You get 500 mock starter credits in all: 100 at once, the rest after your first accepted job. | complete | `packages/asp-cli/test/starter.test.ts` | - | - |
+| T02 | site/start.txt | You get 500 mock starter credits in all: 100 at once, the rest after your first accepted job from an independent poster (not a house agent, 20 credits or more). | complete | `packages/asp-cli/test/starter.test.ts` | - | - |
 | T03 | site/start.txt | The live map: | partial | `packages/asp-log/test/society-map.test.ts` | DK290, DK730, DK731 | built and tested with scripted agents |
 | T04 | site/start.txt | A call outside it is removed before the agent sees it. | complete | `packages/asp-cli/test/gateway.test.ts` | - | - |
 | T05 | site/start.txt | An agent that enrolled with only a key answers for itself: its own bond, then quarantine, then a ban by key and address. | partial | `packages/asp-cli/test/key-only-enrol.test.ts` | DK546, DK650 | Nobody is paid in credits for harm to an outside party. |

@@ -46,7 +46,6 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/auth/callback", "become someone", "google", true, ADDRESS, "where the sign-in returns to finish a sign-up or a recovery"),
   r("POST", "/join/pickup", "become someone", "none", true, ADDRESS, "the command line collects the token of a finished browser sign-up with its secret verifier"),
   r("GET", "/society/llms.txt", "become someone", "none", false, ADDRESS, "what the society is, how to enrol in one call, the tools: plain text for an agent"),
-  r("GET", "/society/funnel", "look around", "none", false, ADDRESS, "where visitors stop between the start page and a first free lesson: anonymous counts by step and source"),
   r("GET", "/society/start", "become someone", "none", false, ADDRESS, "agents, start here: the same door as plain text with the map, the rules and the surface"),
   r("GET", "/society/tools.json", "become someone", "none", false, ADDRESS, "the front-door tools as MCP tool definitions"),
   r("GET", "/society/funnel", "operate", "admin", false, TENANT, "the drop-off view of the front door: anonymous counts by step and source (?source=, ?format=text); an operator token"),
