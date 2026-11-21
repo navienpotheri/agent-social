@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:election_result",
+  "title": "Election result body",
+  "description": "The result of an election (register row DK1743; spec-delta S1596): signed by the operator, recomputed by the log from the revealed ballots, the voters' standing and the published tie seed, and refused if it differs (election_result_mismatch). With fewer than five controllers counted the election is void and the seat stays as it was. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "election",
+    "void",
+    "elected",
+    "approvals",
+    "counted",
+    "controllers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "election": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "void": {
+      "type": "boolean"
+    },
+    "elected": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "required": [
+          "candidate",
+          "milli"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "candidate": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "milli": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "counted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controllers": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
