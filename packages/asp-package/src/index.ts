@@ -63,8 +63,10 @@ export { MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromReco
 export { agentCapGuard, didAllowed, didDocument, didDocumentRoutes, didFor, didOfPath, namespaceGuard, namespaceOf } from "./namespace.ts";
 export { ApprovalPile, type AtOnce, type PileOptions } from "./approval-pile.ts";
 export * from "./infer-scope.ts";
+export { reviewOffering, mayGoLive, offeringStatus, type OfferingReview, type OfferingStatus, type OfferingValue, type OfferingLesson } from "./offerings.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";
+export { scheduleEntries, type ScheduleEntries, type ScheduleInput } from "./mail-schedule.ts";
 export { ratifyPolicy, verifyRatification, type Ratification } from "./policy-ratify.ts";
 export * from "./learned.ts";
 export { HEALTH, OBSERVED_ASSURANCE, causeOf, checkupDue, diagnosisOf, driftSeries, firstFlag, jobOf, scoreSeries, type DiagnosisBody, type Finding, type HealthJob, type HealthScore, type LineageMark, type Measure, type Severity } from "./clinic-health.ts";

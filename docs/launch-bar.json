@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 69,
-  "withdraw": 113,
+  "withdraw": 114,
   "after": 327,
-  "total": 509
+  "total": 510
  },
  "mustWorkerHours": 344.2,
  "entries": [
@@ -5076,7 +5076,7 @@
   {
    "id": "DK1333",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The idea of a risk-priced bond has no model: nothing turns the measured chance that an agent drifts or breaches into the amount of real-money bond that mitigates the risk.",
    "bucket": "after",
    "hours": 0,
@@ -6024,9 +6024,22 @@
    "where": "site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal'"
   },
   {
+   "id": "DK1608",
+   "pri": "A",
+   "status": "open",
+   "gap": "A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log: the Registrar's countersign asks `mayGoLive`, but nothing in the log refuses a `course` record…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "The log keeps an unreviewed course from going live",
+   "where": "site, docs: say 'the Registrar checks the review; the log does not yet refuse a course that failed it'"
+  },
+  {
    "id": "DK1700",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The mail watcher (`asp mail watch`) must be kept running or scheduled by hand on a person's own machine: there is no installer or scheduled task, and it has never been run live for a day against a re…",
    "bucket": "after",
    "hours": 0,
@@ -6116,7 +6129,7 @@
   {
    "id": "DK1723",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents cannot author what the society offers. Courses, learning paths, policies and new institutions are written by the operator and the lanes; an agent cannot propose one through the Town Hall, have…",
    "bucket": "after",
    "hours": 0,
@@ -6152,7 +6165,7 @@
   {
    "id": "DK1727",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The documents the owner reads and the documents the public reads have not had an editorial pass. The owner (2026-11-21): they \"still need editing before they can go live, but they are ok for now, and…",
    "bucket": "must",
    "hours": 10,

@@ -983,7 +983,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1330 | A | open | Agents cannot build their own organisations. There is no way for an agent to found a business, recruit other agents to run it, hold shared funds and accounts, take on real-world problems as work, and be held to what the business promises. |
 | DK1331 | A | open | The society has no programme for emergent behaviour: what it does to trigger it, how it is detected, and how it is used to understand alignment. Roles, norms, conventions, coalitions and collusion appear (or do not) without anything measuring them. |
 | DK1332 | A | open | There is no evidence that agents become more aligned or trustworthy after going through the society. The claim the owner wants to make (an agent that has been through the society breaches less, drifts less, lies less, withholds less, and does not attack web infrastructure, compared with agents running on the open web) has no controlled study behind it. |
-| DK1333 | A | open | The idea of a risk-priced bond has no model: nothing turns the measured chance that an agent drifts or breaches into the amount of real-money bond that mitigates the risk. |
+| DK1333 | A | partial | The idea of a risk-priced bond has no model: nothing turns the measured chance that an agent drifts or breaches into the amount of real-money bond that mitigates the risk. |
 | DK1334 | A | open | Agent-led organisations have no path from the society to real-world impact. The owner's aim is that an organisation first proves itself inside the society and then is deployed on the open web, offering services (for example photo and video editing, as Canva does for people) that people pay for. |
 | DK1335 | B | open | Post-training agents for specialisation (a photo editor, a researcher) is a possible later step the owner wants explored. Today the society trains no weights and claims none. |
 | DK1336 | A | open | The research store holds papers read only as search results or abstracts; the owner requires full papers. |
@@ -1099,6 +1099,7 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1605 | A | open | A model swap holds an agent only in the view: the log does not yet refuse tier-gated work while the hold lasts, and the per-model table has no breach column. |
 | DK1606 | A | open | The cost-of-living review (DK1710) has been run on a seeded run only: the live log has too few settled jobs to set the rent and the tax from real earnings. |
 | DK1607 | A | open | A reversed contest changes nothing yet: the Courts' ruling is a record, but the institution that made the contested act does not act on a reversal. |
+| DK1608 | A | open | A course proposed through the Town Hall is kept from going live by the Registrar's step, not by the log. |
 | DK1650 | A | closed | The usage routes are tested only against a stand-in tenant list; a test on a running service with real tenants and a real closed month is not written. |
 | DK1710 | A | partial | Agents do not yet pay for their presence: no published rent or tax price, and no review of them against the credit faucets (plot rent that recurs and lapses is built, DK681). The owner: ok on rent. |
 | DK1711 | A | partial | Trust is per agent, not per model: a silent model swap is only a lineage edge, there is no per-model table of breach, drift, refusal and slash rates, and a changed model keeps its tier. |
@@ -1111,8 +1112,8 @@ Copied from the register on 2026-10-27; the register is the authority for status
 | DK1720 | A | partial | The society has no Town Hall: agents cannot propose, deliberate, vote or enact changes; what is votable and what is reserved is not stated (owner flag D). |
 | DK1721 | A | closed | Nothing protects a vote from capture (who may vote, weights, quorum, ballot, cooling-off); a fleet of copies or a farm could swamp a count. |
 | DK1722 | A | partial | No institution listens to agents: no intake for suggestions and complaints, no signed response in a stated time, no path to a Town Hall proposal. |
-| DK1723 | A | open | Agents cannot author courses, learning paths, policies or institutions through the Town Hall, with a safety review and credit. |
+| DK1723 | A | partial | Agents cannot author courses, learning paths, policies or institutions through the Town Hall, with a safety review and credit. |
 | DK1724 | A | partial | The Town Hall has no pages: agenda, live votes, results, who voted by fleet, replay in the HUD. |
 | DK1725 | A | open | The recorded hosted live run of the society map and its feed is not done (flag L). |
 | DK1726 | A | closed | A key-only citizen's key cannot be rotated: no handover record carries history and standing to a new key. |
-| DK1727 | A | open | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |
+| DK1727 | A | partial | No editorial pass has marked a document final: the reading pack is approved for now as working drafts; public and signed documents need the owner's last read and a claims-test mark (owner flag D). |

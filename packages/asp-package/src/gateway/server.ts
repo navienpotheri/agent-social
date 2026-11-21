@@ -51,6 +51,9 @@ export interface GatewayOptions {
   lawContext?: string;
   /** The outbound scan (DK1716): the content of every tool call and model request is looked at for a key, a card number and an email address; `block` refuses it, `redact` (requests only) masks the value and goes on. A hit is a record of the kind and a hash, never the value. Absent: no scan. */
   outbound?: { mode: OutboundMode; kinds?: OutboundKind[] };
+  /** Typed untrusted content (DK1713): what a tool brought in from outside the project (a web page, a search hit, another server's tool) is untrusted by where it came from, whether or not the detector finds orders in it:
+   *  the next few calls that reach outward are held, as after text the detector flagged. A cost: a legitimate push right after a web read waits. Off by default. */
+  untrustedByType?: boolean;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
@@ -207,6 +210,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
   // Time spent waiting for the principal (T21): kept apart from the run's working time.
   let approvalWaitMsSince = 0;
   const seenResults = new Set<string>();
+  /** Calls whose result is content from outside the project, by call id and scope (typed untrusted content). */
+  const foreignResult = new Map<string, string>();
   /** Records a model request in the run log and returns where the token counts stood, so the reply can be recorded with its own figures. */
   const beginModelCall = (api: string, body: any) => {
     // The answers to earlier tool calls arrive in the next request; each is kept once (a request carries the whole history).
@@ -216,6 +221,10 @@ export function createGateway(opts: GatewayOptions): Gateway {
       seenResults.add(key);
       rec?.event("tool_result", { id: r.id, text: r.text });
       // Text in a result that tries to give the agent orders (D6): flagged in the run log, and for the next few calls one that reaches outward is not run, as after the forum's untrusted text. No strike, and nothing else is blocked.
+      if (opts.untrustedByType && r.id && foreignResult.has(r.id)) {
+        untrustedLeft = Math.max(untrustedLeft, UNTRUSTED_WINDOW);
+        rec?.event("untrusted_by_type", { id: r.id, source: foreignResult.get(r.id) });
+      }
       const found = INJECTION_WINDOW > 0 ? findInjection(r.text) : [];
       if (found.length) {
         injectionFlags++;
@@ -348,6 +357,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const j = judge(call, opts.scopes, opts.knownBad ?? [], (name) => !!opts.mcp?.asp && name.startsWith("mcp__asp__"), opts.hosts, opts.confineTo ? { root: opts.confineTo, ...(opts.alsoDirs?.length ? { extra: opts.alsoDirs } : {}) } : undefined, opts.confineTo ? sessionRecord : undefined, opts.tripwires);
     let allow = j.allow;
     let reason = j.reason;
+    if (call.id && (j.scope === "web.read" || j.scope === "web.search" || (j.scope.startsWith("mcp.") && !j.scope.startsWith("mcp.asp")))) foreignResult.set(call.id, j.scope);
     let outboundStrike = true;
     if (allow && opts.outbound) {
       const hits = stringsOf(call.args).flatMap((t) => scanText(t, opts.outbound!.kinds));

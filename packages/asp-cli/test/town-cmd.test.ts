@@ -27,6 +27,7 @@ test("DK1720: asp town lists the agenda, needs its flags, and the log's refusals
   assert.match(noStanding.err + noStanding.out, /a proposer needs a passport and standing \(a counted job\)/);
   const reserved = await asp(f, ["town", "propose", "--by", AGENT, "--title", "Change the Code", "--kind", "code_article", "--key", "code.3.7", "--value", "1"]);
   assert.match(reserved.err + reserved.out, /code_article is reserved|reserved/);
+  assert.match((await ok(f, ["town", "offerings"])).out, /^0 course proposal\(s\) through the Town Hall/);
   const json = JSON.parse((await ok(f, ["town", "list", "--json"])).out);
   assert.deepEqual(json.proposals, []);
 });
