@@ -19,7 +19,9 @@ export class OffboardUsage extends Error {}
 export interface OffboardOpts {
   home: string; log: LogHandle; io: { out: (l: string) => void }; now: () => string;
   signerFor: (did: string) => Signer & { publicKey?: Uint8Array };
-  flags: { org?: string; out?: string; from?: string; keys?: boolean; confirm?: string };
+  flags: { org?: string; out?: string; from?: string; keys?: boolean; confirm?: string; /** `<agent did>=<runtime>:<project folder>`, one for each agent whose package goes in the export (DK1384). */ pack?: string[] };
+  /** Makes one agent's package into a folder: `asp pack` (the CLI gives it). Returns the exit code. */
+  packAgent?: (did: string, runtime: string, project: string, outDir: string) => Promise<number>;
 }
 const sha = (t: string) => "sha256:" + createHash("sha256").update(t).digest("hex");
 const RETENTION = "docs/legal/retention-and-erasure.md";
@@ -82,8 +84,21 @@ async function exportAll(o: OffboardOpts): Promise<number> {
       keys++;
     }
   }
+  // each agent's package (its harness, memory and the history of its record), made by `asp pack` into packages/<n>
+  const packaged: { did: string; runtime: string; folder: string }[] = [];
+  for (const spec of f.pack ?? []) {
+    const m = /^(did:[^=]+)=([a-z-]+):(.+)$/.exec(spec);
+    if (!m) throw new OffboardUsage(`--pack is <agent did>=<runtime>:<project folder>, for example did:web:acme.example:agents:a1=claude-code:./projects/a1 (got ${spec})`);
+    if (!dids.includes(m[1])) throw new OffboardUsage(`${m[1]} is not an identity of ${f.org}: only its own agents are packed into its export`);
+    if (!o.packAgent) throw new OffboardUsage("this command cannot make packages here");
+    const folder = join("packages", createHash("sha256").update(m[1]).digest("hex").slice(0, 12));
+    mkdirSync(join(out, folder), { recursive: true });
+    const code = await o.packAgent(m[1], m[2], resolve(m[3]), join(out, folder));
+    if (code !== 0) throw new OffboardUsage(`the package of ${m[1]} was not made (asp pack exited ${code}): fix it and run the export again`);
+    packaged.push({ did: m[1], runtime: m[2], folder });
+  }
   const root = sha(records.map((r) => r.id).join("\n"));
-  const manifest = { version: 1, organisation: f.org, exported_at: o.now(), identities: dids, records: records.length, root, run_logs: runLogs, keys_handed_over: keys, fleets: await o.log.log.fleetsOf(f.org), retention: RETENTION, note: "Records are in the log's own format, in log order; verify checks every signature and chain. Packages are not part of this export; asp pack --agent <did> makes one." };
+  const manifest = { version: 1, organisation: f.org, exported_at: o.now(), identities: dids, records: records.length, root, run_logs: runLogs, keys_handed_over: keys, packages: packaged, fleets: await o.log.log.fleetsOf(f.org), retention: RETENTION, note: "Records are in the log's own format, in log order; verify checks every signature and chain. A package is in the export for each agent named with --pack (asp pack makes it); the others stay with their folders." };
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2));
   o.io.out(`exported ${records.length} records of ${dids.length} identit${dids.length === 1 ? "y" : "ies"} (${f.org} and the agents it sponsors) to ${out}; ${runLogs} run log${runLogs === 1 ? "" : "s"}; ${keys ? `${keys} key${keys === 1 ? "" : "s"} handed over in ${join(out, "keys")}` : "no keys (add --keys to hand them over)"}; root ${root}`);
   return 0;
