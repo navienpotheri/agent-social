@@ -3258,6 +3258,11 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
         statement: async () => { const locks = await local.log.bankLocksOf(by); const balance = await local.log.balance(by); const page = await local.log.bankPage(); const owed = page.lines.filter((l) => l.borrower === by && (l.status === "drawn" || l.status === "owing")).reduce((n, l) => n + l.owed, 0); return `balance ${balance}; owed to the Bank ${owed}; locked in bonds ${locks.reduce((n, l) => n + l.bond, 0)}${locks.length ? ` (${locks.map((l) => `${l.contract.slice(7, 19)}: ${l.bond}`).join(", ")})` : ""}`; },
       },
+      market: {
+        jobs: () => marketJobsText(local, by),
+        counts: (contract: string) => marketCountsText(local, contract).catch((e: Error) => `Could not say: ${e.message}`),
+        ...(agentSigner ? { bid: async (posting: string, offer: string) => { try { const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "bid", posting, offer }, issued_at: now() }, agentSigner!); const res = await local.append(record); return `Bid ${res.id} recorded on ${posting} (log seq ${res.seq}).`; } catch (e) { return `The log refused the bid: ${(e as Error).message}`; } } } : {}),
+      },
       note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
       academy: {
@@ -5041,6 +5046,32 @@ async function creditsBalance(home: string, did: string | undefined, io: Io): Pr
 }
 
 /** The full chain for a contract, in order, with each record's short type for convenience. */
+/** The open jobs for an agent, eligible ones first, as text (the agent's market_jobs tool; DK1454). */
+async function marketJobsText(local: Awaited<ReturnType<typeof openLog>>, agent: string): Promise<string> {
+  const rows = await local.log.marketBoard(agent);
+  if (!rows.length) return "No open postings on the board right now.";
+  const eligible = rows.filter((r) => r.forAgent?.eligible).length;
+  const out = [`${rows.length} open posting(s), ${eligible} you may take:`];
+  for (const r of rows.slice(0, 15)) {
+    out.push(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}`);
+    if (r.forAgent) out.push(`  for you: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
+  }
+  if (rows.length > 15) out.push(`... and ${rows.length - 15} more (asp market board lists them all).`);
+  return out.join("\n");
+}
+
+/** Whether a job counts for the performer's standing, and why not, as text (market counts; the agent's market_counts tool). */
+async function marketCountsText(local: Awaited<ReturnType<typeof openLog>>, contract: string): Promise<string> {
+  const c = await local.log.get(contract);
+  if (!c || c.record.type !== "asp.contract/v0.2") throw new UsageError(`${contract} is not a contract in the log`);
+  const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
+  const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
+  const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
+  const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+  const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
+  return `${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`;
+}
+
 async function marketChain(log: LogHandle["log"], contract: string) {
   const records = await log.chain(contract);
   return records.map((s) => ({ ...s, kind: s.record.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }));
@@ -5763,14 +5794,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   }
   if (sub === "counts") {
     const contract = rest[0] ?? need("contract");
-    const c = await local.log.get(contract);
-    if (!c) throw new UsageError(`${contract} is not in the log`);
-    const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
-    const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
-    const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
-    const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
-    const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
-    io.out(`${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`);
+    io.out(await marketCountsText(local, contract));
     return 0;
   }
 

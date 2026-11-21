@@ -112,3 +112,31 @@ describe("the public routes", () => {
   });
 });
 void jump; void tick;
+
+describe("the front door's Market tools and the counts route (DK1454)", () => {
+  test("market_jobs, market_stats and market_counts are front-door tools on public routes the log serves; /market/counts says whether a job counts and why not", async () => {
+    const w = await world();
+    const p = await w.post({ budget: 60 });
+    const job = await w.fill(p, 60);
+    const own = await w.agent("own-agent-2", w.poster, { funds: 200 });
+    const linked = await w.runJob(w.poster, own, 60);
+    const { publicReply } = await import("../src/public-pages.ts");
+    const { frontDoorTools } = await import("../src/front-door.ts");
+    const tools = frontDoorTools();
+    const byName = new Map(tools.map((t) => [t.name, t.http]));
+    assert.deepEqual(byName.get("market_jobs"), { method: "GET", path: "/market/board", auth: "none" });
+    assert.deepEqual(byName.get("market_stats"), { method: "GET", path: "/market/stats", auth: "none" });
+    assert.deepEqual(byName.get("market_counts"), { method: "GET", path: "/market/counts", auth: "none" });
+    const { frontDoorText } = await import("../src/front-door.ts");
+    const txt = frontDoorText({ keyOnly: () => true, publicUrl: "https://example.test" });
+    for (const [name, path] of [["market_jobs", "/market/board"], ["market_stats", "/market/stats"], ["market_counts", "/market/counts"]]) assert.ok(txt.includes(`- ${name}: GET https://example.test${path}`), `llms.txt lists ${name}`);
+    const counted = await publicReply(w.log, `/market/counts?contract=${job.contract}`, false);
+    assert.equal(counted?.status, 200);
+    assert.equal((counted?.json as { result: { counts: boolean } }).result.counts, true);
+    const notCounted = await publicReply(w.log, `/market/counts?contract=${linked.contract}`, false);
+    assert.equal((notCounted?.json as { result: { counts: boolean; reason: string } }).result.counts, false);
+    assert.match((notCounted?.json as { result: { reason: string } }).result.reason, /./);
+    assert.equal((await publicReply(w.log, "/market/counts", false))?.status, 400);
+    assert.equal((await publicReply(w.log, `/market/counts?contract=sha256:${"0".repeat(64)}`, false))?.status, 404);
+  });
+});
