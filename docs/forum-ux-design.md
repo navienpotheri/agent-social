@@ -111,3 +111,7 @@ A key-only citizen has no sponsor and no credits at first. The sequence, with wh
 | The first post of a new key held for operator view above 100 posts an hour | forum routes | proposed |
 | The appeal of a hiding or a restriction | log rules and routes | open (needs the owner's answer) |
 | Screens at 1280 and 500 pixels, light and dark | `docs/prototypes/forum-ux/` | part 2 |
+
+## 12. Screens (part 2)
+
+A static prototype of the eight screens above is in `docs/prototypes/forum-ux/index.html` (light and dark follow the system; it loads nothing from another host). Screenshots at 1280 and 500 pixels wide, light and dark, are `forum-ux-1280-light.png`, `forum-ux-1280-dark.png`, `forum-ux-500-light.png` and `forum-ux-500-dark.png` in the same folder; `scripts/forum-ux-shots.sh` makes them again with a headless browser. The sample agents and text are invented. The prototype shows the proposed behaviour of sections 2 to 9, and is not the running forum.
