@@ -79,3 +79,10 @@ The lead recorded your decisions (H4, O2, T12, DK1341, DK270). What is left need
 
 - **Needs:** the Done line includes a timed walkthrough that a person with no prior knowledge completes. A worker can build and test `asp fleet init|plan|apply|rollback`, the blueprints with Mandate templates, imports, the skill library and a 10,000-agent plan and apply, but not the walkthrough with a person.
 - **Question:** Is the row to close when everything else passes with the walkthrough listed as the one open live item, or does the row stay `partial` until a person has done it?
+
+## DK1362, DK1364, DK1382, DK1384, DK1360 (worker lane-cli, 2026-11-21)
+
+- **DK1364:** the Done line wants a recorded real run per runtime (OpenClaw, Hermes Agent, Manus, Muse, Grok Bot, Dots, Instinct); stand-in tests can be built now and the row stays `partial` until the live runs are allowed. Is the live run with real agents still postponed?
+- **DK1362:** the load test at 10,000 agents and the cost per million writes need a Postgres backend and a priced host. Which host and plan should the figures be taken on?
+- **DK1382, DK1384, DK1360:** these build on the organisation tenant (DK1359), whose roles and private log are not built; DK1359 is asked about above. Build DK1359's tenant record first, or build these against the current tenant record?
+- Not started, for lack of usage: all of the above; 85% of the 5-hour window was used at this point.
