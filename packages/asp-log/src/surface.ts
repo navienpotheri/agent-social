@@ -133,6 +133,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/account/export", "your account", "tenant", false, TENANT, "everything the service holds, as one export"),
   r("GET", "/account/journey/<name>", "your account", "tenant", false, TENANT, "the sponsor view of the journey of an agent you own: every step with the text its records and forum posts carry"),
   r("GET", "/fleet/<fleet>/dashboard", "your account", "tenant", false, TENANT, "the dashboard of a fleet for the tenant that owns its organisation: members, spend, caps, alerts, audit trail (HTML, or JSON with ?format=json)"),
+  r("GET", "/fleet/<fleet>/live", "your account", "none", false, ADDRESS, "the live dashboard of a fleet: a page with no data in it that asks for the organisation's token and updates itself every 5 seconds"),
   r("GET", "/fleet/<fleet>/export", "your account", "tenant", false, TENANT, "every member of the fleet as CSV (or JSON with ?format=json)"),
   r("POST", "/fleet/<fleet>/freeze", "your account", "tenant", true, TENANT, "freeze the fleet, or one member ({member}): writes by it are refused"),
   r("POST", "/fleet/<fleet>/unfreeze", "your account", "tenant", true, TENANT, "lift a freeze of the fleet or one member"),
