@@ -6045,7 +6045,7 @@
   {
    "id": "DK1714",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Breach response is not tested end to end. Pieces exist (the quarantine path, the signed Clinic record, the incident runbook DK1341, the city-wide emergency stop GV6 as a partial, the alert mail E10),…",
    "bucket": "must",
    "hours": 6,

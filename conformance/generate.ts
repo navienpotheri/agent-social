@@ -1504,6 +1504,24 @@ const worldRules = [
   sv("run_halt_no_contract", "run_halt", (({ contract: _c, ...r }) => r)(haltBody()), false);
   sv("run_halt_zero_count", "run_halt", haltBody({ count: 0 }), false);
   sv("run_halt_carries_arguments", "run_halt", haltBody({ arguments: { cmd: "rm" } }), false);
+  // ---------- the incident record (spec-deltas S1426): schema cases ----------
+  const incBody = (over: Record<string, unknown> = {}) => ({ agent: "did:web:example.com:agents:coder-7", cause: "exfiltration", summary: "the agent tried to send a secret to an outside host", detected_at: "2026-11-21T10:00:00Z", detection: "sha256:" + "3".repeat(64), steps: [{ step: "quarantine", ref: "sha256:" + "4".repeat(64), at: "2026-11-21T10:00:01Z" }, { step: "alert_sponsor" }, { step: "restitution_opened" }], restitution: { open: true, remedy: "suspension" }, ...over });
+  sv("valid_incident", "incident", incBody(), true);
+  sv("valid_incident_node", "incident", incBody({ fleet: "did:web:example.com:orgs:acme:fleets:coders", node: "platform", cause: "loop" }), true);
+  sv("incident_no_steps", "incident", incBody({ steps: [] }), false);
+  sv("incident_unknown_cause", "incident", incBody({ cause: "bad luck" }), false);
+  sv("incident_unknown_step", "incident", incBody({ steps: [{ step: "shrug" }] }), false);
+  sv("incident_credit_restitution", "incident", incBody({ restitution: { open: true, remedy: "credits" } }), false);
+  sv("incident_no_detected_at", "incident", (({ detected_at: _d, ...r }) => r)(incBody()), false);
+  sv("valid_run_halt_breach", "run_halt", { contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "breach", detail: "the node was frozen by an incident", node: "platform" }, true);
+  // ---------- the key handover (spec-deltas S1427): schema cases ----------
+  const hoBody = (over: Record<string, unknown> = {}) => ({ old: "did:key:z6MkoldoldoldoldoldoldoldoldoldoldoldoldoldoldOLD", new: "did:key:z6MknewnewnewnewnewnewnewnewnewnewnewnewnewnewNEW", ...over });
+  sv("valid_key_handover", "key_handover", hoBody(), true);
+  sv("valid_key_handover_reason", "key_handover", hoBody({ reason: "compromise_suspected" }), true);
+  sv("key_handover_no_new", "key_handover", (({ new: _n, ...r }) => r)(hoBody()), false);
+  sv("key_handover_no_old", "key_handover", (({ old: _o, ...r }) => r)(hoBody()), false);
+  sv("key_handover_unknown_reason", "key_handover", hoBody({ reason: "bored" }), false);
+  sv("key_handover_carries_a_key", "key_handover", hoBody({ new_key: "abc" }), false);
   sv("valid_fleet_move", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "platform" }, true);
   sv("valid_fleet_move_with_reason", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7", to: "root", reason: "the team was closed" }, true);
   sv("fleet_move_no_target", "fleet_move", { fleet: fl, member: "did:web:example.com:agents:coder-7" }, false);

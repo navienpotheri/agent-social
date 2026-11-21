@@ -25,7 +25,8 @@
         "token_cap",
         "near_repeat",
         "cycle",
-        "fleet_spend"
+        "fleet_spend",
+        "breach"
       ]
     },
     "detail": {

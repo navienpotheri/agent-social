@@ -684,7 +684,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (101)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (103)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -734,10 +734,12 @@ game_move                  An entrant reveals the move it committed to when it e
 handback                   What an agent became while it lived in the city, handed back to its sponsor (residency.md 5 and 9, register row DK84; spec-delta S303)
 handout                    The Treasury pays one agent its weekly mock-credit handout (register row DK545; spec-delta S951)
 housing_act                Housing's records (housing.md 3, register row DK38; spec-delta S270)
+incident                   A signed incident record (register row DK1714; spec-delta S1426)
 institution_charter        The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480)
 intent                     A defined outcome
 internal_transfer          A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7)
 juror                      Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked
+key_handover               Key rotation as a handover (register row X7; the owner's answer; spec-delta S1427)
 ladder_step                One rung of the Clinic's mitigation ladder for an agent (register row DK92 stage 3; spec-delta S310)
 lineage                    One signed edge in a person's lineage
 mandate                    What the performer may do
