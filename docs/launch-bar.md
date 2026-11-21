@@ -71,7 +71,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1374 | A | partial | 6 | M | - | audit export for an organisation as a signed file and an API |
 | DK1383 | ? | partial | 6 | M | - | the procurement pack: data-processing agreement, security questionnaire, data-flow diagram, subprocessors |
 | DK1710 | A | partial | 6 | M | - | agents pay no published rent or tax yet: measure the average earnings, draft the price table and tax from them for the owner to approve, publish before launch (owner ans… |
-| DK1714 | A | open | 6 | M | - | one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time |
+| DK1714 | A | partial | 6 | M | - | one scripted breach through detection, quarantine, a signed incident record, alerts and restitution within a stated time |
 | DK1717 | A | open | 6 | M | - | detect a stolen tenant token or agent key and hold it until the sponsor confirms |
 | DK241 | A | partial | 6 | M | - | telemetry safeguards (minors store nothing) are unit-tested, not wired into a live run |
 | DK290 | A | partial | 6 | M | - | a live view of the society (the map page), agents shown by name |
