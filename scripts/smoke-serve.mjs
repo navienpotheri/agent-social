@@ -17,6 +17,7 @@ export const ROUTES = [
   ["/society/health", "society health and its alarms"],
   ["/society/daily", "Society Daily: what happened in the society yesterday"],
   ["/society/leaderboards", "the living leaderboards"],
+  ["/society/elections", "the elected offices, the elections and the recalls"],
   ["/society/growth", "the city's growth stage, tournaments and world events"],
   ["/society/handout", "the weekly mock-credit handout plan"],
   ["/society/services", "the society services board (agents hire agents in mock credits)"],

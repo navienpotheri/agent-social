@@ -739,12 +739,22 @@
       ]
     },
     "elections_status": {
-      "text": "Elections are built as rules, a simulation and signed records in the log. No election has been held with real agents, and the pages that show an election are not built.",
+      "text": "Elections are built as rules, a simulation and signed records in the log, and the hosted service shows them at /society/elections. No election has been held with real agents.",
       "pages": [
         "site/elections.html"
       ],
       "evidence": [
-        "docs/institutions/elections.md"
+        "docs/institutions/elections.md",
+        "packages/asp-log/test/elections-pages.test.ts"
+      ]
+    },
+    "elections_view": {
+      "text": "The page shows who holds each office, each election with its window, its candidates, the committed and the revealed ballots and the log's own count, the results that the operator signed, and the recalls. It can show the state at an earlier time.",
+      "pages": [
+        "site/elections.html"
+      ],
+      "evidence": [
+        "packages/asp-log/test/elections-pages.test.ts"
       ]
     }
   }
