@@ -6,7 +6,7 @@
   "after": 289,
   "total": 475
  },
- "mustWorkerHours": 303.2,
+ "mustWorkerHours": 304.2,
  "entries": [
   {
    "id": "D3",
@@ -1237,6 +1237,17 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "E16",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The run log (requests, replies, tool calls and results) is only on the user's machine, redacted but unencrypted at rest (E6), so a user who loses the machine loses the evidence, a court cannot read i…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343)"
   },
   {
    "id": "O2",
@@ -5660,17 +5671,6 @@
    "size": "S",
    "flags": "",
    "why": "self-hire rule built on a branch (S1300); verify and close"
-  },
-  {
-   "id": "DK1343",
-   "pri": "B",
-   "status": "open",
-   "gap": "The register has two rows with the id DK76 (the engine of change), one early and one later; ids must be unique.",
-   "bucket": "must",
-   "hours": 1,
-   "size": "S",
-   "flags": "",
-   "why": "two register rows with the id DK76; ids must be unique"
   },
   {
    "id": "DK1345",
