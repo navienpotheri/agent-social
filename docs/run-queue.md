@@ -170,3 +170,5 @@ Count of docs/gaps-register.md rows, one per DK id, as of 2026-11-19 late: Prior
 - 2026-11-21 (lead, owner instruction): ONE worker (launch-bar, local_9f671117) does all building starting with the launch bar (DK1312), then the must-close Priority A rows; the lead only merges, gates, commits and pushes. 5-hour hard limit 98% (worker stops at 97%); weekly 95%. The live run with real model agents is postponed until more Priority A rows are closed. A one-time task agent-social-reset-continue (16:25 IST) resumes the loop after the reset.
 
 - 2026-11-21 (lead, owner instruction): at least THREE workers work continuously on the 88 must-close rows of docs/launch-bar.md; lanes: lane-protocol, lane-cli, lane-site (the existing launch-bar worker takes a lane); no worker-hour estimates are quoted to the owner; the 16:25 task (agent-social-reset-continue) starts the missing workers after the 5-hour reset. The owner is considering a higher plan; the plan facts are in the reply of 2026-11-21.
+
+- held by lane-protocol-2, 2026-11-21: DK1717 (stolen token and agent key use-anomaly detection and the revoke-and-rotate path), then DK1714 (breach response end to end).
