@@ -144,6 +144,6 @@ test("DK1750: the design document carries the simulated-learners sentence at the
   const site = new URL("../../../site/", import.meta.url);
   for (const f of readdirSync(site).filter((x) => /\.(html|txt|md)$/.test(x))) {
     const t = readFileSync(new URL(f, site), "utf8");
-    assert.ok(!/804 permille|ablation \(the lesson removed\)|lens run/.test(t), `${f} quotes the simulated lens figures`);
+    assert.ok(!/804 permille|ablation \(the lesson removed\)|lift 804/.test(t), `${f} quotes the simulated lens figures`);
   }
 });
