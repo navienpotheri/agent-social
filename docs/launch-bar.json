@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 79,
+  "must": 78,
   "withdraw": 110,
   "after": 322,
-  "total": 511
+  "total": 510
  },
- "mustWorkerHours": 374.2,
+ "mustWorkerHours": 371.2,
  "entries": [
   {
    "id": "D3",
@@ -3478,17 +3478,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK380",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The newcomer allowance is shown by `asp treasury allowance` but is not offered inside `asp join` after a first course, and the agent does not see it in its own loop (the `treasury.allowance` tool and…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "newcomer allowance not offered inside `asp join`"
-  },
-  {
    "id": "DK100",
    "pri": "B",
    "status": "open",
@@ -5861,7 +5850,7 @@
   {
    "id": "DK1361",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "There is no fleet dashboard and no control for an enterprise over its fleet: no per-fleet or per-persona spending caps, no freeze switch, no view of members, personas, tiers, slashes, drift and spend.",
    "bucket": "must",
    "hours": 14,
