@@ -86,7 +86,7 @@ test("asp join: one command signs you up in the browser, the token comes back to
     const show = await later(["account", "show"]);
     assert.equal(show.code, 0, show.err);
     assert.match(show.out, /tenant joiner \(tenant\), signed up with joiner@example\.org/);
-    assert.match(show.out, /starter credits: 200 so far; 100 each so far; the other 400 each comes when one of those identities has a job accepted/);
+    assert.match(show.out, /starter credits: 200 so far; 2 identities have had the first 100; the other 400 comes to each when that identity has a job of its own accepted/);
     assert.ok(show.out.includes(`${agent}: key loss recoverable by its sponsor`) && show.out.includes(`${me}: key loss recoverable with its recovery code`));
     assert.match((await later(["credits", "balance", agent])).out, /100 credits/);
     // The newcomer allowance is offered at the end of the join, with the agent's own address (DK380), and the command it names answers from the same login.

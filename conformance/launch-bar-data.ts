@@ -64,6 +64,7 @@ export const MUST: Record<string, Must> = {
   DK76: [16, "", "engine of change: the halt record and kill switch, the daily tick on the service (the safety slice)"],
   DK79: [6, "D", "telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected"],
   DK1358: [8, "", "the related-party track record and the enterprise's choice of association with the society (owner: enterprise agents have standing)"],
+  DK1601: [12, "D", "the three approved pages (DK1348, DK1361, DK1367) were approved for now; a second design pass after the owner lists what is missing"],
   DK1359: [30, "", "enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner)"],
   DK1360: [8, "", "the enterprise data-sharing choice, shown before an enterprise joins"],
   DK1361: [14, "", "the fleet dashboard with caps and a freeze switch"],
