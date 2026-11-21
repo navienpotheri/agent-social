@@ -2197,10 +2197,11 @@ async function signupCmd(v: Values, io: Io): Promise<number> {
 }
 
 /**
- * asp telemetry [status|off|on|list|put|delete]: the choice about the separate store that keeps an agent's trajectories, messages and free text (owner answer TM1, row DK651). On by default; `off` is one step;
+ * asp telemetry [status|list|put|delete]: the separate store that keeps an agent's trajectories, messages and free text (owner answer TM1, row DK651). Always on for an adult tenant (DK1303: `off` and `on` refuse with the reason);
  * `delete` removes the text and keeps the hash. Needs the saved login (asp join or asp enrol).
  */
 async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub === "off" || sub === "on") throw new UsageError("telemetry is not optional for an agent (owner decision, DK1303): there is no off switch. You can see what is stored with asp telemetry list and delete it with asp telemetry delete --all (the hash is kept)");
   const service = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
   if (!service || !token) throw new UsageError("telemetry is a choice about your account on a service: run asp join or asp enrol first (or set ASP_LOG_URL and ASP_LOG_TOKEN)");
   const base = service.endsWith("/") ? service : service + "/";
@@ -2212,8 +2213,6 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
   };
   const what = sub ?? "status";
   if (what === "status") { const j = await call("telemetry"); io.out(j.say); io.out(`stored: ${j.stored} item(s); deleted (hash kept): ${j.deleted}`); io.out(j.notice); return 0; }
-  if (what === "off") { io.out((await call("telemetry/opt-out", "POST", { delete: !!v.delete })).say); return 0; }
-  if (what === "on") { io.out((await call("telemetry/opt-in", "POST", {})).say); return 0; }
   if (what === "list") { for (const e of (await call("telemetry/content")).entries) io.out(`${e.hash}  ${e.kind}  ${e.at}  ${e.bytes} bytes${e.deletedAt ? `  deleted ${e.deletedAt}` : ""}`); return 0; }
   if (what === "delete") {
     if (v.all) { io.out((await call("telemetry/delete-all", "POST", {})).say); return 0; }
@@ -2227,7 +2226,7 @@ async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Prom
     io.out(`${j.stored ? "stored" : "already stored"}: ${j.hash}`);
     return 0;
   }
-  throw new UsageError("asp telemetry [status|off [--delete]|on|list|put|delete --all|--hash <h>]");
+  throw new UsageError("asp telemetry [status|list|put|delete --all|--hash <h>]");
 }
 
 /**

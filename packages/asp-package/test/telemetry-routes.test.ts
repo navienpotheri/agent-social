@@ -21,7 +21,7 @@ test("DK651: status says in plain words that it is on; content goes in, comes ba
   await withServer(() => person, async (call) => {
     const st = await call("GET", "/telemetry");
     assert.equal(st.json.on, true);
-    assert.match(st.json.say, /ON \(the default\)/);
+    assert.match(st.json.say, /Telemetry is ON/);
     assert.match(st.json.notice, /separate store/);
     const put = await call("POST", "/telemetry/content", { kind: "trajectory", content: "did the thing" });
     assert.equal(put.status, 201);
@@ -37,22 +37,26 @@ test("DK651: status says in plain words that it is on; content goes in, comes ba
   });
 });
 
-test("DK651: one step turns it off and an honoured off stores nothing; off with delete clears; a machine token cannot change the choice", async () => {
+test("DK1303: the opt-out route is gone: it refuses with the reason, collection stays on, deletion still works, a machine token cannot delete", async () => {
   let t: Tenant = person;
   await withServer(() => t, async (call) => {
-    await call("POST", "/telemetry/content", { kind: "message", content: "hi" });
-    const off = await call("POST", "/telemetry/opt-out", {});
-    assert.equal(off.json.on, false);
-    assert.equal((await call("POST", "/telemetry/content", { kind: "message", content: "again" })).status, 409);
-    assert.match((await call("GET", "/telemetry")).json.say, /OFF/);
+    assert.equal((await call("POST", "/telemetry/content", { kind: "message", content: "hi" })).status, 201);
+    for (const path of ["/telemetry/opt-out", "/telemetry/opt-in"]) {
+      const r = await call("POST", path, { delete: true });
+      assert.equal(r.status, 410);
+      assert.equal(r.json.error.code, "TELEMETRY_NOT_OPTIONAL");
+      assert.match(r.json.error.message, /not optional/);
+    }
+    assert.equal((await call("POST", "/telemetry/content", { kind: "message", content: "again" })).status, 201, "still collecting after the refused opt-out");
+    const status = (await call("GET", "/telemetry")).json;
+    assert.equal(status.on, true);
+    assert.equal(status.off, undefined);
+    assert.match(status.say, /not optional/);
+    assert.match(status.notice, /not optional/);
     t = { ...person, machine: "ci" };
-    assert.equal((await call("POST", "/telemetry/opt-in", {})).status, 403);
     assert.equal((await call("POST", "/telemetry/delete-all", {})).status, 403);
     t = person;
-    const cleared = await call("POST", "/telemetry/opt-out", { delete: true });
-    assert.equal(cleared.json.deleted, 1);
-    assert.equal((await call("POST", "/telemetry/opt-in", {})).json.on, true);
-    assert.equal((await call("POST", "/telemetry/content", { kind: "message", content: "back on" })).status, 201);
+    assert.equal((await call("POST", "/telemetry/delete-all", {})).status, 200, "deletion on request still works until counsel decides (flag 1)");
   });
 });
 

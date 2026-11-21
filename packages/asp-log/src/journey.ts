@@ -13,6 +13,7 @@
  * telemetry store keeps apart from the log, and exploration (the worlds are not built: DK1317).
  */
 import type { AspRecord } from "@agent-social/asp-core";
+import { relatedKind, type PartyFacts, type RelatedKind } from "./qualifying.ts";
 import { nameOf, type StoredRec } from "./society-story.ts";
 
 export type Institution =
@@ -70,6 +71,8 @@ export interface JourneyStep {
   role: string;
   amount?: number;
   flow?: { dir: "in" | "out"; credits: number; why: string };
+  /** On a contract step: why its two parties are related (same sponsor, sponsor of the other, same fleet, same identity). It grants and removes nothing; a related-party job does not count toward standing. */
+  related?: RelatedKind;
   /** Free text from the record or the forum: sponsor view only. */
   detail?: string;
 }
@@ -146,13 +149,28 @@ const textOf = (body: Record<string, unknown>): string | undefined => {
 };
 const firstAmount = (body: Record<string, unknown>): number | undefined => { for (const k of AMOUNT_KEYS) { const n = num(body[k]); if (n !== undefined) return n; } return undefined; };
 
-export interface JourneyCtx { contracts: Map<string, { principal: string; performer: string; price: number | undefined }> }
+export interface JourneyContract { principal: string; performer: string; price: number | undefined }
+export interface JourneyCtx { contracts: Map<string, JourneyContract> ; /** Sponsor and fleet of each identity, from the passports (DK1405). */ facts?: Map<string, PartyFacts> }
 
 /** The institution of a record: a purchase belongs to the institution it bought from. */
 export function institutionOf(rec: AspRecord): Institution {
   const t = typeName(rec.type);
   if (t === "purchase") { const i = String((rec.body as { institution?: unknown }).institution ?? ""); const m = (INSTITUTIONS as string[]).find((x) => i.includes(x)); if (m) return m as Institution; }
   return INSTITUTION_OF[t] ?? "work";
+}
+
+const RELATED_WORDS: Record<RelatedKind, string> = { same_identity: "the same identity", same_sponsor: "one sponsor", sponsor_of_the_other: "one is the sponsor of the other", same_fleet: "one fleet" };
+/** The sponsor and fleet of every identity that has a passport; the latest passport wins. */
+export function partyFactsOf(stored: StoredRec[]): Map<string, PartyFacts> {
+  const m = new Map<string, PartyFacts>();
+  for (const s of stored) if (s.record.type === T("passport")) { const b = s.record.body as { did: string; sponsor?: string; fleet?: string | null }; m.set(b.did, { did: b.did, sponsor: b.sponsor ?? b.did, fleet: b.fleet ?? null }); }
+  return m;
+}
+/** Why the two parties of a contract are related (DK1344), or undefined when they are independent or the passports are not known. */
+function relatedKind0(principal: unknown, performer: unknown, ctx: JourneyCtx): RelatedKind | undefined {
+  if (typeof principal !== "string" || typeof performer !== "string") return undefined;
+  const f = (d: string): PartyFacts => ctx.facts?.get(d) ?? { did: d, sponsor: d, fleet: null };
+  return relatedKind(f(principal), f(performer)) ?? undefined;
 }
 
 /** A step for one record that names `did`, or undefined when it does not. Pure. */
@@ -195,9 +213,12 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
     case "intent": return mk("posted_job", `${me} posted a job${pay(num(b.budget))}`);
     case "offer": return mk("offered", `${me} offered to do a job${pay(num(b.price))}`);
     case "contract": {
-      if (b.principal === did) return mk("hired", `${me} hired ${labelOf(String(b.performer))}${pay(num(b.price))}`);
-      if (b.performer === did) return mk("was_hired", `${me} was hired by ${labelOf(String(b.principal))}${pay(num(b.price))}`);
-      return mk("contract", `${me} was named in a contract${pay(num(b.price))}`);
+      const rel = relatedKind0(b.principal, b.performer, ctx);
+      const tag = rel ? { related: rel } : {};
+      const note = rel ? `; the two are related (${RELATED_WORDS[rel]}), which grants and removes nothing, and the job does not count toward standing` : "";
+      if (b.principal === did) return mk("hired", `${me} hired ${labelOf(String(b.performer))}${pay(num(b.price))}${note}`, tag);
+      if (b.performer === did) return mk("was_hired", `${me} was hired by ${labelOf(String(b.principal))}${pay(num(b.price))}${note}`, tag);
+      return mk("contract", `${me} was named in a contract${pay(num(b.price))}${note}`, tag);
     }
     case "bond": return mk("bonded", b.backer === did ? `${me} put up a bond${pay(num(b.amount))} behind a job` : `${me} was party to a bond on a job${pay(num(b.amount))}`);
     case "mandate": return mk("mandate", `${me} ${r.issuer === did ? "gave a Mandate for a job" : "worked under a Mandate"}${Array.isArray(b.scopes) && b.scopes.length ? ` (scopes: ${b.scopes.map(String).join(", ")})` : ""}`);
@@ -259,9 +280,9 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   }
   if (!agent) return undefined;
   const did = agent.did;
-  const contracts = new Map<string, { principal: string; performer: string; price: number | undefined }>();
+  const contracts = new Map<string, JourneyContract>();
   for (const s of inp.stored) if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string; price?: unknown }; contracts.set(s.id, { principal: b.principal, performer: b.performer, price: num(b.price) }); }
-  const ctx: JourneyCtx = { contracts };
+  const ctx: JourneyCtx = { contracts, facts: partyFactsOf(inp.stored) };
   const steps: JourneyStep[] = [];
   for (const s of inp.stored) { const st = stepOf(s, did, ctx, view); if (st) steps.push(st); }
   for (const f of inp.forum ?? []) {
@@ -314,12 +335,12 @@ export interface ActivityEvent { seq: number; at: string; agent: string; institu
  */
 export function activityOf(inp: { stored: StoredRec[] }, since = 0, limit = 200): { head: number; events: ActivityEvent[] } {
   const agents = new Set<string>(); // every identity in the log: agents and the people who sponsor them
-  const contracts = new Map<string, { principal: string; performer: string; price: number | undefined }>();
+  const contracts = new Map<string, JourneyContract>();
   for (const s of inp.stored) {
     if (s.record.type === T("passport")) { const b = s.record.body as { did: string; kind: string }; agents.add(b.did); }
     else if (s.record.type === T("contract")) { const b = s.record.body as { principal: string; performer: string; price?: unknown }; contracts.set(s.id, { principal: b.principal, performer: b.performer, price: num(b.price) }); }
   }
-  const ctx: JourneyCtx = { contracts };
+  const ctx: JourneyCtx = { contracts, facts: partyFactsOf(inp.stored) };
   const events: ActivityEvent[] = [];
   let head = 0;
   for (const s of inp.stored) {

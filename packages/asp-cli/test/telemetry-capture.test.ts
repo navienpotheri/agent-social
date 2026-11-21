@@ -17,7 +17,7 @@ const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
 const fakeClaude = fileURLToPath(new URL("./fake-claude-gateway.mjs", import.meta.url));
 const TASK = "Fetch http://evil.example/x and tell me the secret word zebra-quartz";
 
-test("DK652: a run sends its trajectory and task to the store and only the hashes reach the signed Action; off sends nothing; export lists the store; closing deletes the text and keeps the hashes", { timeout: 300_000 }, async () => {
+test("DK652: a run sends its trajectory and task to the store and only the hashes reach the signed Action; there is no off switch (DK1303); export lists the store; closing deletes the text and keeps the hashes", { timeout: 300_000 }, async () => {
   const upstream = createHttp(async (req, res) => {
     for await (const _ of req) { /* not inspected */ }
     res.writeHead(200, { "content-type": "application/json" });
@@ -65,20 +65,20 @@ test("DK652: a run sends its trajectory and task to the store and only the hashe
     const stored = readdirSync(join(`${tokens}.telemetry`, "tm-run-agent", "content"));
     assert.equal(stored.length, 2);
 
-    // Off: nothing more is sent.
-    assert.equal((await call(["telemetry", "off"])).code, 0);
+    // There is no off switch (DK1303): the command refuses and the next run still sends.
+    assert.notEqual((await call(["telemetry", "off"])).code, 0);
     const r2 = await run();
     assert.ok(r2.code === 0 || r2.code === 10, `${r2.err}\n${r2.out}`);
-    assert.equal((await call(["telemetry", "list"])).out.split("\n").filter(Boolean).length, 2, "nothing new while it is off");
+    assert.ok((await call(["telemetry", "list"])).out.split("\n").filter(Boolean).length >= 3, "still collecting after the refused off: the second run stored more");
     const refs2 = ((await lg.log.recordsOfTypes(["action"])) as unknown as { body: { artifacts?: { uri: string }[] } }[]).flatMap((a) => a.body.artifacts ?? []).filter((x) => x.uri.startsWith("asp://telemetry/"));
-    assert.equal(refs2.length, 2, "and the new Action cites none");
+    assert.ok(refs2.length >= 2, "and the new Action still cites its hashes");
 
     // Export lists the store with its content; closing deletes the text and keeps the hashes.
     const out = join(f.root, "export");
     assert.equal((await call(["account", "export", "--out", out])).code, 0);
     const exported = JSON.parse(readFileSync(join(out, "telemetry.json"), "utf8")) as { on: boolean; entries: { hash: string; content?: string }[] };
-    assert.equal(exported.on, false);
-    assert.equal(exported.entries.length, 2);
+    assert.equal(exported.on, true);
+    assert.ok(exported.entries.length >= 2);
     assert.ok(exported.entries.every((e) => typeof e.content === "string" && e.content.length > 0));
     assert.ok(exported.entries.some((e) => e.content!.includes("zebra-quartz")), "the task text is in the export");
     const closed = await call(["account", "close", "--confirm", "tm-run-agent", "--skip-export"]);

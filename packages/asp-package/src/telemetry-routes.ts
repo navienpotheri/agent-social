@@ -1,7 +1,7 @@
 /**
  * The telemetry store's routes for a tenant (owner answer TM1; row DK651). All need the tenant's own token; a machine token may store content but not turn collection off or delete (those stay with the person).
  *   GET    /telemetry                 plain words: on or off, how much is stored, and the notice
- *   POST   /telemetry/opt-out         turn collection off in one step; { "delete": true } also deletes what is stored
+ *   POST   /telemetry/opt-out|opt-in  refused with 410 TELEMETRY_NOT_OPTIONAL (DK1303): there is no off switch
  *   POST   /telemetry/opt-in          turn it back on
  *   POST   /telemetry/content         { kind, content, did? } stores it unless off, and answers with the hash the signed log may carry
  *   GET    /telemetry/content         the list (hashes, kinds, dates; never the text)
@@ -33,16 +33,9 @@ export function telemetryRoutes(o: TelemetryRoutesOptions) {
     try {
       if (req.method === "GET" && url.pathname === "/telemetry") {
         const entries = o.store.list(t.name);
-        const off = o.store.optedOut(t.name);
-        return send(200, { ok: true, on: !off && !t.minor, off, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : off ? "Telemetry is OFF for you. Nothing new is stored." : "Telemetry is ON (the default). Turn it off with: asp telemetry off" });
+        return send(200, { ok: true, on: !t.minor, minor: !!t.minor, stored: entries.filter((e) => !e.deletedAt).length, deleted: entries.filter((e) => e.deletedAt).length, notice: TELEMETRY_NOTICE, say: t.minor ? "Nothing is stored for this tenant: it is held for a young person." : "Telemetry is ON. It is not optional for an agent; you can list what is stored and delete it (asp telemetry delete --all)." });
       }
-      if (req.method === "POST" && (url.pathname === "/telemetry/opt-out" || url.pathname === "/telemetry/opt-in")) {
-        if (!person) return fail(403, "FORBIDDEN", "a machine token cannot change the telemetry choice");
-        const b = await readBody(req);
-        const off = url.pathname.endsWith("opt-out");
-        const r = o.store.setOptOut(t.name, off, o.now(), b.delete === true);
-        return send(200, { ok: true, on: !off, deleted: r.deleted, say: off ? `Telemetry is OFF. ${r.deleted ? `${r.deleted} stored item(s) were deleted (their hashes are kept).` : "What is already stored stays until you delete it (asp telemetry delete --all)."}` : "Telemetry is ON." });
-      }
+      if (req.method === "POST" && (url.pathname === "/telemetry/opt-out" || url.pathname === "/telemetry/opt-in")) return fail(410, "TELEMETRY_NOT_OPTIONAL", "telemetry is not optional for an agent (owner decision, DK1303): there is no off switch; you can list what is stored and delete it with asp telemetry delete --all");
       if (req.method === "POST" && url.pathname === "/telemetry/content") {
         const b = await readBody(req);
         const r = o.store.put(t.name, b.kind, b.content, { ...(t.minor ? { minor: true } : {}), ...(typeof b.did === "string" ? { did: b.did.slice(0, 200) } : {}), at: o.now() });
