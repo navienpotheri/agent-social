@@ -211,8 +211,6 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
     ] });
   } else sections.push({ title: "How it ended", lines: [`Not ended yet: the job is ${f.state}.`] });
 
-  const spendAlerts = (o.runLog?.events ?? []).filter((e) => e.kind === "budget_alert").map((e) => (e.data as { percent?: number }).percent).filter((x): x is number => typeof x === "number");
-  const refusedByCap = (o.runLog?.events ?? []).some((e) => e.kind === "model_refused" && (e.data as { why?: string }).why === "token_cap");
   const check: string[] = [`Contract ${short(f.evidence.contractRecord)}${f.evidence.settlementRecord ? `, settlement ${short(f.evidence.settlementRecord)}` : ""}, last record ${short(f.evidence.lastRecord)} (${f.evidence.recordCount} records). Anyone can check these against the log.`];
   if (o.runLog) {
     check.push(o.runLog.ok
@@ -222,7 +220,6 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
       check.push(`${o.runLog.head.events - a.runLogCommittedEvents} event(s) at the end of the run log came after the last report the agent could record (a job that has ended takes no more reports), so the figures above may leave them out; the run log has them.`);
     }
     check.push(o.linkBase ? "Full run log (redacted, hash-chained): open the run page below, which has a download button; it asks for your dashboard sign-in." : `Full run log: kept only on the machine that ran the job, at ${o.runLog.path}. No page is hosted for it; run \`asp dashboard\` on that machine to read it.`);
-    if (spendAlerts.length) check.push(`Model-spend alerts: the run reached ${[...new Set(spendAlerts)].sort((x, y) => x - y).join(", ")} percent of its token ceiling${refusedByCap ? "; a model call was then refused, as the ceiling says" : ""}.`);
   } else check.push("No run log was kept for this job.");
   if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/#/job/${f.contract.id}`);
   sections.push({ title: "Check it", lines: check });

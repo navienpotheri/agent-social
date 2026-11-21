@@ -364,7 +364,7 @@ import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
 import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
 import { FoundUsage, foundCmd } from "./found.ts";
-import { ApprovalPile, Budgets, budgetWarnings, DEFAULT_DAILY_TOKENS, DEFAULT_RUN_TOKENS, OPERATOR_MAX_DAILY_TOKENS, OPERATOR_MAX_RUN_TOKENS } from "@agent-social/asp-package";
+import { ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
 import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
 import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
@@ -3411,9 +3411,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
   const standing = new Budgets(join(home, "budgets.json")).get(by);
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); const dailyTokens = n("daily-tokens") ?? standing.dailyTokens ?? DEFAULT_DAILY_TOKENS;
-    if (dailyTokens > OPERATOR_MAX_DAILY_TOKENS) throw new UsageError(`a daily token ceiling of ${dailyTokens} is above the ${OPERATOR_MAX_DAILY_TOKENS} the operator allows`);
-    return { tokens: dailyTokens, ...(standing.monthlyTokens !== undefined ? { monthTokens: standing.monthlyTokens } : {}), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...(standing.monthlyTokens !== undefined ? { monthTokens: standing.monthlyTokens } : {}), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
@@ -3568,15 +3566,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
     scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
-    // The run's token ceiling (DK1715): the smallest of the run's own flag, what is left of the day, the Mandate's per-run budget and the default; never above what the operator allows. Named in the alerts and the refusal.
-    ...((() => {
-      const flag = v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined;
-      if (flag !== undefined && flag > OPERATOR_MAX_RUN_TOKENS) throw new UsageError(`--token-cap ${flag} is above the ${OPERATOR_MAX_RUN_TOKENS} the operator allows for one run`);
-      const perRun = (mandateRecord?.record.body as { token_budget?: { per_run?: number } } | undefined)?.token_budget?.per_run;
-      const caps = ([[flag, "the run's --token-cap"], [wake.tokensLeft, "the day's token allowance"], [perRun, "the Mandate's token budget for one run"], [DEFAULT_RUN_TOKENS, "the default ceiling for one run"]] as [number | undefined, string][]).filter((c): c is [number, string] => c[0] !== undefined);
-      const [cap, source] = caps.reduce((a, b) => (b[0] < a[0] ? b : a));
-      return { tokenCap: cap, tokenCapSource: source, onBudgetAlert: (a: { percent: number; used: number; cap: number; source: string }) => io.err(`  budget   ${a.percent}% of ${a.source}: ${a.used} of ${a.cap} tokens${a.percent >= 100 ? "; the next model call is refused" : ""}`) };
-    })()),
+    ...((() => { const caps = [v["token-cap"] ? Math.trunc(Number(v["token-cap"])) : undefined, wake.tokensLeft].filter((x): x is number => x !== undefined); return caps.length ? { tokenCap: Math.min(...caps) } : {}; })()),
     onCall: (e) => {
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
       // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
@@ -5873,18 +5863,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1))) throw new UsageError("--loop-equivalent is 2 or more and --loop-depth is 1 or more"); return eq !== undefined || dp !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}) } } : {}; })()),
-      // The default model-spend ceilings (DK1715): a Mandate made without a token budget carries a per-run and a per-day ceiling, which the sponsor may lower or raise up to the operator's maxima.
-      ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); if (tr !== undefined && tr > OPERATOR_MAX_RUN_TOKENS) throw new UsageError(`--tokens-per-run ${tr} is above the ${OPERATOR_MAX_RUN_TOKENS} the operator allows`); if (td !== undefined && td > OPERATOR_MAX_DAILY_TOKENS) throw new UsageError(`--tokens-per-day ${td} is above the ${OPERATOR_MAX_DAILY_TOKENS} the operator allows`); const run = tr ?? DEFAULT_RUN_TOKENS, day = td ?? (tm !== undefined ? Math.min(DEFAULT_DAILY_TOKENS, tm) : DEFAULT_DAILY_TOKENS); return { token_budget: { per_run: run, ...(tm !== undefined ? { per_month: tm } : {}), per_day: day } }; })()),
+      ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); return td !== undefined || tr !== undefined || tm !== undefined ? { token_budget: { ...(tr !== undefined ? { per_run: tr } : {}), ...(tm !== undefined ? { per_month: tm } : {}), ...(td !== undefined ? { per_day: td } : {}) } } : {}; })()),
       ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
     const record = createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body, issued_at: now() }, signerFor(principal));
-    let res;
-    try { res = await local.append(record); } catch (e) {
-      // The default ceilings are above a ceiling the performer's fleet states: the fleet's own rule wins, and the Mandate is made without the defaults (the gateway still applies them at run time).
-      if (v["tokens-per-day"] || v["tokens-per-run"] || v["tokens-per-month"] || !/token_budget|ceiling|widen/i.test((e as Error).message)) throw e;
-      const { token_budget: _dropped, ...rest } = body as typeof body & { token_budget?: unknown };
-      res = await local.append(createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body: rest, issued_at: now() }, signerFor(principal)));
-    }
+    const res = await local.append(record);
     io.out(`mandate ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }

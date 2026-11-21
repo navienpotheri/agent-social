@@ -89,7 +89,7 @@ export { ANNOUNCED_MIN, HIDDEN_MIN, PROBE_RATE_PERMILLE, AWARE_GAP, REGRESSION_D
 export { LocalRawStore, redactTelemetryText, saltedHash, MAX_TEXT as TELEMETRY_MAX_TEXT } from "./telemetry-local.ts";
 export { runReadOnlyProbe, type ProbeProposition } from "./telemetry-probe.ts";
 export { adminRoutes, AdminAudit, setSuspension, setBlock, type AuditEntry, type AdminOptions } from "./admin-routes.ts";
-export { Budgets, budgetWarnings, monthProjection, newAlertLevels, ALERT_LEVELS, DEFAULT_WARN_PERCENT, DEFAULT_RUN_TOKENS, DEFAULT_DAILY_TOKENS, OPERATOR_MAX_RUN_TOKENS, OPERATOR_MAX_DAILY_TOKENS, type AgentBudget } from "./budget.ts";
+export { Budgets, budgetWarnings, monthProjection, DEFAULT_WARN_PERCENT, type AgentBudget } from "./budget.ts";
 export { DailyCeiling, type Limits as WakeLimits, type Ceiling as WakeCeiling } from "./daily-ceiling.ts";
 export { newMemoryKey, openPrivateScope, sealPrivateScope, type MemoryKey, type PrivateScope, type ScopePair } from "./private-memory.ts";
 export { renderSponsorReturn, sponsorReturn, type SponsorReturn } from "./sponsor-return.ts";

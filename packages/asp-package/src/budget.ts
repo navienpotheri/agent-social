@@ -8,26 +8,6 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 export interface AgentBudget { dailyTokens?: number; monthlyTokens?: number; warnPercent?: number }
 export const DEFAULT_WARN_PERCENT = 80;
 
-/**
- * The default model-spend ceilings (register row DK1715), in tokens, never a price: every Mandate made without a token budget carries them, and the gateway keeps to them for a person who never set a cap.
- * A sponsor may lower them or raise them, but never above what the operator allows (the operator's maxima). Credits and tokens here are accounting figures, not money.
- */
-export const DEFAULT_RUN_TOKENS = 1_000_000;
-export const DEFAULT_DAILY_TOKENS = 3_000_000;
-export const OPERATOR_MAX_RUN_TOKENS = 20_000_000;
-export const OPERATOR_MAX_DAILY_TOKENS = 50_000_000;
-/** The alert levels, in percent of a ceiling: each is told once. */
-export const ALERT_LEVELS = [50, 80, 100] as const;
-
-/** The levels newly reached by `used` of `cap` that are not in `told` yet (a level is told once, however far the figure jumps: only the highest new one is named, the lower ones are marked told too). */
-export function newAlertLevels(used: number, cap: number, told: Set<number>): number[] {
-  if (!(cap > 0)) return [];
-  const pct = (used * 100) / cap;
-  const reached = ALERT_LEVELS.filter((l) => pct >= l && !told.has(l));
-  for (const l of reached) told.add(l);
-  return reached.length ? [reached[reached.length - 1]!] : [];
-}
-
 export class Budgets {
   private data: Record<string, AgentBudget> = {};
   private readonly file: string;

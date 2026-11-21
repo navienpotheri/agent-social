@@ -10,7 +10,6 @@
  */
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
-import { newAlertLevels } from "../budget.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -94,10 +93,6 @@ export interface GatewayOptions {
   mcpDestinations?: Record<string, string[]>;
   /** Stops the run when input plus output tokens pass this. */
   tokenCap?: number;
-  /** What set the token cap (the run's own flag, the Mandate, the day's allowance or the default), named in the alerts and the refusal (DK1715). */
-  tokenCapSource?: string;
-  /** Told once each at 50, 80 and 100 percent of the token cap (DK1715); the run log gets the same as a `budget_alert` event. */
-  onBudgetAlert?: (a: { percent: number; used: number; cap: number; source: string }) => void;
   fetch?: typeof fetch;
   /** The telemetry tap (DK241): fed every judged call, and collects only what the Mandate lists and the consent names; the run log gets one `telemetry` line at the end. Absent: `telemetry: off`. */
   telemetry?: GatewayTelemetry;
@@ -629,18 +624,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     res.end();
   }
 
-  const alertsTold = new Set<number>();
-  const tokenCapHit = () => {
-    if (opts.tokenCap !== undefined) {
-      const used = tokens.input + tokens.output;
-      for (const percent of newAlertLevels(used, opts.tokenCap, alertsTold)) {
-        const source = opts.tokenCapSource ?? "token cap";
-        rec?.event("budget_alert", { percent, used, cap: opts.tokenCap, source });
-        try { opts.onBudgetAlert?.({ percent, used, cap: opts.tokenCap, source }); } catch { /* an alert that cannot be shown does not stop the run */ }
-      }
-    }
-    return opts.tokenCap !== undefined && tokens.input + tokens.output > opts.tokenCap;
-  };
+  const tokenCapHit = () => opts.tokenCap !== undefined && tokens.input + tokens.output > opts.tokenCap;
 
   /** Anything else is passed through unjudged (and counted), so an agent's other calls keep working. */
   async function passthrough(req: IncomingMessage, res: ServerResponse, rawBody: Buffer, style: "openai" | "anthropic") {
@@ -708,14 +692,6 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;
         rec?.event("model_refused", { reason, why: "token_budget" });
-        opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
-        return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
-      }
-      // The hard stop (DK1715): once the ceiling is reached the next model call is refused here, the provider is not called, and the run log names it.
-      if (opts.tokenCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path)) && tokens.input + tokens.output >= opts.tokenCap) {
-        const used = tokens.input + tokens.output;
-        const reason = `ASP gateway: the next model call is refused: ${used} of ${opts.tokenCap} tokens are spent (${opts.tokenCapSource ?? "token cap"}). A sponsor can raise it with asp budget set, up to what the operator allows.`;
-        rec?.event("model_refused", { reason, why: "token_cap", used, cap: opts.tokenCap, source: opts.tokenCapSource ?? "token cap" });
         opts.onCall?.({ tool: "model request", scope: "model.tokens", allowed: false, reason });
         return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_token_budget", code: "asp_token_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
       }
