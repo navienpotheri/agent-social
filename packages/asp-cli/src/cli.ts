@@ -333,6 +333,7 @@ import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, render
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
+import { fleetOnboardCmd } from "./fleet-onboard.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
@@ -441,6 +442,8 @@ const OPTIONS = {
   method: { type: "string" },
   sponsor: { type: "string" },
   fleet: { type: "string" },
+  format: { type: "string" },
+  "fleet-did": { type: "string" },
   purpose: { type: "string" },
   runtime: { type: "string" },
   backend: { type: "string" },
@@ -1052,7 +1055,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
-    if (cmd === "fleet" && ["plan", "enrol", "join", "status"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
+    if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
@@ -5240,6 +5243,7 @@ async function fleetEnrolCommand(home: string, sub: string | undefined, v: Value
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine to sign the fleet and its agents`); return s; };
   try {
+    if (["blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetOnboardCmd(sub!, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], days: v.days, sponsor: v.sponsor, persona: v.persona, format: v.format, file: v.file, confirm: v.confirm, purpose: v.purpose, name: v.name, "fleet-did": v["fleet-did"] } });
     return await fleetEnrolCmd(sub, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], invitation: v.invitation, service: v.service, name: v.name, "accept-terms": v["accept-terms"], days: v.days } });
   } catch (e) {
     if (e instanceof FleetEnrolUsage) throw new UsageError(e.message);

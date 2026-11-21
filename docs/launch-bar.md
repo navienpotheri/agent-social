@@ -80,7 +80,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1360 | ? | partial | 8 | L | - | the enterprise data-sharing choice, shown before an enterprise joins |
 | DK1382 | A | open | 8 | L | - | the sandbox tenant |
-| DK1371 | A | open | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
+| DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
 | DK1362 | A | open | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | open | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
