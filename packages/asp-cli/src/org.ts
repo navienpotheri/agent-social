@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { b64urlDecode, b64urlEncode, resolverFromPassports, signBytes, verifyBytes, type AspRecord, type Signer } from "@agent-social/asp-core";
-import type { LogHandle } from "@agent-social/asp-package";
+import { LocalLog, signCheckpoint, type LogHandle } from "@agent-social/asp-package";
 import { collect } from "./offboard.ts";
 
 export class OrgUsage extends Error {}
@@ -22,7 +22,7 @@ export interface OrgCmdOpts {
   url?: string; token?: string; io: { out: (l: string) => void }; now: () => string;
   log?: () => Promise<LogHandle>;
   signerFor: (did: string) => Signer;
-  flags: { name?: string; org?: string; file?: string; member?: string; role?: string; did?: string; out?: string; after?: string; every?: string; times?: string; token?: string; "keep-agents"?: boolean };
+  flags: { name?: string; org?: string; file?: string; member?: string; role?: string; did?: string; out?: string; after?: string; every?: string; times?: string; token?: string; "keep-agents"?: boolean; "private-log"?: string };
 }
 const sha = (t: string) => "sha256:" + createHash("sha256").update(t).digest("hex");
 
@@ -57,7 +57,30 @@ export async function orgCmd(sub: string | undefined, rest: string[], o: OrgCmdO
     for (const e of r.entries) o.io.out(`  ${String(e.seq).padStart(4)} ${e.at} ${e.by.padEnd(22)} ${e.action.padEnd(18)} ${e.target}${e.reason ? `  (${e.reason})` : ""}`);
     o.io.out(`${r.entries.length} entr${r.entries.length === 1 ? "y" : "ies"}; chain ${r.verify.ok ? "verifies" : `BROKEN: ${r.verify.problem}`}`); return r.verify.ok ? 0 : 1;
   }
-  throw new OrgUsage("asp org create | show | sso set | members | role | provision-token | deprovision | link-agent | audit show|export|verify");
+  // The organisation's private log (DK1359): its records live in a log of its own; the society witnesses signed checkpoints of it.
+  if (sub === "private-log") {
+    if (rest[0] !== "set" || !f.did) throw new OrgUsage("asp org private-log set --org <organisation> --did <the identity whose key signs the checkpoints>");
+    const r = await call("PUT", `${org()}/private-log`, { did: f.did }); o.io.out(`the private log's checkpoints are signed by ${r.privateLog.did}`); return 0;
+  }
+  if (sub === "checkpoint") {
+    if (rest[0] === "show") { const r = await call("GET", `${org()}/checkpoints`); for (const c of r.checkpoints) o.io.out(`  seq ${String(c.seq).padStart(6)}  ${c.logHash}  signed ${c.signedAt} by ${c.signer}`); o.io.out(`${r.checkpoints.length} checkpoint(s) witnessed by the society; ${r.equivocations} equivocation(s)`); return r.equivocations ? 1 : 0; }
+    if (!f["private-log"]) throw new OrgUsage("asp org checkpoint publish|check --org <organisation> --private-log <the private log's folder> [--did <the signing identity, for publish>]");
+    const priv = await LocalLog.open(resolve(f["private-log"]));
+    if (rest[0] === "publish") {
+      if (!f.did) throw new OrgUsage("--did <the identity that signs the checkpoint>");
+      const cp = signCheckpoint(await priv.log.head(), o.signerFor(f.did), new Date(o.now()));
+      const r = await call("POST", `${org()}/checkpoints`, cp);
+      o.io.out(`the society witnessed the private log at seq ${cp.seq} (${cp.logHash}); ${r.total} checkpoint(s) in all`); return 0;
+    }
+    if (rest[0] === "check") {
+      const r = await call("GET", `${org()}/checkpoints`);
+      let bad = 0;
+      for (const c of r.checkpoints) { const ok = await priv.log.verifyCheckpoint({ seq: c.seq, logHash: c.logHash }); if (!ok) { bad++; o.io.out(`  seq ${c.seq}: the private log does NOT match the checkpoint the society holds`); } }
+      o.io.out(bad ? `${bad} of ${r.checkpoints.length} checkpoint(s) do not match: the private log was changed after it was witnessed` : `the private log matches all ${r.checkpoints.length} checkpoint(s) the society holds`);
+      return bad ? 1 : 0;
+    }
+  }
+  throw new OrgUsage("asp org create | show | sso set | members | role | private-log set | checkpoint publish|check|show | provision-token | deprovision | link-agent | audit show|export|verify");
 }
 
 async function exportAudit(o: OrgCmdOpts, call: (m: string, p: string, b?: unknown) => Promise<any>, orgPath: string): Promise<number> {

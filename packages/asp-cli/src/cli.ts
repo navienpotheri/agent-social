@@ -448,6 +448,7 @@ const OPTIONS = {
   format: { type: "string" },
   choice: { type: "string" },
   keys: { type: "boolean" },
+  "private-log": { type: "string" },
   "keep-agents": { type: "boolean" },
   times: { type: "string" },
   token: { type: "string" },
@@ -1069,7 +1070,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   try {
     if (cmd === "org") {
       const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs its audit export`); return s; };
-      try { return await orgCmd(sub, rest, { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN, io, now, log: () => openLog(home, logEnv), signerFor, flags: { name: v.name, org: v.org, file: v.file, member: v.member, role: v.role, did: v.did, out: v.out, after: v.after, every: v.every, times: v.times, token: v.token, "keep-agents": v["keep-agents"] } }); } catch (e) { if (e instanceof OrgUsage) throw new UsageError(e.message); throw e; }
+      try { return await orgCmd(sub, rest, { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN, io, now, log: () => openLog(home, logEnv), signerFor, flags: { name: v.name, org: v.org, file: v.file, member: v.member, role: v.role, did: v.did, out: v.out, after: v.after, every: v.every, times: v.times, token: v.token, "keep-agents": v["keep-agents"], "private-log": v["private-log"] } }); } catch (e) { if (e instanceof OrgUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "offboard") {
       const local = await openLog(home, logEnv);
@@ -2906,6 +2907,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
   // Organisation tenancy (DK1359, DK1373, DK1374): people in roles, sign-on, provisioning and an audit trail, on routes of their own with tokens of their own.
   const orgPublic = !noAuth && v.tokens ? orgRoutes({
+    checkpointPath: (name) => `${v.tokens}.org-${name}.checkpoints.ndjson`,
+    keyOf: async (kid) => { const did = kid.split('#')[0]; const p = await handle.log.passport(did).catch(() => undefined); const rec = p ? await handle.log.get(p.head).catch(() => undefined) : undefined; const k = (rec?.record.body as { keys?: { id: string; public_key: string; revoked_at?: string }[] } | undefined)?.keys?.find((x) => x.id === kid && !x.revoked_at); return k ? new Uint8Array(Buffer.from(k.public_key, 'base64url')) : undefined; },
     store: new OrgStore(`${v.tokens}.orgs.json`), tenants: () => (tenantSource ? tenantSource() : []), auditPath: (name) => `${v.tokens}.org-${name}.audit.ndjson`, now,
     // a deprovisioned person's agents are frozen through the fleet controls of the fleet each one belongs to
     freezeAgent: async (did, by, at) => { const p = await handle.log.passport(did).catch(() => undefined); const rec = p ? await handle.log.get(p.head).catch(() => undefined) : undefined; const fleet = (rec?.record.body as { fleet?: string } | undefined)?.fleet; if (!fleet) return false; fleetControls.freeze(fleet, by, at, did, "its owner was deprovisioned"); return true; },
