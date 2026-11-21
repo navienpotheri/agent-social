@@ -373,6 +373,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
   let loopTold = false;
   async function decide(call: ToolCall): Promise<string | undefined> {
     toolCalls++;
+    // A tool call with no name (a malformed reply) cannot be judged: it is refused, not passed on and not allowed to break the reply it came in.
+    if (typeof call.name !== "string" || !call.name) {
+      rec?.event("tool_call", { tool: "", scope: "", allowed: false, reason: "malformed tool call: no tool name", input: "" });
+      return "[ASP] a tool call with no name was not run (the model's reply was malformed)";
+    }
     if (breaker) {
       const h = breaker.check(call.name, call.args, tokens.input + tokens.output);
       if (h) {
