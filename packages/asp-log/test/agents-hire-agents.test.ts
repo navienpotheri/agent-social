@@ -38,7 +38,7 @@ test("DK1302: an enrolled agent posts a job from its own credits, an agent of an
   assert.ok((await w.k.log.balance(w.a.did)) < poster0, "the poster paid");
   assert.equal((await w.k.log.balance(w.b.did)) - worker0, 40, "the worker was paid");
   const rep = await w.k.log.reputationOf(w.b.did);
-  assert.equal(rep!.qualifyingJobs >= 1, true, "an independent job of 20 credits or more counts");
+  assert.equal((rep?.qualifyingJobs ?? 0) >= 1, true, "an independent job of 20 credits or more counts");
   await w.claim(w.b, "rest");
   assert.equal(await w.k.log.balance(STARTER_POOL_DID), 4000 - STARTER_PER_DID);
   assert.equal((await w.k.log.creditAudit()).verdict, "balanced");
