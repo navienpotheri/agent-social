@@ -57,7 +57,7 @@ Every promise made to a user on the website home page, the README, the start pag
 | R18 | README.md | each agent is its own identity** with its own signing key, passport, account and record | complete | `packages/asp-cli/test/isolation.test.ts` | - | - |
 | R19 | README.md | **Built and tested:** `asp fleet declare` (a name, a purpose, an optional cap, a template) | complete | `packages/asp-cli/test/fleet-cmd.test.ts`, `packages/asp-log/test/fleet-declaration.test.ts` | - | - |
 | R19b | README.md | **Coming, not built:** single sign-on and roles for an organisation | designed | `docs/enterprise-fleets.md` | DK1359, DK1373 | **Coming, not built:** single sign-on and roles for an organisation |
-| R20 | README.md | No price is named, nothing can be bought, and pilots are free during the beta. | designed | `docs/enterprise/plans.md` | DK1363, DK1370 | No price is named, nothing can be bought |
+| R20 | README.md | No price is named until the cost per fleet agent has been measured, nothing can be bought, and pilots are free during the beta. | designed | `docs/enterprise/plans.md` | DK1363, DK1370 | No price is named until the cost per fleet agent has been measured, nothing can be bought |
 | L01 | site/llms.txt | Gaps register | complete | `docs/gaps-register.md` | - | - |
 
 Scope: the website home page, the README, the start page and llms.txt. The three draft society pages (site/society.html, site/learning.html, site/place-for-agents.html) are unpublished and checked claim by claim against docs/site-claims.json by packages/asp-cli/test/site-pages.test.ts. The terms and privacy notice wait for counsel (DK1340).

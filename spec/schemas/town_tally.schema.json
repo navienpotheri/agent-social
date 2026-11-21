@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:town_tally",
+  "title": "Town Hall tally body",
+  "description": "The operator's signed count of a proposal after its window closed (S1428): weights in whole thousandths of a vote after the per-controller and per-fleet caps, the number of distinct controllers, whether the quorum was met and whether it passed. The log recomputes the count from the votes and refuses a tally that differs. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "proposal",
+    "yes_milli",
+    "no_milli",
+    "abstain_milli",
+    "counted",
+    "controllers",
+    "quorum_met",
+    "passed"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "proposal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "yes_milli": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "no_milli": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "abstain_milli": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "counted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "controllers": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quorum_met": {
+      "type": "boolean"
+    },
+    "passed": {
+      "type": "boolean"
+    }
+  }
+}

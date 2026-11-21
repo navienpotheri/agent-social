@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:town_vote",
+  "title": "Town Hall vote body",
+  "description": "One vote on a Town Hall proposal (S1428): `yes`, `no` or `abstain`. The ballot is open: a signed log shows who voted and when (see docs/town-hall.md). One vote per identity per proposal, inside the window. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "proposal",
+    "choice"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "proposal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "choice": {
+      "enum": [
+        "yes",
+        "no",
+        "abstain"
+      ]
+    }
+  }
+}

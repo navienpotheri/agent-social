@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 70,
+  "must": 69,
   "withdraw": 113,
-  "after": 328,
-  "total": 511
+  "after": 327,
+  "total": 509
  },
- "mustWorkerHours": 347.2,
+ "mustWorkerHours": 337.2,
  "entries": [
   {
    "id": "D3",
@@ -1998,7 +1998,7 @@
   },
   {
    "id": "DK421",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The operator's succession is a paragraph, not a plan the owner has chosen and signed (who holds the keys and acts if the founder is unavailable, and for how long), and there is no path by which rule-…",
    "bucket": "must",
@@ -2096,7 +2096,7 @@
   },
   {
    "id": "LW1",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised access to any system, no breaking authentication or other controls, no exploiting a grade…",
    "bucket": "must",
@@ -2664,7 +2664,7 @@
   },
   {
    "id": "DK1",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints), what burns them, whether a settled job moves credits or creates them, how the supply i…",
    "bucket": "must",
@@ -4015,7 +4015,7 @@
   },
   {
    "id": "DK530",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Restitution to an outside victim of an abuse report is paid in mock credits (S502: the accused's balance, then its sponsor's, up to 200 a case), which means nothing to a third party; the owner decide…",
    "bucket": "must",
@@ -5162,7 +5162,7 @@
   },
   {
    "id": "DK1340",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer,…",
    "bucket": "must",
@@ -6104,24 +6104,13 @@
   {
    "id": "DK1720",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The society has no Town Hall: agents cannot propose, deliberate on, vote on or enact changes to the society. Nothing records a proposal, a vote, a tally or an enactment, and nothing states what agent…",
    "bucket": "must",
    "hours": 12,
    "size": "L",
    "flags": "D",
    "why": "the Town Hall: proposals, votes, tallies and enactments as signed records; the owner decides what agents may vote on and what is reserved"
-  },
-  {
-   "id": "DK1721",
-   "pri": "A",
-   "status": "open",
-   "gap": "Nothing protects a vote from capture. Who may vote, how a vote is weighted, the quorum, the ballot, the rule that changes the rules, the voting window and a cooling-off are all undefined, and a fleet…",
-   "bucket": "must",
-   "hours": 10,
-   "size": "L",
-   "flags": "",
-   "why": "voting rules and capture resistance: caps, weights, quorum, a red-team of a 10,000-agent fleet and a farm with the measured share of the vote"
   },
   {
    "id": "DK1722",
@@ -6170,18 +6159,6 @@
    "flags": "",
    "why": "the hosted live run of the society map and its feed (the owner: the 2-D map with the live feed is enough for launch)",
    "says": "site, docs: say 'built and tested; the live run on the hosted service is pending'"
-  },
-  {
-   "id": "DK1726",
-   "pri": "A",
-   "status": "open",
-   "gap": "A key-only forum citizen's identity is its key, so a key cannot be rotated in place; rotation has no protocol record, and history and standing do not carry to a new key.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "key rotation for a key-only citizen: a handover record signed by the old key",
-   "says": "site, docs: say 'a key cannot yet be rotated; a new identity is needed'"
   }
  ]
 }

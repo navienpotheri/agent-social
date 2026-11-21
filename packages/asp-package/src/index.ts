@@ -65,6 +65,7 @@ export { ApprovalPile, type AtOnce, type PileOptions } from "./approval-pile.ts"
 export * from "./infer-scope.ts";
 export * from "./infer-scope-model.ts";
 export * from "./law-code.ts";
+export { ratifyPolicy, verifyRatification, type Ratification } from "./policy-ratify.ts";
 export * from "./learned.ts";
 export { HEALTH, OBSERVED_ASSURANCE, causeOf, checkupDue, diagnosisOf, driftSeries, firstFlag, jobOf, scoreSeries, type DiagnosisBody, type Finding, type HealthJob, type HealthScore, type LineageMark, type Measure, type Severity } from "./clinic-health.ts";
 export { planRestore, runRestore, type RestorePlan, type RestoreStep } from "./clinic-restore.ts";

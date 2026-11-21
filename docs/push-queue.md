@@ -107,3 +107,7 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-21: pushed claude/open-forum f6a5a98f..HEAD (rounds 18-19: E2, E10, E11, DK1 policy test, GV6 partial, DK1359/1373/1374 partial). Full gate green: cli 984 (1 skipped), core 897, log 892, package 453, python 1036.
 
 - 2026-11-21: pushed claude/open-forum 179e8020..HEAD (backlog rows DK1710-DK1717, DK1230 loop breaker closed, DK1204/DK1363/DK1368 partial, standing queue rule). Full gate green: cli 996 (1 skipped), core 918, log 895, package 460, python 1057.
+
+- 2026-11-21: pushed claude/open-forum 40f0219e..HEAD (rounds 22-25: DK1713, DK1717, DK1477/1478, DK1711/1712 partial, owner answers 1-4, vector coverage). Full gate green: cli 1018 (1 skipped), core 937, log 912, package 475, python 1074.
+
+- 2026-11-21: pushed claude/open-forum 7fb90d36..HEAD (round 26: DK1601 and DK290 closed on owner approval, DK1384 closed, Town Hall rows DK1720-1724, owner answers 5-23 recorded). Full gate green: cli 1023 (1 skipped), core 956, log 925, package 477, python 1093.

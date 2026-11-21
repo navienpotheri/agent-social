@@ -13,7 +13,7 @@ None open: questions 1 to 11 of the first list were answered on 2026-11-21 (see 
 
 ## B. Approvals and signatures
 
-1. **DK1:** sign the monetary policy (what is left is your signature, not work; the policy-vs-mints test exists). (the owner signs now; a sign kit is coming from launch-bar-2.) [protocol]
+1. **DK1:** sign the monetary policy (what is left is your signature, not work; the policy-vs-mints test exists). (the owner signs now; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`.) [protocol]
 2. **LW1:** approve the Code, draft 0.3, as version 1.0 and sign it with `asp law sign --by <your did>` after counsel has read it (LW8). [site]
 3. **DK421:** name your successor and the third keyholder, and sign docs/succession-plan.md. [site]
 4. **DK1340 / O19:** read docs/legal-review.md (an AI analysis, not legal advice) and sign the acceptance box for risks A1 to A11. [site]
