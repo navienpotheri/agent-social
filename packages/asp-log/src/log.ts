@@ -458,7 +458,12 @@ export class EventLog {
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
-    if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+    if (type === "court_act") {
+      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+      const ca = verified.body as { act?: string; contest?: string; case?: string };
+      if (ca.act === "contest_answer" && ca.contest) await this.reverseContested(tx, ca.contest, verified.issued_at);
+      else if (ca.act === "contest_ruling" && ca.case) { const c = JSON.parse((await tx.getMarker(`contest_case:${ca.case}`)) || "null") as { contest?: string } | null; if (c?.contest) await this.reverseContested(tx, c.contest, verified.issued_at); }
+    }
     if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.gatedReputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
@@ -1184,12 +1189,52 @@ export class EventLog {
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
-  private async demote(tx: LogTx, did: string, at: string): Promise<void> {
+  private async demote(tx: LogTx, did: string, at: string, slash?: { settlement: string; amount: number }): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
     await tx.putMarker(`rp_clean:${did}`, "0"); await tx.putMarker(`rp_reset:${did}`, at); // a slash resets the related-party record (S1411)
     await tx.putMarker(`slashed_at:${did}`, at); // when the last slash happened, for the promotion rule (no promotion within 30 days of a slash)
+    if (slash) await tx.putMarker(`demoted:${slash.settlement}`, JSON.stringify({ did, from: rep.tier, amount: slash.amount }));
     await this.saveReputation(tx, did, { ...rep, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
+  }
+
+  /**
+   * An adverse act that was contested and did not stand is undone by the institution that made it (DK1607, S1556). It runs once, after the operator withdrew the act or a ruling of the Courts reversed it, and it changes only
+   * what that act changed: a strike leaves the bond floor's recent strikes; a slash gives back the tier and the count it cost, and the backer's lost bond is paid back from the Treasury's holding, never beyond what it holds;
+   * a Clinic diagnosis stops counting towards the bond floor; a quarantine ends for the agent that contested it. A ruling that upholds the act, or an answer that upholds it, changes nothing. The effects are written on the contest.
+   */
+  private async reverseContested(tx: LogTx, contestId: string, at: string): Promise<void> {
+    const raw = await tx.getMarker(`contest:${contestId}`);
+    if (!raw) return;
+    const info = JSON.parse(raw) as { subject: string; agent: string; state: string };
+    if (info.state !== "withdrawn" && info.state !== "reversed") return;
+    const subject = await tx.getRecord(info.subject);
+    if (!subject) return;
+    const effects: Record<string, unknown> = {};
+    const t = subject.record.type;
+    if (t === "asp.action/v0.2") {
+      const rep = await this.reputation(tx, subject.record.issuer);
+      if (rep) {
+        const i = rep.strikeLog.findIndex((x) => x.at === subject.record.issued_at);
+        if (i >= 0) { await this.saveReputation(tx, subject.record.issuer, { ...rep, strikeLog: rep.strikeLog.filter((_, j) => j !== i) }); effects.strike_removed = rep.strikeLog[i]!.count; }
+      }
+    } else if (t === "asp.settlement/v0.2") {
+      const d = JSON.parse((await tx.getMarker(`demoted:${info.subject}`)) || "null") as { did: string; from: number; amount: number } | null;
+      const rep = d ? await this.reputation(tx, d.did) : null;
+      if (d && rep) {
+        await this.saveReputation(tx, d.did, { ...rep, tier: rep.tier < d.from ? rep.tier + 1 : rep.tier, slashCount: Math.max(0, rep.slashCount - 1) });
+        const held = (await tx.getAccount(TREASURY_DID))?.balance ?? 0;
+        const paid = Math.min(d.amount, held);
+        if (paid > 0) { await this.debit(tx, TREASURY_DID, paid); await this.credit(tx, d.did, paid); }
+        effects.slash_reversed = { backer: d.did, tier_restored: rep.tier < d.from, bond_lost: d.amount, paid_back: paid, short: d.amount - paid };
+      }
+    } else if (t === "asp.clinic_diagnosis/v0.2") {
+      await tx.putMarker(`diagnosis_withdrawn:${info.subject}`, at);
+      effects.diagnosis_withdrawn = true;
+    } else if (t === "asp.quarantine/v0.2") {
+      if (!(await tx.getMarker(`quarantine_released:${info.subject}|${info.agent}`))) { await tx.putMarker(`quarantine_released:${info.subject}|${info.agent}`, contestId); effects.quarantine_ended_for = info.agent; }
+    }
+    await tx.putMarker(`contest:${contestId}`, JSON.stringify({ ...JSON.parse((await tx.getMarker(`contest:${contestId}`))!), effects }));
   }
 
   /**
@@ -1329,7 +1374,7 @@ export class EventLog {
     let drift: FloorInputsV3["drift"] = "none";
     const dxId = await tx.getMarker(`clinic_diagnosis_last:${backer}`);
     const dx = dxId ? await tx.getRecord(dxId) : undefined;
-    if (dx && Date.parse(at) - Date.parse(dx.record.issued_at) <= 30 * 86_400_000) { const sev = (dx.record.body as { severity?: string }).severity; if (sev === "warn" || sev === "quarantine_recommended") drift = sev; }
+    if (dx && !(await tx.getMarker(`diagnosis_withdrawn:${dxId}`)) && Date.parse(at) - Date.parse(dx.record.issued_at) <= 30 * 86_400_000) { const sev = (dx.record.body as { severity?: string }).severity; if (sev === "warn" || sev === "quarantine_recommended") drift = sev; }
     const intent = cb?.basis?.intent ? await tx.getRecord(cb.basis.intent) : undefined;
     const cls = (intent?.record.body as { class?: string } | undefined)?.class;
     const taskClass: TaskClass = cls === "trivial" || cls === "skilled" || cls === "critical" ? cls : "routine";
@@ -1736,7 +1781,7 @@ export class EventLog {
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
     }
     await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
-    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
+    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at, { settlement: r.id, amount: body.bond_slashed.value });
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
     await noteLock(tx, escrow.backer, body.contract, null);
@@ -3764,13 +3809,13 @@ export class EventLog {
   }
 
   /** The state of a contest of an adverse act and its two clocks (AG3, S1552): the operator answers within 48 hours of the contest, the Courts decide within 72 hours of the case. `now` says whether a clock has run out. */
-  async contestOf(id: string, now?: string): Promise<{ id: string; subject: string; agent: string; by: string; state: string; at: string; operatorDueAt: string; operatorOverdue: boolean; courtsDueAt: string | null; courtsOverdue: boolean; answerLate: boolean; rulingLate: boolean } | undefined> {
+  async contestOf(id: string, now?: string): Promise<{ id: string; subject: string; agent: string; by: string; state: string; at: string; operatorDueAt: string; operatorOverdue: boolean; courtsDueAt: string | null; courtsOverdue: boolean; answerLate: boolean; rulingLate: boolean; effects?: Record<string, unknown> } | undefined> {
     const raw = await this.store.transaction(async (tx) => tx.getMarker(`contest:${id}`));
     if (!raw) return undefined;
-    const c = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string; case_at?: string; answered_at?: string; answer_late?: boolean; ruling_late?: boolean };
+    const c = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string; case_at?: string; answered_at?: string; answer_late?: boolean; ruling_late?: boolean; effects?: Record<string, unknown> };
     const at = now ?? new Date().toISOString(), iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
     const operatorDue = Date.parse(c.at) + CONTEST_OPERATOR_MS, courtsDue = c.case_at ? Date.parse(c.case_at) + CONTEST_COURTS_MS : null;
-    return { id, subject: c.subject, agent: c.agent, by: c.by, state: c.state, at: c.at, operatorDueAt: iso(operatorDue), operatorOverdue: c.state === "open" && Date.parse(at) > operatorDue, courtsDueAt: courtsDue === null ? null : iso(courtsDue), courtsOverdue: c.state === "in_courts" && courtsDue !== null && Date.parse(at) > courtsDue, answerLate: !!c.answer_late, rulingLate: !!c.ruling_late };
+    return { id, subject: c.subject, agent: c.agent, by: c.by, state: c.state, at: c.at, operatorDueAt: iso(operatorDue), operatorOverdue: c.state === "open" && Date.parse(at) > operatorDue, courtsDueAt: courtsDue === null ? null : iso(courtsDue), courtsOverdue: c.state === "in_courts" && courtsDue !== null && Date.parse(at) > courtsDue, answerLate: !!c.answer_late, rulingLate: !!c.ruling_late, ...(c.effects ? { effects: c.effects } : {}) };
   }
 
   /** Trust per model and version (DK1711): counts of slashes, refusals, drift findings and quarantines under each model, the swaps and the holds until a re-examination. House agents are left out. */

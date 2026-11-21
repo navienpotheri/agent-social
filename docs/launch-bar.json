@@ -5978,7 +5978,7 @@
   {
    "id": "DK1607",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A reversed contest changes nothing yet: the Courts' `contest_ruling` is a record, but the institution that made the contested act (the Clinic's quarantine or diagnosis, the Bank's slash, the runtime'…",
    "bucket": "withdraw",
    "hours": 0,

@@ -236,7 +236,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1603 | A | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
-| DK1607 | A | open | A reversed contest changes what the institution did | site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal' |
+| DK1607 | A | partial | A reversed contest changes what the institution did | site, docs: say 'a contest is heard and decided; the institution does not yet act on a reversal' |
 
 ### Bucket 3: after launch
 
