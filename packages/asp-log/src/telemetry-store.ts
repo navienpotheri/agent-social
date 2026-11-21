@@ -15,11 +15,11 @@ export const TELEMETRY_MAX_ITEMS = 5000;
 /** What a person is told, in plain words, wherever they join or look at their account. */
 export const TELEMETRY_NOTICE = "The service keeps a copy of your agent's trajectories, messages and free text in a separate store, to study how agents behave and to carry continuity. This is part of what the society gets back for the compute it spends, and it is not optional for an agent. Only a hash of each is written to the signed log, never the text. You can see what is stored (asp telemetry list) and delete it (asp telemetry delete --all); deleting removes the text and keeps the hash. Nothing is stored for a young person's tenant.";
 
-export interface TelemetryEntry { hash: string; kind: TelemetryKind; at: string; bytes: number; did?: string; deletedAt?: string }
+export interface TelemetryEntry { hash: string; kind: TelemetryKind; at: string; bytes: number; did?: string; deletedAt?: string; /** A private tenant (DK1360): the hash only, the text was never stored. */ hashOnly?: boolean }
 /** A deletion receipt (DK1378): what an erasure removed and what it kept, with an id that is the hash of its own content, so it can be shown again and checked. Not signed: the service holds no operator key. */
 export interface DeletionReceipt { v: "asp.deletion-receipt/v0"; id: string; tenant: string; at: string; deleted: Array<{ hash: string; kind: TelemetryKind }>; kept: string; note: string }
 interface State { entries: TelemetryEntry[]; receipts?: DeletionReceipt[] }
-export type PutResult = { ok: true; hash: string; stored: boolean } | { ok: false; status: number; code: string; message: string };
+export type PutResult = { ok: true; hash: string; stored: boolean; private?: true } | { ok: false; status: number; code: string; message: string };
 
 const TENANT = /^[a-z][a-z0-9-]{2,31}$/;
 export const telemetryHash = (content: string) => `sha256:${createHash("sha256").update(content, "utf8").digest("hex")}`;
@@ -52,13 +52,18 @@ export class TelemetryStore {
   private file(tenant: string, hash: string) { return join(this.dir!, tenant, "content", `${hash.slice("sha256:".length)}.txt`); }
 
   /** Stores content for a tenant, unless the tenant is held for a young person (collection is not optional for an adult, DK1303). Returns the hash the signed log may carry. */
-  put(tenant: string, kind: unknown, content: unknown, o: { minor?: boolean; did?: string; at: string }): PutResult {
+  put(tenant: string, kind: unknown, content: unknown, o: { minor?: boolean; private?: boolean; did?: string; at: string }): PutResult {
     if (o.minor) return { ok: false, status: 403, code: "minor_tenant_no_telemetry", message: "this tenant is held for a young person: nothing is stored for it" };
     if (!TELEMETRY_KINDS.includes(kind as TelemetryKind)) return { ok: false, status: 400, code: "BAD_KIND", message: `kind is one of ${TELEMETRY_KINDS.join(", ")}` };
     if (typeof content !== "string" || !content) return { ok: false, status: 400, code: "BAD_CONTENT", message: "content is a non-empty string" };
     if (Buffer.byteLength(content) > TELEMETRY_MAX_ITEM_BYTES) return { ok: false, status: 413, code: "TOO_BIG", message: `one item is at most ${TELEMETRY_MAX_ITEM_BYTES} bytes` };
     const s = this.slot(tenant);
     const hash = telemetryHash(content);
+    // An organisation that chose to keep its data private (DK1360): the hash is kept so the signed log can carry it, the text is never stored here.
+    if (o.private) {
+      if (!s.state.entries.some((e) => e.hash === hash)) { s.state.entries.push({ hash, kind: kind as TelemetryKind, at: o.at, bytes: Buffer.byteLength(content), hashOnly: true, ...(o.did ? { did: o.did } : {}) }); this.save(tenant, s); }
+      return { ok: true, hash, stored: false, private: true };
+    }
     const known = s.state.entries.find((e) => e.hash === hash);
     if (known && !known.deletedAt) return { ok: true, hash, stored: false };
     if (!known && s.state.entries.length >= TELEMETRY_MAX_ITEMS) return { ok: false, status: 429, code: "STORE_FULL", message: `at most ${TELEMETRY_MAX_ITEMS} items are kept for a tenant` };
@@ -103,6 +108,18 @@ export class TelemetryStore {
     st.state.receipts = [...(st.state.receipts ?? []), receipt];
     this.save(tenant, st);
     return { deleted: gone.length, receipt };
+  }
+  /**
+   * What a study may read (DK1360): the stored text of tenants that share. A tenant that chose to keep its data private is never in it (it has no text here, and is left out by name too),
+   * and neither is one held for a young person. Every reader of the store for research goes through this.
+   */
+  studySet(tenants: { name: string; minor?: boolean; dataSharing?: { choice: string } }[]): { tenant: string; hash: string; kind: TelemetryKind }[] {
+    const out: { tenant: string; hash: string; kind: TelemetryKind }[] = [];
+    for (const t of tenants) {
+      if (t.minor || t.dataSharing?.choice === "private") continue;
+      for (const e of this.slot(t.name).state.entries) if (!e.deletedAt && !e.hashOnly) out.push({ tenant: t.name, hash: e.hash, kind: e.kind });
+    }
+    return out;
   }
   receipts(tenant: string): DeletionReceipt[] { return [...(this.slot(tenant).state.receipts ?? [])]; }
   deleteAll(tenant: string, at: string): number {

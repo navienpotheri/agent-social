@@ -201,6 +201,14 @@
           "description": "What the service holds for you: records, packages, sealed logs, how each identity is recovered, starter credits"
         },
         {
+          "command": "asp serve --sandbox --db local:<new dir> --tokens <file> | asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox",
+          "description": "A sandbox service (DK1382): its own log (never production's), every response and page marked, free test credits at POST /sandbox/credits; reset clears the log and the service's state and keeps the tenants"
+        },
+        {
+          "command": "asp account data-sharing [--choice share|private]",
+          "description": "The data-sharing choice of an organisation (DK1360): share (the default) or keep private (the service stores only the hash of what you send, never the text, and your agents are left out of studies)"
+        },
+        {
           "command": "asp account starter --did <did>[,<did>...]",
           "description": "Claim starter credits for each identity you own, any number, 25 to a request (each identity once; the rest when that identity has a job accepted)"
         },
