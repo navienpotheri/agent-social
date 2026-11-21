@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { b64urlEncode, createRecord, signBytes } from "@agent-social/asp-core";
+import { readTextFile } from "@agent-social/asp-package";
 import { BLUEPRINTS, SKILLS, resolvePersona } from "./fleet-blueprints.ts";
 import { FleetEnrolUsage, declareFleet, enrol, fleetEnrolCmd, parseManifest, readManifest, type FleetEnrolOpts, type Manifest, type Persona } from "./fleet-enrol.ts";
 
@@ -95,7 +96,7 @@ export async function fleetOnboardCmd(sub: string, o: OnboardOpts): Promise<numb
     if (!f.file) throw new FleetEnrolUsage("asp fleet import --file <file.csv|file.tsv|file.json> [--format csv|tsv|json] [--sponsor <did> --name <fleet> --purpose <text>] [--out <manifest.json>]");
     const format = (f.format ?? (/\.tsv$/i.test(f.file) ? "tsv" : /\.json$/i.test(f.file) ? "json" : "csv")) as "csv" | "tsv" | "json";
     if (!["csv", "tsv", "json"].includes(format)) throw new FleetEnrolUsage("--format is csv, tsv or json");
-    return write(importManifest(readFileSync(resolve(f.file), "utf8"), format, { sponsor: f.sponsor, name: f.name, purpose: f.purpose, fleetDid: f["fleet-did"] }));
+    return write(importManifest(readTextFile(resolve(f.file)), format, { sponsor: f.sponsor, name: f.name, purpose: f.purpose, fleetDid: f["fleet-did"] }));
   }
   if (sub === "apply") return await apply(o);
   if (sub === "rollback") return await rollback(o);

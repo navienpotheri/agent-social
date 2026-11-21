@@ -19,7 +19,9 @@ export interface LiveCtx {
   home: string;
   env: Record<string, string | undefined>;
   out: (l: string) => void;
-  flags: { runtime?: string; keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
+  flags: { port?: string; runtime?: string; keyEnv?: string; provider?: string; model?: string; budgetUsd?: string; priceIn?: string; priceOut?: string; contract?: string; json?: boolean; service?: string };
+  /** Runs a read-only command and returns its text (powercfg on Windows); injectable for tests. */
+  query?: (cmd: string, args: string[]) => string | undefined;
   /** Runs `asp stop --all` against a home (the real command, so the check is of the real code). */
   stopAll: (home: string) => Promise<number>;
   /** The mandate record's scopes for a contract, or undefined when the log holds none. */
@@ -31,7 +33,7 @@ export interface Check { name: string; status: Status; detail: string }
 
 const KEY_ENV: Record<string, string> = { openai: "OPENAI_API_KEY", openrouter: "OPENROUTER_API_KEY", anthropic: "ANTHROPIC_API_KEY" };
 const freePort = () => new Promise<number>((resolve, reject) => { const s = createServer(); s.on("error", reject); s.listen(0, "127.0.0.1", () => { const p = (s.address() as { port: number }).port; s.close(() => resolve(p)); }); });
-const tool = (cmd: string, args: string[]) => { const r = spawnSync(cmd, args, { encoding: "utf8", shell: process.platform === "win32" && (!isAbsolute(cmd) || /\.(cmd|bat)$/i.test(cmd)) }); return r.status === 0 ? (r.stdout || r.stderr).trim().split("\n")[0] : undefined; };
+const tool = (cmd: string, args: string[]) => { const viaCmd = process.platform === "win32" && (!isAbsolute(cmd) || /\.(cmd|bat)$/i.test(cmd)); const r = viaCmd ? spawnSync("cmd", ["/d", "/s", "/c", [cmd, ...args].map((x) => (/\s/.test(x) ? `"${x}"` : x)).join(" ")], { encoding: "utf8", windowsVerbatimArguments: true }) : spawnSync(cmd, args, { encoding: "utf8" }); return r.status === 0 ? (r.stdout || r.stderr).trim().split("\n")[0] : undefined; };
 
 export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   const out: Check[] = [];
@@ -54,6 +56,30 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
       const custom = runtime === "claude-code" && c.env.ASP_CLAUDE_BIN ? [c.env.ASP_CLAUDE_BIN, ...(c.env.ASP_CLAUDE_SCRIPT ? [c.env.ASP_CLAUDE_SCRIPT] : [])] : [bin];
       const ver = tool(custom[0], [...custom.slice(1), "--version"]);
       add(`runtime ${runtime}`, ver ? "ok" : "fail", ver ? `${custom.join(" ")}: ${ver}${c.flags.runtime ? "" : " (the default runtime; --runtime names another)"}` : `${custom.join(" ")} was not found on the PATH or did not answer --version: install it and sign in once by running it, then run this again`);
+    }
+  }
+  // A port asked for with --port must be free: say so before the gateway fails on it. The gateway binds 127.0.0.1 only, so Windows does not ask about the firewall.
+  if (c.flags.port !== undefined) {
+    const want = Number(c.flags.port);
+    if (!Number.isInteger(want) || want < 1 || want > 65535) add(`port ${c.flags.port}`, "fail", "--port is a number from 1 to 65535 (leave it out and a free port is chosen)");
+    else {
+      const busy = await new Promise<boolean>((resolve) => { const s = createServer(); s.once("error", () => resolve(true)); s.listen(want, "127.0.0.1", () => s.close(() => resolve(false))); });
+      add(`port ${want}`, busy ? "fail" : "ok", busy ? `127.0.0.1:${want} is already in use: leave --port out (a free port is chosen) or name another` : `127.0.0.1:${want} is free (the gateway listens on this machine only: no firewall prompt is expected)`);
+    }
+  }
+  // The machine must not go to sleep in the middle of a run (read only: nothing is changed).
+  if (process.platform === "win32" || c.query) {
+    const q = c.query ?? ((cmd: string, args: string[]) => { const r = spawnSync(cmd, args, { encoding: "utf8" }); return r.status === 0 ? r.stdout : undefined; });
+    const idx = (text: string | undefined) => { const m = [...(text ?? "").matchAll(/0x[0-9a-fA-F]{8}/g)].map((x) => parseInt(x[0], 16)); return m.length >= 2 ? { ac: m[m.length - 2], dc: m[m.length - 1] } : undefined; };
+    const sleep = idx(q("powercfg", ["/query", "SCHEME_CURRENT", "SUB_SLEEP", "STANDBYIDLE"]));
+    const lid = idx(q("powercfg", ["/query", "SCHEME_CURRENT", "SUB_BUTTONS", "LIDACTION"]));
+    if (!sleep && !lid) add("sleep", "warn", "the power settings could not be read: keep the machine awake yourself (no sleep, lid open) for the whole run");
+    else {
+      const problems: string[] = [];
+      if (sleep && sleep.ac > 0) problems.push(`it sleeps after ${Math.round(sleep.ac / 60)} minute(s) idle on mains power`);
+      if (sleep && sleep.dc > 0) problems.push(`and after ${Math.round(sleep.dc / 60)} minute(s) on battery`);
+      if (lid && lid.ac !== 0) problems.push("closing the lid does something (sleep, hibernate or shut down) on mains power");
+      add("sleep", problems.length ? "warn" : "ok", problems.length ? `${problems.join("; ")}: a sleep cuts the run. Keep the lid open and the machine plugged in, and stop it sleeping for the run (Settings, System, Power: Screen and sleep, Never) or run powercfg /change standby-timeout-ac 0 (this check changes nothing)` : "the machine does not sleep when idle on mains power and the lid does nothing: nothing to cut the run");
     }
   }
   try { const p = await freePort(); add("a local port", "ok", `127.0.0.1:${p} can be opened`); } catch (e) { add("a local port", "fail", `no local port could be opened: ${(e as Error).message}`); }

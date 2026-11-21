@@ -9,7 +9,7 @@ export { codex, resolveCodexCommand, summarizeRollout, tomlValue } from "./adapt
 export { openhands } from "./adapters/openhands.ts";
 export { antigravity } from "./adapters/antigravity.ts";
 export { toWslPath, wslEnvFor } from "./wsl.ts";
-export { listFiles, sha256File, treeHash } from "./files.ts";
+export { listFiles, sha256File, treeHash, readTextFile, decodeText } from "./files.ts";
 export { frontmatter } from "./frontmatter.ts";
 export type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "./harness.ts";
 export { Keystore, LocalLog, aspHome, openLog } from "./home.ts";

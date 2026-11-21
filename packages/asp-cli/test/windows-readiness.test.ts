@@ -55,3 +55,49 @@ test("paths with spaces: a quoted absolute path inside the project is allowed in
     assert.equal(sh("echo %USERPROFILE%").allow, true, "printing the home folder's name is not touching it");
   }
 });
+
+// Encoding, busy port and sleep (live-run readiness on Windows).
+import { createServer as createNet } from "node:net";
+import { writeFileSync as wf } from "node:fs";
+import { decodeText, readTextFile } from "@agent-social/asp-package";
+import { preflightChecks, type LiveCtx } from "../src/live-cmd.ts";
+
+test("a file written by Windows PowerShell (UTF-8 with a BOM, UTF-16 LE or BE with a BOM, CRLF) is read, not refused", () => {
+  const json = JSON.stringify({ a: 1, name: "caf\u00e9" }, null, 2).replace(/\n/g, "\r\n");
+  assert.deepEqual(JSON.parse(decodeText(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(json, "utf8")]))), { a: 1, name: "caf\u00e9" });
+  assert.deepEqual(JSON.parse(decodeText(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(json, "utf16le")]))), { a: 1, name: "caf\u00e9" });
+  const be = Buffer.from(json, "utf16le"); be.swap16();
+  assert.deepEqual(JSON.parse(decodeText(Buffer.concat([Buffer.from([0xfe, 0xff]), be]))), { a: 1, name: "caf\u00e9" });
+  assert.equal(decodeText(Buffer.from("plain")), "plain");
+  const dir = mkdtempSync(join(tmpdir(), "asp-bom-"));
+  wf(join(dir, "x.yaml"), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from("runtime: claude-code\r\n", "utf16le")]));
+  assert.equal(readTextFile(join(dir, "x.yaml")), "runtime: claude-code\r\n");
+});
+
+const baseCtx = (over: Partial<LiveCtx> = {}): LiveCtx => ({ home: mkdtempSync(join(tmpdir(), "asp-h-")), env: { ANTHROPIC_API_KEY: "k".repeat(20), ASP_CLAUDE_BIN: process.execPath }, out: () => undefined, flags: { budgetUsd: "5", model: "claude-haiku-5-5" }, stopAll: async () => 0, mandateOf: async () => undefined, identities: () => undefined, ...over });
+
+test("preflight: a busy --port is red and says what to do; a free one is green and says no firewall prompt is expected", async () => {
+  const s = createNet(); await new Promise<void>((r) => s.listen(0, "127.0.0.1", r));
+  const busy = (s.address() as { port: number }).port;
+  const red = (await preflightChecks(baseCtx({ flags: { budgetUsd: "5", model: "claude-haiku-5-5", port: String(busy) } }))).find((k) => k.name === `port ${busy}`)!;
+  assert.equal(red.status, "fail");
+  assert.match(red.detail, /already in use: leave --port out/);
+  await new Promise((r) => s.close(r));
+  const green = (await preflightChecks(baseCtx({ flags: { budgetUsd: "5", model: "claude-haiku-5-5", port: String(busy) } }))).find((k) => k.name === `port ${busy}`)!;
+  assert.equal(green.status, "ok");
+  assert.match(green.detail, /no firewall prompt/);
+  assert.equal((await preflightChecks(baseCtx({ flags: { port: "99999" } }))).find((k) => /^port /.test(k.name))!.status, "fail");
+});
+
+test("preflight: a machine that sleeps when idle or acts on the lid gets an amber warning that says how to stop it; one that does not is green; unreadable settings are amber", async () => {
+  const power = (acIdle: number, dcIdle: number, acLid: number) => (cmd: string, args: string[]) => args.includes("STANDBYIDLE")
+    ? `Current AC Power Setting Index: 0x${acIdle.toString(16).padStart(8, "0")}\nCurrent DC Power Setting Index: 0x${dcIdle.toString(16).padStart(8, "0")}`
+    : `Current AC Power Setting Index: 0x${acLid.toString(16).padStart(8, "0")}\nCurrent DC Power Setting Index: 0x00000001`;
+  const sleepy = (await preflightChecks(baseCtx({ query: power(900, 300, 1) }))).find((k) => k.name === "sleep")!;
+  assert.equal(sleepy.status, "warn");
+  assert.match(sleepy.detail, /sleeps after 15 minute\(s\) idle on mains power.*5 minute\(s\) on battery.*closing the lid/);
+  assert.match(sleepy.detail, /powercfg \/change standby-timeout-ac 0 \(this check changes nothing\)/);
+  const fine = (await preflightChecks(baseCtx({ query: power(0, 0, 0) }))).find((k) => k.name === "sleep")!;
+  assert.equal(fine.status, "ok");
+  assert.equal((await preflightChecks(baseCtx({ query: () => undefined }))).find((k) => k.name === "sleep")!.status, "warn");
+});
