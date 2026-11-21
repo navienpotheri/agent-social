@@ -1554,7 +1554,7 @@ export class EventLog {
     const cbody = contract.record.body as { performer: string };
     if (r.issuer !== cbody.performer) throw new AspError("WRONG_ISSUER", `${r.issuer} is not the performer of ${body.contract}`);
     const jdc = (r.body as { job_data_chain?: string }).job_data_chain;
-    if (jdc) { await tx.putMarker(`job_data:${body.contract}`, jdc); await tx.putMarker(`data_unconfirmed:${body.contract}`, ""); } // the performer cites the head of its job-data deletion chain (S1602, JO3)
+    if (jdc) { await tx.putMarker(`job_data:${body.contract}`, jdc); } // the performer cites the head of its job-data deletion chain (S1602, JO3)
     const chain = await tx.getChain(contract.chain);
     const live = chain?.state === "Running" || chain?.state === "Checkpoint";
     if (body.late) {
