@@ -64,3 +64,29 @@ describe("a ruling for the performer settles under the job tax", () => {
     assert.equal((await k.log.verify()).ok, true);
   });
 });
+
+describe("a lost dispute reaches the poster's record through a real ruling (DK492)", () => {
+  test("three accepted jobs and one dispute the poster lost to a ruling for the performer: the record shows 1 of 4 lost and the deposit multiplier rises to 2", async () => {
+    const k = await kit();
+    await k.withPrices();
+    const poster = await k.person("lost-poster", 20_000);
+    const sponsor = await k.person("lost-sponsor", 50);
+    const performer = await k.agent("lost-performer", sponsor, { funds: 2000 });
+    for (let i = 0; i < 3; i++) await k.runJob(poster, performer, 60);
+    assert.equal((await k.log.posterRecord(poster.did)).disputesLost, 0);
+    const job = await k.runJob(poster, performer, 80, undefined, { settle: false });
+    const rej = mk("attestation", poster, { kind: "acceptance", about: job.delivery, verdict: "rejected", reasons: ["not good enough"] }, job.delivery, { subject: job.contract });
+    await k.log.append(rej);
+    const neutral = await k.person("lost-neutral", 10);
+    const ruling = mk("attestation", neutral, { kind: "ruling", about: job.contract, verdict: "for_performer", fault: { [poster.did]: 1000 }, reasons: ["the work met the criteria"] }, rej.id, { subject: job.contract });
+    await k.log.append(ruling);
+    const stated = (await k.log.rulingSettlement(job.contract, ruling.id, tick()))!;
+    await k.log.append(mk("settlement", bank, { contract: job.contract, basis: "ruling", cites: ruling.id, escrow_released: credit(stated.escrow_released), fees: credit(stated.fees), bond_returned: credit(0), bond_slashed: credit(0) }, ruling.id, { subject: job.contract, at: tick() }));
+    const rec = await k.log.posterRecord(poster.did);
+    assert.equal(rec.disputesLost, 1, "the ruling for the performer reached the poster's record");
+    assert.equal(rec.settled, 4);
+    assert.equal(rec.depositMultiplier, 2, "1 plus the rounded 3 x 1/4");
+    assert.equal((await k.log.creditAudit()).verdict, "balanced");
+    assert.equal((await k.log.verify()).ok, true, "a replica derives the same record");
+  });
+});

@@ -217,6 +217,7 @@ Open models, plus the lead's suggestion (two open families and one small strong-
 
 **A fourth worker: held back** (owner, 2026-11-21). Three workers run (lane-protocol, lane-cli, launch-bar on the site lane). The lead reconciles branches and pushes.
 
+**Answered 2026-11-21 (DK1349, relayed by the lead): the active Bank is accepted with a weekly cycle** (interest every Monday week at 0.25 % of what the Treasury owes, paid only from that week's Treasury income, the unpaid part carried, never minted; the Bank keeps 20 %, depositors get 80 % by balance and days held; no deposit lock; the Bank lends at most 70 % of what it holds; the Insurer's reserve is a Bank deposit and the Treasury does not lend to it; the Treasury may owe at most 50 % of what the Bank holds). Built as DK1458 (S1405). **DK121: the juror penalty stays at 20 %** (the lead, delegated by the owner; revisit with real reversal data).
 
 ## Decisions of 2026-11-21 on enterprises, fleets and the open door (owner)
 

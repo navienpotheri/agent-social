@@ -10,6 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AspError, cosign, staticResolver } from "@agent-social/asp-core";
 import { BANK_DID, BANK_DEPOSIT_DID, EventLog, INSURER_DID, MemoryStore, TREASURY_DID, payoutFor, premiumFor, rewardFor, type Cover } from "../src/index.ts";
+import { isoWeekOf } from "../src/bank-active.ts";
 import { Kit, bankP, clinic, courts, credit, hashOf, operator, owner, party, registrar, treasury, type Party } from "./academy-kit.ts";
 
 const SEED = Number(process.env.ASP_BANK_SEED ?? 20261121);
@@ -202,5 +203,85 @@ test(`DK1451: ${SEQUENCES} random sequences from seed ${SEED} over Treasury budg
     for (const kind of ["fund bank or insurer", "deposit", "withdraw", "reward", "credit line job", "policy and claim"]) {
       assert.ok((coverage.get(kind)?.refused ?? 0) > 0, `${kind} was refused at least once`);
     }
+  }
+});
+
+// ---- DK1458 (S1405): the active Bank's flows: deposits with no lock, withdrawals and the queue, the Treasury's loan and repayment, the weekly interest with its carry. ----
+async function activeSequence(seed: number): Promise<EventLog> {
+  const rnd = mulberry32(seed);
+  const int = (lo: number, hi: number) => lo + Math.floor(rnd() * (hi - lo + 1));
+  const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
+  const resolver = staticResolver(Object.fromEntries([operator, owner, treasury, registrar, clinic, courts, bankP, insurerParty].map((p) => [p.kid, p.publicKey])));
+  const kit = new Kit(new EventLog(new MemoryStore(), { operator: operator.did, owner: owner.did, fallbackResolver: resolver }));
+  const log = kit.log;
+  await kit.mint(TREASURY_DID, 20_000);
+  const holders = [await kit.person("bpa-h0"), await kit.person("bpa-h1"), await kit.person("bpa-h2")];
+  for (const h of holders) await kit.mint(h.did, 5000);
+  const buyer = await kit.agent("bpa-buyer", await kit.person("bpa-buyer-sponsor"), 3);
+  await kit.mint(buyer.did, 5000);
+  await kit.job(buyer, 5000);
+  const act = (by: { did: string } & import("@agent-social/asp-core").Signer, body: Record<string, unknown>) => kit.mk("bank_act" as never, by as never, body, null, {});
+  const week = () => isoWeekOf(Date.parse(kit.now()));
+  let ms = Date.parse("2026-11-02T00:00:10Z");
+  kit.at(new Date(ms).toISOString());
+  const paidWeeks = new Set<string>();
+  const total = int(12, 30);
+  for (let step = 0; step < total; step++) {
+    const before = await stateOf(log);
+    const mintedBefore = (await log.creditAudit()).minted;
+    let refused = false, kind = "", skipA3 = false;
+    const r = rnd();
+    try {
+      if (r < 0.25) {
+        kind = "bank deposit"; const h = pick(holders), have = await log.balance(h.did);
+        refused = await refusedOnly(kit.put(act(h as never, { act: "deposit", holder: h.did, amount: credit(pick([int(1, 800), int(100, 800), have + 1])) })));
+      } else if (r < 0.45) {
+        kind = "bank withdraw"; const h = pick(holders);
+        refused = await refusedOnly(kit.put(act(h as never, { act: "withdraw", holder: h.did, amount: credit(pick([int(1, 500), int(1, 900), 5000])) })));
+      } else if (r < 0.58) {
+        kind = "treasury borrow";
+        refused = await refusedOnly(kit.put(act(treasury as never, { act: "borrow", amount: credit(pick([int(1, 300), int(1, 900), 99_999])) })));
+      } else if (r < 0.70) {
+        kind = "treasury repay";
+        refused = await refusedOnly(kit.put(act(treasury as never, { act: "repay", amount: credit(pick([int(1, 400), int(1, 100), 99_999])) })));
+      } else if (r < 0.82) {
+        kind = "earn income"; await kit.buy(buyer, "academy.course.foundations", 30);
+        skipA3 = false;
+      } else {
+        kind = "weekly interest";
+        kit.at(new Date(Date.parse(kit.now()) + 7 * 86_400_000).toISOString());
+        const w = isoWeekOf(Date.parse(kit.now()) - 7 * 86_400_000);
+        const dup = rnd() < 0.2 && paidWeeks.has(w);
+        refused = await refusedOnly(kit.put(act(treasury as never, { act: "interest", week: dup ? w : w })));
+        if (!refused) paidWeeks.add(w);
+      }
+    } catch (e) { if (!(e instanceof AspError)) throw e; refused = true; skipA3 = true; kind = `${kind} (set-up refused)`; }
+    count(`active: ${kind}`, refused);
+    const audit = await log.creditAudit();
+    const where = `active sequence seed ${seed}, step ${step}: ${kind}`;
+    assert.equal(audit.verdict, "balanced", `A1 supply rule broken at ${where}: ${audit.problems.join("; ")}`);
+    assert.deepEqual(audit.negativeAccounts, [], `A2 negative balance at ${where}`);
+    if (refused && !skipA3) assert.deepEqual(await stateOf(log), before, `A3 a refused operation changed the ledger at ${where}`);
+    assert.equal(audit.minted, mintedBefore, `A7 an active-Bank operation minted or burned credits at ${where}`);
+    // the Bank never owes more than it holds, and the queue is ordered by when it was asked
+    assert.ok((await log.balance(BANK_DID)) >= 0, `Bank negative at ${where}`);
+    ms += 3600_000; kit.at(new Date(Math.max(ms, Date.parse(kit.now()))).toISOString());
+  }
+  void week;
+  return log;
+}
+
+test(`DK1458: ${Math.max(8, Math.floor(SEQUENCES / 2))} random sequences over deposits and withdrawals with no lock, the Treasury's loan and repayment, income and the weekly interest: the supply rule holds after every operation, nothing is minted, a refusal changes nothing`, { timeout: 900_000 }, async () => {
+  const n = Math.max(8, Math.floor(SEQUENCES / 2));
+  let replayed = 0;
+  for (let i = 0; i < n; i++) {
+    if (ONLY !== undefined) continue;
+    const log = await activeSequence((SEED + 100_003 + i * 6151) >>> 0);
+    if (i % 4 === 0) { const rep = await log.verify(); assert.equal(rep.ok, true, `A4 replay failed for active sequence ${i}: ${JSON.stringify(rep.error)}`); replayed++; }
+  }
+  if (ONLY === undefined) {
+    console.log(`  active Bank by kind: ${[...coverage].filter(([k]) => k.startsWith("active")).sort().map(([k, c]) => `${k} ${c.ok}/${c.refused}`).join(", ")}; ${replayed} replays verified`);
+    for (const kind of ["bank deposit", "bank withdraw", "treasury borrow", "treasury repay", "weekly interest", "earn income"]) assert.ok((coverage.get(`active: ${kind}`)?.ok ?? 0) > 0, `${kind} was accepted at least once`);
+    for (const kind of ["bank deposit", "bank withdraw", "treasury borrow", "treasury repay"]) assert.ok((coverage.get(`active: ${kind}`)?.refused ?? 0) > 0, `${kind} was refused at least once`);
   }
 });

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
+import { noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
@@ -32,6 +33,14 @@ import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX,
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
+import { deriveMandate, mandateViolations } from "@agent-social/asp-core";
+import { analyseFarming, type ExternalFacts, type FarmingReport } from "./farming.ts";
+import { chargeNodeCredits, checkTemplateAgainstTree, effectiveMandate, noteMemberJoin, noteNodeTokens, nodeOfMember, projectFleetMove, projectFleetNode, readTree, monthOf, type TreeView } from "./fleet-tree.ts";
+import { computeMarketStats, weeklyFillByClass, type MarketStats } from "./market-stats.ts";
+import { suggestRisk, type RiskInput, type RiskSuggestion, type RiskTerms, type Verification } from "./market-risk.ts";
+import { JOB_CLASSES } from "./market.ts";
+import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
+import { seedCommitment } from "./world.ts";
 import { charterIn, checkCaseload, checkRulingExtras, checkSettlementHold, closeDispute, effectiveFault, projectCourtAct } from "./courts-rules.ts";
 import { closestPrecedents, indexRulings, priceBand, routeFor, searchRulings, articlesIn, DEFAULT_ROUTES, type PrecedentHit, type RulingEntry } from "./courts.ts";
 import { checkSuspended, projectRegistryAct } from "./registry-rules.ts";
@@ -50,7 +59,8 @@ import { buildAgentRecord, type AgentRecord } from "./agent-record.ts";
 import { buildPage, namesAt, isLive, isVisible, skeleton, verifyPage, lapsedIdentities, identityLevelAt, type RecordPage } from "./registry.ts";
 import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultiplier, medianOf, type PosterRecord, classWeight, effectiveClass, discoverAgents, eligibility, countsFor, type AgentFacts, type AgentQuery, type JobClass, type Ranked } from "./market.ts";
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
-import { checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
+import { PRICE_MULTIPLIER_MAX, PRICE_MULTIPLIER_MIN, RESUME_OWNER_AFTER_HOURS, checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
+const SEEDED_ENTRY_KINDS = new Set(["shock", "drill", "experiment"]);
 import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
@@ -235,6 +245,12 @@ const after = (a: string, b: string) => Date.parse(a) > Date.parse(b);
  * linear (one successor per record); job chains must follow the ASP lifecycle; passport, fleet
  * and node records maintain the registry. A running hash over record ids makes the order tamper-evident.
  */
+/** What a fleet declaration states beyond its row (S1407, DK1353). */
+export interface FleetDecl { purpose?: string; template?: { runtime?: string; model?: string; harness?: unknown; skills?: unknown[] }; co_sponsors?: string[]; strict?: boolean; closed?: boolean }
+
+/** The Market's dynamics as `marketDynamics` returns them (S1403). */
+export interface MarketDynamics { version: string; at: string; halted: boolean; seed: string | null; season: Season; demand: Demand[]; guides: Guide[]; waves: Wave[]; monitor: Dynamics }
+
 export class EventLog {
   readonly store: Store;
   private readonly schemas: SchemaSet;
@@ -367,10 +383,10 @@ export class EventLog {
     if (type === "standing_order") await this.projectStandingOrder(tx, verified);
     if (type === "checkup_result") await this.projectCheckupResult(tx, verified);
     if (type === "credit_line") await projectCreditLine(tx, verified, this.bankEnv);
-    if (type === "credit_default") await projectCreditDefault(tx, verified, this.bankEnv);
+    if (type === "credit_default") { await projectCreditDefault(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "founding_act") await projectFoundingAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
     if (type === "institution_charter") await projectInstitutionCharter(tx, verified, { operator: this.operator, owner: this.owner, cosignedBy: (rr, d) => this.cosignedBy(rr, d), debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
-    if (type === "debt_payment") await projectDebtPayment(tx, verified, this.bankEnv);
+    if (type === "debt_payment") { await projectDebtPayment(tx, verified, this.bankEnv); await serveQueue(tx, this.bankEnv, verified.issued_at); }
     if (type === "bank_statement") await projectBankStatement(tx, verified);
     if (type === "policy") await projectPolicy(tx, verified, this.insurerEnv);
     if (type === "claim") await projectClaim(tx, verified);
@@ -379,6 +395,12 @@ export class EventLog {
     if (type === "recall") await projectRecall(tx, verified);
     if (type === "handback") await projectHandback(tx, verified, { reputation: (t, did) => this.reputation(t, did), tierSpendLimit: () => 0 });
     if (type === "residency_status") await projectResidencyStatus(tx, verified);
+    if (type === "mandate_template") await this.projectMandateTemplate(tx, verified);
+    if (type === "mandate_narrowing") await this.projectMandateNarrowing(tx, verified);
+    if (type === "common_control") await this.projectCommonControl(tx, verified);
+    if (type === "fleet_node") await projectFleetNode(tx, verified);
+    if (type === "fleet_move") await projectFleetMove(tx, verified);
+    if (type === "bank_act") await projectBankAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) });
     if (type === "deposit_act") await projectDepositAct(tx, verified, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n), drawBudget: (t, id, n, at) => this.drawBudget(t, id, n, at), cosignedBy: (rec, d) => this.cosignedBy(rec, d) });
     if (type === "refusal") await projectRefusal(tx, verified);
     if (type === "abuse_report") await projectAbuseReport(tx, verified, { operator: this.operator, cosignedBy: (rr, d) => this.cosignedBy(rr, d) });
@@ -391,6 +413,7 @@ export class EventLog {
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
+    if (type === "forum_checkpoint") await this.projectForumCheckpoint(tx, verified);
     if (type === "handout") await this.projectHandout(tx, verified);
     if (type === "config") await this.projectConfig(tx, verified);
     if (type === "allowance") await this.projectAllowance(tx, verified);
@@ -436,9 +459,9 @@ export class EventLog {
       await this.checkVerification(tx, verified);
       await this.checkVerifiedBeforeAcceptance(tx, verified);
     }
-    if (type === "mandate") { await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
-    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); }
-    if (type === "world") checkWorldRecord(verified);
+    if (type === "mandate") { await this.checkMandateTemplate(tx, verified); await this.checkMandateTier(tx, verified); await this.checkThreatFloor(tx, verified); this.checkMandateGates(verified); await this.projectMandate(tx, verified); }
+    if (type === "action") { await tx.putMarker(`acted:${(verified.body as { contract: string }).contract}`, verified.id); await this.checkAction(tx, verified); await this.recordStrikes(tx, verified); await this.noteModels(tx, verified); const mt = (verified.body as { metrics?: { tokens_in?: number; tokens_out?: number } }).metrics; if (mt) await noteNodeTokens(tx, verified.issuer, (mt.tokens_in ?? 0) + (mt.tokens_out ?? 0), verified.issued_at); }
+    if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
     await tx.putChain({
@@ -539,7 +562,10 @@ export class EventLog {
       throw new AspError("WRONG_ISSUER", `${r.issuer} is neither ${body.did} nor its sponsor`);
     }
     // Issuance limit (register row DK124, RG-11; spec-delta S456): a sponsor opens at most 10 new agent passports a day. The operator's own house agents are not counted. The count is the sponsor's, by the day of the record, so replay gives the same answer.
-    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator) {
+    // A verified organisation (S1406, DK1356): the operator countersigns an organisation's passport once it has checked it (its domain, its administrator, the terms). Its agents are not slowed by the daily
+    // limit: an enterprise may bring any number of agents. An unverified sponsor is slowed by rate (this limit), never by a total.
+    if (body.kind === "org" && this.operator && (r.cosigs ?? []).some((c) => c.kid.startsWith(`${this.operator}#`))) await tx.putMarker(`org_verified:${body.did}`, r.id);
+    if (!current && body.kind === "agent" && body.sponsor && body.sponsor !== this.operator && !(await tx.getMarker(`org_verified:${body.sponsor}`))) {
       const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
       const opened = Number((await tx.getMarker(dayKey)) ?? 0);
       if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
@@ -567,15 +593,13 @@ export class EventLog {
       if (!consents(body.sponsor)) throw rule("sponsor_consent_missing", `${body.did} names ${body.sponsor} as its sponsor, but ${body.sponsor} did not issue or countersign the passport`);
       if (current?.sponsor && !consents(current.sponsor)) throw rule("sponsor_change_needs_old_sponsor", `${body.did} is sponsored by ${current.sponsor}; moving to ${body.sponsor} needs ${current.sponsor}'s consent too`);
     }
-    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479): its history and balance stay. If it had claimed starter credits as a key-only identity it joins its new sponsor's group
-    // for the starter limit, and the binding is refused when that group already has its share (`sponsor_binding_group_full`), so a sponsor cannot gather unlimited starter grants by adopting key-only identities.
-    if (current && !current.sponsor && body.sponsor && (await tx.getMarker(`starter_upfront:${body.did}`))) {
-      const membersKey = `starter_group:${body.sponsor}`;
-      const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
-      if (!members.includes(body.did)) {
-        if (members.length >= STARTER_MAX_DIDS) throw rule("sponsor_binding_group_full", `${body.sponsor} has already claimed ${STARTER_MAX_DIDS} starter grants for its identities: ${body.did} claimed one as a key-only identity and cannot be added to its group`);
-        await tx.putMarker(membersKey, [...members, body.did].join(","));
-      }
+    // Binding a sponsor to an identity that already exists (register row CY5; spec-delta S479, S1406): its history and balance stay. The binding counts in the sponsor's daily issuance (above) like a new passport,
+    // so an unverified sponsor cannot gather identities faster than the rate; there is no longer a total (every agent has its own starter credits, DK1356).
+    if (current && !current.sponsor && body.sponsor && body.sponsor !== this.operator && !(await tx.getMarker(`org_verified:${body.sponsor}`)) && (await tx.getMarker(`starter_upfront:${body.did}`))) {
+      const dayKey = `passports_day:${body.sponsor}|${r.issued_at.slice(0, 10)}`;
+      const opened = Number((await tx.getMarker(dayKey)) ?? 0);
+      if (opened >= SPONSOR_PASSPORTS_PER_DAY) throw rule("sponsor_daily_limit", `${body.sponsor} opened ${opened} agent passports on ${r.issued_at.slice(0, 10)}; the limit is ${SPONSOR_PASSPORTS_PER_DAY} a day for one sponsor`);
+      await tx.putMarker(dayKey, String(opened + 1));
     }
     for (const k of body.keys) {
       if (!k.id.startsWith(`${body.did}#`)) throw new AspError("KID_NOT_ISSUER", `key ${k.id} does not belong to ${body.did}`);
@@ -594,7 +618,13 @@ export class EventLog {
     }
 
     const newSponsor = body.sponsor ?? sponsor;
-    if (body.fleet) await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet);
+    const joinNode = (body as { node?: string }).node;
+    if (joinNode && !body.fleet) throw rule("node_needs_fleet", "a passport names a tree node only when it names its fleet");
+    if (body.fleet) {
+      const wasMember = (await tx.getPassport(body.did))?.fleet === body.fleet;
+      await this.checkFleetMembership(tx, body.did, body.kind, newSponsor, body.fleet, body as { fingerprint?: { runtime?: string; model?: string } });
+      await noteMemberJoin(tx, body.did, body.fleet, joinNode, wasMember);
+    }
     await this.checkFork(tx, r, body, current);
 
     const declared = new Set(body.keys.map((k) => k.id));
@@ -657,20 +687,199 @@ export class EventLog {
   }
 
   /** An agent joins a fleet by naming it; the fleet must be declared, share the agent's sponsor and have room. */
-  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string): Promise<void> {
+  private async checkFleetMembership(tx: LogTx, did: string, kind: string, sponsor: string | null, fleetDid: string, passport?: { fingerprint?: { runtime?: string; model?: string } }): Promise<void> {
     if (kind !== "agent") throw rule("fleet_member_kind", `only agents join fleets, not a ${kind}`);
     const fleet = await tx.getFleet(fleetDid);
     if (!fleet) throw rule("fleet_unknown", `fleet ${fleetDid} is not declared`);
-    if (sponsor !== fleet.org) throw rule("fleet_sponsor_mismatch", `fleet ${fleetDid} belongs to ${fleet.org}; ${did} is sponsored by ${sponsor}`);
+    const d = JSON.parse((await tx.getMarker(`fleet_decl:${fleetDid}`)) ?? "{}") as FleetDecl;
+    // The organisation, or an individual sponsor it named in its own signed declaration (S1407, DK1353), may sponsor a member.
+    if (sponsor !== fleet.org && !(sponsor && (d.co_sponsors ?? []).includes(sponsor))) throw rule("fleet_sponsor_mismatch", `fleet ${fleetDid} belongs to ${fleet.org}${(d.co_sponsors ?? []).length ? ` and its named sponsors` : ""}; ${did} is sponsored by ${sponsor}`);
+    const already = (await tx.getPassport(did))?.fleet === fleetDid;
+    if (d.closed && !already) throw rule("fleet_closed", `fleet ${fleetDid} is closed to new members`);
     if (fleet.maxMembers !== null) {
       const others = (await tx.fleetMembers(fleetDid)).filter((m) => m.did !== did);
       if (others.length >= fleet.maxMembers) throw rule("fleet_full", `fleet ${fleetDid} has ${fleet.maxMembers} members`);
     }
+    // The template is read (S1407): a member that declares a different runtime or model is labelled, or refused when the fleet is strict. A member that declares nothing is labelled `undeclared`, never refused.
+    const t = d.template ?? {};
+    const diffs: string[] = [];
+    for (const k of ["runtime", "model"] as const) {
+      const want = t[k], have = passport?.fingerprint?.[k];
+      if (want && have && want !== have) diffs.push(k);
+    }
+    if (diffs.length && d.strict) throw rule("fleet_template_mismatch", `fleet ${fleetDid} is strict: its template names ${diffs.map((k) => `${k} ${t[k as "runtime" | "model"]}`).join(" and ")}, and ${did} declares a different ${diffs.join(" and ")}`);
+    const undeclared = (["runtime", "model"] as const).filter((k) => t[k] && !passport?.fingerprint?.[k]);
+    await tx.putMarker(`fleet_label:${did}`, diffs.length ? `differs: ${diffs.join(", ")}` : undeclared.length ? `undeclared: ${undeclared.join(", ")}` : "matches");
   }
 
-  /** One declaration chain per fleet, issued by its org, which never changes. */
+  /** The Mandate template that applies to a member (S1408): the one for its persona, else the fleet's own; undefined when it has none. */
+  private async templateFor(tx: LogTx, member: string): Promise<{ key: string; version: number; record: string; mandate: Record<string, unknown>; fleet: string } | undefined> {
+    const pass = await tx.getPassport(member);
+    if (!pass?.fleet) return undefined;
+    const persona = ((await tx.getRecord(pass.head))?.record.body as { persona?: string } | undefined)?.persona;
+    for (const key of persona ? [`${pass.fleet}|${persona}`, `${pass.fleet}|`] : [`${pass.fleet}|`]) {
+      const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
+      if (head) { const t = JSON.parse((await tx.getMarker(`mtemplate:${key}|${head}`))!) as { record: string; mandate: Record<string, unknown> }; return { key, version: head, record: t.record, mandate: t.mandate, fleet: pass.fleet }; }
+    }
+    return undefined;
+  }
+
+  /** A Mandate template (S1408, DK1355): the fleet's organisation signs it, versions run 1, 2, 3 (an amendment is the next version), and it is the ceiling every member's Mandate must stay within. */
+  private async projectMandateTemplate(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; persona?: string; version: number; mandate: Record<string, unknown> };
+    if (r.prev !== null) throw rule("mandate_template_not_chained", "a Mandate template starts its own chain (prev is null)");
+    const fleet = await tx.getFleet(b.fleet);
+    if (!fleet) throw rule("mandate_template_fleet_unknown", `fleet ${b.fleet} is not declared`);
+    if (r.issuer !== fleet.org) throw rule("mandate_template_wrong_issuer", `only the fleet's organisation (${fleet.org}) signs its Mandate template`);
+    const key = `${b.fleet}|${b.persona ?? ""}`;
+    const head = Number((await tx.getMarker(`mtemplate_head:${key}`)) ?? 0);
+    if (b.version !== head + 1) throw rule("mandate_template_version", `the next version of this template is ${head + 1}, not ${b.version}`);
+    if (!b.persona) await checkTemplateAgainstTree(tx, b.fleet, b.mandate);
+    await tx.putMarker(`mtemplate:${key}|${b.version}`, JSON.stringify({ record: r.id, mandate: b.mandate }));
+    await tx.putMarker(`mtemplate_head:${key}`, String(b.version));
+  }
+
+  /** A member's own narrowing (S1408): by the member or its sponsor, within the template in force. It replaces the member's earlier narrowing; one that goes beyond the template is refused naming the fields. */
+  private async projectMandateNarrowing(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; member: string; narrow: Record<string, unknown> };
+    if (r.prev !== null) throw rule("narrowing_not_chained", "a narrowing starts its own chain (prev is null)");
+    const pass = await tx.getPassport(b.member);
+    if (!pass || pass.fleet !== b.fleet) throw rule("narrowing_not_a_member", `${b.member} is not a member of ${b.fleet}`);
+    if (r.issuer !== b.member && r.issuer !== pass.sponsor) throw rule("narrowing_wrong_issuer", `only the member or its sponsor narrows its Mandate`);
+    const t = await this.templateFor(tx, b.member);
+    const eff = await this.nodeCeiling(tx, b.member);
+    if (!t && !eff) throw rule("narrowing_no_template", `${b.fleet} has no Mandate template for ${b.member}`);
+    for (const c of [t?.mandate, eff?.mandate]) {
+      if (!c) continue;
+      const widens = mandateViolations(c, { ...c, ...b.narrow });
+      if (widens.length) throw rule("narrowing_widens", `a member's change may only narrow the template${eff ? " and its node's Mandate" : ""}: ${widens.join(", ")} go beyond it`);
+    }
+    await tx.putMarker(`mnarrow:${b.member}`, JSON.stringify(b.narrow));
+  }
+
+  /** A Mandate for a member of a fleet with a template stays within it and the member's own narrowing (S1408): the log refuses one that goes beyond it, naming the fields, whoever signs it. */
+  private async checkMandateTemplate(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string } & Record<string, unknown>;
+    const contract = await tx.getRecord(b.contract);
+    const performer = (contract?.record.body as { performer?: string } | undefined)?.performer;
+    if (!performer) return;
+    const t = await this.templateFor(tx, performer);
+    const eff = await this.nodeCeiling(tx, performer);
+    if (!t && !eff) return;
+    const n = JSON.parse((await tx.getMarker(`mnarrow:${performer}`)) ?? "null") as Record<string, unknown> | null;
+    const { contract: _c, ...candidate } = b;
+    if (t) {
+      const d = deriveMandate(t.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : t.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_template", `${performer} belongs to fleet ${t.fleet}, whose Mandate template (version ${t.version}) is the ceiling of every member's Mandate: ${over.join(", ")} go beyond it`);
+    }
+    if (eff) {
+      const d = deriveMandate(eff.mandate, b.contract, n);
+      const over = mandateViolations("mandate" in d ? d.mandate : eff.mandate, candidate);
+      if (over.length) throw rule("mandate_exceeds_node", `${performer} sits on node ${eff.node} of its fleet's tree, whose Mandate is the ceiling of its members' Mandates: ${over.join(", ")} go beyond it`);
+    }
+  }
+
+  /** The sponsor and fleet of an identity as the independence rule reads them: the sponsor is replaced by its common-control cluster when a signed finding says it belongs to one (S1410, DK1357). */
+  private async factsOf(tx: LogTx, did: string): Promise<PartyFacts> {
+    const p = await tx.getPassport(did);
+    const raw = p?.sponsor ?? did;
+    const cluster = await tx.getMarker(`ctrl:${raw}`);
+    return { did, sponsor: cluster || raw, fleet: p?.fleet ?? null, ...(cluster && cluster !== raw ? { rawSponsor: raw } : {}) };
+  }
+
+  /** Common control (S1410, DK1357): the operator or the watcher says sponsors are one controller; from then on they count as one sponsor for independence. `lift` ends it (operator only). It moves no credit and changes no tier. */
+  private async projectCommonControl(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { cluster: string; sponsors: string[]; lift?: boolean };
+    if (r.prev !== null) throw rule("common_control_not_chained", "a common-control record starts its own chain (prev is null)");
+    const isOperator = r.issuer === this.operator;
+    if (!isOperator && r.issuer !== WATCHER_DID) throw rule("common_control_wrong_issuer", `only the operator or the society watcher (${WATCHER_DID}) records common control`);
+    if (b.lift && !isOperator) throw rule("common_control_lift_operator", "only the operator lifts a finding of common control");
+    const sorted = [...b.sponsors].sort();
+    if (b.cluster !== sorted[0]) throw rule("common_control_cluster_id", `the cluster id is the smallest sponsor in it (${sorted[0]}), not ${b.cluster}`);
+    for (const s of b.sponsors) if (!(await tx.getPassport(s))) throw rule("common_control_unknown_sponsor", `${s} has no passport in this log`);
+    const members = async (c: string) => ((await tx.getMarker(`ctrl_members:${c}`)) ?? "").split(",").filter(Boolean);
+    if (b.lift) {
+      for (const s of b.sponsors) {
+        const c = await tx.getMarker(`ctrl:${s}`);
+        if (!c) continue;
+        const rest = (await members(c)).filter((m) => m !== s);
+        await tx.putMarker(`ctrl:${s}`, "");
+        if (rest.length < 2) { for (const m of rest) await tx.putMarker(`ctrl:${m}`, ""); await tx.putMarker(`ctrl_members:${c}`, ""); }
+        else { const canon = [...rest].sort()[0]; for (const m of rest) await tx.putMarker(`ctrl:${m}`, canon); await tx.putMarker(`ctrl_members:${c}`, ""); await tx.putMarker(`ctrl_members:${canon}`, rest.join(",")); }
+      }
+      return;
+    }
+    const all = new Set(b.sponsors);
+    for (const s of b.sponsors) { const c = await tx.getMarker(`ctrl:${s}`); if (c) for (const m of await members(c)) all.add(m); }
+    const canon = [...all].sort()[0];
+    for (const m of all) { const old = await tx.getMarker(`ctrl:${m}`); if (old && old !== canon) await tx.putMarker(`ctrl_members:${old}`, ""); await tx.putMarker(`ctrl:${m}`, canon); }
+    await tx.putMarker(`ctrl_members:${canon}`, [...all].sort().join(","));
+  }
+
+  /** The anti-farming report of this log (S1410, DK1357): common-control clusters and the findings over the job graph, for the Clinic. A lead, never a penalty. `external` carries what the hosted service knows (payment, domain, address). */
+  async farmingReport(opts: { at?: string; seed?: string; external?: ExternalFacts } = {}): Promise<FarmingReport> {
+    const recs = await this.recordsOfTypes(["passport", "contract", "settlement"]);
+    return analyseFarming(recs, opts);
+  }
+
+  /** The agents sponsored by any of these sponsors (S1410): who a cluster freeze names. */
+  async agentsOfSponsors(sponsors: string[]): Promise<string[]> {
+    const set = new Set(sponsors);
+    const out = new Set<string>();
+    for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; sponsor?: string }; if (b.kind === "agent" && b.sponsor && set.has(b.sponsor)) out.add(b.did); }
+    return [...out].sort();
+  }
+
+  /** The cluster a sponsor belongs to by a signed finding, or undefined (S1410). */
+  async controlClusterOf(sponsor: string): Promise<string | undefined> { return this.store.transaction(async (tx) => (await tx.getMarker(`ctrl:${sponsor}`)) || undefined); }
+
+  /** The Mandate in force at the node a member sits on (S1409), or undefined when its fleet has no mandated node on the way up. */
+  private async nodeCeiling(tx: LogTx, member: string): Promise<{ node: string; mandate: Record<string, unknown> } | undefined> {
+    const at = await nodeOfMember(tx, member);
+    return at ? effectiveMandate(tx, at.fleet, at.node) : undefined;
+  }
+
+  /** The tree of a fleet with its members per node and the month's usage (S1409, DK1372); `at` picks the UTC month (default now). */
+  async fleetTree(fleet: string, at: string = new Date().toISOString()): Promise<TreeView | undefined> { return this.store.transaction(async (tx) => readTree(tx, fleet, monthOf(at))); }
+
+  /** The node a member sits on and the nodes above it, root last (S1409). */
+  async nodeOf(member: string): Promise<{ fleet: string; node: string; path: string[] } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const at = await nodeOfMember(tx, member);
+      if (!at) return undefined;
+      const path: string[] = [];
+      let n: string | null = at.node;
+      while (n) { path.push(n); n = JSON.parse((await tx.getMarker(`fnode:${at.fleet}|${n}`)) ?? "null")?.parent ?? null; }
+      return { ...at, path };
+    });
+  }
+
+  /** The newest version of the Mandate template of a fleet (and persona), or 0 when there is none (S1408). */
+  async templateVersion(fleet: string, persona?: string): Promise<number> { return this.store.transaction(async (tx) => Number((await tx.getMarker(`mtemplate_head:${fleet}|${persona ?? ""}`)) ?? 0)); }
+
+  /** The Mandate ceiling of a member now (S1408): the template in force with the member's own narrowing laid over it, or undefined when its fleet has no template. */
+  async mandateCeiling(member: string): Promise<{ template: string; version: number; narrowing: Record<string, unknown> | null; mandate: Record<string, unknown>; node?: string } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const t = await this.templateFor(tx, member);
+      const eff = await this.nodeCeiling(tx, member);
+      const base = eff?.mandate ?? t?.mandate;
+      if (!base) return undefined;
+      const n = JSON.parse((await tx.getMarker(`mnarrow:${member}`)) ?? "null") as Record<string, unknown> | null;
+      const d = deriveMandate(base, "", n);
+      return { template: t?.record ?? "", version: t?.version ?? 0, narrowing: n, mandate: "mandate" in d ? d.mandate : base, ...(eff ? { node: eff.node } : {}) };
+    });
+  }
+
+  /** The Mandate a member holds for a contract, derived from its fleet's template and its own narrowing (S1408): cheap, so a fleet of 10,000 needs no 10,000 hand-made Mandates. */
+  async deriveMemberMandate(member: string, contract: string): Promise<Record<string, unknown> | undefined> {
+    const c = await this.mandateCeiling(member);
+    return c ? { ...c.mandate, contract } : undefined;
+  }
+
+  /** One declaration chain per fleet, issued by its org, which never changes. An update restates the declaration (S1407): the cap may not fall below the members, and the co-sponsors may be changed without unseating a member. */
   private async projectFleet(tx: LogTx, r: AspRecord): Promise<void> {
-    const body = r.body as { did: string; org: string; name: string; max_members?: number };
+    const body = r.body as unknown as FleetDecl & { did: string; org: string; name: string; max_members?: number };
     const current = await tx.getFleet(body.did);
     if ((current?.head ?? null) !== r.prev) {
       throw new AspError("BAD_PREV", current
@@ -679,8 +888,30 @@ export class EventLog {
     }
     if (r.issuer !== body.org) throw new AspError("WRONG_ISSUER", `fleet ${body.did} must be declared by its org ${body.org}`);
     if (current && current.org !== body.org) throw rule("fleet_org_change", `fleet ${body.did} belongs to ${current.org}`);
+    if (current && body.max_members !== undefined) {
+      const members = (await tx.fleetMembers(body.did)).length;
+      if (body.max_members < members) throw rule("fleet_cap_below_members", `fleet ${body.did} has ${members} members: the cap cannot be ${body.max_members}`);
+    }
+    if ((body.co_sponsors ?? []).includes(body.org)) throw rule("fleet_co_sponsor_is_org", "the organisation is the fleet's sponsor already: co_sponsors names the others");
     await tx.putFleet({ did: body.did, head: r.id, org: body.org, name: body.name, maxMembers: body.max_members ?? null });
+    await tx.putMarker(`fleet_decl:${body.did}`, JSON.stringify({ purpose: (body as { purpose?: string }).purpose, template: body.template, co_sponsors: body.co_sponsors ?? [], strict: !!body.strict, closed: !!body.closed } satisfies FleetDecl));
+    const list = ((await tx.getMarker("fleets_of:" + body.org)) ?? "").split(",").filter(Boolean);
+    if (!list.includes(body.did)) await tx.putMarker("fleets_of:" + body.org, [...list, body.did].join(","));
   }
+
+  /** A fleet as the log holds it (S1407, DK1353): the declaration, its co-sponsors and template, and each member with its sponsor and whether it matches the template. */
+  async fleetDetails(fleetDid: string): Promise<{ did: string; org: string; name: string; purpose?: string; template: FleetDecl["template"]; maxMembers: number | null; coSponsors: string[]; strict: boolean; closed: boolean; members: { did: string; sponsor: string | null; label: string }[] } | undefined> {
+    return this.store.transaction(async (tx) => {
+      const f = await tx.getFleet(fleetDid);
+      if (!f) return undefined;
+      const d = JSON.parse((await tx.getMarker(`fleet_decl:${fleetDid}`)) ?? "{}") as FleetDecl;
+      const members = await Promise.all((await tx.fleetMembers(fleetDid)).map(async (m) => ({ did: m.did, sponsor: m.sponsor, label: (await tx.getMarker(`fleet_label:${m.did}`)) ?? "matches" })));
+      return { did: f.did, org: f.org, name: f.name, purpose: d.purpose, template: d.template, maxMembers: f.maxMembers, coSponsors: d.co_sponsors ?? [], strict: !!d.strict, closed: !!d.closed, members };
+    });
+  }
+
+  /** The fleets an organisation has declared, oldest first (S1407). */
+  async fleetsOf(org: string): Promise<string[]> { return this.store.transaction(async (tx) => ((await tx.getMarker("fleets_of:" + org)) ?? "").split(",").filter(Boolean)); }
 
   /**
    * A person delegates a short-lived key to one node, optionally under a Mandate whose max_parallel
@@ -849,7 +1080,7 @@ export class EventLog {
     const looped = closesLoop(edges, job.principal, job.performer, at);
     await tx.putMarker("hire_edges", JSON.stringify([...edges.filter((e) => at - e.at <= LOOP_WINDOW_MS).slice(-2000), { principal: job.principal, performer: job.performer, at, contract: "" }]));
     if (job.price >= QUALIFYING_MIN_PRICE && weight > 0 && !looped) {
-      const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+      const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
       const principal = await facts(job.principal);
       const others = [await facts(job.performer), await facts(backer)];
       if (others.every((o) => independent(principal, o))) {
@@ -1348,13 +1579,14 @@ export class EventLog {
       await noteEarned(tx, cbody.performer, body.escrow_released.value);
       if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
-    if (fees > 0) await this.credit(tx, PLATFORM_DID, fees);
+    if (fees > 0) { await this.credit(tx, PLATFORM_DID, fees); await noteIncome(tx, fees, r.issued_at); }
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     {
       // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
       const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
+      await serveQueue(tx, this.bankEnv, r.issued_at);
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
     }
     await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
@@ -1782,12 +2014,14 @@ export class EventLog {
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
     const spendKey = await this.checkInstitutionSpend(tx, r, b, buyer, item.class);
+    await chargeNodeCredits(tx, buyer, b.amount.value, r.issued_at);
     await this.debit(tx, buyer, b.amount.value);
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
+    await noteIncome(tx, parts.treasury, r.issued_at);
     await this.credit(tx, BURN_DID, parts.burn);
     await tx.putMarker(key, r.id);
     if (standingRun) await tx.putMarker(standingRun, r.id);
@@ -1819,7 +2053,7 @@ export class EventLog {
 
   /**
    * A starter claim (DK94): the claimant signs, the log moves credits out of the starter pool by fixed rules, so no key is needed to hand out starter credits. Upfront: once per identity, at
-   * most STARTER_MAX_DIDS identities per sponsor (a person with no sponsor counts as their own group). Rest: once per identity, after upfront, and only when an identity of the same group has
+   * every agent (any number under one sponsor, S1406). Rest: once per identity, after upfront, and only when that identity has
    * had a qualifying job accepted. The pool's balance is the cap: a claim the pool cannot cover is refused (`starter_pool_empty`), which the service turns into the waiting list.
    */
   private async projectStarterClaim(tx: LogTx, r: AspRecord): Promise<void> {
@@ -1831,18 +2065,14 @@ export class EventLog {
     if (!passport) throw rule("starter_claim_no_passport", `${who} has no passport in this log: an identity is registered before it claims`);
     const want = b.part === "upfront" ? STARTER_UPFRONT : STARTER_PER_DID - STARTER_UPFRONT;
     if (b.amount.value !== want) throw rule("starter_claim_amount", `the ${b.part} part of the starter grant is ${want} credits, not ${b.amount.value}`);
-    const group = passport.sponsor ?? who;
-    const membersKey = `starter_group:${group}`;
-    const members = ((await tx.getMarker(membersKey)) ?? "").split(",").filter(Boolean);
     const claimedKey = `starter_${b.part}:${who}`;
     if (await tx.getMarker(claimedKey)) throw rule("starter_already_claimed", `${who} already claimed the ${b.part} part of its starter credits`);
-    if (b.part === "upfront") {
-      if (!members.includes(who) && members.length >= STARTER_MAX_DIDS) throw rule("starter_group_full", `identities of ${group} have already claimed ${STARTER_MAX_DIDS} starter grants`);
-    } else {
+    // Every agent has its own starter credits (S1406, DK1356: any number of identities under one sponsor, a fleet of 10,000 agents is 10,000 grants; the pool and the supply audit cover them). The second part is the
+    // agent's OWN: released when this identity has had a qualifying job accepted, and a qualifying job is one from an independent principal, so work between the members of one sponsor, organisation or fleet never unlocks it.
+    if (b.part === "rest") {
       if (!(await tx.getMarker(`starter_upfront:${who}`))) throw rule("starter_rest_needs_upfront", `${who} has not claimed the first part yet`);
-      let qualified = false;
-      for (const m of members) { if (await tx.getMarker(`starter_nonhouse:${m}`)) { qualified = true; break; } }
-      if (!qualified) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when an identity of the same sponsor has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
+      if (((await this.reputation(tx, who))?.qualifyingJobs ?? 0) < 1) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted: a job from a principal that is not its own sponsor, fleet or organisation");
+      if (!(await tx.getMarker(`starter_nonhouse:${who}`))) throw rule("starter_rest_not_earned", "the rest of the starter grant is released when this identity has had a qualifying job accepted from a principal that is not a house agent (an independent one, of another sponsor, at 20 credits or more)");
     }
     try { await this.debit(tx, STARTER_POOL_DID, b.amount.value); } catch (e) {
       if (e instanceof AspError && e.detail === "insufficient_balance") throw rule("starter_pool_empty", `the starter pool cannot cover ${b.amount.value} credits right now; the operator tops it up with a signed mint`);
@@ -1850,7 +2080,6 @@ export class EventLog {
     }
     await this.credit(tx, who, b.amount.value);
     await tx.putMarker(claimedKey, r.id);
-    if (!members.includes(who)) await tx.putMarker(membersKey, [...members, who].join(","));
   }
 
   /**
@@ -1970,6 +2199,19 @@ export class EventLog {
     if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
     if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
     await tx.putMarker(`treasury_statement:${b.period}`, r.id);
+  }
+
+  /**
+   * A forum checkpoint (DK791, S1350): the operator signs the head of the forum's chain, so the log witnesses it. Only the operator issues one, it starts its own chain (prev is null), and it must move forward:
+   * `forum_seq` greater than the last checkpoint's. The log cannot read the forum's files, so what the head ought to be is checked outside the log, by `asp forum verify` and `GET /forum/verify`.
+   */
+  private async projectForumCheckpoint(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { forum_seq: number };
+    if (r.prev !== null) throw rule("forum_checkpoint_not_chained", "a forum checkpoint starts its own chain (prev is null)");
+    if (!this.operator || r.issuer !== this.operator) throw rule("forum_checkpoint_wrong_issuer", `${r.issuer} is not the operator${this.operator ? ` (${this.operator})` : " (this log has none configured)"}: only the operator signs the forum head`);
+    const last = Number((await tx.getMarker("forum_checkpoint:last")) ?? 0);
+    if (b.forum_seq <= last) throw rule("forum_checkpoint_not_forward", `the last checkpoint is at ${last} forum acts; a new one must be later (${b.forum_seq})`);
+    await tx.putMarker("forum_checkpoint:last", String(b.forum_seq));
   }
 
   /** A Treasury payment (T10): part of an approved budget goes to that budget's institution, and to no one else. Debits only the Treasury. */
@@ -2506,7 +2748,7 @@ export class EventLog {
   private async noteRelatedParty(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { principal?: string; performer?: string };
     if (!b.principal || !b.performer) return;
-    const facts = async (did: string): Promise<PartyFacts> => { const p = await tx.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const facts = async (did: string): Promise<PartyFacts> => this.factsOf(tx, did);
     const kind = relatedKind(await facts(b.principal), await facts(b.performer));
     if (kind) await tx.putMarker(`related_party:${r.id}`, kind);
   }
@@ -2862,7 +3104,7 @@ export class EventLog {
   }
 
   /** What the Market's rules need from the log (market-rules.ts). */
-  private marketEnv(): MarketEnv { return { operator: this.operator, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
+  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
@@ -2904,6 +3146,191 @@ export class EventLog {
     return this.store.transaction(async (tx) => JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]"));
   }
 
+  /**
+   * The world's kill-switch (leisure-events.md 14; DK76; spec-delta S1402). A `halt` is the operator's and stops every generated event and every shock, drill or experiment at once; it is public and stays in the log.
+   * A `resume` names the halt it ends; one made 24 hours or more after the halt needs the owner's co-signature. While halted the log refuses a day record and a calendar entry of a seeded kind (the generator and the
+   * shocks cannot be re-armed behind the switch); scheduled, season, funding and review entries are not touched.
+   */
+  private async projectWorldHalt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { kind: string; halt?: string; day?: string; event_kind?: string };
+    const open = await tx.getMarker("world_halt:open");
+    if (b.kind === "halt") {
+      if (r.prev !== null) throw rule("halt_not_chained", "a halt record starts its own chain (prev is null)");
+      if (!this.operator || r.issuer !== this.operator) throw rule("halt_unauthorised", `${r.issuer} is not the operator${this.operator ? "" : " (this log has none configured)"}: only the operator halts the world`);
+      if (open) throw rule("world_already_halted", `the world is already halted (${open}): resume it before halting again`);
+      await tx.putMarker("world_halt:open", r.id);
+      await tx.putMarker(`world_halt:${r.id}`, r.issued_at);
+      return;
+    }
+    if (b.kind === "resume") {
+      if (r.prev !== null) throw rule("resume_not_chained", "a resume record starts its own chain (prev is null)");
+      if (!this.operator || r.issuer !== this.operator) throw rule("resume_unauthorised", `${r.issuer} is not the operator: only the operator resumes the world`);
+      const since = b.halt ? await tx.getMarker(`world_halt:${b.halt}`) : undefined;
+      if (!since) throw rule("resume_unknown_halt", `${b.halt} is not a halt in this log`);
+      if (open !== b.halt) throw rule("resume_not_open", `the halt ${b.halt} is not the one in force${open ? ` (${open} is)` : " (none is)"}`);
+      if (Date.parse(r.issued_at) - Date.parse(since) >= RESUME_OWNER_AFTER_HOURS * 3_600_000 && !this.cosignedBy(r, this.owner)) throw rule("resume_needs_owner", `a resume ${RESUME_OWNER_AFTER_HOURS} hours or more after the halt needs the owner's co-signature`);
+      await tx.putMarker("world_halt:open", "");
+      return;
+    }
+    // A day record or a seeded entry while the world is halted.
+    if (open && (b.kind === "day" || SEEDED_ENTRY_KINDS.has(b.event_kind ?? ""))) throw rule("world_halted", `the world is halted (${open}): no day record and no shock, drill or experiment is accepted until the operator resumes it`);
+  }
+
+  /**
+   * The world's invariants (DK76, S1402; leisure-events.md 14 "bounds"): what must hold after every event. Every price multiplier in force is inside its published bounds; every day record is exactly what the generator gives
+   * for its seed and day; no effect names a tier, a rank or a standing (the schema is closed, so this reads the records again); and the credit supply rule holds (no event moves credits). `ok` is false with the failures named.
+   */
+  async worldInvariants(at?: string): Promise<{ ok: boolean; failures: string[]; checked: { days: number; entries: number } }> {
+    const when = at ?? this.now().toISOString();
+    const records = await this.worldRecords();
+    const failures: string[] = [];
+    let days = 0, entries = 0;
+    for (const r of records) {
+      const b = r.body as unknown as { kind: string; day?: string; seed?: string; generator?: string; events?: unknown[]; effect?: { type: string; value: number } };
+      if (b.kind === "day") { days++; try { checkWorldRecord(r); } catch (e) { failures.push(`day ${b.day}: ${(e as Error).message}`); } }
+      else if (b.kind === "calendar_entry") { entries++; if (b.effect?.type === "price_multiplier" && (b.effect.value < PRICE_MULTIPLIER_MIN || b.effect.value > PRICE_MULTIPLIER_MAX)) failures.push(`an entry's price multiplier ${b.effect.value} is outside ${PRICE_MULTIPLIER_MIN} to ${PRICE_MULTIPLIER_MAX}`); }
+    }
+    const st = worldStateAt(records, when);
+    for (const [cls, m] of Object.entries(st.priceMultiplier)) if (m < PRICE_MULTIPLIER_MIN || m > PRICE_MULTIPLIER_MAX) failures.push(`the price multiplier of ${cls} is ${m}, outside ${PRICE_MULTIPLIER_MIN} to ${PRICE_MULTIPLIER_MAX}`);
+    const audit = await this.creditAudit();
+    if (audit.verdict !== "balanced") failures.push(`the credit supply rule is broken: ${audit.problems.join("; ")}`);
+    return { ok: failures.length === 0, failures, checked: { days, entries } };
+  }
+
+  /** The risk model in force at `at` (the newest version whose `effective_from` has come), or null when none is published (market.md 13.1; DK1455, S1404). */
+  async riskModel(at?: string): Promise<{ version: number; terms: RiskTerms; effective_from: string; record: string } | null> {
+    const when = Date.parse(at ?? this.now().toISOString());
+    return this.store.transaction(async (tx) => {
+      for (let v = Number((await tx.getMarker("risk_model_head")) ?? 0); v >= 1; v--) {
+        const m = JSON.parse((await tx.getMarker(`risk_model:${v}`)) ?? "null") as { terms: RiskTerms; effective_from: string; record: string } | null;
+        if (m && Date.parse(m.effective_from) <= when) return { version: v, ...m };
+      }
+      return null;
+    });
+  }
+
+  /**
+   * What the Market suggests for an offer (market.md 13.1; DK1455, S1404): the bond and the escrow the risk model in force gives for this job, this performer and this poster, next to what the offer offers. Never binding: the log
+   * still enforces only the performer's own floor. Reproducible: the inputs are the offer, its intent, the performer's recorded floor terms and the poster's record, and the model is a record in the log.
+   */
+  async suggestedBond(offerId: string, at?: string): Promise<{ offer: string; modelVersion: number | null; offered: number; suggestion: RiskSuggestion; input: RiskInput }> {
+    const when = at ?? this.now().toISOString();
+    const offer = await this.store.getRecord(offerId);
+    if (!offer || offer.record.type !== "asp.offer/v0.2") throw new AspError("BAD_PREV", `${offerId} is not an offer in this log`);
+    const ob = offer.record.body as { intent: string; price: { value: number }; bond_offered?: { value: number } };
+    const intent = await this.store.getRecord(ob.intent);
+    if (!intent) throw new AspError("BAD_PREV", `the offer's intent ${ob.intent} is not in the log`);
+    const ib = intent.record.body as { verification?: { mode?: Verification } };
+    const raised = (await this.recordsOfTypes(["market_act"])).filter((r) => (r.body as { act: string; intent?: string; verdict?: string }).act === "class_check" && (r.body as { intent?: string }).intent === ob.intent && (r.body as { verdict?: string }).verdict === "changed_to").map((r) => (r.body as { class: JobClass }).class).at(-1);
+    const poster = await this.posterRecord(intent.record.issuer);
+    const f = await this.floorTerms(offer.record.issuer, when);
+    const input: RiskInput = {
+      price: ob.price.value, floorPermille: bondFloorPermille({ ownSlashes: f.ownSlashes, fleetSlashes: f.fleetSlashes, recentStrikes: f.recentStrikes, verifiedImprovements: f.verifiedImprovements, acceptedCleanJobs: f.acceptedCleanJobs, regressions: f.regressions, probation: f.probation }),
+      jobClass: jobNeeds(intent.record, raised).class, verification: ib.verification?.mode ?? "principal", posterLostPermille: poster.settled ? Math.round((poster.disputesLost * 1000) / poster.settled) : 0,
+    };
+    const model = await this.riskModel(when);
+    return { offer: offerId, modelVersion: model?.version ?? null, offered: ob.bond_offered?.value ?? 0, suggestion: suggestRisk(model?.terms ?? null, input), input };
+  }
+
+  /**
+   * Replay of a candidate model over the past (market.md 13.1 "replay the previous 90 days"; DK1455): for each contract settled in the window, what the model would have suggested for its bond against the bond that was locked,
+   * and for each slash whether the suggestion would have locked more. `candidate` null replays the model in force. The inputs are the contract's recorded facts and the performer's and poster's records as they are now, so the
+   * replay says what the model would lock on today's records, and a model that would have locked absurd amounts shows here before it is published.
+   */
+  async riskReplay(candidate: RiskTerms | null, days = 90, at?: string): Promise<{ days: number; contracts: number; lockedActual: number; lockedSuggested: number; slashes: number; slashedCredits: number; suggestionWouldLockMoreOnSlashed: number; maxSuggestedPermille: number }> {
+    const when = at ?? this.now().toISOString();
+    const from = Date.parse(when) - days * 86_400_000;
+    const records = await this.recordsOfTypes(["contract", "bond", "settlement", "intent"]);
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const bonds = new Map<string, number>();
+    for (const r of records) if (r.type === "asp.bond/v0.2") bonds.set((r.body as { contract: string }).contract, (r.body as { amount: { value: number } }).amount.value);
+    const model = candidate ?? (await this.riskModel(when))?.terms ?? null;
+    const out = { days, contracts: 0, lockedActual: 0, lockedSuggested: 0, slashes: 0, slashedCredits: 0, suggestionWouldLockMoreOnSlashed: 0, maxSuggestedPermille: 0 };
+    for (const s of records) {
+      if (s.type !== "asp.settlement/v0.2" || Date.parse(s.issued_at) < from || Date.parse(s.issued_at) > Date.parse(when)) continue;
+      const sb = s.body as { contract: string; bond_slashed: { value: number } };
+      const c = byId.get(sb.contract);
+      if (!c) continue;
+      const cb = c.body as { performer: string; principal: string; price: { value: number }; basis?: { intent?: string } };
+      const intent = cb.basis?.intent ? byId.get(cb.basis.intent) : undefined;
+      const poster = await this.posterRecord(cb.principal);
+      const f = await this.floorTerms(cb.performer, when);
+      const input: RiskInput = {
+        price: cb.price.value, floorPermille: bondFloorPermille({ ownSlashes: f.ownSlashes, fleetSlashes: f.fleetSlashes, recentStrikes: f.recentStrikes, verifiedImprovements: f.verifiedImprovements, acceptedCleanJobs: f.acceptedCleanJobs, regressions: f.regressions, probation: f.probation }),
+        jobClass: intent ? jobNeeds(intent).class : "routine", verification: (intent?.body as { verification?: { mode?: Verification } } | undefined)?.verification?.mode ?? "principal", posterLostPermille: poster.settled ? Math.round((poster.disputesLost * 1000) / poster.settled) : 0,
+      };
+      const sg = suggestRisk(model, input);
+      const actual = bonds.get(sb.contract) ?? 0;
+      out.contracts++; out.lockedActual += actual; out.lockedSuggested += sg.bond; out.maxSuggestedPermille = Math.max(out.maxSuggestedPermille, sg.bondPermille);
+      if (sb.bond_slashed.value > 0) { out.slashes++; out.slashedCredits += sb.bond_slashed.value; if (sg.bond > actual) out.suggestionWouldLockMoreOnSlashed++; }
+    }
+    return out;
+  }
+
+  /**
+   * The Market's dynamics (market.md 14; MK-16 to MK-20; DK1456, S1403): the season, the seeded demand for each skill on a day, the guide price of each class from the weekly fill rate, the announced entrant waves and the monitor of how the
+   * mix of work moves. Read-only and reproducible: the seed is the one the world's newest day record reveals, the rest is the log's own records. While the world is halted (S1402) demand is at its baseline, no wave is announced and the
+   * season shows no boost. `seed` (shown as its commitment) is null when no day has been recorded: the demand is then the baseline and no wave is announced.
+   */
+  async marketDynamics(at?: string): Promise<MarketDynamics> {
+    const when = at ?? this.now().toISOString();
+    const day = when.slice(0, 10);
+    const world = await this.worldRecords();
+    const days = world.filter((r) => (r.body as { kind: string }).kind === "day");
+    const seed = days.length ? (days[days.length - 1].body as { seed: string }).seed : null;
+    const halted = (await this.worldState(when)).halted !== null;
+    const records = await this.recordsOfTypes(["market_act", "intent", "contract", "settlement"]);
+    const postingStates: Record<string, string> = {};
+    await this.store.transaction(async (tx) => { for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string }).act === "posting") { const st = (await tx.getMarker(`posting_state:${r.id}`)) ?? "open"; if (st !== "open") postingStates[r.id] = st; } });
+    const weekly = weeklyFillByClass({ records, postingStates, countedContracts: new Set() }, when);
+    const guides = JOB_CLASSES.map((c) => guideFromFill(c, (weekly[c] ?? []).map((w) => w.fillRate)));
+    const byId = new Map(records.map((r) => [r.id, r]));
+    const raised = new Map<string, JobClass>();
+    for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string; verdict?: string }).act === "class_check" && (r.body as { verdict?: string }).verdict === "changed_to") raised.set((r.body as { intent: string }).intent, (r.body as { class: JobClass }).class);
+    const facts: JobFact[] = [];
+    for (const r of records) {
+      if (r.type !== "asp.contract/v0.2") continue;
+      const b = r.body as { performer: string; basis?: { intent?: string } };
+      const intent = b.basis?.intent ? byId.get(b.basis.intent) : undefined;
+      facts.push({ at: r.issued_at, class: intent ? jobNeeds(intent, raised.get(intent.id)).class : "routine", performer: b.performer });
+    }
+    const t = Date.parse(when), DAYMS = 86_400_000;
+    const period = facts.filter((f) => Date.parse(f.at) > t - 30 * DAYMS && Date.parse(f.at) <= t);
+    const previous = facts.filter((f) => Date.parse(f.at) > t - 60 * DAYMS && Date.parse(f.at) <= t - 30 * DAYMS);
+    const openings: { event: string; class: JobClass; at: string }[] = [];
+    for (const r of days) for (const e of (r.body as { events: { event_id: string; event_type: string; starts: string; effect: { target: string } }[] }).events) if (e.event_type === "job_opening" && Date.parse(e.starts) <= t) openings.push({ event: e.event_id, class: skillClass(e.effect.target), at: e.starts });
+    const monitor: Dynamics = {
+      mixDivergence: mixDivergence(period, previous),
+      adaptation: openings.slice(-5).map((o) => ({ event: o.event, class: o.class, days: adaptationDays(facts, o.class, o.at, when) })),
+      transferShare: transferShare(period, facts.filter((f) => Date.parse(f.at) <= t)),
+    };
+    const season = seasonOf(day);
+    return {
+      version: DYNAMICS, at: when, halted, seed: seed === null ? null : seedCommitment(seed), season: halted ? { ...season, boostPermille: 0 } : season,
+      demand: seed === null ? SKILLS.map((s) => demandOn("none", s, day, true)) : demandTable(seed, day, halted),
+      guides, waves: seed === null ? [] : entrantWaves(seed, day, 8, halted), monitor,
+    };
+  }
+
+  /**
+   * The Market's statistics (market.md 7, MK-9; DK1453): postings by state, the fill rate, open jobs and contracts by class with median prices, settlements and the share that counted for standing, assignments by rule.
+   * Whole log at `at` (default now), or for one calendar month (`month`, YYYY-MM: the monthly report of market.md 8, MK-12). Computed from the records, so any replica shows the same figures.
+   */
+  async marketStats(at?: string, month: string | null = null): Promise<MarketStats> {
+    const when = at ?? this.now().toISOString();
+    if (month !== null && !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) throw new AspError("SCHEMA_INVALID", `${month} is not a month (YYYY-MM)`);
+    const records = await this.recordsOfTypes(["market_act", "intent", "contract", "settlement"]);
+    const postingStates: Record<string, string> = {};
+    const performers = new Set<string>();
+    for (const r of records) if (r.type === "asp.contract/v0.2") performers.add((r.body as { performer: string }).performer);
+    const countedContracts = new Set<string>();
+    await this.store.transaction(async (tx) => {
+      for (const r of records) if (r.type === "asp.market_act/v0.2" && (r.body as { act: string }).act === "posting") { const st = (await tx.getMarker(`posting_state:${r.id}`)) ?? "open"; if (st !== "open") postingStates[r.id] = st; }
+      for (const did of performers) for (const e of JSON.parse((await tx.getMarker(`qual_feed:${did}`)) ?? "[]") as { contract: string | null }[]) if (e.contract) countedContracts.add(e.contract);
+    });
+    return computeMarketStats({ records, postingStates, countedContracts }, when, month);
+  }
+
   /** The ranked list the log will require for an assignment of a posting by a rule (the same function the assignment check uses), so a proposed assignment reproduces. */
   async rankPosting(posting: string, rule: "poster_choice" | "best_match" | "rotation" | "panel_pick", seed: string, at?: string): Promise<Ranked[]> {
     const now = at ?? this.now().toISOString();
@@ -2938,7 +3365,7 @@ export class EventLog {
     }
     for (const r of recs) if (r.type === "asp.contract/v0.2") { const intent = (r.body as { basis?: { intent?: string } }).basis?.intent; for (const p of postings) if (intent && (p.body as { intent: string }).intent === intent) state.set(p.id, `filled:${r.id}`); }
     const facts = forAgent ? (await this.allAgentFacts(when)).find((f) => f.did === forAgent) : undefined;
-    const partyFacts = async (did: string): Promise<PartyFacts> => { const p = await this.store.getPassport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+    const partyFacts = async (did: string): Promise<PartyFacts> => this.store.transaction(async (tx) => this.factsOf(tx, did));
     // A posting the Market removed, or that reports have held, is off the board (JB5): the state is kept in the log's markers, not in a record the board reads.
     const off = new Set<string>();
     await this.store.transaction(async (tx) => { for (const p of postings) if (((await tx.getMarker(`posting_state:${p.id}`)) ?? "open") !== "open") off.add(p.id); });

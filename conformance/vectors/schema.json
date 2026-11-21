@@ -3537,6 +3537,1186 @@
       "valid": false
     },
     {
+      "name": "valid_fleet_co_sponsors",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": [
+          "did:web:example.com:users:co-sponsor-a",
+          "did:web:example.com:users:co-sponsor-b"
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_no_co_sponsors",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": []
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_strict",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "strict": true
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_closed",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "closed": true
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_co_sponsors_duplicate",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": [
+          "did:web:example.com:users:co-sponsor-a",
+          "did:web:example.com:users:co-sponsor-a"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_co_sponsors_not_a_did",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": [
+          "not-a-did"
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_co_sponsors_not_an_array",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": "did:web:example.com:users:co-sponsor-a"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_strict_not_boolean",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "strict": "yes"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_closed_not_boolean",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "closed": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_co_sponsors_over_a_thousand",
+      "schema": "fleet",
+      "instance": {
+        "did": "did:web:example.com:fleets:payments",
+        "org": "did:web:example.com:users:alice",
+        "name": "Payments test fleet",
+        "purpose": "Keep the payments services' test suites green",
+        "template": {
+          "runtime": "example-runtime",
+          "model": "example-model-1"
+        },
+        "max_members": 30,
+        "co_sponsors": [
+          "did:web:example.com:users:cs-0",
+          "did:web:example.com:users:cs-1",
+          "did:web:example.com:users:cs-2",
+          "did:web:example.com:users:cs-3",
+          "did:web:example.com:users:cs-4",
+          "did:web:example.com:users:cs-5",
+          "did:web:example.com:users:cs-6",
+          "did:web:example.com:users:cs-7",
+          "did:web:example.com:users:cs-8",
+          "did:web:example.com:users:cs-9",
+          "did:web:example.com:users:cs-10",
+          "did:web:example.com:users:cs-11",
+          "did:web:example.com:users:cs-12",
+          "did:web:example.com:users:cs-13",
+          "did:web:example.com:users:cs-14",
+          "did:web:example.com:users:cs-15",
+          "did:web:example.com:users:cs-16",
+          "did:web:example.com:users:cs-17",
+          "did:web:example.com:users:cs-18",
+          "did:web:example.com:users:cs-19",
+          "did:web:example.com:users:cs-20",
+          "did:web:example.com:users:cs-21",
+          "did:web:example.com:users:cs-22",
+          "did:web:example.com:users:cs-23",
+          "did:web:example.com:users:cs-24",
+          "did:web:example.com:users:cs-25",
+          "did:web:example.com:users:cs-26",
+          "did:web:example.com:users:cs-27",
+          "did:web:example.com:users:cs-28",
+          "did:web:example.com:users:cs-29",
+          "did:web:example.com:users:cs-30",
+          "did:web:example.com:users:cs-31",
+          "did:web:example.com:users:cs-32",
+          "did:web:example.com:users:cs-33",
+          "did:web:example.com:users:cs-34",
+          "did:web:example.com:users:cs-35",
+          "did:web:example.com:users:cs-36",
+          "did:web:example.com:users:cs-37",
+          "did:web:example.com:users:cs-38",
+          "did:web:example.com:users:cs-39",
+          "did:web:example.com:users:cs-40",
+          "did:web:example.com:users:cs-41",
+          "did:web:example.com:users:cs-42",
+          "did:web:example.com:users:cs-43",
+          "did:web:example.com:users:cs-44",
+          "did:web:example.com:users:cs-45",
+          "did:web:example.com:users:cs-46",
+          "did:web:example.com:users:cs-47",
+          "did:web:example.com:users:cs-48",
+          "did:web:example.com:users:cs-49",
+          "did:web:example.com:users:cs-50",
+          "did:web:example.com:users:cs-51",
+          "did:web:example.com:users:cs-52",
+          "did:web:example.com:users:cs-53",
+          "did:web:example.com:users:cs-54",
+          "did:web:example.com:users:cs-55",
+          "did:web:example.com:users:cs-56",
+          "did:web:example.com:users:cs-57",
+          "did:web:example.com:users:cs-58",
+          "did:web:example.com:users:cs-59",
+          "did:web:example.com:users:cs-60",
+          "did:web:example.com:users:cs-61",
+          "did:web:example.com:users:cs-62",
+          "did:web:example.com:users:cs-63",
+          "did:web:example.com:users:cs-64",
+          "did:web:example.com:users:cs-65",
+          "did:web:example.com:users:cs-66",
+          "did:web:example.com:users:cs-67",
+          "did:web:example.com:users:cs-68",
+          "did:web:example.com:users:cs-69",
+          "did:web:example.com:users:cs-70",
+          "did:web:example.com:users:cs-71",
+          "did:web:example.com:users:cs-72",
+          "did:web:example.com:users:cs-73",
+          "did:web:example.com:users:cs-74",
+          "did:web:example.com:users:cs-75",
+          "did:web:example.com:users:cs-76",
+          "did:web:example.com:users:cs-77",
+          "did:web:example.com:users:cs-78",
+          "did:web:example.com:users:cs-79",
+          "did:web:example.com:users:cs-80",
+          "did:web:example.com:users:cs-81",
+          "did:web:example.com:users:cs-82",
+          "did:web:example.com:users:cs-83",
+          "did:web:example.com:users:cs-84",
+          "did:web:example.com:users:cs-85",
+          "did:web:example.com:users:cs-86",
+          "did:web:example.com:users:cs-87",
+          "did:web:example.com:users:cs-88",
+          "did:web:example.com:users:cs-89",
+          "did:web:example.com:users:cs-90",
+          "did:web:example.com:users:cs-91",
+          "did:web:example.com:users:cs-92",
+          "did:web:example.com:users:cs-93",
+          "did:web:example.com:users:cs-94",
+          "did:web:example.com:users:cs-95",
+          "did:web:example.com:users:cs-96",
+          "did:web:example.com:users:cs-97",
+          "did:web:example.com:users:cs-98",
+          "did:web:example.com:users:cs-99",
+          "did:web:example.com:users:cs-100",
+          "did:web:example.com:users:cs-101",
+          "did:web:example.com:users:cs-102",
+          "did:web:example.com:users:cs-103",
+          "did:web:example.com:users:cs-104",
+          "did:web:example.com:users:cs-105",
+          "did:web:example.com:users:cs-106",
+          "did:web:example.com:users:cs-107",
+          "did:web:example.com:users:cs-108",
+          "did:web:example.com:users:cs-109",
+          "did:web:example.com:users:cs-110",
+          "did:web:example.com:users:cs-111",
+          "did:web:example.com:users:cs-112",
+          "did:web:example.com:users:cs-113",
+          "did:web:example.com:users:cs-114",
+          "did:web:example.com:users:cs-115",
+          "did:web:example.com:users:cs-116",
+          "did:web:example.com:users:cs-117",
+          "did:web:example.com:users:cs-118",
+          "did:web:example.com:users:cs-119",
+          "did:web:example.com:users:cs-120",
+          "did:web:example.com:users:cs-121",
+          "did:web:example.com:users:cs-122",
+          "did:web:example.com:users:cs-123",
+          "did:web:example.com:users:cs-124",
+          "did:web:example.com:users:cs-125",
+          "did:web:example.com:users:cs-126",
+          "did:web:example.com:users:cs-127",
+          "did:web:example.com:users:cs-128",
+          "did:web:example.com:users:cs-129",
+          "did:web:example.com:users:cs-130",
+          "did:web:example.com:users:cs-131",
+          "did:web:example.com:users:cs-132",
+          "did:web:example.com:users:cs-133",
+          "did:web:example.com:users:cs-134",
+          "did:web:example.com:users:cs-135",
+          "did:web:example.com:users:cs-136",
+          "did:web:example.com:users:cs-137",
+          "did:web:example.com:users:cs-138",
+          "did:web:example.com:users:cs-139",
+          "did:web:example.com:users:cs-140",
+          "did:web:example.com:users:cs-141",
+          "did:web:example.com:users:cs-142",
+          "did:web:example.com:users:cs-143",
+          "did:web:example.com:users:cs-144",
+          "did:web:example.com:users:cs-145",
+          "did:web:example.com:users:cs-146",
+          "did:web:example.com:users:cs-147",
+          "did:web:example.com:users:cs-148",
+          "did:web:example.com:users:cs-149",
+          "did:web:example.com:users:cs-150",
+          "did:web:example.com:users:cs-151",
+          "did:web:example.com:users:cs-152",
+          "did:web:example.com:users:cs-153",
+          "did:web:example.com:users:cs-154",
+          "did:web:example.com:users:cs-155",
+          "did:web:example.com:users:cs-156",
+          "did:web:example.com:users:cs-157",
+          "did:web:example.com:users:cs-158",
+          "did:web:example.com:users:cs-159",
+          "did:web:example.com:users:cs-160",
+          "did:web:example.com:users:cs-161",
+          "did:web:example.com:users:cs-162",
+          "did:web:example.com:users:cs-163",
+          "did:web:example.com:users:cs-164",
+          "did:web:example.com:users:cs-165",
+          "did:web:example.com:users:cs-166",
+          "did:web:example.com:users:cs-167",
+          "did:web:example.com:users:cs-168",
+          "did:web:example.com:users:cs-169",
+          "did:web:example.com:users:cs-170",
+          "did:web:example.com:users:cs-171",
+          "did:web:example.com:users:cs-172",
+          "did:web:example.com:users:cs-173",
+          "did:web:example.com:users:cs-174",
+          "did:web:example.com:users:cs-175",
+          "did:web:example.com:users:cs-176",
+          "did:web:example.com:users:cs-177",
+          "did:web:example.com:users:cs-178",
+          "did:web:example.com:users:cs-179",
+          "did:web:example.com:users:cs-180",
+          "did:web:example.com:users:cs-181",
+          "did:web:example.com:users:cs-182",
+          "did:web:example.com:users:cs-183",
+          "did:web:example.com:users:cs-184",
+          "did:web:example.com:users:cs-185",
+          "did:web:example.com:users:cs-186",
+          "did:web:example.com:users:cs-187",
+          "did:web:example.com:users:cs-188",
+          "did:web:example.com:users:cs-189",
+          "did:web:example.com:users:cs-190",
+          "did:web:example.com:users:cs-191",
+          "did:web:example.com:users:cs-192",
+          "did:web:example.com:users:cs-193",
+          "did:web:example.com:users:cs-194",
+          "did:web:example.com:users:cs-195",
+          "did:web:example.com:users:cs-196",
+          "did:web:example.com:users:cs-197",
+          "did:web:example.com:users:cs-198",
+          "did:web:example.com:users:cs-199",
+          "did:web:example.com:users:cs-200",
+          "did:web:example.com:users:cs-201",
+          "did:web:example.com:users:cs-202",
+          "did:web:example.com:users:cs-203",
+          "did:web:example.com:users:cs-204",
+          "did:web:example.com:users:cs-205",
+          "did:web:example.com:users:cs-206",
+          "did:web:example.com:users:cs-207",
+          "did:web:example.com:users:cs-208",
+          "did:web:example.com:users:cs-209",
+          "did:web:example.com:users:cs-210",
+          "did:web:example.com:users:cs-211",
+          "did:web:example.com:users:cs-212",
+          "did:web:example.com:users:cs-213",
+          "did:web:example.com:users:cs-214",
+          "did:web:example.com:users:cs-215",
+          "did:web:example.com:users:cs-216",
+          "did:web:example.com:users:cs-217",
+          "did:web:example.com:users:cs-218",
+          "did:web:example.com:users:cs-219",
+          "did:web:example.com:users:cs-220",
+          "did:web:example.com:users:cs-221",
+          "did:web:example.com:users:cs-222",
+          "did:web:example.com:users:cs-223",
+          "did:web:example.com:users:cs-224",
+          "did:web:example.com:users:cs-225",
+          "did:web:example.com:users:cs-226",
+          "did:web:example.com:users:cs-227",
+          "did:web:example.com:users:cs-228",
+          "did:web:example.com:users:cs-229",
+          "did:web:example.com:users:cs-230",
+          "did:web:example.com:users:cs-231",
+          "did:web:example.com:users:cs-232",
+          "did:web:example.com:users:cs-233",
+          "did:web:example.com:users:cs-234",
+          "did:web:example.com:users:cs-235",
+          "did:web:example.com:users:cs-236",
+          "did:web:example.com:users:cs-237",
+          "did:web:example.com:users:cs-238",
+          "did:web:example.com:users:cs-239",
+          "did:web:example.com:users:cs-240",
+          "did:web:example.com:users:cs-241",
+          "did:web:example.com:users:cs-242",
+          "did:web:example.com:users:cs-243",
+          "did:web:example.com:users:cs-244",
+          "did:web:example.com:users:cs-245",
+          "did:web:example.com:users:cs-246",
+          "did:web:example.com:users:cs-247",
+          "did:web:example.com:users:cs-248",
+          "did:web:example.com:users:cs-249",
+          "did:web:example.com:users:cs-250",
+          "did:web:example.com:users:cs-251",
+          "did:web:example.com:users:cs-252",
+          "did:web:example.com:users:cs-253",
+          "did:web:example.com:users:cs-254",
+          "did:web:example.com:users:cs-255",
+          "did:web:example.com:users:cs-256",
+          "did:web:example.com:users:cs-257",
+          "did:web:example.com:users:cs-258",
+          "did:web:example.com:users:cs-259",
+          "did:web:example.com:users:cs-260",
+          "did:web:example.com:users:cs-261",
+          "did:web:example.com:users:cs-262",
+          "did:web:example.com:users:cs-263",
+          "did:web:example.com:users:cs-264",
+          "did:web:example.com:users:cs-265",
+          "did:web:example.com:users:cs-266",
+          "did:web:example.com:users:cs-267",
+          "did:web:example.com:users:cs-268",
+          "did:web:example.com:users:cs-269",
+          "did:web:example.com:users:cs-270",
+          "did:web:example.com:users:cs-271",
+          "did:web:example.com:users:cs-272",
+          "did:web:example.com:users:cs-273",
+          "did:web:example.com:users:cs-274",
+          "did:web:example.com:users:cs-275",
+          "did:web:example.com:users:cs-276",
+          "did:web:example.com:users:cs-277",
+          "did:web:example.com:users:cs-278",
+          "did:web:example.com:users:cs-279",
+          "did:web:example.com:users:cs-280",
+          "did:web:example.com:users:cs-281",
+          "did:web:example.com:users:cs-282",
+          "did:web:example.com:users:cs-283",
+          "did:web:example.com:users:cs-284",
+          "did:web:example.com:users:cs-285",
+          "did:web:example.com:users:cs-286",
+          "did:web:example.com:users:cs-287",
+          "did:web:example.com:users:cs-288",
+          "did:web:example.com:users:cs-289",
+          "did:web:example.com:users:cs-290",
+          "did:web:example.com:users:cs-291",
+          "did:web:example.com:users:cs-292",
+          "did:web:example.com:users:cs-293",
+          "did:web:example.com:users:cs-294",
+          "did:web:example.com:users:cs-295",
+          "did:web:example.com:users:cs-296",
+          "did:web:example.com:users:cs-297",
+          "did:web:example.com:users:cs-298",
+          "did:web:example.com:users:cs-299",
+          "did:web:example.com:users:cs-300",
+          "did:web:example.com:users:cs-301",
+          "did:web:example.com:users:cs-302",
+          "did:web:example.com:users:cs-303",
+          "did:web:example.com:users:cs-304",
+          "did:web:example.com:users:cs-305",
+          "did:web:example.com:users:cs-306",
+          "did:web:example.com:users:cs-307",
+          "did:web:example.com:users:cs-308",
+          "did:web:example.com:users:cs-309",
+          "did:web:example.com:users:cs-310",
+          "did:web:example.com:users:cs-311",
+          "did:web:example.com:users:cs-312",
+          "did:web:example.com:users:cs-313",
+          "did:web:example.com:users:cs-314",
+          "did:web:example.com:users:cs-315",
+          "did:web:example.com:users:cs-316",
+          "did:web:example.com:users:cs-317",
+          "did:web:example.com:users:cs-318",
+          "did:web:example.com:users:cs-319",
+          "did:web:example.com:users:cs-320",
+          "did:web:example.com:users:cs-321",
+          "did:web:example.com:users:cs-322",
+          "did:web:example.com:users:cs-323",
+          "did:web:example.com:users:cs-324",
+          "did:web:example.com:users:cs-325",
+          "did:web:example.com:users:cs-326",
+          "did:web:example.com:users:cs-327",
+          "did:web:example.com:users:cs-328",
+          "did:web:example.com:users:cs-329",
+          "did:web:example.com:users:cs-330",
+          "did:web:example.com:users:cs-331",
+          "did:web:example.com:users:cs-332",
+          "did:web:example.com:users:cs-333",
+          "did:web:example.com:users:cs-334",
+          "did:web:example.com:users:cs-335",
+          "did:web:example.com:users:cs-336",
+          "did:web:example.com:users:cs-337",
+          "did:web:example.com:users:cs-338",
+          "did:web:example.com:users:cs-339",
+          "did:web:example.com:users:cs-340",
+          "did:web:example.com:users:cs-341",
+          "did:web:example.com:users:cs-342",
+          "did:web:example.com:users:cs-343",
+          "did:web:example.com:users:cs-344",
+          "did:web:example.com:users:cs-345",
+          "did:web:example.com:users:cs-346",
+          "did:web:example.com:users:cs-347",
+          "did:web:example.com:users:cs-348",
+          "did:web:example.com:users:cs-349",
+          "did:web:example.com:users:cs-350",
+          "did:web:example.com:users:cs-351",
+          "did:web:example.com:users:cs-352",
+          "did:web:example.com:users:cs-353",
+          "did:web:example.com:users:cs-354",
+          "did:web:example.com:users:cs-355",
+          "did:web:example.com:users:cs-356",
+          "did:web:example.com:users:cs-357",
+          "did:web:example.com:users:cs-358",
+          "did:web:example.com:users:cs-359",
+          "did:web:example.com:users:cs-360",
+          "did:web:example.com:users:cs-361",
+          "did:web:example.com:users:cs-362",
+          "did:web:example.com:users:cs-363",
+          "did:web:example.com:users:cs-364",
+          "did:web:example.com:users:cs-365",
+          "did:web:example.com:users:cs-366",
+          "did:web:example.com:users:cs-367",
+          "did:web:example.com:users:cs-368",
+          "did:web:example.com:users:cs-369",
+          "did:web:example.com:users:cs-370",
+          "did:web:example.com:users:cs-371",
+          "did:web:example.com:users:cs-372",
+          "did:web:example.com:users:cs-373",
+          "did:web:example.com:users:cs-374",
+          "did:web:example.com:users:cs-375",
+          "did:web:example.com:users:cs-376",
+          "did:web:example.com:users:cs-377",
+          "did:web:example.com:users:cs-378",
+          "did:web:example.com:users:cs-379",
+          "did:web:example.com:users:cs-380",
+          "did:web:example.com:users:cs-381",
+          "did:web:example.com:users:cs-382",
+          "did:web:example.com:users:cs-383",
+          "did:web:example.com:users:cs-384",
+          "did:web:example.com:users:cs-385",
+          "did:web:example.com:users:cs-386",
+          "did:web:example.com:users:cs-387",
+          "did:web:example.com:users:cs-388",
+          "did:web:example.com:users:cs-389",
+          "did:web:example.com:users:cs-390",
+          "did:web:example.com:users:cs-391",
+          "did:web:example.com:users:cs-392",
+          "did:web:example.com:users:cs-393",
+          "did:web:example.com:users:cs-394",
+          "did:web:example.com:users:cs-395",
+          "did:web:example.com:users:cs-396",
+          "did:web:example.com:users:cs-397",
+          "did:web:example.com:users:cs-398",
+          "did:web:example.com:users:cs-399",
+          "did:web:example.com:users:cs-400",
+          "did:web:example.com:users:cs-401",
+          "did:web:example.com:users:cs-402",
+          "did:web:example.com:users:cs-403",
+          "did:web:example.com:users:cs-404",
+          "did:web:example.com:users:cs-405",
+          "did:web:example.com:users:cs-406",
+          "did:web:example.com:users:cs-407",
+          "did:web:example.com:users:cs-408",
+          "did:web:example.com:users:cs-409",
+          "did:web:example.com:users:cs-410",
+          "did:web:example.com:users:cs-411",
+          "did:web:example.com:users:cs-412",
+          "did:web:example.com:users:cs-413",
+          "did:web:example.com:users:cs-414",
+          "did:web:example.com:users:cs-415",
+          "did:web:example.com:users:cs-416",
+          "did:web:example.com:users:cs-417",
+          "did:web:example.com:users:cs-418",
+          "did:web:example.com:users:cs-419",
+          "did:web:example.com:users:cs-420",
+          "did:web:example.com:users:cs-421",
+          "did:web:example.com:users:cs-422",
+          "did:web:example.com:users:cs-423",
+          "did:web:example.com:users:cs-424",
+          "did:web:example.com:users:cs-425",
+          "did:web:example.com:users:cs-426",
+          "did:web:example.com:users:cs-427",
+          "did:web:example.com:users:cs-428",
+          "did:web:example.com:users:cs-429",
+          "did:web:example.com:users:cs-430",
+          "did:web:example.com:users:cs-431",
+          "did:web:example.com:users:cs-432",
+          "did:web:example.com:users:cs-433",
+          "did:web:example.com:users:cs-434",
+          "did:web:example.com:users:cs-435",
+          "did:web:example.com:users:cs-436",
+          "did:web:example.com:users:cs-437",
+          "did:web:example.com:users:cs-438",
+          "did:web:example.com:users:cs-439",
+          "did:web:example.com:users:cs-440",
+          "did:web:example.com:users:cs-441",
+          "did:web:example.com:users:cs-442",
+          "did:web:example.com:users:cs-443",
+          "did:web:example.com:users:cs-444",
+          "did:web:example.com:users:cs-445",
+          "did:web:example.com:users:cs-446",
+          "did:web:example.com:users:cs-447",
+          "did:web:example.com:users:cs-448",
+          "did:web:example.com:users:cs-449",
+          "did:web:example.com:users:cs-450",
+          "did:web:example.com:users:cs-451",
+          "did:web:example.com:users:cs-452",
+          "did:web:example.com:users:cs-453",
+          "did:web:example.com:users:cs-454",
+          "did:web:example.com:users:cs-455",
+          "did:web:example.com:users:cs-456",
+          "did:web:example.com:users:cs-457",
+          "did:web:example.com:users:cs-458",
+          "did:web:example.com:users:cs-459",
+          "did:web:example.com:users:cs-460",
+          "did:web:example.com:users:cs-461",
+          "did:web:example.com:users:cs-462",
+          "did:web:example.com:users:cs-463",
+          "did:web:example.com:users:cs-464",
+          "did:web:example.com:users:cs-465",
+          "did:web:example.com:users:cs-466",
+          "did:web:example.com:users:cs-467",
+          "did:web:example.com:users:cs-468",
+          "did:web:example.com:users:cs-469",
+          "did:web:example.com:users:cs-470",
+          "did:web:example.com:users:cs-471",
+          "did:web:example.com:users:cs-472",
+          "did:web:example.com:users:cs-473",
+          "did:web:example.com:users:cs-474",
+          "did:web:example.com:users:cs-475",
+          "did:web:example.com:users:cs-476",
+          "did:web:example.com:users:cs-477",
+          "did:web:example.com:users:cs-478",
+          "did:web:example.com:users:cs-479",
+          "did:web:example.com:users:cs-480",
+          "did:web:example.com:users:cs-481",
+          "did:web:example.com:users:cs-482",
+          "did:web:example.com:users:cs-483",
+          "did:web:example.com:users:cs-484",
+          "did:web:example.com:users:cs-485",
+          "did:web:example.com:users:cs-486",
+          "did:web:example.com:users:cs-487",
+          "did:web:example.com:users:cs-488",
+          "did:web:example.com:users:cs-489",
+          "did:web:example.com:users:cs-490",
+          "did:web:example.com:users:cs-491",
+          "did:web:example.com:users:cs-492",
+          "did:web:example.com:users:cs-493",
+          "did:web:example.com:users:cs-494",
+          "did:web:example.com:users:cs-495",
+          "did:web:example.com:users:cs-496",
+          "did:web:example.com:users:cs-497",
+          "did:web:example.com:users:cs-498",
+          "did:web:example.com:users:cs-499",
+          "did:web:example.com:users:cs-500",
+          "did:web:example.com:users:cs-501",
+          "did:web:example.com:users:cs-502",
+          "did:web:example.com:users:cs-503",
+          "did:web:example.com:users:cs-504",
+          "did:web:example.com:users:cs-505",
+          "did:web:example.com:users:cs-506",
+          "did:web:example.com:users:cs-507",
+          "did:web:example.com:users:cs-508",
+          "did:web:example.com:users:cs-509",
+          "did:web:example.com:users:cs-510",
+          "did:web:example.com:users:cs-511",
+          "did:web:example.com:users:cs-512",
+          "did:web:example.com:users:cs-513",
+          "did:web:example.com:users:cs-514",
+          "did:web:example.com:users:cs-515",
+          "did:web:example.com:users:cs-516",
+          "did:web:example.com:users:cs-517",
+          "did:web:example.com:users:cs-518",
+          "did:web:example.com:users:cs-519",
+          "did:web:example.com:users:cs-520",
+          "did:web:example.com:users:cs-521",
+          "did:web:example.com:users:cs-522",
+          "did:web:example.com:users:cs-523",
+          "did:web:example.com:users:cs-524",
+          "did:web:example.com:users:cs-525",
+          "did:web:example.com:users:cs-526",
+          "did:web:example.com:users:cs-527",
+          "did:web:example.com:users:cs-528",
+          "did:web:example.com:users:cs-529",
+          "did:web:example.com:users:cs-530",
+          "did:web:example.com:users:cs-531",
+          "did:web:example.com:users:cs-532",
+          "did:web:example.com:users:cs-533",
+          "did:web:example.com:users:cs-534",
+          "did:web:example.com:users:cs-535",
+          "did:web:example.com:users:cs-536",
+          "did:web:example.com:users:cs-537",
+          "did:web:example.com:users:cs-538",
+          "did:web:example.com:users:cs-539",
+          "did:web:example.com:users:cs-540",
+          "did:web:example.com:users:cs-541",
+          "did:web:example.com:users:cs-542",
+          "did:web:example.com:users:cs-543",
+          "did:web:example.com:users:cs-544",
+          "did:web:example.com:users:cs-545",
+          "did:web:example.com:users:cs-546",
+          "did:web:example.com:users:cs-547",
+          "did:web:example.com:users:cs-548",
+          "did:web:example.com:users:cs-549",
+          "did:web:example.com:users:cs-550",
+          "did:web:example.com:users:cs-551",
+          "did:web:example.com:users:cs-552",
+          "did:web:example.com:users:cs-553",
+          "did:web:example.com:users:cs-554",
+          "did:web:example.com:users:cs-555",
+          "did:web:example.com:users:cs-556",
+          "did:web:example.com:users:cs-557",
+          "did:web:example.com:users:cs-558",
+          "did:web:example.com:users:cs-559",
+          "did:web:example.com:users:cs-560",
+          "did:web:example.com:users:cs-561",
+          "did:web:example.com:users:cs-562",
+          "did:web:example.com:users:cs-563",
+          "did:web:example.com:users:cs-564",
+          "did:web:example.com:users:cs-565",
+          "did:web:example.com:users:cs-566",
+          "did:web:example.com:users:cs-567",
+          "did:web:example.com:users:cs-568",
+          "did:web:example.com:users:cs-569",
+          "did:web:example.com:users:cs-570",
+          "did:web:example.com:users:cs-571",
+          "did:web:example.com:users:cs-572",
+          "did:web:example.com:users:cs-573",
+          "did:web:example.com:users:cs-574",
+          "did:web:example.com:users:cs-575",
+          "did:web:example.com:users:cs-576",
+          "did:web:example.com:users:cs-577",
+          "did:web:example.com:users:cs-578",
+          "did:web:example.com:users:cs-579",
+          "did:web:example.com:users:cs-580",
+          "did:web:example.com:users:cs-581",
+          "did:web:example.com:users:cs-582",
+          "did:web:example.com:users:cs-583",
+          "did:web:example.com:users:cs-584",
+          "did:web:example.com:users:cs-585",
+          "did:web:example.com:users:cs-586",
+          "did:web:example.com:users:cs-587",
+          "did:web:example.com:users:cs-588",
+          "did:web:example.com:users:cs-589",
+          "did:web:example.com:users:cs-590",
+          "did:web:example.com:users:cs-591",
+          "did:web:example.com:users:cs-592",
+          "did:web:example.com:users:cs-593",
+          "did:web:example.com:users:cs-594",
+          "did:web:example.com:users:cs-595",
+          "did:web:example.com:users:cs-596",
+          "did:web:example.com:users:cs-597",
+          "did:web:example.com:users:cs-598",
+          "did:web:example.com:users:cs-599",
+          "did:web:example.com:users:cs-600",
+          "did:web:example.com:users:cs-601",
+          "did:web:example.com:users:cs-602",
+          "did:web:example.com:users:cs-603",
+          "did:web:example.com:users:cs-604",
+          "did:web:example.com:users:cs-605",
+          "did:web:example.com:users:cs-606",
+          "did:web:example.com:users:cs-607",
+          "did:web:example.com:users:cs-608",
+          "did:web:example.com:users:cs-609",
+          "did:web:example.com:users:cs-610",
+          "did:web:example.com:users:cs-611",
+          "did:web:example.com:users:cs-612",
+          "did:web:example.com:users:cs-613",
+          "did:web:example.com:users:cs-614",
+          "did:web:example.com:users:cs-615",
+          "did:web:example.com:users:cs-616",
+          "did:web:example.com:users:cs-617",
+          "did:web:example.com:users:cs-618",
+          "did:web:example.com:users:cs-619",
+          "did:web:example.com:users:cs-620",
+          "did:web:example.com:users:cs-621",
+          "did:web:example.com:users:cs-622",
+          "did:web:example.com:users:cs-623",
+          "did:web:example.com:users:cs-624",
+          "did:web:example.com:users:cs-625",
+          "did:web:example.com:users:cs-626",
+          "did:web:example.com:users:cs-627",
+          "did:web:example.com:users:cs-628",
+          "did:web:example.com:users:cs-629",
+          "did:web:example.com:users:cs-630",
+          "did:web:example.com:users:cs-631",
+          "did:web:example.com:users:cs-632",
+          "did:web:example.com:users:cs-633",
+          "did:web:example.com:users:cs-634",
+          "did:web:example.com:users:cs-635",
+          "did:web:example.com:users:cs-636",
+          "did:web:example.com:users:cs-637",
+          "did:web:example.com:users:cs-638",
+          "did:web:example.com:users:cs-639",
+          "did:web:example.com:users:cs-640",
+          "did:web:example.com:users:cs-641",
+          "did:web:example.com:users:cs-642",
+          "did:web:example.com:users:cs-643",
+          "did:web:example.com:users:cs-644",
+          "did:web:example.com:users:cs-645",
+          "did:web:example.com:users:cs-646",
+          "did:web:example.com:users:cs-647",
+          "did:web:example.com:users:cs-648",
+          "did:web:example.com:users:cs-649",
+          "did:web:example.com:users:cs-650",
+          "did:web:example.com:users:cs-651",
+          "did:web:example.com:users:cs-652",
+          "did:web:example.com:users:cs-653",
+          "did:web:example.com:users:cs-654",
+          "did:web:example.com:users:cs-655",
+          "did:web:example.com:users:cs-656",
+          "did:web:example.com:users:cs-657",
+          "did:web:example.com:users:cs-658",
+          "did:web:example.com:users:cs-659",
+          "did:web:example.com:users:cs-660",
+          "did:web:example.com:users:cs-661",
+          "did:web:example.com:users:cs-662",
+          "did:web:example.com:users:cs-663",
+          "did:web:example.com:users:cs-664",
+          "did:web:example.com:users:cs-665",
+          "did:web:example.com:users:cs-666",
+          "did:web:example.com:users:cs-667",
+          "did:web:example.com:users:cs-668",
+          "did:web:example.com:users:cs-669",
+          "did:web:example.com:users:cs-670",
+          "did:web:example.com:users:cs-671",
+          "did:web:example.com:users:cs-672",
+          "did:web:example.com:users:cs-673",
+          "did:web:example.com:users:cs-674",
+          "did:web:example.com:users:cs-675",
+          "did:web:example.com:users:cs-676",
+          "did:web:example.com:users:cs-677",
+          "did:web:example.com:users:cs-678",
+          "did:web:example.com:users:cs-679",
+          "did:web:example.com:users:cs-680",
+          "did:web:example.com:users:cs-681",
+          "did:web:example.com:users:cs-682",
+          "did:web:example.com:users:cs-683",
+          "did:web:example.com:users:cs-684",
+          "did:web:example.com:users:cs-685",
+          "did:web:example.com:users:cs-686",
+          "did:web:example.com:users:cs-687",
+          "did:web:example.com:users:cs-688",
+          "did:web:example.com:users:cs-689",
+          "did:web:example.com:users:cs-690",
+          "did:web:example.com:users:cs-691",
+          "did:web:example.com:users:cs-692",
+          "did:web:example.com:users:cs-693",
+          "did:web:example.com:users:cs-694",
+          "did:web:example.com:users:cs-695",
+          "did:web:example.com:users:cs-696",
+          "did:web:example.com:users:cs-697",
+          "did:web:example.com:users:cs-698",
+          "did:web:example.com:users:cs-699",
+          "did:web:example.com:users:cs-700",
+          "did:web:example.com:users:cs-701",
+          "did:web:example.com:users:cs-702",
+          "did:web:example.com:users:cs-703",
+          "did:web:example.com:users:cs-704",
+          "did:web:example.com:users:cs-705",
+          "did:web:example.com:users:cs-706",
+          "did:web:example.com:users:cs-707",
+          "did:web:example.com:users:cs-708",
+          "did:web:example.com:users:cs-709",
+          "did:web:example.com:users:cs-710",
+          "did:web:example.com:users:cs-711",
+          "did:web:example.com:users:cs-712",
+          "did:web:example.com:users:cs-713",
+          "did:web:example.com:users:cs-714",
+          "did:web:example.com:users:cs-715",
+          "did:web:example.com:users:cs-716",
+          "did:web:example.com:users:cs-717",
+          "did:web:example.com:users:cs-718",
+          "did:web:example.com:users:cs-719",
+          "did:web:example.com:users:cs-720",
+          "did:web:example.com:users:cs-721",
+          "did:web:example.com:users:cs-722",
+          "did:web:example.com:users:cs-723",
+          "did:web:example.com:users:cs-724",
+          "did:web:example.com:users:cs-725",
+          "did:web:example.com:users:cs-726",
+          "did:web:example.com:users:cs-727",
+          "did:web:example.com:users:cs-728",
+          "did:web:example.com:users:cs-729",
+          "did:web:example.com:users:cs-730",
+          "did:web:example.com:users:cs-731",
+          "did:web:example.com:users:cs-732",
+          "did:web:example.com:users:cs-733",
+          "did:web:example.com:users:cs-734",
+          "did:web:example.com:users:cs-735",
+          "did:web:example.com:users:cs-736",
+          "did:web:example.com:users:cs-737",
+          "did:web:example.com:users:cs-738",
+          "did:web:example.com:users:cs-739",
+          "did:web:example.com:users:cs-740",
+          "did:web:example.com:users:cs-741",
+          "did:web:example.com:users:cs-742",
+          "did:web:example.com:users:cs-743",
+          "did:web:example.com:users:cs-744",
+          "did:web:example.com:users:cs-745",
+          "did:web:example.com:users:cs-746",
+          "did:web:example.com:users:cs-747",
+          "did:web:example.com:users:cs-748",
+          "did:web:example.com:users:cs-749",
+          "did:web:example.com:users:cs-750",
+          "did:web:example.com:users:cs-751",
+          "did:web:example.com:users:cs-752",
+          "did:web:example.com:users:cs-753",
+          "did:web:example.com:users:cs-754",
+          "did:web:example.com:users:cs-755",
+          "did:web:example.com:users:cs-756",
+          "did:web:example.com:users:cs-757",
+          "did:web:example.com:users:cs-758",
+          "did:web:example.com:users:cs-759",
+          "did:web:example.com:users:cs-760",
+          "did:web:example.com:users:cs-761",
+          "did:web:example.com:users:cs-762",
+          "did:web:example.com:users:cs-763",
+          "did:web:example.com:users:cs-764",
+          "did:web:example.com:users:cs-765",
+          "did:web:example.com:users:cs-766",
+          "did:web:example.com:users:cs-767",
+          "did:web:example.com:users:cs-768",
+          "did:web:example.com:users:cs-769",
+          "did:web:example.com:users:cs-770",
+          "did:web:example.com:users:cs-771",
+          "did:web:example.com:users:cs-772",
+          "did:web:example.com:users:cs-773",
+          "did:web:example.com:users:cs-774",
+          "did:web:example.com:users:cs-775",
+          "did:web:example.com:users:cs-776",
+          "did:web:example.com:users:cs-777",
+          "did:web:example.com:users:cs-778",
+          "did:web:example.com:users:cs-779",
+          "did:web:example.com:users:cs-780",
+          "did:web:example.com:users:cs-781",
+          "did:web:example.com:users:cs-782",
+          "did:web:example.com:users:cs-783",
+          "did:web:example.com:users:cs-784",
+          "did:web:example.com:users:cs-785",
+          "did:web:example.com:users:cs-786",
+          "did:web:example.com:users:cs-787",
+          "did:web:example.com:users:cs-788",
+          "did:web:example.com:users:cs-789",
+          "did:web:example.com:users:cs-790",
+          "did:web:example.com:users:cs-791",
+          "did:web:example.com:users:cs-792",
+          "did:web:example.com:users:cs-793",
+          "did:web:example.com:users:cs-794",
+          "did:web:example.com:users:cs-795",
+          "did:web:example.com:users:cs-796",
+          "did:web:example.com:users:cs-797",
+          "did:web:example.com:users:cs-798",
+          "did:web:example.com:users:cs-799",
+          "did:web:example.com:users:cs-800",
+          "did:web:example.com:users:cs-801",
+          "did:web:example.com:users:cs-802",
+          "did:web:example.com:users:cs-803",
+          "did:web:example.com:users:cs-804",
+          "did:web:example.com:users:cs-805",
+          "did:web:example.com:users:cs-806",
+          "did:web:example.com:users:cs-807",
+          "did:web:example.com:users:cs-808",
+          "did:web:example.com:users:cs-809",
+          "did:web:example.com:users:cs-810",
+          "did:web:example.com:users:cs-811",
+          "did:web:example.com:users:cs-812",
+          "did:web:example.com:users:cs-813",
+          "did:web:example.com:users:cs-814",
+          "did:web:example.com:users:cs-815",
+          "did:web:example.com:users:cs-816",
+          "did:web:example.com:users:cs-817",
+          "did:web:example.com:users:cs-818",
+          "did:web:example.com:users:cs-819",
+          "did:web:example.com:users:cs-820",
+          "did:web:example.com:users:cs-821",
+          "did:web:example.com:users:cs-822",
+          "did:web:example.com:users:cs-823",
+          "did:web:example.com:users:cs-824",
+          "did:web:example.com:users:cs-825",
+          "did:web:example.com:users:cs-826",
+          "did:web:example.com:users:cs-827",
+          "did:web:example.com:users:cs-828",
+          "did:web:example.com:users:cs-829",
+          "did:web:example.com:users:cs-830",
+          "did:web:example.com:users:cs-831",
+          "did:web:example.com:users:cs-832",
+          "did:web:example.com:users:cs-833",
+          "did:web:example.com:users:cs-834",
+          "did:web:example.com:users:cs-835",
+          "did:web:example.com:users:cs-836",
+          "did:web:example.com:users:cs-837",
+          "did:web:example.com:users:cs-838",
+          "did:web:example.com:users:cs-839",
+          "did:web:example.com:users:cs-840",
+          "did:web:example.com:users:cs-841",
+          "did:web:example.com:users:cs-842",
+          "did:web:example.com:users:cs-843",
+          "did:web:example.com:users:cs-844",
+          "did:web:example.com:users:cs-845",
+          "did:web:example.com:users:cs-846",
+          "did:web:example.com:users:cs-847",
+          "did:web:example.com:users:cs-848",
+          "did:web:example.com:users:cs-849",
+          "did:web:example.com:users:cs-850",
+          "did:web:example.com:users:cs-851",
+          "did:web:example.com:users:cs-852",
+          "did:web:example.com:users:cs-853",
+          "did:web:example.com:users:cs-854",
+          "did:web:example.com:users:cs-855",
+          "did:web:example.com:users:cs-856",
+          "did:web:example.com:users:cs-857",
+          "did:web:example.com:users:cs-858",
+          "did:web:example.com:users:cs-859",
+          "did:web:example.com:users:cs-860",
+          "did:web:example.com:users:cs-861",
+          "did:web:example.com:users:cs-862",
+          "did:web:example.com:users:cs-863",
+          "did:web:example.com:users:cs-864",
+          "did:web:example.com:users:cs-865",
+          "did:web:example.com:users:cs-866",
+          "did:web:example.com:users:cs-867",
+          "did:web:example.com:users:cs-868",
+          "did:web:example.com:users:cs-869",
+          "did:web:example.com:users:cs-870",
+          "did:web:example.com:users:cs-871",
+          "did:web:example.com:users:cs-872",
+          "did:web:example.com:users:cs-873",
+          "did:web:example.com:users:cs-874",
+          "did:web:example.com:users:cs-875",
+          "did:web:example.com:users:cs-876",
+          "did:web:example.com:users:cs-877",
+          "did:web:example.com:users:cs-878",
+          "did:web:example.com:users:cs-879",
+          "did:web:example.com:users:cs-880",
+          "did:web:example.com:users:cs-881",
+          "did:web:example.com:users:cs-882",
+          "did:web:example.com:users:cs-883",
+          "did:web:example.com:users:cs-884",
+          "did:web:example.com:users:cs-885",
+          "did:web:example.com:users:cs-886",
+          "did:web:example.com:users:cs-887",
+          "did:web:example.com:users:cs-888",
+          "did:web:example.com:users:cs-889",
+          "did:web:example.com:users:cs-890",
+          "did:web:example.com:users:cs-891",
+          "did:web:example.com:users:cs-892",
+          "did:web:example.com:users:cs-893",
+          "did:web:example.com:users:cs-894",
+          "did:web:example.com:users:cs-895",
+          "did:web:example.com:users:cs-896",
+          "did:web:example.com:users:cs-897",
+          "did:web:example.com:users:cs-898",
+          "did:web:example.com:users:cs-899",
+          "did:web:example.com:users:cs-900",
+          "did:web:example.com:users:cs-901",
+          "did:web:example.com:users:cs-902",
+          "did:web:example.com:users:cs-903",
+          "did:web:example.com:users:cs-904",
+          "did:web:example.com:users:cs-905",
+          "did:web:example.com:users:cs-906",
+          "did:web:example.com:users:cs-907",
+          "did:web:example.com:users:cs-908",
+          "did:web:example.com:users:cs-909",
+          "did:web:example.com:users:cs-910",
+          "did:web:example.com:users:cs-911",
+          "did:web:example.com:users:cs-912",
+          "did:web:example.com:users:cs-913",
+          "did:web:example.com:users:cs-914",
+          "did:web:example.com:users:cs-915",
+          "did:web:example.com:users:cs-916",
+          "did:web:example.com:users:cs-917",
+          "did:web:example.com:users:cs-918",
+          "did:web:example.com:users:cs-919",
+          "did:web:example.com:users:cs-920",
+          "did:web:example.com:users:cs-921",
+          "did:web:example.com:users:cs-922",
+          "did:web:example.com:users:cs-923",
+          "did:web:example.com:users:cs-924",
+          "did:web:example.com:users:cs-925",
+          "did:web:example.com:users:cs-926",
+          "did:web:example.com:users:cs-927",
+          "did:web:example.com:users:cs-928",
+          "did:web:example.com:users:cs-929",
+          "did:web:example.com:users:cs-930",
+          "did:web:example.com:users:cs-931",
+          "did:web:example.com:users:cs-932",
+          "did:web:example.com:users:cs-933",
+          "did:web:example.com:users:cs-934",
+          "did:web:example.com:users:cs-935",
+          "did:web:example.com:users:cs-936",
+          "did:web:example.com:users:cs-937",
+          "did:web:example.com:users:cs-938",
+          "did:web:example.com:users:cs-939",
+          "did:web:example.com:users:cs-940",
+          "did:web:example.com:users:cs-941",
+          "did:web:example.com:users:cs-942",
+          "did:web:example.com:users:cs-943",
+          "did:web:example.com:users:cs-944",
+          "did:web:example.com:users:cs-945",
+          "did:web:example.com:users:cs-946",
+          "did:web:example.com:users:cs-947",
+          "did:web:example.com:users:cs-948",
+          "did:web:example.com:users:cs-949",
+          "did:web:example.com:users:cs-950",
+          "did:web:example.com:users:cs-951",
+          "did:web:example.com:users:cs-952",
+          "did:web:example.com:users:cs-953",
+          "did:web:example.com:users:cs-954",
+          "did:web:example.com:users:cs-955",
+          "did:web:example.com:users:cs-956",
+          "did:web:example.com:users:cs-957",
+          "did:web:example.com:users:cs-958",
+          "did:web:example.com:users:cs-959",
+          "did:web:example.com:users:cs-960",
+          "did:web:example.com:users:cs-961",
+          "did:web:example.com:users:cs-962",
+          "did:web:example.com:users:cs-963",
+          "did:web:example.com:users:cs-964",
+          "did:web:example.com:users:cs-965",
+          "did:web:example.com:users:cs-966",
+          "did:web:example.com:users:cs-967",
+          "did:web:example.com:users:cs-968",
+          "did:web:example.com:users:cs-969",
+          "did:web:example.com:users:cs-970",
+          "did:web:example.com:users:cs-971",
+          "did:web:example.com:users:cs-972",
+          "did:web:example.com:users:cs-973",
+          "did:web:example.com:users:cs-974",
+          "did:web:example.com:users:cs-975",
+          "did:web:example.com:users:cs-976",
+          "did:web:example.com:users:cs-977",
+          "did:web:example.com:users:cs-978",
+          "did:web:example.com:users:cs-979",
+          "did:web:example.com:users:cs-980",
+          "did:web:example.com:users:cs-981",
+          "did:web:example.com:users:cs-982",
+          "did:web:example.com:users:cs-983",
+          "did:web:example.com:users:cs-984",
+          "did:web:example.com:users:cs-985",
+          "did:web:example.com:users:cs-986",
+          "did:web:example.com:users:cs-987",
+          "did:web:example.com:users:cs-988",
+          "did:web:example.com:users:cs-989",
+          "did:web:example.com:users:cs-990",
+          "did:web:example.com:users:cs-991",
+          "did:web:example.com:users:cs-992",
+          "did:web:example.com:users:cs-993",
+          "did:web:example.com:users:cs-994",
+          "did:web:example.com:users:cs-995",
+          "did:web:example.com:users:cs-996",
+          "did:web:example.com:users:cs-997",
+          "did:web:example.com:users:cs-998",
+          "did:web:example.com:users:cs-999",
+          "did:web:example.com:users:cs-1000"
+        ]
+      },
+      "valid": false
+    },
+    {
       "name": "valid_node_residency",
       "schema": "node",
       "instance": {
@@ -8786,6 +9966,59 @@
       "valid": true
     },
     {
+      "name": "valid_forum_checkpoint",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": true
+    },
+    {
+      "name": "forum_checkpoint_no_head",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_no_seq",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_seq_zero",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 0,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_bad_hash",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "forum_checkpoint_extra_field",
+      "schema": "forum_checkpoint",
+      "instance": {
+        "forum_seq": 120,
+        "forum_head": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "note": "x"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_treasury_statement",
       "schema": "treasury_statement",
       "instance": {
@@ -11112,8 +12345,113 @@
       "name": "world_unknown_kind",
       "schema": "world",
       "instance": {
-        "kind": "halt",
+        "kind": "pause",
         "day": "2026-11-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_world_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "a shock hit one class of agents too hard"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_world_resume",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "reason": "the cause was fixed"
+      },
+      "valid": true
+    },
+    {
+      "name": "world_halt_no_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "halt"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_empty_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_names_a_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_carries_a_day",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "day": "2026-11-12"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_halt_carries_an_entry",
+      "schema": "world",
+      "instance": {
+        "kind": "halt",
+        "reason": "x",
+        "entry_id": "price-review"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_no_halt",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_no_reason",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_bad_halt_id",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "not-an-id",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "world_resume_carries_events",
+      "schema": "world",
+      "instance": {
+        "kind": "resume",
+        "halt": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "reason": "x",
+        "events": []
       },
       "valid": false
     },
@@ -11134,6 +12472,1666 @@
           "value": 1100
         },
         "rank": 1
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mandate_template",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mandate_template_persona",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "persona": "project-manager",
+        "version": 2,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_template_no_version",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_version_zero",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 0,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_no_fleet",
+      "schema": "mandate_template",
+      "instance": {
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_names_a_contract",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ],
+          "contract": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_bad_persona",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "persona": "Project Manager",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_template_missing_field",
+      "schema": "mandate_template",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "version": 1,
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mandate_narrowing",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "scopes": [
+            "repo.read"
+          ],
+          "spend": {
+            "cap": 40,
+            "unit": "credit"
+          }
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_narrowing_no_member",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "narrow": {
+          "scopes": [
+            "repo.read"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_narrowing_unknown_field",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "privileges": [
+            "root"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_narrowing_bad_scope",
+      "schema": "mandate_narrowing",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "narrow": {
+          "scopes": [
+            "Repo Read"
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_passport_persona",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "persona": "coder",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-7#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_root",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Acme",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_department",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_budget_and_mandate",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "platform",
+        "version": 1,
+        "kind": "team",
+        "name": "Engineering",
+        "parent": "engineering",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "credits": 400,
+          "tokens": 2000000
+        },
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "scopes": [
+            "repo.read",
+            "repo.write",
+            "pr.*"
+          ],
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_node_persona",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "coder",
+        "version": 1,
+        "kind": "persona",
+        "name": "Engineering",
+        "parent": "platform",
+        "owner": "did:web:example.com:users:dept-lead",
+        "persona": "coder"
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_node_no_owner",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_root_with_parent",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_root_named_otherwise",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "top",
+        "version": 1,
+        "kind": "fleet",
+        "name": "Engineering",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_department_without_parent",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_department_named_root",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "root",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_unknown_kind",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "division",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_negative_budget",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "credits": -1
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_empty_budget",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {}
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_budget_in_dollars",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "budget": {
+          "dollars": 5
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_bad_slug",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "Engineering Dept",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_mandate_missing_field",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 1,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead",
+        "mandate": {
+          "purpose": "Work for the enterprise",
+          "floor": "asp.floor/v1",
+          "forbidden_means": [
+            "rm -rf"
+          ],
+          "spend": {
+            "cap": 100,
+            "unit": "credit",
+            "per_action_max": 20
+          },
+          "irreversible": {
+            "policy": "checkpoint"
+          },
+          "subcontract": {
+            "allowed": true,
+            "max_depth": 2
+          },
+          "nodes": {
+            "max_parallel": 4
+          },
+          "learning": {
+            "scope": "memory",
+            "share_to_commons": true
+          },
+          "self_modification": "principal_approves",
+          "overlay": null,
+          "checkpoints": [
+            "plan"
+          ],
+          "expires": "2027-06-01T00:00:00Z",
+          "revocable": true,
+          "network": {
+            "hosts": [
+              "api.example.com",
+              "*.example.org"
+            ]
+          },
+          "institution_spend": [
+            {
+              "institution": "academy",
+              "cap": {
+                "value": 60,
+                "unit": "credit"
+              },
+              "period": "month"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_node_version_zero",
+      "schema": "fleet_node",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "engineering",
+        "version": 0,
+        "kind": "department",
+        "name": "Engineering",
+        "parent": "root",
+        "owner": "did:web:example.com:users:dept-lead"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_common_control",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_common_control_lift",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "lift": true
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_common_control_evidence",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "key_lineage",
+          "domain",
+          "address"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "evidence": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "valid": true
+    },
+    {
+      "name": "common_control_one_sponsor",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_duplicate_sponsor",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-a"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_no_basis",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_unknown_basis",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "vibes"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_no_cluster",
+      "schema": "common_control",
+      "instance": {
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "common_control_unknown_field",
+      "schema": "common_control",
+      "instance": {
+        "cluster": "did:web:example.com:users:sponsor-a",
+        "sponsors": [
+          "did:web:example.com:users:sponsor-a",
+          "did:web:example.com:users:sponsor-b"
+        ],
+        "basis": [
+          "payment"
+        ],
+        "detected_at": "2026-11-21T10:00:00Z",
+        "penalty": 100
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_fleet_move",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "platform"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_fleet_move_with_reason",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "root",
+        "reason": "the team was closed"
+      },
+      "valid": true
+    },
+    {
+      "name": "fleet_move_no_target",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_move_bad_target",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "Platform Team"
+      },
+      "valid": false
+    },
+    {
+      "name": "fleet_move_unknown_field",
+      "schema": "fleet_move",
+      "instance": {
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "member": "did:web:example.com:agents:coder-7",
+        "to": "platform",
+        "force": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_passport_node",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-8",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "platform",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-8#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "passport_bad_node",
+      "schema": "passport",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-8",
+        "kind": "agent",
+        "sponsor": "did:web:example.com:orgs:acme",
+        "fleet": "did:web:example.com:orgs:acme:fleets:coders",
+        "node": "Platform Team",
+        "tier": 1,
+        "shape": {},
+        "keys": [
+          {
+            "id": "did:web:example.com:agents:coder-8#key-1",
+            "type": "Ed25519",
+            "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_bank_deposit",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 300,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_withdraw",
+      "schema": "bank_act",
+      "instance": {
+        "act": "withdraw",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 100,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_borrow",
+      "schema": "bank_act",
+      "instance": {
+        "act": "borrow",
+        "amount": {
+          "value": 500,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_repay",
+      "schema": "bank_act",
+      "instance": {
+        "act": "repay",
+        "amount": {
+          "value": 200,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_interest",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W46"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_bank_interest_week_53",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W53"
+      },
+      "valid": true
+    },
+    {
+      "name": "bank_unknown_act",
+      "schema": "bank_act",
+      "instance": {
+        "act": "lend",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_deposit_no_holder",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_deposit_no_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "deposit",
+        "holder": "did:web:example.com:users:bank-holder"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_withdraw_no_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "withdraw",
+        "holder": "did:web:example.com:users:bank-holder"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_borrow_names_a_holder",
+      "schema": "bank_act",
+      "instance": {
+        "act": "borrow",
+        "holder": "did:web:example.com:users:bank-holder",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_no_week",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_bad_week",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W54"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_week_zero",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W00"
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_interest_names_an_amount",
+      "schema": "bank_act",
+      "instance": {
+        "act": "interest",
+        "week": "2026-W46",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "bank_repay_extra_field",
+      "schema": "bank_act",
+      "instance": {
+        "act": "repay",
+        "amount": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "rate": 25
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_market_risk_model",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_market_risk_model_zero",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 0,
+            "critical": 0
+          },
+          "verification_permille": {
+            "deterministic": 0,
+            "principal": 0,
+            "arbiter": 0
+          },
+          "poster_permille": 0,
+          "escrow_share_permille": 1000
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "market_risk_model_no_version",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_version_zero",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 0,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_no_terms",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_no_effective",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_class_term_too_big",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 301,
+            "critical": 0
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_class_term_too_low",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -201,
+            "principal": 0,
+            "arbiter": 0
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_missing_class",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": 0,
+            "routine": 0,
+            "skilled": 0
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_escrow_share_low",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 499
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_escrow_share_high",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 1001
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_poster_negative",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": -1,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_extra_term",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 120,
+          "escrow_share_permille": 800,
+          "tier_bonus": 10
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "market_risk_model_float",
+      "schema": "market_act",
+      "instance": {
+        "act": "risk_model",
+        "model_version": 1,
+        "terms": {
+          "class_permille": {
+            "trivial": -50,
+            "routine": 0,
+            "skilled": 50,
+            "critical": 150
+          },
+          "verification_permille": {
+            "deterministic": -80,
+            "principal": 0,
+            "arbiter": 40
+          },
+          "poster_permille": 12.5,
+          "escrow_share_permille": 800
+        },
+        "effective_from": "2026-12-01T00:00:00Z"
       },
       "valid": false
     }

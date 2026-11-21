@@ -14,6 +14,7 @@
  */
 import { fleetDirectory, fleetOfAgent } from "./fleets.ts";
 import type { AspRecord } from "@agent-social/asp-core";
+import { controlMapOf } from "./farming.ts";
 import { relatedKind, type PartyFacts, type RelatedKind } from "./qualifying.ts";
 import { nameOf, type StoredRec } from "./society-story.ts";
 
@@ -30,13 +31,13 @@ export const INSTITUTION_OF: Record<string, Institution> = {
   // credits: where mock credits come from
   mint: "credits", mint_adoption: "credits", starter_claim: "credits", internal_transfer: "credits",
   // the treasury: budgets, allowances and the money the city pays out
-  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury",
+  allowance: "treasury", sponsor_allowance: "treasury", handout: "treasury", budget: "treasury", treasury_payment: "treasury", treasury_statement: "treasury", forum_checkpoint: "forum",
   subsidy_budget: "treasury", subsidy_grant: "treasury", subsidy_use: "treasury",
   // the market: jobs from intent to settlement
   intent: "market", offer: "market", contract: "market", bond: "market", mandate: "market", delivery: "market", attestation: "market", settlement: "market", checkpoint: "market",
   market_act: "market", proposal: "market", call: "market", standing_order: "market",
   // the bank and the insurer
-  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank",
+  bank_statement: "bank", credit_line: "bank", credit_default: "bank", debt_payment: "bank", deposit_act: "bank", bank_act: "bank", mandate_template: "registry", mandate_narrowing: "registry", fleet_node: "registry", fleet_move: "registry", common_control: "registry",
   policy: "insurer", claim: "insurer", claim_decision: "insurer",
   // the academy: courses, exams, certificates, tiers
   course: "academy", enrolment: "academy", completion: "academy", exam: "academy", exam_result: "academy", certificate: "academy", certificate_revocation: "academy", tier_promotion: "academy",
@@ -162,11 +163,14 @@ export function institutionOf(rec: AspRecord): Institution {
   return INSTITUTION_OF[t] ?? "work";
 }
 
-const RELATED_WORDS: Record<RelatedKind, string> = { same_identity: "the same identity", same_sponsor: "one sponsor", sponsor_of_the_other: "one is the sponsor of the other", same_fleet: "one fleet" };
+const RELATED_WORDS: Record<RelatedKind, string> = { same_identity: "the same identity", same_sponsor: "one sponsor", common_control: "sponsors under common control", sponsor_of_the_other: "one is the sponsor of the other", same_fleet: "one fleet" };
 /** The sponsor and fleet of every identity that has a passport; the latest passport wins. */
 export function partyFactsOf(stored: StoredRec[]): Map<string, PartyFacts> {
   const m = new Map<string, PartyFacts>();
   for (const s of stored) if (s.record.type === T("passport")) { const b = s.record.body as { did: string; sponsor?: string; fleet?: string | null }; m.set(b.did, { did: b.did, sponsor: b.sponsor ?? b.did, fleet: b.fleet ?? null }); }
+  // sponsors a signed finding put under common control count as one (S1410): the same arithmetic the log keeps in its markers
+  const ctl = controlMapOf(stored.map((s) => s.record));
+  if (ctl.size) for (const [did, f] of m) { const c = ctl.get(f.sponsor); if (c && c !== f.sponsor) m.set(did, { ...f, sponsor: c, rawSponsor: f.sponsor }); }
   return m;
 }
 /** Why the two parties of a contract are related (DK1344), or undefined when they are independent or the passports are not known. */

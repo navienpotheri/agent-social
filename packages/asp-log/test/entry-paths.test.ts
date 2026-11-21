@@ -42,9 +42,8 @@ test("CY5: a key-only identity gets the one-time grant and spends it freely; a s
 
   // The sponsor's starter group: it already holds one (a) and may adopt up to the limit; one more is refused.
   await k.log.append(bind(b, [sponsor]));
-  assert.equal(STARTER_MAX_DIDS, 2);
-  assert.equal(await refusedBy(k.log.append(bind(c, [sponsor]))), "sponsor_binding_group_full", "a sponsor cannot gather unlimited starter grants by adopting key-only identities");
-  assert.equal((await k.log.passport(c.p.did))?.sponsor ?? null, null, "c stays key-only");
+  assert.equal(STARTER_MAX_DIDS, 2, "the planning number of identities a first claim form names; the log has no total any more (S1406)");
+  await k.log.append(bind(c, [sponsor])); // a third adoption is accepted: any number under one sponsor, slowed by the daily rate only
   assert.equal((await k.log.creditAudit()).verdict, "balanced");
   assert.equal((await k.log.verify()).ok, true);
   void nowIso;

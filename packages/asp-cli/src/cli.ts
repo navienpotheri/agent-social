@@ -221,6 +221,7 @@
  *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
  *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> [--json]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
  *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
+ *   asp world halt --by <operator> --reason <text> | resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>] | invariants [--json]   the kill-switch (S1402) and what must hold after every event
  *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
  *   asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]
  *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
@@ -331,6 +332,7 @@ import { claimStanding, readStanding, standingPath, writeStanding, type Standing
 import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
+import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
@@ -350,7 +352,7 @@ import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes
 import { BankUsage, bankCmd } from "./bank.ts";
 import { HouseUsage, houseCmd } from "./house.ts";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
-import { TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
 import { RefuseUsage, refuseCmd } from "./refuse.ts";
 import { TemptationUsage, temptationCmd } from "./temptation.ts";
@@ -867,6 +869,17 @@ const OPTIONS = {
   appeal: { type: "string" },
   "fee-paid": { type: "string" },
   "min-qualifying": { type: "string" },
+  month: { type: "string" },
+  persona: { type: "string" },
+  cluster: { type: "string" },
+  owner: { type: "string" },
+  org: { type: "string" },
+  strict: { type: "boolean" },
+  "max-members": { type: "string" },
+  "co-sponsor": { type: "string", multiple: true },
+  "harness-sha": { type: "string" },
+  "harness-uri": { type: "string" },
+  halt: { type: "string" },
   "claim-id": { type: "string" },
   suspension: { type: "string" },
   until: { type: "string" },
@@ -1001,6 +1014,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
+    if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
@@ -1133,6 +1147,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "prizes") return await prizesCommand(home, v, io);
     if (cmd === "wakes") return await wakesCommand(home, v, io);
     if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "farming") return await farmingCommand(home, sub, v, io);
     if (cmd === "charter") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
@@ -1157,7 +1172,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -1250,6 +1265,9 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
+      ...(v.persona ? { persona: v.persona } : {}),
+      ...(v.fleet && v.node ? { node: v.node } : {}),
+      ...(v.runtime || v.model ? { fingerprint: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v.model ? { model: v.model } : {}) } } : {}),
     };
   }
   const issuer = kind === "human" ? did : need("sponsor");
@@ -3267,6 +3285,11 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
         statement: async () => { const locks = await local.log.bankLocksOf(by); const balance = await local.log.balance(by); const page = await local.log.bankPage(); const owed = page.lines.filter((l) => l.borrower === by && (l.status === "drawn" || l.status === "owing")).reduce((n, l) => n + l.owed, 0); return `balance ${balance}; owed to the Bank ${owed}; locked in bonds ${locks.reduce((n, l) => n + l.bond, 0)}${locks.length ? ` (${locks.map((l) => `${l.contract.slice(7, 19)}: ${l.bond}`).join(", ")})` : ""}`; },
       },
+      market: {
+        jobs: () => marketJobsText(local, by),
+        counts: (contract: string) => marketCountsText(local, contract).catch((e: Error) => `Could not say: ${e.message}`),
+        ...(agentSigner ? { bid: async (posting: string, offer: string) => { try { const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "bid", posting, offer }, issued_at: now() }, agentSigner!); const res = await local.append(record); return `Bid ${res.id} recorded on ${posting} (log seq ${res.seq}).`; } catch (e) { return `The log refused the bid: ${(e as Error).message}`; } } } : {}),
+      },
       note: () => standingNote(spendOpts(() => undefined)),
       ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
       academy: {
@@ -4317,6 +4340,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
   if (sub === "verify") {
     const r = await call("GET", "forum/verify");
     io.out(`${r.ok ? "verified" : "FAILED"}: ${r.entries} act(s), head ${r.head.seq} ${r.head.hash}`);
+    if (r.checkpoints !== undefined) io.out(`  ${r.checkpoints} operator checkpoint(s) in the log${r.latest_checkpoint ? `, the latest at ${r.latest_checkpoint.forum_seq} act(s)` : ""}`);
     for (const p of r.problems) io.out(`  ${p}`);
     return r.ok ? 0 : 1;
   }
@@ -4333,6 +4357,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     return 0;
   }
   const by = need("by");
+  if (sub === "checkpoint") {
+    // DK791: the operator signs the forum head on their own machine and appends it to the log, so the log witnesses it.
+    const head = await call("GET", "forum/head");
+    if (!head.seq) throw new UsageError("the forum has no acts yet: nothing to checkpoint");
+    const rec = createRecord({ type: "forum_checkpoint" as never, issuer: by, subject: null, prev: null, body: { forum_seq: head.seq, forum_head: head.hash }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
+    return 0;
+  }
   const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
   if (sub === "post") {
     const body = text(rest[0], "usage: asp forum post <file> --by <did> --title <title> [--tag a,b] [--contract <id>]");
@@ -4365,6 +4398,15 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const doc = signForum({ v: FORUM_VERSION, kind: "hide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
     const r = await call("POST", "forum/hides", doc);
     io.out(`hidden: ${r.id}`);
+    return 0;
+  }
+  if (sub === "mute" || sub === "unmute" || sub === "block" || sub === "unblock") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError(`usage: asp forum ${sub} <did> --by <did>`);
+    const kind = sub === "mute" || sub === "unmute" ? "mute" : "block";
+    const doc = signForum({ v: FORUM_VERSION, kind, author: by, subject, action: sub, createdAt: now(), prev: await prevOf(by) } as never, signerFor(by));
+    const r = await call("POST", kind === "mute" ? "forum/mutes" : "forum/blocks", doc);
+    io.out(`${({ mute: "muted", unmute: "unmuted", block: "blocked", unblock: "unblocked" } as const)[sub]}: ${subject} (${r.id}; a signed act in the public chain)`);
     return 0;
   }
   if (sub === "report") {
@@ -4748,6 +4790,8 @@ async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string):
     const bk = flows.bank, dp = flows.deposits, ins = flows.insurer, ct = flows.courts;
     io.out(`  Bank (DK1452): reserve ${n(bk.reserve)}; ${n(bk.linesOpened.count)} credit line(s) opened for ${n(bk.linesOpened.amount)}, ${n(bk.lent.count)} drawn (lent ${n(bk.lent.amount)}), ${n(bk.returned)} returned, ${n(bk.outstanding)} still owed; ${n(bk.defaults.count)} default(s) of ${n(bk.defaults.unpaid)}, ${n(bk.debtCleared.count)} debt payment(s) of ${n(bk.debtCleared.amount)}`);
     io.out(`  Deposits: ${n(dp.made.count)} made for ${n(dp.made.amount)}, ${n(dp.withdrawn.count)} withdrawn for ${n(dp.withdrawn.amount)}, ${n(dp.rewards.count)} Treasury reward(s) of ${n(dp.rewards.amount)}; the deposit account holds ${n(dp.held)}`);
+    const ab = flows.activeBank;
+    io.out(`  Active Bank (DK1458): ${n(ab.deposits.count)} deposit(s) for ${n(ab.deposits.amount)}, ${n(ab.withdrawals.count)} withdrawal(s) for ${n(ab.withdrawals.amount)}; held ${n(ab.held)}, waiting to be paid ${n(ab.waiting)}; the Treasury borrowed ${n(ab.treasuryBorrowed.amount)} and repaid ${n(ab.treasuryRepaid.amount)} (owes ${n(ab.principal)}, carried interest ${n(ab.carry)}); interest for ${n(ab.interest.weeks)} week(s): due ${n(ab.interest.due)}, paid ${n(ab.interest.paid)}, Bank's share ${n(ab.interest.bankShare)}, depositors' ${n(ab.interest.depositorShare)}`);
     io.out(`  Insurer: reserve ${n(ins.reserve)}; ${n(ins.policies.count)} policy(ies) for ${n(ins.policies.premiums)} in premiums, ${n(ins.claims)} claim(s): paid ${n(ins.decisions.paid.count)} (${n(ins.decisions.paid.amount)}), reduced ${n(ins.decisions.reduced.count)} (${n(ins.decisions.reduced.amount)}), denied ${n(ins.decisions.denied.count)}`);
     io.out(`  Courts: ${n(ct.appealsFiled)} appeal(s) filed; decided affirmed ${n(ct.appealRulings.affirmed)}, reversed ${n(ct.appealRulings.reversed)}, varied ${n(ct.appealRulings.varied)}; appeal jurors paid ${n(ct.jurorsPaid)} (unpaid ${n(ct.jurorShortfall)}); ${n(ct.penalties.count)} juror penalt(ies) of ${n(ct.penalties.amount)} to the Treasury`);
     io.out("  not available from the log yet:");
@@ -4762,7 +4806,7 @@ async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string):
 async function worldCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   try {
-    return await worldCmd(sub, rest, { home, log: local, io, now, flags: { day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
+    return await worldCmd(sub, rest, { home, log: local, io, now, signerFor: (did) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}`); return s; }, flags: { by: v.by, reason: v.reason, halt: v.halt, "cosign-by": v["cosign-by"]?.[0], day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
   } catch (e) {
     if (e instanceof WorldUsage) throw new UsageError(e.message);
     throw e;
@@ -4874,6 +4918,55 @@ async function abuseCommand(home: string, sub: string | undefined, file: string 
 }
 
 /** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
+ * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the
+ * Clinic's cohort freeze on the agents of a flagged cluster (an upheld report is needed, as for every cohort freeze).
+ */
+async function farmingCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const seed = process.env.ASP_FARMING_SEED || undefined;
+  const rep = await local.log.farmingReport({ ...(seed ? { seed } : {}) });
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "report") {
+    if (v.json) { io.out(JSON.stringify(rep, null, 2)); return rep.findings.length ? 1 : 0; }
+    io.out(`${rep.sponsors} sponsor(s), ${rep.jobs} accepted job(s) between controllers in the last 90 days; ${rep.clusters.length} cluster(s) under common control, ${rep.findings.length} finding(s): leads for the Clinic, never a penalty by themselves`);
+    for (const f of rep.findings) io.out(`  ${f.level.toUpperCase().padEnd(6)} ${f.kind.padEnd(19)} ${f.sponsors.length} sponsor(s): ${f.why}`);
+    return rep.findings.length ? 1 : 0;
+  }
+  if (sub === "flag") {
+    if (!v.by) throw new UsageError("asp farming flag [--cluster <id>] --by <operator or watcher did>");
+    const todo = rep.clusters.filter((c) => !v.cluster || c.id === v.cluster);
+    if (!todo.length) { io.out("no cluster under common control to record"); return 0; }
+    for (const c of todo) {
+      const res = await local.append(createRecord({ type: "common_control", issuer: v.by, subject: null, prev: null, body: { cluster: c.id, sponsors: c.sponsors, basis: c.basis, detected_at: now() }, issued_at: now() }, signerFor(v.by)));
+      io.out(`common control recorded for ${c.sponsors.length} sponsor(s) (${c.basis.join(", ")}) as cluster ${c.id} (log seq ${res.seq}): a job between their agents no longer counts for standing`);
+    }
+    return 0;
+  }
+  if (sub === "freeze") {
+    const clinicDid = v.by ?? CLINIC_DID;
+    if (!v.report || !v.cluster) throw new UsageError("asp farming freeze --report <upheld report id> --cluster <cluster id> [--by <Clinic did>] [--level observe|halt] [--days 1-7]");
+    const report = await local.log.report(v.report);
+    if (!report) throw new Error(`${v.report} is not a report in the log`);
+    if (report.status !== "upheld") throw new Error(`report ${v.report} is ${report.status}; only an upheld report can freeze a cohort`);
+    const cluster = rep.clusters.find((c) => c.id === v.cluster);
+    const found = rep.findings.filter((f) => f.level !== "watch" && f.sponsors.includes(v.cluster!));
+    const sponsors = [...new Set([...(cluster?.sponsors ?? []), ...found.flatMap((f) => f.sponsors)])];
+    if (!sponsors.length) throw new Error(`no flagged cluster ${v.cluster}: asp farming report`);
+    const members = await local.log.agentsOfSponsors(sponsors);
+    const days = v.days === undefined ? 7 : Number(v.days);
+    if (!(days > 0 && days <= 7)) throw new UsageError("--days is more than 0 and at most 7 (a longer quarantine needs a Court)");
+    const level = v.level ?? "observe";
+    if (level !== "observe" && level !== "halt") throw new UsageError("--level is observe or halt");
+    const body = farmingFreezeBody({ members, report: v.report, cluster: v.cluster, level, days, at: now(), sponsors: sponsors.length });
+    const res = await local.append(createRecord({ type: "quarantine", issuer: clinicDid, subject: null, prev: null, body, issued_at: now() }, signerFor(clinicDid)));
+    io.out(`quarantine ${res.id}: ${members.length} agent(s) of ${sponsors.length} sponsor(s) will be frozen at ${level} until ${body.until} (notice given; nothing was settled and no bond slashed). Release a member after a clean run: asp clinic release --quarantine <id> --member <did>`);
+    return 0;
+  }
+  throw new UsageError("asp farming report [--json] | flag [--cluster <id>] --by <did> | freeze --report <id> --cluster <id>");
+}
+
 async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const found = await local.log.collusionReport();
@@ -4923,11 +5016,22 @@ async function houseCommand(home: string, sub: string | undefined, v: Values, io
   }
 }
 
+async function fleetCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
+  try {
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+  } catch (e) {
+    if (e instanceof FleetUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
 async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await bankCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget, mentor: v.mentor, protege: v.protege, note: v.note, out: v.out, file: v.file, rest } });
+    return await bankCmd(sub, { log: local, io, now, signerFor, rest, flags: { week: v.week, contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget, mentor: v.mentor, protege: v.protege, note: v.note, out: v.out, file: v.file, rest } });
   } catch (e) {
     if (e instanceof BankUsage) throw new UsageError(e.message);
     throw e;
@@ -5050,6 +5154,32 @@ async function creditsBalance(home: string, did: string | undefined, io: Io): Pr
 }
 
 /** The full chain for a contract, in order, with each record's short type for convenience. */
+/** The open jobs for an agent, eligible ones first, as text (the agent's market_jobs tool; DK1454). */
+async function marketJobsText(local: Awaited<ReturnType<typeof openLog>>, agent: string): Promise<string> {
+  const rows = await local.log.marketBoard(agent);
+  if (!rows.length) return "No open postings on the board right now.";
+  const eligible = rows.filter((r) => r.forAgent?.eligible).length;
+  const out = [`${rows.length} open posting(s), ${eligible} you may take:`];
+  for (const r of rows.slice(0, 15)) {
+    out.push(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}`);
+    if (r.forAgent) out.push(`  for you: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
+  }
+  if (rows.length > 15) out.push(`... and ${rows.length - 15} more (asp market board lists them all).`);
+  return out.join("\n");
+}
+
+/** Whether a job counts for the performer's standing, and why not, as text (market counts; the agent's market_counts tool). */
+async function marketCountsText(local: Awaited<ReturnType<typeof openLog>>, contract: string): Promise<string> {
+  const c = await local.log.get(contract);
+  if (!c || c.record.type !== "asp.contract/v0.2") throw new UsageError(`${contract} is not a contract in the log`);
+  const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
+  const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
+  const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
+  const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+  const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
+  return `${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`;
+}
+
 async function marketChain(log: LogHandle["log"], contract: string) {
   const records = await log.chain(contract);
   return records.map((s) => ({ ...s, kind: s.record.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }));
@@ -5756,20 +5886,74 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     for (const [i, r] of found.entries()) io.out(`${i + 1}. ${r.agent}  score ${r.score}\n   ${r.reasons.join("; ")}`);
     return 0;
   }
+  if (sub === "dynamics") {
+    // What keeps the Market moving (market.md 14; DK1456, S1403): the season, seeded demand, guide prices, entrant waves and the monitor, as GET /market/dynamics serves them.
+    const d = await local.log.marketDynamics(v.at);
+    if (v.json) { io.out(JSON.stringify(d, null, 2)); return 0; }
+    io.out(`Market dynamics (${d.version}) at ${d.at}${d.halted ? "  [the world is HALTED: no swings, no waves, no season boost]" : ""}; seed ${d.seed ?? "not revealed yet"}`);
+    io.out(`  season ${d.season.year} Q${d.season.quarter}: ${d.season.theme}; favours ${d.season.favours} (+${d.season.boostPermille} permille demand)`);
+    io.out(`  demand by skill (1000 is normal): ${d.demand.map((x) => `${x.skill} ${x.index}`).join(", ")}`);
+    io.out(`  guide price by class: ${d.guides.map((g) => `${g.class} ${g.price} credits (${g.ofMinimum / 10}% of base${g.lastFillRate === null ? "" : `, last fill ${g.lastFillRate / 10}%`})`).join(", ")}`);
+    io.out(d.waves.length ? `  entrant waves (operator-run, disclosed): ${d.waves.map((w) => `${w.starts} ${w.posters} poster(s), ${w.agents} agent(s)`).join("; ")}` : "  no entrant wave announced");
+    io.out(`  monitor: mix divergence ${d.monitor.mixDivergence ?? "n/a"}, transfer share ${d.monitor.transferShare ?? "n/a"}, adaptation ${d.monitor.adaptation.map((x) => `${x.event} ${x.days === null ? "not yet" : `${x.days}d`}`).join(", ") || "no job opening yet"}`);
+    return 0;
+  }
+  if (sub === "risk") {
+    // The Market's risk model (market.md 13.1; DK1455, S1404): `asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]`.
+    const action = rest[0] ?? "show";
+    if (action === "show") {
+      const m = await local.log.riskModel(v.at);
+      if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+      io.out(m ? `risk model version ${m.version} (record ${m.record.slice(0, 19)}...), in force from ${m.effective_from}:\n${JSON.stringify(m.terms, null, 2)}` : "no risk model is in force: the Market suggests the performer's own floor and the whole price");
+      return 0;
+    }
+    if (action === "suggest") {
+      const s = await local.log.suggestedBond(need("offer"), v.at);
+      if (v.json) { io.out(JSON.stringify(s, null, 2)); return 0; }
+      io.out(`offer ${s.offer}: the offer offers a bond of ${s.offered}; the Market suggests a bond of ${s.suggestion.bond} (${s.suggestion.bondPermille} permille of ${s.input.price}) and an escrow of ${s.suggestion.escrow}${s.modelVersion === null ? " (no model: the performer's floor and the whole price)" : ` by model version ${s.modelVersion}`}`);
+      io.out(`  floor ${s.suggestion.parts.floor}, class (${s.input.jobClass}) ${s.suggestion.parts.class}, verification (${s.input.verification}) ${s.suggestion.parts.verification}, poster's record ${s.suggestion.parts.poster} permille. A suggestion, never binding.`);
+      return 0;
+    }
+    if (action === "replay") {
+      const candidate = v.file ? (JSON.parse(readFileSync(v.file, "utf8")) as never) : null;
+      const r = await local.log.riskReplay(candidate, v.days ? Math.trunc(Number(v.days)) : 90);
+      if (v.json) { io.out(JSON.stringify(r, null, 2)); return 0; }
+      io.out(`replay over ${r.days} days: ${r.contracts} settled contract(s); locked ${r.lockedActual}, the model would suggest ${r.lockedSuggested} (at most ${r.maxSuggestedPermille} permille of a price); ${r.slashes} slash(es) of ${r.slashedCredits} credits, the model would have locked more on ${r.suggestionWouldLockMoreOnSlashed} of them`);
+      return 0;
+    }
+    if (action === "publish") {
+      const by = need("by");
+      const terms = JSON.parse(readFileSync(need("file"), "utf8"));
+      const head = (await local.log.riskModel("9999-12-31T00:00:00Z"))?.version ?? 0;
+      let rec = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "risk_model", model_version: head + 1, terms, effective_from: need("effective") }, issued_at: now() }, signerFor(by));
+      for (const c of v["cosign-by"] ?? []) rec = cosign(rec, signerFor(c));
+      const res = await local.append(rec);
+      io.out(`risk model version ${head + 1} published ${res.id.slice(0, 19)}... (log seq ${res.seq}), in force from ${need("effective")}`);
+      return 0;
+    }
+    throw new UsageError("asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]");
+  }
+  if (sub === "stats" || sub === "monthly") {
+    // The Market's statistics and monthly report (market.md 7, 8; DK1453): the same figures GET /market/stats and /market/report?month= serve.
+    const month = sub === "monthly" ? (v.month ?? new Date().toISOString().slice(0, 7)) : (v.month ?? null);
+    const st = await local.log.marketStats(undefined, month);
+    if (v.json) { io.out(JSON.stringify(st, null, 2)); return 0; }
+    const p = st.postings, pc = (x: number | null) => (x === null ? "n/a" : `${Math.round(x * 1000) / 10}%`);
+    io.out(`Market ${sub === "monthly" ? `monthly report for ${st.month}` : st.month ? `statistics for ${st.month}` : "statistics (whole log)"}, read at ${st.at}`);
+    io.out(`  postings ${p.total}: open ${p.open}, assigned ${p.assigned}, filled ${p.filled}, withdrawn ${p.withdrawn}, removed ${p.removed}, held ${p.held}, expired ${p.expired}; fill rate ${pc(st.fillRate)}`);
+    io.out(`  open now by class: ${Object.entries(st.openByClass).map(([c, x]) => `${c} ${x.count} (median budget ${x.medianBudget})`).join(", ") || "none"}`);
+    io.out(`  contracts by class: ${Object.entries(st.jobsByClass).map(([c, x]) => `${c} ${x.count} (median price ${x.medianPrice})`).join(", ") || "none"}`);
+    io.out(`  settlements that paid for work: ${st.settled.count}, counted for standing ${st.settled.counted} (${pc(st.settled.shareCounted)}); by basis ${Object.entries(st.settled.byBasis).map(([b, n]) => `${b} ${n}`).join(", ") || "none"}`);
+    io.out(`  assignments by rule: ${Object.entries(st.assignmentsByRule).map(([r, n]) => `${r} ${n}`).join(", ") || "none"}; class checks: raised ${st.classChecks.raised}, confirmed ${st.classChecks.confirmed}`);
+    return 0;
+  }
   if (sub === "counts") {
     const contract = rest[0] ?? need("contract");
-    const c = await local.log.get(contract);
-    if (!c) throw new UsageError(`${contract} is not in the log`);
-    const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
-    const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
-    const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
-    const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
-    const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
-    io.out(`${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`);
+    io.out(await marketCountsText(local, contract));
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|post|bid|class|assign|discover|counts");
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|dynamics|risk|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */

@@ -92,6 +92,8 @@ export interface AspToolsOptions {
   society?: { standing: () => Promise<string>; buy?: (service: string, quantity: number) => Promise<string>; price?: (service: string | undefined) => Promise<string>; /** The School (academy.md AC-19): the catalogue, and enrolling (tuition from the agent's own credits, inside its Mandate). */ academy?: { catalog: () => Promise<string>; enrol?: (course: string) => Promise<string> };
     /** The Bank (bank-insurer.md BI-10; DK181): what line it would offer this agent now, and what it states the agent has and owes. Read from the log; the agent cannot change either. */
     bank?: { offer: () => Promise<string>; statement: () => Promise<string> };
+    /** The Market (market.md 7, MK-10; DK1454): the open jobs this agent may take and why, whether a settled job counts for standing, and, when the run holds the agent's key, a bid under its own signature. Read from the log; the log refuses an ineligible bid with its reason. */
+    market?: { jobs: () => Promise<string>; counts: (contract: string) => Promise<string>; bid?: (posting: string, offer: string) => Promise<string> };
     /** The Treasury's newcomer allowance (DK380, DK98): whether this agent may claim it now and what stands in the way. Read from the log; claiming is `asp treasury allowance --claim` under the agent's own key. */
     treasury?: { allowance: () => Promise<string> };
     /** Housing (DK393): read another agent's Home, read-only. What its owner wrote is returned as untrusted data. */
@@ -288,6 +290,27 @@ export function aspHandler(o: AspToolsOptions): McpHandler {
         inputSchema: { type: "object", properties: { service: { type: "string", description: "a service name such as academy.exam.sit, or an institution such as academy; leave out for the whole list" } } },
         run: async (a) => textResult(await price(str(a, "service") || undefined)),
       });
+    }
+    if (society.market) {
+      const market = society.market;
+      tools.push({
+        name: "market_jobs", description: "The open jobs on the Market's board, the ones you are eligible for first: each with its class, budget, the tier and certificate it needs, who posted it and how that poster has behaved, and whether it would count for your standing. A job you are not eligible for says what is missing. Read from the log; a bid on a job you cannot take is refused with the same reason.",
+        inputSchema: { type: "object", properties: {} },
+        run: async () => textResult(await market.jobs()),
+      });
+      tools.push({
+        name: "market_counts", description: "Whether a settled or running job counts for your standing, and why not: jobs between linked parties (one sponsor, one fleet), trivial jobs and too many from one poster settle but do not count.",
+        inputSchema: { type: "object", properties: { contract: { type: "string", description: "the contract id" } }, required: ["contract"] },
+        run: async (a) => { const c = str(a, "contract"); return c ? textResult(await market.counts(c)) : textResult("Name the contract id.", true); },
+      });
+      if (market.bid) {
+        const bid = market.bid;
+        tools.push({
+          name: "market_bid", description: "Bid on a posting with an offer you made (the offer's id and the posting's id, from market_jobs), signed with your own key. The log refuses a bid when your tier, certificate or bond floor is not enough, or the poster is linked to you, and says what is missing.",
+          inputSchema: { type: "object", properties: { posting: { type: "string" }, offer: { type: "string" } }, required: ["posting", "offer"] },
+          run: async (a) => { const p = str(a, "posting"), of = str(a, "offer"); return p && of ? textResult(await bid(p, of)) : textResult("Give the posting id and your offer id.", true); },
+        });
+      }
     }
     if (society.bank) {
       const bank = society.bank;

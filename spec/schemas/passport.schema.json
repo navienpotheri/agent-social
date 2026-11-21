@@ -198,6 +198,16 @@
         "local",
         "service"
       ]
+    },
+    "persona": {
+      "description": "The persona a fleet member plays (developer, project-manager, coder, ...): the fleet's Mandate template for that persona applies to it (S1408).",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "node": {
+      "description": "The node of its fleet's tree the member joins (S1409, DK1372): a department, team or persona node the organisation declared; a member that names none sits at the root. Later moves are `fleet_move` records.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
     }
   },
   "allOf": [

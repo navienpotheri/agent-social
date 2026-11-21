@@ -88,7 +88,7 @@ flowchart LR
 
 None of this conflicts with the supply rule if interest is paid from income: the Treasury's balance falls, the Bank's and the depositors' rise, and the total is unchanged. A loan is a transfer with an obligation attached; the obligation is a record, not credits.
 
-**The one question for the owner** is in [../owner-questions.md](../owner-questions.md) (block DK1349): the numbers (the Treasury's borrowing rate, the Bank's share of interest, the depositors' share, the share of deposits the Bank may lend, whether the Insurer keeps its reserve at the Bank and whether the Treasury lends to it) and whether to build them. The changed and new flows are **not built** until the owner answers; every other gap below is built first; the register shows which rows are closed.
+**The owner answered on 2026-11-21 (docs/owner-questions.md, docs/owner-decisions.md): everything accepted, with a **weekly** cycle. The target structure is now built as the record `bank_act` (spec-delta S1405, row DK1458): no deposit lock, the Bank lends at most 70 % of what it holds, the Treasury may owe at most 50 % of what it holds, interest every Monday week at 0.25 % of what the Treasury owes, paid only from that week's Treasury income (the unpaid part carries, nothing is minted), the Bank keeps 20 % and pays 80 % by balance and days held. The Insurer's reserve stays in its own account and earns interest as a depositor (the Bank does not lend it, so claims stay payable). The older locked deposit (`deposit_act`) still replays as it did.
 
 ## 4. Every flow, with its status and its evidence
 
@@ -116,8 +116,8 @@ Status: **built and tested** (a test exercises it and the audit balances); **bui
 | 18 | Juror stake | `projectJuror` | courts tests | built and tested |
 | 19 | Arena entry fee, prize | `projectPrize`, arena rules | arena-runner.test.ts | built, tested in a unit test only |
 | 20 | Shops, housing rent, events prizes, research grants, founding stakes | `shops-rules`, `housing`, `events-rules`, `research-rules`, `founding.ts` | shops.test.ts, housing.test.ts, events.test.ts, research.test.ts, founding.test.ts | built, tested in a unit test only |
-| 21 | Bank lends to the Treasury; Treasury pays interest; Bank pays depositors a share; agents' credits held at the Bank; Insurer reserve at the Bank | none | none | **not built: the owner's target, waiting for the answer** |
-| 22 | Treasury lends to the Insurer | none | none | **not built: waiting for the answer** |
+| 21 | Bank lends to the Treasury; Treasury pays interest weekly from its income; Bank pays depositors 80 %; agents' credits held at the Bank with no lock; Insurer reserve earns interest as a depositor | `bank-active.ts` (S1405) | bank-active.test.ts, conservation-bank.property.test.ts | built and tested |
+| 22 | Treasury lends to the Insurer | none | none | not built, by the owner's decision (the Treasury does not lend to the Insurer) |
 | 23 | Credit-flow report for the Bank, deposits, Insurer and the Courts | `creditFlowsOf` (DK1452) | credit-flows-report.test.ts | built and tested |
 | 24 | Random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | conservation-bank.property.test.ts (DK1451) | the same | built and tested |
 
@@ -135,20 +135,20 @@ market.md (section 10) lists twenty work items. The register rows are DK16 to DK
 | MK-6 | assignment record, best match and rotation, fairness cap | built and tested | market-ranking.test.ts |
 | MK-7 | discovery, directory, rank reasons | built and tested | market-ranking.test.ts |
 | MK-8 | qualifying-job feed for AgentRank | built and tested | market-ranking.test.ts (S481) |
-| MK-9 | public pages `/market/board`, `/agents`; **`/market/stats`** | board and agents built and tested; **stats not built** | **DK1453** |
-| MK-10 | agent tools `market.jobs`, `bid`, `counts`; the standing-note line | not built | **DK1454** (the gateway tool side is the CLI lane's; the log side is built here) |
+| MK-9 | public pages `/market/board`, `/agents`, `/market/stats` | built and tested | market-stats.test.ts (DK1453, closed) |
+| MK-10 | agent tools `market.jobs`, `bid`, `counts`; the standing-note line | built and tested | society-tools.test.ts, bank-note.test.ts, market-stats.test.ts (DK1454, closed) |
 | MK-11 | farming tests in CI (trivial stream, colluding pair, ring) | built and tested | collusion.test.ts (DK6) |
-| MK-12 | monthly report, charter | charter text exists (charters.md); **monthly report not built** | **DK1453** |
+| MK-12 | monthly report, charter | charter text exists (charters.md); monthly report built and tested | market-stats.test.ts (DK1453, closed) |
 | MK-13 | the live run with a real agent | not run (the owner postponed live runs with real agents) | split to DK1457, a live-run row |
-| MK-14 | risk-priced bond and escrow: risk model record, suggested bond on every offer | not built | **DK1455** |
-| MK-15 | poster reputation | built and tested (deposit scaling); lost-dispute path through a real ruling tested only through its marker | poster-record.test.ts; **DK492** |
-| MK-16 | seasons, the Market's calendar | not built (the world calendar exists, S170; nothing reads it for the Market) | **DK1456** |
-| MK-17 | seeded demand process | not built | **DK1456** |
-| MK-18 | guide price by class from fill rate | not built | **DK1456** |
-| MK-19 | new-entrant waves | not built | **DK1456** |
-| MK-20 | dynamics monitor | not built (the society health report, DK77, reads a different thing) | **DK1456** |
+| MK-14 | risk-priced bond and escrow: risk model record, suggested bond on every offer | built and tested (suggestion, never enforced) | market-risk.test.ts (DK1455, closed) |
+| MK-15 | poster reputation | built and tested, including the lost-dispute path through a real ruling | poster-record.test.ts, ruling-payout-tax.test.ts (DK492, closed) |
+| MK-16 | seasons, the Market's calendar | built and tested | market-dynamics.test.ts (DK1456, closed) |
+| MK-17 | seeded demand process | built and tested | market-dynamics.test.ts |
+| MK-18 | guide price by class from fill rate | built and tested | market-dynamics.test.ts |
+| MK-19 | new-entrant waves | schedule and disclosure built and tested; running the operator's entrants is the hosted service's (DK270, DK1459) | market-dynamics.test.ts |
+| MK-20 | dynamics monitor | built and tested | market-dynamics.test.ts |
 
-The rows DK126 and DK127 stay as the parent rows: each closes when the rows named here are closed. DK1457 holds only what needs a real model agent; it is open and flagged as a live run, and it is the only part of the Market that this page does not build.
+Status after the build (2026-11-21): DK127 and DK492 are closed; DK126 is partial and waits only for DK1457, which needs a real model agent and the hosted service and is the one part of the Market that this page does not build.
 
 ## 6. New register rows from this audit
 
@@ -156,10 +156,10 @@ The rows DK126 and DK127 stay as the parent rows: each closes when the rows name
 |---|---|---|
 | DK1451 | no random-sequence supply test over the Bank, Insurer, Treasury and deposit flows | a property test, new |
 | DK1452 (closed) | `asp credits audit --by-flow` omitted the Bank, deposits, Insurer and Courts flows | the flow report and the CLI |
-| DK1453 | Market: `/market/stats` and a monthly report | log method, route, command |
-| DK1454 | Market: agent tools and the standing-note line | tools beside the existing ones |
-| DK1455 | Market: risk model and suggested bond | a record, a log rule, a view |
-| DK1456 | Market: seasons, seeded demand, guide price, entrant waves, dynamics monitor | drivers over the world calendar |
+| DK1453 (closed) | Market: `/market/stats` and a monthly report | log method, route, command |
+| DK1454 (closed) | Market: agent tools and the standing-note line | tools beside the existing ones |
+| DK1455 (closed) | Market: risk model and suggested bond | a record, a log rule, a view |
+| DK1456 (closed) | Market: seasons, seeded demand, guide price, entrant waves, dynamics monitor | drivers over the world calendar |
 | DK1457 | Market: the live run with a real agent | the owner's postponed live run |
 
 The changed and new Bank, Treasury and Insurer flows (table 4, items 21 and 22) are one row, DK1458, opened here and built after the owner's answer.
