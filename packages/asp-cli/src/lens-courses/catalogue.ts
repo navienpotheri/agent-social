@@ -17,6 +17,8 @@ export const PRICE_MIN = 20, PRICE_MAX = 60;
 
 export interface CourseCard {
   id: string; title: string;
+  /** The intake of the paper this course comes from (DK1751): its id and the sha256 of the intake with its pre-registered plan. Absent for a course written before the rule. */
+  intake?: { id: string; sha256: string };
   /** The idea in two sentences, in our words, and the paper it comes from (an id in docs/lenses/papers.md or candidates.md). */
   concept: string; paper: string;
   /** The lens in docs/lenses/lenses.json (and any others it also serves), and the cells of the institution x function grid the skill serves. */

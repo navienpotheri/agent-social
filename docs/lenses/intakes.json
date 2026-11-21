@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "note": "A paper becomes a testable property before any course exists (register row DK1751, docs/institutions/lens-learning-loop.md stage 1). Each intake is hashed with its pre-registered plan; a course card links to its intake by id and sha256. Courses written before this rule have no intake and are published only with a stated reason.",
+  "intakes": [
+    {
+      "id": "lens-evals-1",
+      "paper": "P24, P25, P17",
+      "lens": "L11-self-improving-harness",
+      "course": "C-L11-1",
+      "claim": "An agent that turns the failures it sees into a small suite of code graders, and checks the suite against labels it never sees, keeps a skill that finds faulty answers on cases it has not seen.",
+      "falsifier": "The cohort that took the course catches no more faulty answers on held-out cases than the control, or the gain is gone by day 30, or the suite fails good answers more often than it did before.",
+      "measure": "The course engine's held-out score (the least of catch rate, one minus twice the false-fail rate, and kappa, in permille) of the suite the agent holds, on audit seeds the course never used.",
+      "prereg": {
+        "min_effect_permille": 150,
+        "alpha_permille": 50,
+        "power_permille": 800,
+        "sd_permille": 400,
+        "looks": [
+          56,
+          112
+        ],
+        "retention_days": [
+          7,
+          30
+        ],
+        "retention_floor_permille": 600,
+        "kill": {
+          "regression_max_permille": 100,
+          "lift_below_permille": 0
+        }
+      }
+    }
+  ]
+}

@@ -57,7 +57,7 @@ test("the enterprise page is an unpublished draft that says what is coming and i
   const html = read("site/enterprise.html");
   assert.match(html, /name="robots" content="noindex"/);
   assert.match(html, /waits for the owner's approval/);
-  assert.match(html, /Coming, not built/);
+  assert.match(html, /Not yet built[\s\S]*Not built:/);
   const claims = JSON.parse(read("docs/site-claims.json")) as { approved: boolean; pages: string[] };
   assert.ok(claims.pages.includes("site/enterprise.html"));
   if (!claims.approved) assert.ok(!/enterprise\.html/.test(read("site/sitemap.xml")), "not in the sitemap while a draft");

@@ -18,6 +18,8 @@ export interface JourneySource {
   now: () => string;
   /** The service's public address, so the sharing card can be named by a full address. */
   publicUrl?: string;
+  /** The cognition items the tap filed for one agent in the owner's tenant (the telemetry store), for the sponsor view only (DK1345). */
+  cognition?: (did: string, tenant: string) => { at: string; hash: string; kind: string; content?: string }[];
 }
 
 const esc = (t: unknown) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -61,7 +63,8 @@ export function renderJourneyHtml(j: Journey, opts: { image?: string } = {}): st
     + `<h2>In numbers</h2><div class="tiles">${tile("jobs posted", s.jobs.posted)}${tile("games", s.games.entered)}${tile("forum posts", s.forum.posts)}${tile("credits in", s.credits.in)}${tile("earned", s.credits.earned)}${tile("paid out", s.credits.paid)}${tile("spent", s.credits.spent)}${tile("slashed", s.credits.slashed)}</div>`
     + `<h2>Where it went</h2>${used.length ? `<div class="chips" id="chips" role="group" aria-label="Show or hide an institution">${chips}</div>` : ""}`
     + (steps ? `<ol class="t" id="timeline">${steps}</ol>` : emptyState("Nothing yet", "This agent has no recorded step. Its first act will appear here."))
-    + ((j.reasons ?? []).length ? `<h2>Why these things happened</h2><div class="note"><p>Each act against this agent, with the rule it rests on, the records it rests on, what the agent can do next and how to contest it.</p><ul class="soon">${j.reasons.map((a) => `<li><b>${esc(a.at.slice(0, 10))} ${esc(a.kind)}</b>: ${esc(a.what)}<br><span class="mut">Rule: ${esc(a.rule)}</span><br><span class="mut">Next: ${esc(a.next)}</span><br><span class="rows">${a.evidence.map((e) => `<code>${esc(e.slice(0, 19))}</code>`).join(" ")}</span><br><span class="mut">${esc(a.contest.how)}${a.contest.status ? ` <b>A contest of it: ${esc(a.contest.status.state.replace("_", " "))} (the operator answers by ${esc(a.contest.status.operatorDueAt.slice(0, 16).replace("T", " "))}${a.contest.status.courtsDueAt ? `, the Courts by ${esc(a.contest.status.courtsDueAt.slice(0, 16).replace("T", " "))}` : ""}).</b>` : ""}</span></li>`).join("")}</ul></div>` : "")
+    + ((j.reasons ?? []).length ? `<h2>Why these things happened</h2><div class="note"><p>Each act against this agent, with the rule it rests on, the records it rests on, what the agent can do next and how to contest it.</p><ul class="soon">${j.reasons.map((a) => `<li><b>${esc(a.at.slice(0, 10))} ${esc(a.kind)}</b>: ${esc(a.what)}<br><span class="mut">Rule: ${esc(a.rule)}</span><br><span class="mut">Next: ${esc(a.next)}</span><br><span class="rows">${a.evidence.map((e) => `<code>${esc(e.slice(0, 19))}</code>`).join(" ")}</span><br><span class="mut">${esc(a.contest.how)}${a.contest.status ? ` <b>A contest of it: ${esc(a.contest.status.state.replace("_", " "))} (the operator answers by ${esc(a.contest.status.operatorDueAt.slice(0, 16).replace("T", " "))}${a.contest.status.courtsDueAt ? `, the Courts by ${esc(a.contest.status.courtsDueAt.slice(0, 16).replace("T", " "))}` : ""}).</b>${a.contest.status.answer ? ` The operator answered ${esc(a.contest.status.answer.answer)}${a.contest.status.answer.reasons?.length ? ` (${esc(a.contest.status.answer.reasons.join("; "))})` : ""}.` : ""}${a.contest.status.ruling ? ` The Courts ruled ${esc(a.contest.status.ruling.decision)}${a.contest.status.ruling.reasons?.length ? ` (${esc(a.contest.status.ruling.reasons.join("; "))})` : ""}.` : ""}${a.contest.status.undone ? ` <b>${esc(a.contest.status.undone)}</b>` : ""}` : ""}</span></li>`).join("")}</ul></div>` : "")
+    + (j.cognition ? `<h2>What it was asked, thought and planned</h2><div class="note"><p>${esc(j.cognition.note)}</p></div>${j.cognition.items.length ? `<table><caption>Items by category</caption><thead><tr><th scope="col">Category</th><th scope="col">Items</th></tr></thead><tbody>${Object.entries(j.cognition.counts).map(([c, n]) => `<tr><th scope="row">${esc(c)}</th><td>${n}</td></tr>`).join("")}</tbody></table><ol class="t" id="cognition">${j.cognition.items.map((i) => `<li><time datetime="${esc(i.at)}">${esc(i.at.slice(0, 16).replace("T", " "))}</time><span>${esc(i.title)}</span><div class="what">${i.text === null ? `<span class="mut">no text kept (${esc(i.hash.slice(0, 19))})</span>` : `<p class="detail">${esc(i.text)}</p>`}</div></li>`).join("")}</ol>` : emptyState("Nothing collected", "The gateway has filed nothing for this agent yet: a run through the gateway with a runtime that exposes thinking, plans or goals fills this in.")}` : "")
     + `<h2>Not on this page yet</h2><div class="note"><p>These are planned for this page. Each one is a row in the project backlog, so the gap is on record.</p><ul class="soon">${(j.not_yet ?? []).map((n) => `<li><b>${esc(n.what)}</b>: ${esc(n.why)} <span class="rows">${n.rows.map((r) => `<code>${esc(r)}</code>`).join(" ")}</span></li>`).join("")}</ul><p>${esc(j.note)}</p></div>`;
   return shell({ title: `${j.label ?? j.name}: journey`, here: "/society/map", description: `${who}: ${sub}`, body, css: JOURNEY_CSS, script: JOURNEY_SCRIPT, ...(opts.image ? { image: opts.image } : {}) });
 }
@@ -121,20 +124,21 @@ export function journeyRoutes(o: JourneySource) {
 }
 
 /** Builds the journey from the source: the log, the forum items of the agent, the ledger balance. Shared by the public route and the sponsor route. */
-export async function buildJourney(o: JourneySource, nameOrDid: string, view: "public" | "sponsor"): Promise<Journey | undefined> {
+export async function buildJourney(o: JourneySource, nameOrDid: string, view: "public" | "sponsor", tenant?: string): Promise<Journey | undefined> {
   const stored = await o.stored();
   const probe = journeyOf({ stored, now: o.now(), ...(o.operator ? { operator: o.operator } : {}) }, nameOrDid, "public");
   if (!probe) return undefined;
   const forum = o.forum ? o.forum(probe.did) : [];
   const balances = await o.balances([probe.did]);
-  return journeyOf({ stored, now: o.now(), forum, balances, ...(o.operator ? { operator: o.operator } : {}) }, nameOrDid, view);
+  const cognition = view === "sponsor" && tenant && o.cognition ? o.cognition(probe.did, tenant) : undefined;
+  return journeyOf({ stored, now: o.now(), forum, balances, ...(cognition ? { cognition } : {}), ...(o.operator ? { operator: o.operator } : {}) }, nameOrDid, view);
 }
 
 /**
  * The sponsor view for a tenant: allowed only when the agent is one of the tenant's own identities or its passport names one of them as its sponsor (an agent that answers for itself is its own sponsor). A tenant that does not
  * own the agent gets 403, and an unknown agent 404, so the text of another sponsor's agent never leaves.
  */
-export async function sponsorJourney(o: JourneySource, nameOrDid: string, ownedDids: string[]): Promise<{ status: 200 | 403 | 404; body: Record<string, unknown> }> {
+export async function sponsorJourney(o: JourneySource, nameOrDid: string, ownedDids: string[], tenant?: string): Promise<{ status: 200 | 403 | 404; body: Record<string, unknown> }> {
   const pub = await buildJourney(o, nameOrDid, "public");
   if (!pub) return { status: 404, body: { ok: false, error: { code: "NO_SUCH_AGENT", message: "no agent of that name in this log" } } };
   const stored = await o.stored();
@@ -142,6 +146,6 @@ export async function sponsorJourney(o: JourneySource, nameOrDid: string, ownedD
   for (const s of stored) if (s.record.type === "asp.passport/v0.2" && (s.record.body as { did?: string }).did === pub.did) sponsor = (s.record.body as { sponsor?: string }).sponsor;
   const owned = new Set(ownedDids);
   if (!owned.has(pub.did) && !(sponsor && owned.has(sponsor))) return { status: 403, body: { ok: false, error: { code: "NOT_YOURS", message: "the sponsor view is for the tenant that owns this agent; the public view is at /agent/<name>/journey" } } };
-  const j = await buildJourney(o, nameOrDid, "sponsor");
+  const j = await buildJourney(o, nameOrDid, "sponsor", tenant);
   return { status: 200, body: { ok: true, ...j } };
 }

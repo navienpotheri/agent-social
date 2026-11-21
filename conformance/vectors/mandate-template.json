@@ -65,6 +65,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -129,6 +136,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -197,6 +211,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -259,6 +280,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -327,6 +355,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -390,6 +425,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -458,6 +500,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -521,6 +570,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -591,6 +647,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -655,6 +718,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -723,6 +793,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -787,6 +864,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -857,6 +941,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -921,6 +1012,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -991,6 +1089,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1054,6 +1159,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -1124,6 +1236,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1186,6 +1305,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -1256,6 +1382,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1321,6 +1454,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -1389,6 +1529,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1453,6 +1600,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -1521,6 +1675,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1585,6 +1746,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -1655,6 +1823,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1719,6 +1894,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -1787,6 +1969,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1851,6 +2040,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -1921,6 +2117,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -1984,6 +2187,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -2052,6 +2262,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2116,6 +2333,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -2186,6 +2410,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2250,6 +2481,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -2318,6 +2556,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2382,6 +2627,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -2450,6 +2702,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2514,6 +2773,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -2584,6 +2850,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2648,6 +2921,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -2716,6 +2996,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2780,6 +3067,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -2850,6 +3144,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -2915,6 +3216,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -2983,6 +3291,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3045,6 +3360,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -3115,6 +3437,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3179,6 +3508,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -3247,6 +3583,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3311,6 +3654,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -3381,6 +3731,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3444,6 +3801,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -3512,6 +3876,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3575,6 +3946,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -3645,6 +4023,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3706,6 +4091,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -3776,6 +4168,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3840,6 +4239,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -3908,6 +4314,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -3972,6 +4385,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4042,6 +4462,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4106,6 +4533,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4176,6 +4610,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4240,6 +4681,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4310,6 +4758,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4365,6 +4820,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -4433,6 +4895,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4496,6 +4965,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4566,6 +5042,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4629,6 +5112,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4699,6 +5189,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4762,6 +5259,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4832,6 +5336,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -4894,6 +5405,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -4964,6 +5482,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5027,6 +5552,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5097,6 +5629,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5161,6 +5700,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5231,6 +5777,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5295,6 +5848,13 @@
           "equivalent_calls": 5,
           "depth": 2,
           "near_repeats": 9
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -5363,6 +5923,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5427,6 +5994,13 @@
           "equivalent_calls": 9,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5497,6 +6071,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5561,6 +6142,13 @@
           "equivalent_calls": 8,
           "depth": 4,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5631,6 +6219,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5695,6 +6290,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 13
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5765,6 +6367,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5828,6 +6437,13 @@
         "loop_limits": {
           "equivalent_calls": 8,
           "depth": 3
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -5898,6 +6514,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -5961,10 +6584,747 @@
         "loop_limits": {
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
         "loop_limits"
+      ]
+    },
+    {
+      "name": "a_redact_mode",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "redact",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "expected": [
+        "outbound_scan"
+      ]
+    },
+    {
+      "name": "a_dropped_outbound_kind",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret"
+          ]
+        }
+      },
+      "expected": [
+        "outbound_scan"
+      ]
+    },
+    {
+      "name": "an_added_outbound_kind",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number",
+            "email address"
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "no_outbound_scan",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        }
+      },
+      "expected": [
+        "outbound_scan"
+      ]
+    },
+    {
+      "name": "no_outbound_mode",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "expected": [
+        "outbound_scan"
       ]
     },
     {
@@ -6031,6 +7391,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6090,6 +7457,13 @@
           "per_run": 50000,
           "per_month": 1000000,
           "per_day": 300000
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -6160,6 +7534,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6219,6 +7600,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -6293,6 +7681,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6361,6 +7756,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -6433,6 +7835,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6500,6 +7909,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -6572,6 +7988,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6637,6 +8060,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -6709,6 +8139,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6777,6 +8214,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -6851,6 +8295,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -6918,6 +8369,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -6992,6 +8450,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -7056,6 +8521,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -7124,6 +8596,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -7191,6 +8670,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": [
@@ -7261,6 +8747,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "candidate": {
@@ -7325,6 +8818,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "expected": []
@@ -7528,6 +9028,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -7595,6 +9102,13 @@
             "equivalent_calls": 8,
             "depth": 3,
             "near_repeats": 12
+          },
+          "outbound_scan": {
+            "mode": "block",
+            "kinds": [
+              "secret",
+              "card number"
+            ]
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
@@ -7664,6 +9178,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -7739,6 +9260,13 @@
             "depth": 3,
             "near_repeats": 12
           },
+          "outbound_scan": {
+            "mode": "block",
+            "kinds": [
+              "secret",
+              "card number"
+            ]
+          },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }
       }
@@ -7807,6 +9335,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -7891,6 +9426,13 @@
           "equivalent_calls": 8,
           "depth": 3,
           "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
         }
       },
       "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -7958,6 +9500,13 @@
             "equivalent_calls": 8,
             "depth": 3,
             "near_repeats": 12
+          },
+          "outbound_scan": {
+            "mode": "block",
+            "kinds": [
+              "secret",
+              "card number"
+            ]
           },
           "contract": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
         }

@@ -119,11 +119,45 @@ export interface Journey {
   note: string;
   /** The cost to the sponsor (DK1347): present in the sponsor view only. */
   cost?: JourneyCost;
+  /** What the agent was asked, thought and planned (DK1345, from the gateway's cognition tap): present in the sponsor view only. */
+  cognition?: JourneyCognition;
 }
 
 /** What the sponsor's own machine knows about the agent's cap (the standing budget of `asp budget`, DK1347): a cap in tokens a day and a month, and the warning level in percent. */
 export interface JourneyBudget { dailyTokens?: number; monthlyTokens?: number; warnPercent?: number }
-export interface JourneyInput { stored: StoredRec[]; now: string; forum?: ForumItem[]; balances?: Map<string, number>; operator?: string; /** The agent's standing cap, when the caller knows it (the sponsor's machine does; the public service does not). */ budget?: JourneyBudget }
+/** One item the gateway's cognition tap filed for an agent (DK79, DK1345), as the telemetry store holds it: the scrubbed text, or none when it was deleted or the tenant keeps its data private (the hash is kept). */
+export interface CognitionInput { at: string; hash: string; kind: string; content?: string }
+/** One item of what the agent thought, planned and was asked, in the order it happened. Sponsor view only: the text is the sponsor's and is never public. */
+export interface CognitionStep { at: string; step: number | null; category: string; title: string; text: string | null; hash: string }
+export interface JourneyCognition { items: CognitionStep[]; counts: Record<string, number>; note: string }
+
+const KIND_CATEGORY: Record<string, string> = { goal: "goals", message: "messages", reasoning: "reasoning", plan: "plans", subagent: "subagents", skill: "skills", action: "actions", memory: "memory" };
+
+/** The cognition items of an agent as journey items, ordered by the time they were filed and the step inside a run. A deleted or hash-only item stays as a line with no text. Pure. */
+export function cognitionOf(items: readonly CognitionInput[]): JourneyCognition {
+  const out: CognitionStep[] = [];
+  for (const it of items) {
+    let category = KIND_CATEGORY[it.kind] ?? "other", step: number | null = null, text: string | null = null;
+    if (it.content !== undefined) {
+      try {
+        const v = JSON.parse(it.content) as Record<string, unknown>;
+        if (typeof v.category === "string") category = v.category;
+        if (typeof v.step === "number") step = v.step;
+        const { category: _c, step: _s, truncated: _t, ...rest } = v;
+        text = typeof rest.text === "string" ? rest.text : typeof rest.task === "string" ? rest.task : JSON.stringify(rest);
+      } catch { text = it.content; }
+    }
+    out.push({ at: it.at, step, category, title: cognitionTitle(category), text, hash: it.hash });
+  }
+  out.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : (a.step ?? 0) - (b.step ?? 0)));
+  const counts: Record<string, number> = {};
+  for (const i of out) counts[i.category] = (counts[i.category] ?? 0) + 1;
+  return { items: out, counts, note: "What the gateway saw of this agent's runs, scrubbed of secrets and personal data before it was stored, kept apart from the signed log and shown to its sponsor only. An item with no text was deleted or its tenant keeps its data private; the hash remains. Beliefs are not collected: they are not visible in traffic." };
+}
+const TITLES: Record<string, string> = { goals: "Goal", messages: "Message", reasoning: "Reasoning", plans: "Plan", subagents: "Sub-agent", skills: "Skill", actions: "Tool call", memory: "Memory note", other: "Other" };
+const cognitionTitle = (c: string): string => TITLES[c] ?? c;
+
+export interface JourneyInput { stored: StoredRec[]; now: string; /** The cognition items filed for this agent (the sponsor view shows them; the public view never does). */ cognition?: CognitionInput[]; forum?: ForumItem[]; balances?: Map<string, number>; operator?: string; /** The agent's standing cap, when the caller knows it (the sponsor's machine does; the public service does not). */ budget?: JourneyBudget }
 
 /** What the agent cost its sponsor, from the Actions' own token metrics and the log's credits (DK1347): the sponsor view only; the public view carries none of it. A step's tokens sum to the totals. */
 export interface JourneyCost {
@@ -302,12 +336,10 @@ const emptySummary = (): JourneySummary => ({
 /** What the page cannot show yet, why, and the backlog rows that will put it on the page (owner, 2026-11-21: each of these is to be on the page; the rows are the record of that). */
 export interface NotYet { what: string; why: string; rows: string[] }
 export const NOT_YET: NotYet[] = [
-  { what: "the agent's reasoning", why: "the log carries what an agent did, not why; reasoning is not recorded per run or per agent", rows: ["DK790", "DK79"] },
-  { what: "the agent's goals and beliefs", why: "nothing records them yet; the page makes no guess about them", rows: ["DK1315", "DK60"] },
+  { what: "the agent's beliefs", why: "beliefs are not visible in traffic: an agent has to report them itself, and nothing records them yet; the page makes no guess about them (reasoning, goals and plans are on the sponsor view from the gateway's tap)", rows: ["DK1315", "DK60"] },
   { what: "its exploration of worlds and expeditions", why: "the worlds and expeditions are not built", rows: ["DK1317", "DK1318"] },
   { what: "direct messages between agents", why: "there are no direct messages as records yet; only the forum is public", rows: ["DK1346"] },
   { what: "the compute cost beyond tokens (the meter of a resident agent)", why: "the sponsor view shows the tokens the Actions report and the credits spent; the public view never shows cost; the compute meter is not joined", rows: ["DK1313"] },
-  { what: "its trajectory text", why: "the telemetry store keeps it apart from the log", rows: ["DK1345", "DK651"] },
 ];
 /** The same list as sentences, for plain-text and older readers. */
 export const NOT_RECORDED: string[] = NOT_YET.map((n) => `${n.what}: ${n.why} (not on this page yet; backlog ${n.rows.join(", ")})`);
@@ -384,7 +416,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   const bal = inp.balances?.get(did);
   const fleetMark = fleetOfAgent(fleetDirectory(inp.stored), did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET, reasons: reasonsFor(inp.stored.map((s) => s.record as never), did, view),
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(view === "sponsor" && inp.cognition ? { cognition: cognitionOf(inp.cognition) } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET, reasons: reasonsFor(inp.stored.map((s) => s.record as never), did, view),
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }

@@ -7,8 +7,8 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type TelemetryKind = "trajectory" | "message" | "text";
-export const TELEMETRY_KINDS: readonly TelemetryKind[] = ["trajectory", "message", "text"];
+export type TelemetryKind = "trajectory" | "message" | "text" | "goal" | "reasoning" | "plan" | "subagent" | "skill" | "action" | "memory";
+export const TELEMETRY_KINDS: readonly TelemetryKind[] = ["trajectory", "message", "text", "goal", "reasoning", "plan", "subagent", "skill", "action", "memory"];
 export const TELEMETRY_MAX_ITEM_BYTES = 256 * 1024;
 export const TELEMETRY_MAX_ITEMS = 5000;
 

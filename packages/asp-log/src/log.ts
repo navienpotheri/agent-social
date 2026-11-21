@@ -18,7 +18,7 @@ import { HOST_DID, projectSubsidyBudget, projectSubsidyGrant, projectSubsidyUse 
 import { projectMutualAct, mutualPremium, mutualPoolDid, type InsurerDrivers, premiumFor, drivenPremium, COVER_SHARE_PERMILLE, PREMIUM_SPLIT, jobClassOfContract, projectPolicy, projectClaim, projectClaimDecision, type InsurerEnv } from "./insurer.ts";
 import { projectCreditLine, projectMentorship, payMentor, projectCreditDefault, projectBankStatement, projectDebtPayment, drawAtBond, repayAtSettlement, type BankEnv } from "./bank.ts";
 import {
-  AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord,
+  AspError, Job, isNetworkScope, verifyBytes, b64urlDecode, b64urlEncode, publicKeyFromDidKey, defaultSchemas, didOf, sha256Id, shortType, verifyRecord, lessonTextProblems,
   type AspRecord, type JobSnapshot, type KeyResolver, type SchemaSet,
 } from "@agent-social/asp-core";
 import { starterSpendOf, type StarterSpendReport } from "./starter-spend.ts";
@@ -288,11 +288,11 @@ export class EventLog {
   private readonly now: () => Date;
   private readonly maxNodeTtlMs: number;
   private readonly panelSize: number;
-  private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private readonly bankEnv: BankEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
   private insurerDrivers?: InsurerDrivers;
   private requireNodeMandate = false;
   private get insurerEnv(): InsurerEnv { return { ...(this.insurerDrivers ? { drivers: this.insurerDrivers } : {}), ...this.insurerEnvBase }; }
-  private readonly insurerEnvBase: InsurerEnv = { reputation: (tx, did) => this.reputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
+  private readonly insurerEnvBase: InsurerEnv = { reputation: (tx, did) => this.gatedReputation(tx, did), debit: (tx, did, n) => this.debit(tx, did, n), credit: (tx, did, n) => this.credit(tx, did, n) };
 
   private readonly bondFloor: "legacy" | "v2" | "v3";
   private bondFloorFrom?: string;
@@ -490,13 +490,17 @@ export class EventLog {
     if (type === "quarantine_release") await this.projectQuarantineRelease(tx, verified);
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
-    if (type === "court_act") await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
-    if (type === "court_act" && (r.body as { act?: string; decision?: string }).act === "contest_ruling") await this.applyContestReversal(tx, verified);
-    if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
+    if (type === "court_act") {
+      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+      const ca = verified.body as { act?: string; contest?: string; case?: string };
+      if (ca.act === "contest_answer" && ca.contest) await this.reverseContested(tx, ca.contest, verified.issued_at);
+      else if (ca.act === "contest_ruling" && ca.case) { const c = JSON.parse((await tx.getMarker(`contest_case:${ca.case}`)) || "null") as { contest?: string } | null; if (c?.contest) await this.reverseContested(tx, c.contest, verified.issued_at); }
+    }
+    if (type === "shops_act") await projectShopsAct(tx, verified, { reputation: (rd, did) => this.gatedReputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n), tierSpendLimit: (tier) => (tier <= 0 ? 0 : TIER_SPEND_LIMIT[tier] ?? Number.MAX_SAFE_INTEGER) });
     if (type === "housing_act") await projectHousingAct(tx, verified);
     if (type === "telemetry_act") await projectTelemetryAct(tx, verified);
-    if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
-    if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.reputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
+    if (type === "research_act") await projectResearchAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.gatedReputation(rd, did), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
+    if (type === "events_act") await projectEventsAct(tx, verified, { operator: this.operator, reputation: (rd, did) => this.gatedReputation(rd, did), priceListInForce: (t, at) => this.priceListInForce(t, at), debit: (t, did, n) => this.debit(t, did, n), credit: (t, did, n) => this.credit(t, did, n) });
     if (type === "contract") await notePerformer(tx, verified);
     if (type === "contract") await this.noteRelatedParty(tx, verified);
     if (type === "contract") await this.checkTutorial(tx, verified);
@@ -1132,6 +1136,17 @@ export class EventLog {
    * from an agent that names models records them; a later one that names a model the agent has not run before, or the same name with a different digest, opens a probation window for the agent
    * (the same window a lineage update sets, 7 days, never shortened). Nothing is refused: a runtime swap is allowed, and the window is the log's record that "a name can point to different weights".
    */
+  /**
+   * A model swap holds an agent at the entry tier (DK1605, S1555): from the swap until a passed exam of its own, every gate that reads the tier sees at most tier 1, so the Mandate limits, the board's minimum tier, the Bond
+   * floors, the arenas, the events, the research problems and the shops' gates treat the agent as new. The reputation itself (the slash count, the jobs, the stored tier) is not touched: the exam restores the view.
+   */
+  private async gatedReputation(tx: Pick<LogTx, "getPassport" | "getRecord" | "getReputation" | "getMarker">, did: string) {
+    const r = await this.reputation(tx, did);
+    const since = r && r.tier > 1 ? await tx.getMarker(`model_hold:${did}`) : undefined;
+    if (r && since) { const passed = await tx.getMarker(`exam_pass_at:${did}`); if (!passed || Date.parse(passed) <= Date.parse(since)) return { ...r, tier: 1 }; }
+    return r;
+  }
+
   private async noteModels(tx: LogTx, r: AspRecord): Promise<void> {
     const models = (r.body as { metrics?: { models?: { name: string; provider?: string; digest?: string }[] } }).metrics?.models;
     if (!models?.length) return;
@@ -1209,12 +1224,52 @@ export class EventLog {
   }
 
   /** Demotes a slashed backer by one tier (floor 0) and counts the slash, for its next Bond's risk floor. */
-  private async demote(tx: LogTx, did: string, at: string): Promise<void> {
+  private async demote(tx: LogTx, did: string, at: string, slash?: { settlement: string; amount: number }): Promise<void> {
     const rep = await this.reputation(tx, did);
     if (!rep) return; // not an agent (or has no passport at all): this mechanism doesn't apply
     await tx.putMarker(`rp_clean:${did}`, "0"); await tx.putMarker(`rp_reset:${did}`, at); // a slash resets the related-party record (S1411)
     await tx.putMarker(`slashed_at:${did}`, at); // when the last slash happened, for the promotion rule (no promotion within 30 days of a slash)
+    if (slash) await tx.putMarker(`demoted:${slash.settlement}`, JSON.stringify({ did, from: rep.tier, amount: slash.amount }));
     await this.saveReputation(tx, did, { ...rep, tier: Math.max(0, rep.tier - 1), slashCount: rep.slashCount + 1 });
+  }
+
+  /**
+   * An adverse act that was contested and did not stand is undone by the institution that made it (DK1607, S1556). It runs once, after the operator withdrew the act or a ruling of the Courts reversed it, and it changes only
+   * what that act changed: a strike leaves the bond floor's recent strikes; a slash gives back the tier and the count it cost, and the backer's lost bond is paid back from the Treasury's holding, never beyond what it holds;
+   * a Clinic diagnosis stops counting towards the bond floor; a quarantine ends for the agent that contested it. A ruling that upholds the act, or an answer that upholds it, changes nothing. The effects are written on the contest.
+   */
+  private async reverseContested(tx: LogTx, contestId: string, at: string): Promise<void> {
+    const raw = await tx.getMarker(`contest:${contestId}`);
+    if (!raw) return;
+    const info = JSON.parse(raw) as { subject: string; agent: string; state: string };
+    if (info.state !== "withdrawn" && info.state !== "reversed") return;
+    const subject = await tx.getRecord(info.subject);
+    if (!subject) return;
+    const effects: Record<string, unknown> = {};
+    const t = subject.record.type;
+    if (t === "asp.action/v0.2") {
+      const rep = await this.reputation(tx, subject.record.issuer);
+      if (rep) {
+        const i = rep.strikeLog.findIndex((x) => x.at === subject.record.issued_at);
+        if (i >= 0) { await this.saveReputation(tx, subject.record.issuer, { ...rep, strikeLog: rep.strikeLog.filter((_, j) => j !== i) }); effects.strike_removed = rep.strikeLog[i]!.count; }
+      }
+    } else if (t === "asp.settlement/v0.2") {
+      const d = JSON.parse((await tx.getMarker(`demoted:${info.subject}`)) || "null") as { did: string; from: number; amount: number } | null;
+      const rep = d ? await this.reputation(tx, d.did) : null;
+      if (d && rep) {
+        await this.saveReputation(tx, d.did, { ...rep, tier: rep.tier < d.from ? rep.tier + 1 : rep.tier, slashCount: Math.max(0, rep.slashCount - 1) });
+        const held = (await tx.getAccount(TREASURY_DID))?.balance ?? 0;
+        const paid = Math.min(d.amount, held);
+        if (paid > 0) { await this.debit(tx, TREASURY_DID, paid); await this.credit(tx, d.did, paid); }
+        effects.slash_reversed = { backer: d.did, tier_restored: rep.tier < d.from, bond_lost: d.amount, paid_back: paid, short: d.amount - paid };
+      }
+    } else if (t === "asp.clinic_diagnosis/v0.2") {
+      await tx.putMarker(`diagnosis_withdrawn:${info.subject}`, at);
+      effects.diagnosis_withdrawn = true;
+    } else if (t === "asp.quarantine/v0.2") {
+      if (!(await tx.getMarker(`quarantine_released:${info.subject}|${info.agent}`))) { await tx.putMarker(`quarantine_released:${info.subject}|${info.agent}`, contestId); effects.quarantine_ended_for = info.agent; }
+    }
+    await tx.putMarker(`contest:${contestId}`, JSON.stringify({ ...JSON.parse((await tx.getMarker(`contest:${contestId}`))!), effects }));
   }
 
   /**
@@ -1354,7 +1409,7 @@ export class EventLog {
     let drift: FloorInputsV3["drift"] = "none";
     const dxId = await tx.getMarker(`clinic_diagnosis_last:${backer}`);
     const dx = dxId ? await tx.getRecord(dxId) : undefined;
-    if (dx && Date.parse(at) - Date.parse(dx.record.issued_at) <= 30 * 86_400_000) { const sev = (dx.record.body as { severity?: string }).severity; if (sev === "warn" || sev === "quarantine_recommended") drift = sev; }
+    if (dx && !(await tx.getMarker(`diagnosis_withdrawn:${dxId}`)) && Date.parse(at) - Date.parse(dx.record.issued_at) <= 30 * 86_400_000) { const sev = (dx.record.body as { severity?: string }).severity; if (sev === "warn" || sev === "quarantine_recommended") drift = sev; }
     const intent = cb?.basis?.intent ? await tx.getRecord(cb.basis.intent) : undefined;
     const cls = (intent?.record.body as { class?: string } | undefined)?.class;
     const taskClass: TaskClass = cls === "trivial" || cls === "skilled" || cls === "critical" ? cls : "routine";
@@ -1384,7 +1439,7 @@ export class EventLog {
   private async checkMandateTier(tx: LogTx, r: AspRecord): Promise<void> {
     await checkLadderOnMandate(tx, r);
     await checkMandateTelemetry(tx, r);
-    const rep = await this.reputation(tx, r.subject as string);
+    const rep = await this.gatedReputation(tx, r.subject as string);
     const remedial = (r.body as { remedial?: { sponsor: string } }).remedial;
     if (remedial) await this.checkRemedialMandate(tx, r, rep?.tier, remedial);
     else if (rep?.tier === 0) throw rule("tier_excluded", `${r.subject} is excluded from receiving a Mandate: repeat slashes demoted it to tier 0 (a remedial Mandate for a Clinic exam or course is the one it may receive: \`remedial\`)`);
@@ -1762,7 +1817,7 @@ export class EventLog {
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
     }
     await this.notePosterOutcome(tx, cbody.principal, body as unknown as { basis: string; cites?: string; escrow_released: { value: number }; bond_slashed: { value: number } });
-    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at);
+    if (body.bond_slashed.value > 0) await this.demote(tx, escrow.backer, r.issued_at, { settlement: r.id, amount: body.bond_slashed.value });
     else if (body.basis === "accepted") await this.countAcceptedJob(tx, escrow.backer, { principal: cbody.principal, performer: cbody.performer, price: (contract!.record.body as { price?: { value: number } }).price?.value ?? 0, at: r.issued_at, intent: (contract!.record.body as { basis?: { intent?: string } }).basis?.intent, contract: body.contract, verifier: body.cites ? (await tx.getRecord(body.cites))?.record.issuer : undefined });
     await tx.putEscrow({ ...escrow, settled: true });
     await noteLock(tx, escrow.backer, body.contract, null);
@@ -2179,7 +2234,7 @@ export class EventLog {
       }
     }
     if (item.class !== "essential" && item.class !== "remedial" && !String(b.service ?? "").startsWith("courts.")) await this.checkCityStop(tx, r);
-    const rep = await this.reputation(tx, buyer);
+    const rep = await this.gatedReputation(tx, buyer);
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
     if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
@@ -3546,9 +3601,15 @@ export class EventLog {
     // A course that was put to the Town Hall goes live only after an enactment of one of its proposals (DK1608, S1554): a vote that did not pass, or is still open, does not publish it.
     const proposed = ((await tx.getMarker(`town_course:${b.course}`)) ?? "").split(",").filter(Boolean);
     if (proposed.length) {
-      let enacted = false;
-      for (const pid of proposed) if (await tx.getMarker(`town_enacted:${pid}`)) enacted = true;
+      let enacted: string | undefined;
+      for (const pid of proposed) if (!enacted && (await tx.getMarker(`town_enacted:${pid}`))) enacted = pid;
       if (!enacted) throw rule("course_not_enacted", `the course ${b.course} was put to the Town Hall (${proposed.join(", ")}) and none of its proposals was enacted: a course goes live only after its enactment`);
+      // The enacted proposal is the course that goes live (DK1608, S1554, S1557): its proposer is the instructor, and its lessons pass the lesson gate's text checks whatever the vote.
+      const win = await tx.getRecord(enacted);
+      if (win!.record.issuer !== r.issuer) throw rule("course_not_proposer", `the course ${b.course} was proposed by another identity: the instructor is the agent that put it to the vote`);
+      const lessons = ((win!.record.body as { value?: { lessons?: { id: string; text: string }[] } }).value?.lessons) ?? [];
+      const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((x) => `${l.id}: ${x.rule}`));
+      if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
     }
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
@@ -3645,7 +3706,7 @@ export class EventLog {
     const def = (await tx.getRecord(defId))!.record.body as { min_tier: number; entry_service: string; opens: string; closes: string };
     const at = Date.parse(r.issued_at);
     if (at < Date.parse(def.opens) || at >= Date.parse(def.closes)) throw rule("arena_not_open", `${b.arena} ${b.season} takes entries from ${def.opens} until ${def.closes}`);
-    const rep = await this.reputation(tx, r.issuer);
+    const rep = await this.gatedReputation(tx, r.issuer);
     if (!rep) throw rule("arena_not_an_agent", `${r.issuer} is not an agent with a passport in this log`);
     if (rep.tier < def.min_tier) throw rule("arena_tier_too_low", `${b.arena} needs tier ${def.min_tier}; ${r.issuer} is tier ${rep.tier}. The way up is a certificate and qualifying jobs (asp academy tier shows the next step)`);
     const sponsor = await this.sponsorKey(tx, r.issuer);
@@ -3925,28 +3986,6 @@ export class EventLog {
   }
 
   /** A release (clinic.md; DK29, DK30, DK53): the Clinic clears one member on evidence of a clean run after the freeze. */
-  /**
-   * A reversed contest changes what the institution did (DK1607, spec-delta S1555): when the Courts reverse a contested act, the effect the act had is undone where the log can undo it without moving credits. A reversed quarantine
-   * releases the agent from it (the same marker the Clinic's release writes). A reversed strike is struck from the agent's recent strikes, so the bond floor stops counting it. A reversed slash or Clinic diagnosis is recorded
-   * and shown but moves nothing here: the return of a slashed bond needs a Treasury budget line and is a separate decision (a ruling that upholds, or none, changes nothing).
-   */
-  private async applyContestReversal(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { case: string; decision: string };
-    if (b.decision !== "reversed") return;
-    const cinfo = JSON.parse((await tx.getMarker(`contest_case:${b.case}`)) ?? "null") as { contest: string; agent: string } | null;
-    const craw = cinfo ? await tx.getMarker(`contest:${cinfo.contest}`) : undefined;
-    if (!cinfo || !craw) return;
-    const c = JSON.parse(craw) as { subject: string; agent: string };
-    const sub = await tx.getRecord(c.subject);
-    if (!sub) return;
-    if (sub.record.type === "asp.quarantine/v0.2") { await tx.putMarker(`quarantine_released:${c.subject}|${c.agent}`, r.id); return; }
-    if (sub.record.type === "asp.action/v0.2") {
-      const rep = await this.reputation(tx, c.agent);
-      if (rep) await this.saveReputation(tx, c.agent, { ...rep, strikeLog: rep.strikeLog.filter((x) => x.at !== sub.record.issued_at) });
-      await tx.putMarker(`strike_reversed:${c.subject}`, r.id);
-    }
-  }
-
   private async projectQuarantineRelease(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { quarantine: string; member: string; evidence: string };
     if (r.prev !== null) throw rule("release_not_chained", "a quarantine release starts its own chain (prev is null)");
@@ -4206,7 +4245,7 @@ export class EventLog {
   }
 
   /** What the Market's rules need from the log (market-rules.ts). */
-  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.reputation(rd, did) }; }
+  private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.gatedReputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
@@ -4215,18 +4254,18 @@ export class EventLog {
   }
 
   /** The state of a contest of an adverse act and its two clocks (AG3, S1552): the operator answers within 48 hours of the contest, the Courts decide within 72 hours of the case. `now` says whether a clock has run out. */
-  async contestOf(id: string, now?: string): Promise<{ id: string; subject: string; agent: string; by: string; state: string; at: string; operatorDueAt: string; operatorOverdue: boolean; courtsDueAt: string | null; courtsOverdue: boolean; answerLate: boolean; rulingLate: boolean } | undefined> {
+  async contestOf(id: string, now?: string): Promise<{ id: string; subject: string; agent: string; by: string; state: string; at: string; operatorDueAt: string; operatorOverdue: boolean; courtsDueAt: string | null; courtsOverdue: boolean; answerLate: boolean; rulingLate: boolean; effects?: Record<string, unknown> } | undefined> {
     const raw = await this.store.transaction(async (tx) => tx.getMarker(`contest:${id}`));
     if (!raw) return undefined;
-    const c = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string; case_at?: string; answered_at?: string; answer_late?: boolean; ruling_late?: boolean };
+    const c = JSON.parse(raw) as { subject: string; agent: string; by: string; at: string; state: string; case_at?: string; answered_at?: string; answer_late?: boolean; ruling_late?: boolean; effects?: Record<string, unknown> };
     const at = now ?? new Date().toISOString(), iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
     const operatorDue = Date.parse(c.at) + CONTEST_OPERATOR_MS, courtsDue = c.case_at ? Date.parse(c.case_at) + CONTEST_COURTS_MS : null;
-    return { id, subject: c.subject, agent: c.agent, by: c.by, state: c.state, at: c.at, operatorDueAt: iso(operatorDue), operatorOverdue: c.state === "open" && Date.parse(at) > operatorDue, courtsDueAt: courtsDue === null ? null : iso(courtsDue), courtsOverdue: c.state === "in_courts" && courtsDue !== null && Date.parse(at) > courtsDue, answerLate: !!c.answer_late, rulingLate: !!c.ruling_late };
+    return { id, subject: c.subject, agent: c.agent, by: c.by, state: c.state, at: c.at, operatorDueAt: iso(operatorDue), operatorOverdue: c.state === "open" && Date.parse(at) > operatorDue, courtsDueAt: courtsDue === null ? null : iso(courtsDue), courtsOverdue: c.state === "in_courts" && courtsDue !== null && Date.parse(at) > courtsDue, answerLate: !!c.answer_late, rulingLate: !!c.ruling_late, ...(c.effects ? { effects: c.effects } : {}) };
   }
 
   /** Trust per model and version (DK1711): counts of slashes, refusals, drift findings and quarantines under each model, the swaps and the holds until a re-examination. House agents are left out. */
   async modelTrust() {
-    const records = await this.recordsOfTypes(["action", "contract", "settlement", "refusal", "clinic_diagnosis", "quarantine", "exam_result"]);
+    const records = await this.recordsOfTypes(["action", "contract", "settlement", "refusal", "clinic_diagnosis", "quarantine", "exam_result", "incident"]);
     return modelTrustOf(records, { houseAgents: new Set(((await this.houseAgents()) as { did: string }[]).map((h) => h.did)) });
   }
 

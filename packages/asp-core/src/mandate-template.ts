@@ -56,6 +56,12 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
     const c = ceiling.loop_limits as MandateLike, s: MandateLike = m.loop_limits ?? {};
     for (const k of ["equivalent_calls", "depth", "near_repeats"]) if (has(c[k]) && !(typeof s[k] === "number" && s[k] <= c[k])) { out.push("loop_limits"); break; }
   }
+  if (has(ceiling.outbound_scan)) {
+    // the outbound scan only narrows: block stays block, and every kind the ceiling states stays
+    const c = ceiling.outbound_scan as MandateLike, s: MandateLike = m.outbound_scan ?? {};
+    const weaker = (c.mode === "block" && s.mode !== "block") || (has(c.kinds) && !(c.kinds as string[]).every((k) => Array.isArray(s.kinds) && (s.kinds as string[]).includes(k)));
+    if (weaker) out.push("outbound_scan");
+  }
   if (has(ceiling.institution_spend)) {
     const lines: { institution: string; cap: { value: number }; period: string }[] = m.institution_spend ?? [];
     const ok = lines.every((l) => (ceiling.institution_spend as typeof lines).some((c) => c.institution === l.institution && c.period === l.period && l.cap.value <= c.cap.value));

@@ -22,10 +22,10 @@ export interface MarketEnv {
   owner?: string;
   bondFloor: "legacy" | "v2" | "v3";
   bondFloorFrom?: string;
-  reputation(rd: Pick<Store, "getPassport" | "getRecord" | "getReputation">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: { at: string; count: number }[]; acceptedJobs: number; qualifyingJobs: number } | null>;
+  reputation(rd: Pick<Store, "getPassport" | "getRecord" | "getReputation" | "getMarker">, did: string): Promise<{ tier: number; slashCount: number; strikeLog: { at: string; count: number }[]; acceptedJobs: number; qualifyingJobs: number } | null>;
 }
 
-type Reader = Pick<Store, "getPassport" | "getRecord" | "getReputation" | "getAccount" | "fleetMembers">;
+type Reader = Pick<Store, "getPassport" | "getRecord" | "getReputation" | "getAccount" | "fleetMembers" | "getMarker">;
 
 /** The facts about one agent (market.md 5) read from the log at `at`: what the ranking and the eligibility check need. Null for a DID with no agent record. */
 export async function agentFacts(rd: Reader, env: MarketEnv, did: string, at: string, certificates: AspRecord[], boardJobs: string[], qualClass?: { at: string; c: JobClass; w: number }[]): Promise<AgentFacts | null> {

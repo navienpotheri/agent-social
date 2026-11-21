@@ -74,6 +74,12 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
             if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
                 out.append("loop_limits")
                 break
+    if has(ceiling.get("outbound_scan")):
+        c = ceiling["outbound_scan"]
+        s = m.get("outbound_scan") or {}
+        weaker = (c.get("mode") == "block" and s.get("mode") != "block") or (has(c.get("kinds")) and not (isinstance(s.get("kinds"), list) and all(k in s["kinds"] for k in c["kinds"])))
+        if weaker:
+            out.append("outbound_scan")
     if has(ceiling.get("institution_spend")):
         lines = m.get("institution_spend") or []
         ok = all(any(c["institution"] == l["institution"] and c["period"] == l["period"] and l["cap"]["value"] <= c["cap"]["value"] for c in ceiling["institution_spend"]) for l in lines)

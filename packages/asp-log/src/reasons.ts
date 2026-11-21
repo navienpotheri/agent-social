@@ -23,26 +23,44 @@ export interface AdverseAct {
   /** How the act can be contested, and where a contest of it stands (AG3, S1552). */
   contest: { built: true; how: string; status?: ContestStatus };
 }
-export interface ContestStatus { id: string; state: "open" | "upheld" | "withdrawn" | "in_courts" | "reversed" | "stands"; openedAt: string; operatorDueAt: string; courtsDueAt: string | null }
+export interface ContestStatus {
+  id: string; state: "open" | "upheld" | "withdrawn" | "in_courts" | "reversed" | "stands"; openedAt: string; operatorDueAt: string; courtsDueAt: string | null;
+  /** The operator's answer and, in the sponsor view only, its reasons. */
+  answer?: { answer: "upheld" | "withdrawn"; at: string; reasons?: string[] };
+  /** The Courts' ruling and, in the sponsor view only, the panel's reasons. */
+  ruling?: { decision: "upheld" | "reversed"; at: string; reasons?: string[] };
+  /** What the institution undid when the act did not stand (DK1607, S1583), in words; absent while the act stands. */
+  undone?: string;
+}
+/** What an act's reversal changes, by the kind of record contested (the effects of DK1607): written for the agent. */
+const UNDONE: Record<string, string> = {
+  "asp.action/v0.2": "The strike was struck out of your recent strikes, so the bond floor no longer counts it.",
+  "asp.settlement/v0.2": "The slash was undone: the tier and the slash count it cost were given back, and the bond you lost was paid back from the Treasury's holding, up to what it held (a shortfall is stated on the contest).",
+  "asp.clinic_diagnosis/v0.2": "The diagnosis was withdrawn: it no longer raises your bond floor.",
+  "asp.quarantine/v0.2": "The quarantine ended for you.",
+};
 /** The route, in words (the owner's answer of 2026-11-21): the agent or its sponsor contests the act; the operator answers within 48 hours; if the agent still contests, the Courts decide within 72 hours of the case. */
 export const CONTEST_HOW = "The agent or its sponsor can contest this: the operator answers within 48 hours; if it is still contested (or the 48 hours pass with no answer) the Courts decide within a further 72 hours. A contest is a signed court act that names this record.";
 export const NO_CONTEST_ROUTE = CONTEST_HOW;
 const body = (r: AspRecord) => r.body as Record<string, any>;
 const HOUR = 3_600_000;
 /** The contests the records hold, by the act contested: derived from the court acts in log order. */
-function contestsBySubject(records: AspRecord[]): Map<string, ContestStatus> {
-  const byId = new Map<string, ContestStatus & { subject: string }>(), cases = new Map<string, string>();
+function contestsBySubject(records: AspRecord[], view: "public" | "sponsor"): Map<string, ContestStatus> {
+  const byId = new Map<string, ContestStatus & { subject: string }>(), cases = new Map<string, string>(), typeOf = new Map(records.map((r) => [r.id, r.type]));
   const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
   for (const r of records) {
     if (r.type !== T("court_act")) continue;
     const b = body(r);
     if (b.act === "contest") byId.set(r.id, { id: r.id, subject: b.subject, state: "open", openedAt: r.issued_at, operatorDueAt: iso(Date.parse(r.issued_at) + 48 * HOUR), courtsDueAt: null });
-    else if (b.act === "contest_answer" && byId.has(b.contest)) byId.get(b.contest)!.state = b.answer;
+    else if (b.act === "contest_answer" && byId.has(b.contest)) { const c = byId.get(b.contest)!; c.state = b.answer; c.answer = { answer: b.answer, at: r.issued_at, ...(view === "sponsor" ? { reasons: b.reasons ?? [] } : {}) }; }
     else if (b.act === "contest_case" && byId.has(b.contest)) { const c = byId.get(b.contest)!; c.state = "in_courts"; c.courtsDueAt = iso(Date.parse(r.issued_at) + 72 * HOUR); cases.set(r.id, b.contest); }
-    else if (b.act === "contest_ruling" && cases.has(b.case)) byId.get(cases.get(b.case)!)!.state = b.decision === "reversed" ? "reversed" : "stands";
+    else if (b.act === "contest_ruling" && cases.has(b.case)) { const c = byId.get(cases.get(b.case)!)!; c.state = b.decision === "reversed" ? "reversed" : "stands"; c.ruling = { decision: b.decision, at: r.issued_at, ...(view === "sponsor" ? { reasons: b.reasons ?? [] } : {}) }; }
   }
   const out = new Map<string, ContestStatus>();
-  for (const c of byId.values()) out.set(c.subject, { id: c.id, state: c.state, openedAt: c.openedAt, operatorDueAt: c.operatorDueAt, courtsDueAt: c.courtsDueAt });
+  for (const c of byId.values()) {
+    const undone = (c.state === "withdrawn" || c.state === "reversed") ? UNDONE[typeOf.get(c.subject) ?? ""] : undefined;
+    out.set(c.subject, { id: c.id, state: c.state, openedAt: c.openedAt, operatorDueAt: c.operatorDueAt, courtsDueAt: c.courtsDueAt, ...(c.answer ? { answer: c.answer } : {}), ...(c.ruling ? { ruling: c.ruling } : {}), ...(undone ? { undone } : {}) });
+  }
   return out;
 }
 
@@ -51,7 +69,7 @@ export function reasonsFor(records: AspRecord[], agent: string, view: "public" |
   const performer = new Map<string, string>();
   for (const r of records) if (r.type === T("contract")) performer.set(r.id, body(r).performer);
   const out: AdverseAct[] = [];
-  const contests = contestsBySubject(records);
+  const contests = contestsBySubject(records, view);
   const contestOf = (id: string): AdverseAct["contest"] => ({ built: true, how: CONTEST_HOW, ...(contests.has(id) ? { status: contests.get(id)! } : {}) });
   for (const r of records) {
     const b = body(r);

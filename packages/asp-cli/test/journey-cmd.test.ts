@@ -45,7 +45,7 @@ test("asp journey <agent>: every step in order with its institution, a summary, 
   assert.match(r.out, /\[market\].*coder put up a bond \(200 credits\)/);
   assert.match(r.out, /\[market\].*coder was paid 1000 credits for a job \(settled accepted, bond of 200 returned\)/);
   assert.match(r.out, /credits \(mock\): in 0, earned 1000, paid 0, spent 0, slashed 0/);
-  assert.match(r.out, /not on this page yet[\s\S]*the agent's reasoning[\s\S]*\[DK790, DK79\][\s\S]*direct messages[\s\S]*DK1346[\s\S]*compute cost beyond tokens[\s\S]*DK1313/);
+  assert.match(r.out, /not on this page yet[\s\S]*the agent's beliefs[\s\S]*\[DK1315, DK60\][\s\S]*direct messages[\s\S]*DK1346[\s\S]*compute cost beyond tokens[\s\S]*DK1313/);
   assert.ok(!r.out.includes("secret-detail-xyz") && !r.out.includes("Fix the flaky test"), "no free text in the public view");
   const lines = r.out.split("\n").filter((l) => /^ {2}\d{4}-\d\d-\d\d /.test(l));
   assert.ok(lines.length >= 7, "one line per step");

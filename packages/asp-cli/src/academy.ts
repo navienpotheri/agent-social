@@ -19,6 +19,11 @@ import { buildSitting, foundationsDefinition, scoreSitting, tasksOf, POOL_SIZE, 
 import { loadCatalogue } from "./lens-courses/catalogue.ts";
 import { engineIds } from "./lens-courses/index.ts";
 import { sitCmd } from "./lens-courses/sit-cmd.ts";
+import { capabilityFingerprint } from "./lens-courses/fingerprint.ts";
+import { Ledger as SittingsLedger } from "./lens-courses/sitting.ts";
+import { lintCard } from "./lens-courses/lint.ts";
+import { ENGINES } from "./lens-courses/index.ts";
+import { publishCmd, PublishUsage } from "./lens-courses/publish-cmd.ts";
 
 export class AcademyUsage extends Error {}
 
@@ -342,9 +347,35 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
   }
   // ---------------------------------------------------------------- the lens catalogue (docs/learning-platform.md; register rows DK600, DK601)
   if (sub === "lens") {
-    const usage = "asp academy lens courses [--json] | show <course id> [--json] | sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin] [--package <dir>] [--run-log <id> | --contract <id>] [--service <url>]";
+    const usage = "asp academy lens courses [--json] | show <course id> [--json] | lint <course id | --all> | fingerprint --by <agent did> [--json] | publish <course id | --all> --author <did> --reviewers <did,did> [--by <treasury>] [--cosign-by <registrar>] [--effective <time>] [--no-intake <reason>] [--kill-key <key>] | sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin] [--package <dir>] [--run-log <id> | --contract <id>] [--service <url>]";
     const cat = loadCatalogue(engineIds());
     if (cat.problems.length) { for (const p of cat.problems) o.io.out(`problem  ${p}`); throw new AcademyUsage("the course catalogue has problems (above): fix docs/lenses/courses.json"); }
+    if (rest[0] === "lint") {
+      const cards = o.flags.all === true ? cat.courses : cat.courses.filter((c) => c.id === rest[1]);
+      if (!cards.length) throw new AcademyUsage("asp academy lens lint <course id> | --all");
+      let bad = 0;
+      for (const c of cards) {
+        const r = lintCard(c, ENGINES[c.generator.engine]);
+        out(`${c.id}  ${r.problems.length ? "FAILS" : r.linted ? "clean" : "not linted"}${r.linted ? ` (${r.sampled} sampled seeds)` : ""}${r.note ? `: ${r.note}` : ""}`);
+        for (const p of r.problems) out(`    ${p}`);
+        if (r.problems.length) bad++;
+      }
+      return bad ? 1 : 0;
+    }
+    if (rest[0] === "publish") {
+      try { return await publishCmd(rest[1], { out, flags: o.flags, log: o.log, now: o.now, signerFor: o.signerFor }); } catch (e) { if (e instanceof PublishUsage) throw new AcademyUsage(e.message); throw e; }
+    }
+    if (rest[0] === "fingerprint") {
+      const by = typeof o.flags.by === "string" ? o.flags.by : "";
+      if (!by) throw new AcademyUsage("asp academy lens fingerprint --by <agent did> [--json]");
+      const fp = await capabilityFingerprint(o.log.log as never, new SittingsLedger(o.ledgerPath).entries(), by, cat.courses);
+      if (json) { out(JSON.stringify(fp, null, 2)); return 0; }
+      out(`${by}: ${fp.completed} of ${cat.courses.length} courses completed; digest ${fp.digest}`);
+      for (const c of fp.courses) out(`  ${c.id.padEnd(10)} ${c.completed ? "completed" : "not completed"}  ${c.sittings} sitting${c.sittings === 1 ? "" : "s"}, best ${c.best_permille === null ? "no pass" : `${c.best_permille} permille`}  [${c.lens}]  ${c.title}`);
+      if (fp.cells.length) out(`  serves: ${fp.cells.join("; ")}`);
+      out(`  ${fp.note}`);
+      return 0;
+    }
     if (rest[0] === "sit") {
       return sitCmd(rest[1], { out, flags: o.flags, log: o.log, now: o.now, signerFor: o.signerFor, buy: (agent, service, mandate) => buyService(o, agent, service, mandate), append: (type, by, subject, body) => append(o, type as never, by, subject, body), ...(o.ledgerPath ? { ledgerPath: o.ledgerPath } : {}), ...(o.readStdin ? { readStdin: o.readStdin } : {}), Usage: AcademyUsage });
     }

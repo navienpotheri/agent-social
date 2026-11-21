@@ -1,5 +1,7 @@
 # The live-check kit (owner answers C1 and C6)
 
+**The live agent run of the evening of 2026-11-23 has its own runbook: [live-run-plan.md](live-run-plan.md).** It covers the real-agent items (T15, T22, DK650, P21, E5, DK1364, DK1600, DK1602, DK1604, and T2, T3 and T4 as run live). This kit keeps the deployment checks that need no model agent.
+
 Written 2026-11-21. Everything here is run by **the owner or the operator on their own machine and the real host**, never by a worker: it touches real keys, the real database or the public site. Each block says what to run, what proves it worked, and what to write down in [live-run-checklist.md](live-run-checklist.md) (date, who, what you saw). Credits are mock accounting entries; the service is a beta. Use PowerShell from the repository folder; `$SITE` is the service address, `$TOK` an admin token from the tokens file (never paste either into chat, a ticket or a commit).
 
 ```powershell
@@ -24,6 +26,8 @@ npm run asp -- credits audit --require-signed
 ```
 
 Proof: the second audit exits 0. Record the adoption record ids.
+
+For DK9 (the ledger invariant against the live service), run the same audit without the flag once a day for the first week and note the figures; the audit must report balances plus burned equal minted, and a mismatch is an incident (docs/incident-runbook.md).
 
 ## 2. The GitHub Action: publish and test (DK64; owner)
 

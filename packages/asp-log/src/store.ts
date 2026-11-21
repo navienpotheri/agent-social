@@ -244,6 +244,7 @@ export interface Store {
   getProbation(did: string): Promise<ProbationRow | undefined>;
   keysForDid(did: string): Promise<KeyRow[]>;
   getAccount(did: string): Promise<AccountRow | undefined>;
+  getMarker(key: string): Promise<string | undefined>;
   getEscrow(contract: string): Promise<EscrowRow | undefined>;
   /** Every DID's cumulative UNSIGNED minted total, as {did, balance} (signed `mint` records are not here: a replay recreates them from the records). Used to seed verify()'s replay. */
   allMints(): Promise<AccountRow[]>;

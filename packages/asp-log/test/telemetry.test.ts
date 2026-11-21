@@ -269,7 +269,8 @@ describe("telemetry: no standing input (instrumentation.md 13)", () => {
     for (const f of guarded) assert.equal(/telemetry/i.test(readFileSync(join(SRC, f), "utf8")), false, `${f} reads telemetry`);
     // The only importers of the telemetry modules are the log's dispatch and the package index.
     const importers = readdirSync(SRC).filter((f) => f.endsWith(".ts") && /from "\.\/telemetry(-rules)?\.ts"/.test(readFileSync(join(SRC, f), "utf8"))).sort();
-    assert.deepEqual(importers, ["index.ts", "log.ts", "pipeline.ts", "telemetry-rules.ts"], "the pipeline reads telemetry only to measure a mechanism on a simulation");
+    // telemetry-disclosure.ts imports only the NAMES of the signals (SIGNALS) to print the privacy notice (DK79, DK1303): it reads no figure and no record, so no standing can depend on it.
+    assert.deepEqual(importers, ["index.ts", "log.ts", "pipeline.ts", "telemetry-disclosure.ts", "telemetry-rules.ts"], "the pipeline reads telemetry only to measure a mechanism on a simulation, and the disclosure only the signal names");
     // And the log uses it for one thing: dispatching the record's own rule.
     const logSrc = readFileSync(join(SRC, "log.ts"), "utf8");
     assert.equal((logSrc.match(/telemetry/gi) ?? []).length, 7, "two imports, the dispatch line and the Mandate field check (DK195): nothing else in the log reads telemetry");

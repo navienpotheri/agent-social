@@ -15,6 +15,7 @@ export { buyerOf, AUTO_REFUND_AFTER_MS } from "./purchase-buyer.ts";
 export { moveCommit, stableJson } from "./game-moves.ts";
 export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
+export { cognitionOf, type CognitionInput, type CognitionStep, type JourneyCognition } from "./journey.ts";
 export { journeyOf, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";
@@ -61,6 +62,7 @@ export { societyHealth, activityFromRecords, healthFigure, type Activity, type H
 export { BANK_DID, LINE_LIMIT, LINE_MAX_COUNTED_JOBS, GUARANTOR_PERMILLE, LINE_WINDOW_MS, type Line } from "./bank.ts";
 export { mutualPoolDid, fleetFactorPermille, MUTUAL_MAX_PARTICIPANTS, FAILED_JOB_RATE_BY_CLASS, INSURER_DID, PREMIUM_SPLIT, reserveFloor, premiumFor, payoutFor, FLOOR_MIN, COVER_SHARE_PERMILLE, DEDUCTIBLE_PERMILLE, FAILED_JOB_CAP_PERMILLE, FRAUD_FAULT_PERMILLE, type Cover } from "./insurer.ts";
 export { RESEARCH_DID, SUBMIT_SERVICE, RESEARCH_CATALOGUE, MAX_SUBMISSIONS_PER_PROBLEM, DEFAULT_SPLIT, runChecker, sha256Text, board as researchBoard, researchReconciliation, runResearch, type ProblemView, type ResearchRun } from "./research.ts";
+export { DISCLOSURE, NOT_YET_COLLECTED, disclosureMarkdown, DISCLOSURE_BEGIN, DISCLOSURE_END } from "./telemetry-disclosure.ts";
 export { SIGNALS, ENTRY_KEY, MAX_RETENTION_DAYS, MIN_CALIBRATION_N, RESOLVERS, Collector, mayCollect, brier, surprisal, meanSurprisal, klBits, normativePosterior, calibration as calibrationOf, beliefDiff, merkleRoot, textHash, buildDigest, lensRecalibration, simulateSociety, rng, round3, type Signal, type ConsentView, type DigestView, type SimAgent } from "./telemetry.ts";
 export { TELEMETRY_DID } from "./telemetry-rules.ts";
 export { intakeProblems, ruleHash, armOf, runMechanism, type MechanismEntry, type Decision } from "./pipeline.ts";
@@ -119,6 +121,8 @@ export { buildAuditExport, verifyAuditExport, orgScope, type AuditManifest } fro
 export { readOrgRecords } from "./audit-export.ts";
 export { TokenWatch, rangeOf, type Flag as TokenFlag, QUIET_HOLD_MS } from "./token-watch.ts";
 export { respondToBreach, PendingBreaches, BREACH_CAUSES, type PendingBreach, type BreachEvent, type Cause as BreachCause } from "./breach-response.ts";
-export { OFFICES, NEVER, mayOfficeDo, candidacyProblems, commitBallot, runElection, recallMayStart, recallPasses, captureRate, RECALL, type Office, type Candidate as ElectionCandidate, type Ballot, type Result as ElectionResult } from "./election.ts";
+export { COGNITION_CATEGORIES, GATEWAY_RUNTIMES, categoriesFor, categoryById, type CognitionCategory } from "./cognition-categories.ts";
 export { declProblems, claimable, desertOf, play, replay, measure, randomWalk, sweepThenBeacon, headForMiddle, auditExpedition, frameHash, type WorldDecl, type WorldKind, type Transcript, type ExpeditionRun, type Frame, type Rate } from "./expedition.ts";
 export { rate as rateLadder, simulateField, simulateRing, spearman, seasonReset, kFactor, PAIR_CAP as LADDER_PAIR_CAP, type Table as LadderTable, type Player as LadderPlayer, type Match as LadderMatch } from "./ladder.ts";
+export { OFFICES, NEVER, mayOfficeDo, candidacyProblems, commitBallot, runElection, recallMayStart, recallPasses, captureRate, RECALL, type Office, type Candidate as ElectionCandidate, type Ballot, type Result as ElectionResult } from "./election.ts";
+export { warrantProblems, mayOpen, custodyProblems, itemHash, honeypotProblems, honeypotFinding, simulateHoneypot, mayInspectorate, cohortStopProblems, WARRANT, HONEYPOT, type Warrant, type DataClass, type Honeypot, type Touch } from "./inspectorate.ts";

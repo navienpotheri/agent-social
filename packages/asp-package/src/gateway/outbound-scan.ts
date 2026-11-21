@@ -6,7 +6,11 @@
 import { createHash } from "node:crypto";
 import { secretKindsIn } from "../secrets.ts";
 
-export type OutboundKind = "secret" | "card number" | "email address";
+export type OutboundKind = "secret" | "card number" | "email address" | "phone number" | "national id" | "iban";
+/** Every kind the scanner knows. Stored text is scrubbed of all of them (DK79); the gateway's default policy for what leaves a run is the first two (DEFAULT_OUTBOUND), because an email address or a phone number is often what the task is about. */
+export const ALL_OUTBOUND_KINDS: readonly OutboundKind[] = ["secret", "card number", "email address", "phone number", "national id", "iban"];
+/** The default policy of a gateway run with no choice made (DK1716): keys and card numbers are never sent; a tool call that carries one is refused, a model request has it masked. A Mandate or a flag may choose block or redact and add kinds. */
+export const DEFAULT_OUTBOUND: { mode: OutboundMode; kinds: OutboundKind[] } = { mode: "redact", kinds: ["secret", "card number"] };
 export interface OutboundHit { kind: OutboundKind; detail: string; hash: string }
 export type OutboundMode = "block" | "redact";
 
@@ -35,8 +39,40 @@ export function scanText(text: string, kinds: readonly OutboundKind[] = ["secret
       hits.push({ kind: "email address", detail: "email", hash: hash(m[0].toLowerCase()), match: m[0] });
     }
   }
+  if (kinds.includes("phone number")) {
+    // Only the international form (+ and a country code): a bare run of digits is far more often a timestamp, an id or a version.
+    for (const m of text.matchAll(/(?<![\w+])\+[1-9]\d{0,2}(?:[ .-]?\(?\d{1,4}\)?){2,5}(?![\d])/g)) {
+      const digits = m[0].replace(/\D/g, "");
+      if (digits.length < 9 || digits.length > 15 || new Set(digits).size === 1) continue;
+      hits.push({ kind: "phone number", detail: `${digits.length} digits`, hash: hash(digits), match: m[0] });
+    }
+  }
+  if (kinds.includes("national id")) {
+    // A US social security number in its written form (invalid ranges are not one) and an Aadhaar number (twelve digits in groups of four, Verhoeff-checked).
+    for (const m of text.matchAll(/(?<![\d-])(\d{3})-(\d{2})-(\d{4})(?![\d-])/g)) {
+      if (m[1] === "000" || m[1] === "666" || m[1][0] === "9" || m[2] === "00" || m[3] === "0000") continue;
+      hits.push({ kind: "national id", detail: "social security number", hash: hash(m[0]), match: m[0] });
+    }
+    for (const m of text.matchAll(/(?<![\d-])([2-9]\d{3})[ -]?(\d{4})[ -]?(\d{4})(?![\d-])/g)) {
+      const digits = m[1] + m[2] + m[3];
+      if (!(m[0].includes(" ") || m[0].includes("-")) || !verhoeff(digits)) continue;
+      hits.push({ kind: "national id", detail: "aadhaar number", hash: hash(digits), match: m[0] });
+    }
+  }
+  if (kinds.includes("iban")) {
+    for (const m of text.matchAll(/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,4})?\b/g)) {
+      const v = m[0].replace(/ /g, "");
+      if (v.length < 15 || v.length > 34 || !ibanOk(v)) continue;
+      hits.push({ kind: "iban", detail: v.slice(0, 2), hash: hash(v), match: m[0] });
+    }
+  }
   return hits;
 }
+
+const D = [[0,1,2,3,4,5,6,7,8,9],[1,2,3,4,0,6,7,8,9,5],[2,3,4,0,1,7,8,9,5,6],[3,4,0,1,2,8,9,5,6,7],[4,0,1,2,3,9,5,6,7,8],[5,9,8,7,6,0,4,3,2,1],[6,5,9,8,7,1,0,4,3,2],[7,6,5,9,8,2,1,0,4,3],[8,7,6,5,9,3,2,1,0,4],[9,8,7,6,5,4,3,2,1,0]];
+const P = [[0,1,2,3,4,5,6,7,8,9],[1,5,7,6,2,8,3,0,9,4],[5,8,0,3,7,9,6,1,4,2],[8,9,1,6,0,4,3,5,2,7],[9,4,5,3,1,2,6,8,7,0],[4,2,8,6,5,7,3,9,0,1],[2,7,9,3,8,0,6,4,1,5],[7,0,4,6,9,1,3,2,5,8]];
+const verhoeff = (digits: string): boolean => { let c = 0; const r = [...digits].reverse(); for (let i = 0; i < r.length; i++) c = D[c][P[i % 8][r[i].charCodeAt(0) - 48]]; return c === 0; };
+const ibanOk = (v: string): boolean => { const r = v.slice(4) + v.slice(0, 4); let n = 0; for (const ch of r) { const x = /\d/.test(ch) ? ch : String(ch.charCodeAt(0) - 55); for (const d of x) n = (n * 10 + (d.charCodeAt(0) - 48)) % 97; } return n === 1; };
 
 /** Every string value in a JSON-like value. */
 export function stringsOf(v: unknown, out: string[] = []): string[] { if (typeof v === "string") out.push(v); else if (Array.isArray(v)) v.forEach((x) => stringsOf(x, out)); else if (v && typeof v === "object") Object.values(v).forEach((x) => stringsOf(x, out)); return out; }
@@ -51,4 +87,20 @@ export function redactDeep<T>(v: T, kinds?: readonly OutboundKind[]): { value: T
     return x;
   };
   return { value: walk(v) as T, hits };
+}
+
+/**
+ * The outbound policy of a run (DK1716). The Mandate's `outbound_scan` is the sponsor's standing choice and a flag may only add to it: `block` wins over `redact`, kinds are joined. With neither, the default
+ * policy applies (DEFAULT_OUTBOUND). `--outbound-scan off` switches the scan off only when the Mandate states none (a Mandate that asks for a scan cannot be argued out of it at the command line).
+ */
+export function resolveOutbound(o: { flagMode?: string; flagKinds?: string; mandate?: { mode?: OutboundMode; kinds?: OutboundKind[] } }): { mode: OutboundMode; kinds: OutboundKind[] } | undefined {
+  const m = o.mandate;
+  if (o.flagMode === "off" && !m) return undefined;
+  const flagKinds = (o.flagKinds ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+  const bad = flagKinds.filter((k) => !ALL_OUTBOUND_KINDS.includes(k as OutboundKind));
+  if (bad.length) throw new Error(`unknown outbound kind ${bad.join(", ")}: one of ${ALL_OUTBOUND_KINDS.join(", ")}`);
+  const flagMode = o.flagMode === "block" || o.flagMode === "redact" ? o.flagMode : undefined;
+  const mode: OutboundMode = flagMode === "block" || m?.mode === "block" ? "block" : flagMode ?? m?.mode ?? DEFAULT_OUTBOUND.mode;
+  const kinds = [...new Set<OutboundKind>([...(m?.kinds ?? DEFAULT_OUTBOUND.kinds), ...(flagKinds as OutboundKind[])])];
+  return { mode, kinds };
 }

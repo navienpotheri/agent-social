@@ -19,7 +19,8 @@
       "ai_read_through": null,
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/owner-questions-all.md",
@@ -28,7 +29,8 @@
       "ai_read_through": null,
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/owner-decisions.md",
@@ -37,7 +39,8 @@
       "ai_read_through": null,
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/succession-plan.md",
@@ -46,7 +49,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/owner-sign-kit.md",
@@ -55,7 +59,8 @@
       "ai_read_through": "2026-11-21",
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/live-check-kit.md",
@@ -64,7 +69,8 @@
       "ai_read_through": "2026-11-21",
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/enterprise-fleets.md",
@@ -73,13 +79,14 @@
       "ai_read_through": null,
       "claims_check": null,
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "site/index.html",
       "audience": "public",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/tagline.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null
@@ -123,8 +130,8 @@
     {
       "path": "README.md",
       "audience": "public",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/launch-claims.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null
@@ -132,8 +139,8 @@
     {
       "path": "site/llms.txt",
       "audience": "public",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/ai-files.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null
@@ -145,7 +152,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "launch_after_dk79_category_list"
     },
     {
       "path": "docs/legal/privacy.md",
@@ -154,7 +162,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "launch_after_dk79_category_list"
     },
     {
       "path": "docs/law/code.md",
@@ -163,7 +172,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-log/test/code-clause-37.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/institutions/economy/credits.md",
@@ -172,7 +182,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-log/test/monetary-policy.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/legal-review.md",
@@ -187,46 +198,51 @@
       "path": "docs/procurement/README.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/procurement/security-questionnaire.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/procurement/data-flow.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/procurement/subprocessors.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/legal/enterprise-terms-draft.md",
       "audience": "investor_enterprise",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/legal/dpa-draft.md",
@@ -235,7 +251,8 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
     },
     {
       "path": "docs/enterprise/plans.md",
@@ -244,7 +261,39 @@
       "ai_read_through": null,
       "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
       "owner_audience_confirmed": null,
-      "owner_last_read": null
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/forum-ux-design.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/private-memory-run-design.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/live-run-plan.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/live-run-plan.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
     }
-  ]
+  ],
+  "scope_cut": "Owner, 2026-11-22: rewriting every document takes too long. Before launch, one pass each: site/index.html, site/start.html (generated from packages/asp-log/src/front-door.ts), README.md, site/llms.txt (generated), and, after the DK79 category list exists, docs/legal/terms.md and docs/legal/privacy.md. Every other document stays approved for now as a working draft, is not final, and moves to an after-launch pass (the field \"pass\" says which)."
 }

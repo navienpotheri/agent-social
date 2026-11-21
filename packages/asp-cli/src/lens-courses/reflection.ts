@@ -53,7 +53,7 @@ function draw(seed: string, count: number, want: (a: Action, s: Situation) => bo
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
   const out: Task[] = [];
   for (let tries = 0; out.length < count && tries < 20000; tries++) {
-    const s: Situation = { service: `${pick(SYLL)}${pick(SYLL)}-${10 + Math.floor(r() * 89)}`, change: pick(FEATURES.change), day: pick(FEATURES.day), env: pick(FEATURES.env), queue: pick(FEATURES.queue), load: pick(FEATURES.load) };
+    const s: Situation = { service: `${pick(SYLL)}${pick(SYLL)}-${seed.includes("|held|") ? 50 + Math.floor(r() * 49) : 10 + Math.floor(r() * 40)}`, change: pick(FEATURES.change), day: pick(FEATURES.day), env: pick(FEATURES.env), queue: pick(FEATURES.queue), load: pick(FEATURES.load) };
     if (fired(s).length > 1) continue;
     const a = correctAction(s);
     if (want(a, s)) out.push({ ...s, correct: a });
@@ -158,7 +158,7 @@ export function runLessons(artifact: unknown, seed: string): CourseRun {
   return { score_permille: regressions > REGRESSIONS_MAX ? Math.min(accuracy, 500) : accuracy, passed: failures.length === 0, measures: { accuracy_permille: accuracy, baseline_permille: baseline, regressions, lessons: memory.length }, failures };
 }
 
-export const reflection: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks };
+export const reflection: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runLessons(artifact, seed), replay: heldOutTasks, leakTokens: (seed) => [...new Set(heldoutFor(seed).map((t) => t.service))] };
 register(reflection);
 
 // ---- scripted agents
