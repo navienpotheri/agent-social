@@ -49,7 +49,7 @@ test("the data-sharing choice is a person's and one of share or private", async 
   const store = new TelemetryStore();
   let tenant: Tenant = { name: "share-tenant", role: "tenant", tokenSha256: "0".repeat(64) };
   const updates: unknown[] = [];
-  const route = telemetryRoutes({ store, now: () => at, updateTenant: (n, p) => { updates.push([n, p]); } } as never);
+  const route = telemetryRoutes({ store, now: () => at, updateTenant: (n: string, p: unknown) => { updates.push([n, p]); } } as never);
   const server = createServer(async (req, res) => { if (!(await route(req, res, { tenant }))) { res.writeHead(404); res.end(); } });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   try {
@@ -58,7 +58,7 @@ test("the data-sharing choice is a person's and one of share or private", async 
     assert.equal(await post({ choice: "whatever" }), 400, "one of two words");
     assert.equal(await post({ choice: "private" }), 200);
     assert.equal(updates.length, 1, "only the valid choice was recorded");
-    tenant = { ...tenant, machine: true } as Tenant;
+    tenant = { ...tenant, machine: true } as unknown as Tenant;
     assert.equal(await post({ choice: "private" }), 403, "a machine token cannot change it");
     assert.equal(updates.length, 1);
   } finally { server.close(); }
