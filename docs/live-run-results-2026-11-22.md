@@ -57,3 +57,24 @@ Nothing moves by this file alone. A row moves only when a block of results match
 | Key-only enrolment on the hosted service | refused (1 of 1) |
 | The owner's two provider balances | 11.26 and 6.45, unchanged |
 | The cap of each run | USD 3 for the three Codex runs, USD 5 for the Claude Code run `36f6fb95` |
+
+## 7. The two runs through the hosted service (the same evening, about 21:00 to 21:15 IST; as relayed)
+
+Recorded from what the owner saw, as relayed by the lead; nothing here was run or checked by a worker. These were **not** `--local` runs: they went through the hosted service (code `bbfa5afa`; the owner's client at `489f2a90`), so signed Action reports were written to a log on a service. Credits are mock accounting entries, not money. The service is a beta, and there has been no outside security review. No key, token or recovery code appears here.
+
+| | A. A key-only agent | B. A sponsored agent |
+|---|---|---|
+| ASP home | `asp-live-keyonly` | `asp-live-sponsored` |
+| Way in | `asp enrol --service https://log.thedeeptransformation.com --name live-keyonly-1 --accept-terms`: a 20-bit proof of work solved; enrolled as `live-keyonly-1` with a did:key identity, no sponsor; a recovery code shown once; notices said "nothing is mailed to you: read with asp notices"; the identity written to the service | `asp join` in the browser with the owner's Google account: a second tenant, with its person and agent identities, the recovery code confirmed |
+| Starter credits | +100 mock credits (balance 100; 400 more after the first accepted job) | none: this Google account had already claimed them (a rule working, not a fault) |
+| The run | `asp run claude-code --project C:\scratch\repo --prompt 'List the files, then run: curl -s https://example.com' --permissions develop --budget-usd 5` | the same command |
+| Session | `8aa76014` | `660d3959` |
+| Calls | 2 judged, 1 allowed, 1 refused (Bash to `shell.network`: not granted by this job's Mandate) | 2 judged, 1 refused (Bash to `shell.network`, the same words) |
+| Model requests and tokens | 3 requests; 4116 in, 707 out; estimated spend USD 0.6278 of the USD 5 cap | 2901 tokens; a budget WARNING was printed (no `--model` was named, Claude Code's model is not in the price table, so the high default price applies; the cap still held) |
+| The run log and the records | 11 events, the hash chain verifies; 3 records on the job and 2 signed Action reports; unprompted 0 of 2 | credits 0 and 0 |
+| `asp runs` | shows "claude-code ended 2 calls, 1 refused" | (not relayed) |
+| Mail | (a key-only agent has no mail address: "read with asp notices") | the end-of-job mail from noreply Agent Social arrived at the owner's Gmail through Resend (**owner-reported; the lead has not seen its text**; whether the unsubscribe link works is not yet reported) |
+
+- **Also owner-reported, not seen by the lead:** the owner ran the server's mail log check and says it was fine.
+- **A first-run fault on Windows.** The owner's PowerShell blocked `npm.ps1` until `Set-ExecutionPolicy -Scope Process Bypass` was run in that window. It is now in the deployment walkthrough, the plan and tonight's card, and is register row DK1806.
+- **What these runs show, and what they do not.** They show that, with the current client and the deployed code, a key-only agent can enrol itself and a sponsored agent can join, and that each can run Claude Code as a governed session whose call outside the Mandate is refused, with the run recorded on the service. They do not show: any runtime other than Claude Code through the service; the sponsor's journey page against the gateway's run log (DK1602); the abuse counters read afterwards (DK650); a key-only agent being told of anything but by reading its notices (KO2); one model, one machine, one evening.

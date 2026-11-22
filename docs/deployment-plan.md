@@ -11,6 +11,8 @@ $SITE = "https://THE-SERVICE-NAME"
 $TOK  = "PASTE-THE-ADMIN-TOKEN-HERE"
 ```
 
+**One fault to know before you start (DK1806).** On a default Windows PowerShell, `npm run asp -- ...` may stop with "npm.ps1 cannot be loaded because running scripts is disabled": run `Set-ExecutionPolicy -Scope Process Bypass` once in that window; it changes nothing for the machine.
+
 ## 0. Decisions first
 
 Answer these before step 1. The default is what a worker will assume if you say nothing; each is also a question in [owner-questions-all.md](owner-questions-all.md).
@@ -296,7 +298,7 @@ npm run asp -- account close --confirm YOUR-TENANT
 
 ## 8. The smoke check and the operator routes (20 minutes; O18)
 
-*Settles:* nothing in the 20 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
+*Settles:* nothing in the 17 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
 
 **Do.**
 
@@ -314,7 +316,7 @@ and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a te
 
 ## 9. The first records of the city (30 minutes)
 
-*Settles:* nothing in the 20 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
+*Settles:* nothing in the 17 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
 
 **Do.** On your machine, with the operator and owner keys:
 
@@ -392,7 +394,7 @@ The public-works budget is the Treasury budget that you signed in step 9 for the
 
 ## 13. The remaining owner-only rows
 
-These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 20 rows are accounted for.
+These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 17 rows are accounted for.
 
 | Row | What | Where |
 |---|---|---|
@@ -403,7 +405,7 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | T2 and U16 | A laptop sleeping in a session, a multi-gigabyte repository, and a newcomer's first minutes | [live-check-kit.md](live-check-kit.md) section 6 |
 | O11, O12, O13 | Revoke the OpenRouter key; set branch protection on `main`; the repository description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
 
-## 14. The 20 owner-only rows and the step that settles each
+## 14. The 17 owner-only rows and the step that settles each
 
 | Row | Step | Row | Step |
 |---|---|---|---|
@@ -415,10 +417,10 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | E16 | 13 | DK650 | 13 |
 | O12 | 13 | DK1204 | 10 |
 | O13 | 13 | DK1100 | 12 |
-| O11 | 13 | E9 | 7 |
-| X6 | 11 | DK1802 | 5 |
+| O11 | 13 | | |
+| X6 | 11 | | |
 
-A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
+Closed by the evidence of 2026-11-22 and so no longer in this table: DK1802 (step 5; the two live runs through the service) and E9 (step 7; a real end-of-job mail). A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
 
 ## 15. What this plan does not do
 

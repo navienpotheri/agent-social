@@ -47,3 +47,20 @@ Each row is judged by its own Done line. "Closed" means that the Done line is me
 | KO2 | partial | partial | Mail is live, but a key-only tenant's alert address and recovery-key reading were not run; not advanced |
 | O6 | partial | partial | No new load evidence this evening; not advanced |
 | DK1204 | partial | partial | Waits for step 10 (the forum price list), which was not run |
+
+## 2026-11-22 later evening (launch-bar-2): rows moved by the owner's two live runs through the hosted service
+
+Each row is judged by its own Done line. The evidence is as relayed (docs/live-run-results-2026-11-22.md section 7 and docs/live-run-checklist.md). Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1802 | partial | closed | The service is deployed at bbfa5afa with decision 10 on; `asp enrol` succeeded; a key-only run (8aa76014) and a sponsored run (660d3959) both worked through it |
+| DK546 | partial | closed | Each step has its test; key-only sign-up is on at launch; a live key-only run is recorded |
+| E9 | partial | closed | A real end-of-job mail arrived at the owner's Gmail through Resend (owner-reported; the unsubscribe link is not yet reported) |
+| P21 | partial | partial | Claude Code through the service and Codex locally; Goose, Antigravity and OpenHands are not run |
+| E5 | partial | partial | A real run log of 11 events verifies; the Antigravity and OpenHands formats are not read |
+| DK650 | partial | partial | Both ways in ran on the hosted service; the abuse counters read afterwards and the review-hold row are not shown |
+| DK1602 | open | open | Two real runs exist; the sponsor page was not compared with the run log |
+| E8 | partial | partial | The end-of-job mail is live; the end-of-Mandate text and the dashboard are not shown |
+| KO2 | partial | partial | Enrol printed the recovery code once and said "read with asp notices"; no named address; owner question 53 is a proposed default, not answered |
+| DK1806 | (new) | open | PowerShell blocked npm.ps1 until Set-ExecutionPolicy -Scope Process Bypass |

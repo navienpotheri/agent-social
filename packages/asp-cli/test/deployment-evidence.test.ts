@@ -82,11 +82,12 @@ test("steps 5, 6, 8 and the end of step 4 (as relayed): DK95 and DK1503 are clos
   assert.equal(cell("DK1503", 7), "closed");
   assert.match(cell("DK1503", 4), /14:30:30 UTC/);
   assert.match(cell("DK1503", 4), /The Up mails are to be confirmed by the owner/);
-  assert.equal(cell("DK1802", 7), "partial", "DK1802 is not closed: its Done line needs an enrolment and two runs through the hosted service");
+  assert.equal(cell("DK1802", 7), "closed", "DK1802 closed later the same evening, when its Done line was met (see the test on the two live runs)");
   assert.match(cell("DK1802", 4), /Still to run, and so not closed/);
   assert.equal(cell("DK1803", 7), "partial");
   assert.match(cell("DK1803", 4), /Not yet shown/);
-  for (const id of ["DK9", "DK546", "DK650"]) { assert.equal(cell(id, 7), "partial", `${id} stays partial`); assert.match(cell(id, 4), /Advanced 2026-11-22/); }
+  for (const id of ["DK9", "DK650"]) { assert.equal(cell(id, 7), "partial", `${id} stays partial`); assert.match(cell(id, 4), /Advanced 2026-11-22/); }
+  assert.equal(cell("DK546", 7), "closed", "DK546 closed later the same evening");
   assert.match(cell("DK52", 4), /Seen 2026-11-22/);
   assert.match(cell("DK52", 4), /this row is not advanced/);
   const dk1805 = rowOf("DK1805")[0]!;
@@ -119,17 +120,17 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     KO2: /this row is not advanced/,
     O18: /Not shown:\*\* the suspend, resume, block and unblock run[\s\S]*so the row stays partial/,
     T4: /It was not on a clean machine, so the row stays partial/,
-    DK1802: /Evening of 2026-11-22 \(step 7\)[\s\S]*are still to be run, so the row stays partial/,
+    DK1802: /Evening of 2026-11-22 \(step 7\)[\s\S]*are still to be run, so the row stays partial/,   // the note of the first evening; the row closed later (the test below)
   };
   for (const [id, re] of Object.entries(touched)) {
     const row = rowOf(id).sort((a, b) => b.length - a.length)[0]!;
     assert.match(row, re, `${id}: the note and what is missing`);
-    assert.equal(status(row), "partial", `${id} keeps its status (a row closes only on its Done line)`);
+    assert.equal(status(row), ["DK1802", "E9"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802 and E9 closed later the same evening)`);
     assert.doesNotMatch(row.split("|").slice(-2)[0]!, /\*\*/, `${id}: the status cell holds one word`);
   }
   // The overnight table: every row id is a row of the register and the 'after' status is the register's.
   const log = read("docs/overnight-log.md");
-  const table = log.slice(log.indexOf("## 2026-11-22 evening (launch-bar-2)"));
+  const table = log.slice(log.indexOf("## 2026-11-22 evening (launch-bar-2)"), log.indexOf("## 2026-11-22 later evening (launch-bar-2)"));
   const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.ok(lines.length >= 20, `${lines.length} rows in the table`);
   const closed: string[] = [];
@@ -138,7 +139,8 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     const rows = rowOf(c[1]!);
     assert.ok(rows.length >= 1, `${c[1]} is a row of the register`);
     const reg = rows.map((r) => r.split("|").slice(-2)[0]!.trim()).find((st) => /^(open|partial|closed|designed)/.test(st)) ?? "";
-    assert.ok(reg.startsWith(c[3]!), `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
+    const later = ["DK1802", "E9", "DK546"].includes(c[1]!) && reg.startsWith("closed");   // closed later the same evening (the second table)
+    assert.ok(reg.startsWith(c[3]!) || later, `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
     if (c[3] === "closed") closed.push(c[1]!);
   }
   assert.deepEqual(closed.sort(), ["DK1411", "DK1503", "DK95"], "exactly the three rows that closed on the Done line");
@@ -147,4 +149,43 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
   const part = sec.slice(sec.indexOf("evening: step 7"));
   for (const frag of ["resend._domainkey", "8:24 PM IST", "8:25 PM", "15:05:14 UTC", "/mail/webhook/resend", "email.bounced and email.complained", "owner-reported", "The lead has not seen the output", "2026-11-22T15-11-54Z", "kept for 12 months", "Nothing new closes"]) assert.ok(part.includes(frag), frag);
   assert.doesNotMatch(part, /re_[A-Za-z0-9]{20,}|whsec_|sk-[A-Za-z0-9]{20,}/, "no API key or webhook secret");
+});
+
+test("the two live runs through the hosted service (as relayed): DK1802, DK546 and E9 close on their Done lines; P21, E5, DK650, DK1602, E8 and KO2 advance and keep their status; DK1806 is opened; question 53 is a proposed default and not a decision", () => {
+  const cell = (id: string, n: number) => rowOf(id).sort((a, b) => b.length - a.length)[0]!.split("|").slice(-6).map((x) => x.trim())[n]!;
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  for (const id of ["DK1802", "DK546", "E9"]) { assert.equal(status(row(id)), "closed", `${id} closed`); assert.match(row(id), /Closed 2026-11-22/); assert.match(row(id), /deployment-evidence\.test\.ts/, `${id} cites its test`); }
+  assert.match(row("DK1802"), /session 8aa76014\) and a sponsored `asp run claude-code` \(session 660d3959\) both worked/);
+  assert.match(row("E9"), /owner-reported; the lead has not seen the mail/);
+  assert.match(row("E9"), /Not yet reported: the subject, and whether the unsubscribe link works/);
+  const stays: Record<string, [string, RegExp]> = {
+    P21: ["partial", /Goose, Antigravity and OpenHands from this command/],
+    E5: ["partial", /Antigravity and OpenHands/],
+    DK650: ["partial", /abuse counters read afterwards/],
+    DK1602: ["open", /not compared with the gateway's run log/],
+    E8: ["partial", /dashboard does not exist, so the row stays partial/],
+    KO2: ["partial", /owner question 53: the proposed default is pull plus the operator's notes only, \*\*not yet answered\*\*/],
+  };
+  for (const [id, [st, re]] of Object.entries(stays)) { assert.equal(status(row(id)), st, `${id} keeps ${st}`); assert.match(row(id), re, `${id}: what is missing`); }
+  const dk1806 = rowOf("DK1806")[0]!;
+  assert.match(dk1806, /npm\.ps1/);
+  assert.match(dk1806, /Set-ExecutionPolicy -Scope Process Bypass/);
+  assert.equal(status(dk1806), "open");
+  for (const p of ["docs/deployment-walkthrough.md", "docs/deployment-plan.md", "docs/tonight.md"]) { const d = read(p); assert.match(d, /DK1806/, p); assert.match(d, /Set-ExecutionPolicy -Scope Process Bypass/, p); assert.match(d, /changes nothing for the machine/, p); }
+  const all = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
+  const q54 = all.split("\n").find((l) => l.startsWith("53. **KO2:**"))!;
+  assert.match(q54, /Proposed default, not yet answered by you/);
+  assert.match(q54, /\[docs\/key-only-audit\.md\]$/);
+  assert.doesNotMatch(read("docs/owner-decisions.md"), /pull plus the operator's notes only/, "it is not recorded as decided");
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-22 later evening (launch-bar-2)"));
+  const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 10);
+  const closed: string[] = [];
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1806") { const reg = status(row(c[1]!)); assert.equal(reg, c[3], `${c[1]}: the table's after is the register's`); } if (c[3] === "closed") closed.push(c[1]!); }
+  assert.deepEqual(closed.sort(), ["DK1802", "DK546", "E9"]);
+  const res = read("docs/live-run-results-2026-11-22.md");
+  const part = res.slice(res.indexOf("## 7. The two runs through the hosted service"));
+  for (const frag of ["8aa76014", "660d3959", "20-bit proof of work", "live-keyonly-1", "4116 in, 707 out", "USD 0.6278 of the USD 5 cap", "11 events, the hash chain verifies", "3 records on the job and 2 signed Action reports", "2901 tokens", "a budget WARNING", "owner-reported; the lead has not seen its text", "not** `--local` runs", "register row DK1806", "No key, token or recovery code appears here"]) assert.ok(part.includes(frag), frag);
+  assert.doesNotMatch(part, /sk-[A-Za-z0-9]{20,}|AGE-SECRET-KEY|recovery code is [A-Za-z0-9]{8,}/);
 });

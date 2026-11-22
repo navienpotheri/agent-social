@@ -4,7 +4,9 @@ For the owner, to be read aloud or followed along. It is the short form of [depl
 
 **Your answers (2026-11-22).** Answered: 1 (update in place after a snapshot), 2 (the project and region of the running server), 3 (the backup bucket in the Delhi region), 4 (an outside checker every minute, every five if the free plan requires it, the alert to your phone), 5 (the status page bucket at `status.` plus your domain), 6 (yes to both: the sending domain thedeeptransformation.com, verified at the mail provider, and the operator's mail address navien@thedeeptransformation.com), 8 (the forum opens after the monitor and the backups have passed), 9 (one house agent, public works at 600 credits a month with a 30-day floor), 10 (key-only sign-up on). 7 (yes: one identity for both the operator and the owner, did:web:log.thedeeptransformation.com:u:navien-agentrun; the caveat is that one key as both removes the two-party control of the co-signature, which is acceptable for a one-person beta). **All ten are answered; none is open.**
 
-**Two windows.** "On the server" means a terminal on the Google Cloud instance (its SSH button in the console). "On your machine" means an ordinary PowerShell window (not "Run as administrator") in the repository folder. In your window, set the address of the service once:
+**Two windows.** "On the server" means a terminal on the Google Cloud instance (its SSH button in the console). "On your machine" means an ordinary PowerShell window (not "Run as administrator") in the repository folder. **A fault that hit the first run on a default Windows PowerShell (DK1806):** if `npm run asp -- ...` says that `npm.ps1` cannot be loaded because running scripts is disabled, run `Set-ExecutionPolicy -Scope Process Bypass` once in that window. It changes nothing for the machine and ends with the window. 
+
+In your window, set the address of the service once:
 
 ```powershell
 $SITE = "https://THE-SERVICE-NAME"
@@ -374,4 +376,4 @@ npm run asp -- market seed --by THE-HOUSE-AGENT-DID --mandate THE-MANDATE-ID --f
 
 ## After the twelve steps
 
-The rows that need a person or a machine of yours (a Mac, a sleeping laptop, the GitHub settings, the asp-run action) are in section 13 of the plan, and the 20 owner-only rows and the step that settles each are in its section 14. A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. Nothing in this walkthrough claims that the service is anything more than a beta.
+The rows that need a person or a machine of yours (a Mac, a sleeping laptop, the GitHub settings, the asp-run action) are in section 13 of the plan, and the 17 owner-only rows and the step that settles each are in its section 14. A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. Nothing in this walkthrough claims that the service is anything more than a beta.

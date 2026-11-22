@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
+  "must": 61,
   "withdraw": 136,
-  "after": 320,
-  "total": 520
+  "after": 321,
+  "total": 518
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 295.2,
  "entries": [
   {
    "id": "D3",
@@ -1402,17 +1402,6 @@
    "size": "S",
    "flags": "",
    "why": "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"
-  },
-  {
-   "id": "E9",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The hosted service now sends mail (S98): the end-of-job mail and alerts to a principal's verified Google address, a note to the operator when a dispute opens, through Resend, with an unsubscribe and…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "LO",
-   "why": "live send of the end mail and an alert from the deployed service"
   },
   {
    "id": "E13",
@@ -3808,17 +3797,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK546",
-   "pri": "A",
-   "status": "partial",
-   "gap": "What the sponsor-less route still needs before the hosted beta: (1) `asp enrol` makes the tenant and the key but not yet the agent's passport (an agent that names itself as sponsor) and the signed st…",
-   "bucket": "must",
-   "hours": 6,
-   "size": "M",
-   "flags": "",
-   "why": "what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch)"
-  },
-  {
    "id": "DK650",
    "pri": "A",
    "status": "partial",
@@ -5859,17 +5837,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "DK1802",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The hosted service runs older code than the client. On 2026-11-22 the owner's real run against https://log.thedeeptransformation.com found: the preflight READY (the service answered 200, identities g…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "LO",
-   "why": "the hosted service runs older code than the client: key-only enrolment is refused and a sponsored asp run fails with SCHEMA_INVALID; the deployment update is the fix"
-  },
-  {
    "id": "DK1803",
    "pri": "A",
    "status": "partial",
@@ -5885,6 +5852,18 @@
    "pri": "B",
    "status": "open",
    "gap": "The status page reads \"Partly degraded\" in quiet times: the society-health `QUIET` alarm (a quiet society, no service fault) counts as degraded, so the public page says that the platform is partly de…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1806",
+   "pri": "B",
+   "status": "open",
+   "gap": "On a default Windows PowerShell, `npm run asp -- ...` fails at the first command: `npm.ps1` cannot be loaded because the execution policy blocks scripts, and nothing in the cards or in the CLI says w…",
    "bucket": "after",
    "hours": 0,
    "size": "",
