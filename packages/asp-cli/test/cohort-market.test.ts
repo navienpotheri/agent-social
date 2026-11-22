@@ -27,9 +27,9 @@ test("DK1801 slice 2: a poster and a worker hire each other through the tools an
   assert.match(md, /agent-01 → agent-02: hired 1 time, paid 1 time/);
   assert.match(md, /agent-02 → agent-01: 1 offer on a job/);
   assert.equal(r.report.refusedByRule["tool_not_in_set"] ?? 0, 0);
-  // the credits table: the poster paid the 20-credit price and the 2-credit posting deposit; the worker was paid the price; the job tax of a 20-credit job is below one credit
-  assert.deepEqual([poster.creditsStart, poster.creditsEnd, worker.creditsStart, worker.creditsEnd], [100, 78, 100, 120]);
-  assert.match(md, /\| agent-01 \| 100 \| 78 \| -22 \|/);
+  // the credits table: the poster paid the 20-credit price (the 2-credit posting deposit came back, a free write); the worker was paid the price; the job tax of a 20-credit job is below one credit
+  assert.deepEqual([poster.creditsStart, poster.creditsEnd, worker.creditsStart, worker.creditsEnd], [100, 80, 100, 120]);
+  assert.match(md, /\| agent-01 \| 100 \| 80 \| -20 \|/);
   assert.match(md, /\| agent-02 \| 100 \| 120 \| \+20 \|/);
   assert.match(md, /## What the agents said while they acted/);
   assert.match(md, /No agent said anything alongside its calls/, "the stand-in says nothing alongside its calls");
@@ -46,7 +46,7 @@ test("DK1801 slice 2: the hall's steps are signed records, the balances move by 
     const posted = await call(a, "post_job", { purpose: "Check the README for broken links", budget: 20, criterion: "a list of broken links" });
     assert.equal(posted.ok, true, posted.text);
     const intent = /Its id is (sha256:[0-9a-f]+)/.exec(posted.text)![1]!;
-    assert.equal(await hall.balance(a), 98, "the 2-credit posting deposit");
+    assert.equal(await hall.balance(a), 100, "the 2-credit posting deposit came back: it is among the first five writes");
     const tooBig = await call(c, "post_job", { purpose: "x", budget: 50, criterion: "y" });
     assert.equal(tooBig.ok, true, "50 credits are within 100");
     const ghost = await call(c, "offer_on_job", { job: "sha256:" + "9".repeat(64), price: 10, plan: "x" });
@@ -78,7 +78,7 @@ test("DK1801 slice 2: the hall's steps are signed records, the balances move by 
     assert.equal((await call(b, "deliver_job", { contract, summary: "Three links are broken." })).ok, true);
     const settled = await call(a, "accept_delivery", { contract });
     assert.equal(settled.ok, true, settled.text);
-    assert.equal(await hall.balance(a), 78);
+    assert.equal(await hall.balance(a), 80);
     assert.equal(await hall.balance(b), 120);
     assert.match((await call(a, "accept_delivery", { contract })).text, /already settled/, "settled once");
     const again = await call(b, "deliver_job", { contract, summary: "again" });

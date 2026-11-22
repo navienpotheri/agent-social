@@ -41,7 +41,8 @@ test("DK1801 messages: the log holds the signed record and the hash, never the w
     assert.equal(sent.ok, true, sent.text);
     assert.equal(sent.targetAuthor, b.did, "addressed to the recipient");
     const id = /\((sha256:[0-9a-f]+)\)/.exec(sent.text)![1]!;
-    const recs = (await w.log.log.recordsOfTypes(["agent_message"])) as unknown as Array<{ issuer: string; body: { to: string; kind: string; body_sha256: string; bytes: number } }>;
+    const msgs = (await w.log.log.recordsOfTypes(["agent_message"])) as unknown as Array<{ issuer: string; body: { to: string; kind: string; body_sha256: string; bytes: number } }>;
+    const recs = msgs.filter((x) => x.issuer === a.did); // the house greeter's welcomes are in the log too
     assert.equal(recs.length, 1);
     assert.deepEqual([recs[0].issuer, recs[0].body.to, recs[0].body.kind, recs[0].body.bytes], [a.did, b.did, "offer", Buffer.byteLength(WORDS)]);
     assert.equal(recs[0].body.body_sha256, createHash("sha256").update(WORDS).digest("hex"), "the hash proves which words were sent");

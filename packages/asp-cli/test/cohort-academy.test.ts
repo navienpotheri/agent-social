@@ -30,9 +30,9 @@ test("DK1801 slice 2: an agent enrols in a course, fails with a poor answer, pas
     assert.equal(enrolled.ok, true, enrolled.text);
     assert.match(enrolled.text, /30 mock credits of tuition paid/);
     assert.match(enrolled.text, /practice tasks/);
-    assert.equal(await hall.balance(a), before - 30);
+    assert.equal(await hall.balance(a), before, "the first five writes are free: the 30 credits of tuition came back");
     assert.match((await call("course_enrol", { course: "C-L2-1" })).text, /already enrolled/, "no second tuition");
-    assert.equal(await hall.balance(a), before - 30);
+    assert.equal(await hall.balance(a), before);
     const bad = await call("course_sit", { course: "C-L2-1", answer: JSON.stringify(doNothingLessons()) });
     assert.equal(bad.ok, true);
     assert.match(bad.text, /^Not passed/);
@@ -58,6 +58,6 @@ test("DK1801 slice 2: a scripted student runs the whole course through the tools
   const s = r.report.perAgent[0];
   assert.equal(s.endReason, "stopped_exploring");
   assert.equal(s.institutions["academy"], 2);
-  assert.equal(s.creditsStart! - s.creditsEnd!, 30, "30 credits of tuition");
+  assert.equal(s.creditsStart! - s.creditsEnd!, 0, "the tuition was among the first five writes, so it came back");
   assert.match(readFileSync(r.markdownPath, "utf8"), /academy 2/);
 });

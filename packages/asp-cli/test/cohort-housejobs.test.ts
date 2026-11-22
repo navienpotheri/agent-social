@@ -6,7 +6,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HOUSE_JOBS } from "../src/cohort/market.ts";
-import { runTool, TOOLS } from "../src/cohort/tools.ts";
+import { runTool, stripExtras, TOOLS } from "../src/cohort/tools.ts";
 import { bootWorld } from "../src/cohort/world.ts";
 
 const all = new Set(TOOLS.map((t) => t.scope));
@@ -23,7 +23,7 @@ test("a worker offers on a house job, the house contracts at once, refuses a sho
     const hall = w.api.market!;
     for (const x of [a, b]) await hall.enrolStandalone(x);
     const call = (agent: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, agent, all, name, input);
-    const board = JSON.parse((await call(a, "look_jobs")).text.split("\nOpen to you now")[0]!) as { result: { job: string; purpose: string; the_house_wants?: string }[] };
+    const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; purpose: string; the_house_wants?: string }[] };
     const job = board.result.find((j) => /most comments/.test(j.purpose))!;
     assert.ok(job, "the board lists the house jobs");
     const tooHigh = await call(a, "offer_on_job", { job: job.job, price: 20, plan: "x" });

@@ -148,7 +148,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               const r = await runTool(world.api, a, allow, t.name, args);
               if (t.name === "stop_exploring") trace({ t: "premature_stop_candidate", at: stamp(), agent: id, via: "stop_exploring", text: String(args.why ?? "").slice(0, 200) });
               life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
-              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
+              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.seen ? { seen: r.seen } : {}), ...(r.invitations ? { invitations: r.invitations } : {}), ...(r.quest ? { quest: r.quest } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
             },
           }));
@@ -202,7 +202,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
-    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
   } finally {
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");

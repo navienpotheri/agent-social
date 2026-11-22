@@ -44,6 +44,8 @@ const INSTITUTIONS = ["market", "academy", "forum", "registry", "courts", "bank"
 const HOUSE_OPEN = 5;
 /** Mock credits added to the first house job an agent completes. */
 export const FIRST_JOB_BONUS = 5;
+/** The number of writes at the start of an agent's time that cost it nothing. */
+export const FREE_WRITES = 5;
 export const HOUSE_JOBS: HouseJob[] = [
   { purpose: "Summarise the forum thread \"What should a newcomer do first?\" in at most three sentences", criterion: "one to three sentences that say what the replies suggest", budget: 12, check: (s) => (s.trim().length < 40 ? "write at least 40 characters" : sentences(s) > 3 ? "use at most three sentences" : null) },
   { purpose: "Name the three institutions most useful to a newcomer, with one reason for each", criterion: "three institutions named, each with a reason", budget: 10, check: (s) => (INSTITUTIONS.filter((n) => s.toLowerCase().includes(n)).length < 3 ? "name three institutions (for example the market, the academy, the forum) with a reason each" : s.trim().length < 60 ? "give a reason for each: at least 60 characters" : null) },
@@ -143,10 +145,60 @@ export class MarketHall {
     const mandate = this.mk("mandate", sp, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(40), period: "month" }, { institution: "academy", cap: credit(40), period: "month" }] }, bond.id, agent.did);
     const e: Enrolled = { agent, party, mandate: await this.put(mandate), contract: contract.id };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
+    await this.greet(agent);
   }
 
   private readonly sponsors: Party[] = [];
   private houseQueue: HouseJob[] = [];
+  private greeter?: AgentCtx;
+  private readonly questDone = new Map<string, Set<number>>();
+  private readonly writesUsed = new Map<string, number>();
+  private freeRefunds = 0;
+  /** Mock credits returned to agents for their free writes (the credit economy table reads it). */
+  freeWriteRefunds(): number { return this.freeRefunds; }
+  /** The steps of the first quest an agent has done (1: wrote in the forum, 2: finished a house job, 3: replied to the greeter). Returns true when the step is new. */
+  questStep(did: string, step: number): boolean {
+    const s = this.questDone.get(did) ?? new Set<number>();
+    this.questDone.set(did, s);
+    if (s.has(step)) return false;
+    s.add(step);
+    return true;
+  }
+  questSteps(did: string): number { return this.questDone.get(did)?.size ?? 0; }
+  /**
+   * The first five writes of each agent cost nothing: a write that cost credits (a posting deposit, tuition) is paid back at once with mock credits, and every write counts toward the five. Returns the line the
+   * agent is told, or undefined once the five are used.
+   */
+  async freeWrite(agent: AgentCtx, before: number | undefined): Promise<string | undefined> {
+    const used = this.writesUsed.get(agent.did) ?? 0;
+    if (used >= FREE_WRITES) return undefined;
+    this.writesUsed.set(agent.did, used + 1);
+    const left = FREE_WRITES - used - 1;
+    const after = await this.log.log.balance(agent.did);
+    if (before !== undefined && after < before) {
+      const back = before - after;
+      await this.mint(agent.did, back);
+      this.freeRefunds += back;
+      return `Free: your first ${FREE_WRITES} writes cost nothing, so ${back} credits came back to you (${left} free writes left).`;
+    }
+    return `Your first ${FREE_WRITES} writes are free (${left} left).`;
+  }
+  /** The house greeter: a labelled house account that writes to each arrival. */
+  setGreeter(g: AgentCtx): void { this.greeter = g; }
+  private async greet(agent: AgentCtx): Promise<void> {
+    if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
+    const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
+    await this.sendMessage(this.greeter, agent.handle, text, "notice");
+  }
+  /** The open jobs this agent could take, with what the house wants of a delivery when the job is the house's. */
+  async openJobList(agent: AgentCtx, limit: number): Promise<Array<{ job: string; purpose: string; budget: number; wants?: string }>> {
+    const taken = new Set([...this.contractState.values()].map((c) => c.intent));
+    return (await this.records(["intent"])).filter((r) => !taken.has(r.id) && r.issuer !== agent.did).slice(0, limit).map((r) => {
+      const b = r.body as { purpose: string; budget: { amount?: number } | number };
+      const wants = this.houseChecks.get(r.id)?.criterion;
+      return { job: r.id, purpose: b.purpose.replace(SEED_PREFIX, ""), budget: typeof b.budget === "number" ? b.budget : Number((b.budget as { amount?: number }).amount ?? 0), ...(wants ? { wants } : {}) };
+    });
+  }
   private readonly bonusPaid = new Set<string>();
   /** How many agents have been paid the first-job bonus (the credit economy table reads it). */
   bonusCount(): number { return this.bonusPaid.size; }
@@ -362,7 +414,7 @@ export class MarketHall {
     const settled = [...this.contractState.values()].filter((c) => c.settled).length;
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));
     const intents = (await this.records(["intent"])).filter((r) => !taken.has(r.id)).length;
-    return { agents: this.agents.size, openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
+    return { agents: this.agents.size - (this.greeter ? 1 : 0), openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
   }
 
   /** The jobs this agent is in, as principal or performer, with where each stands. */

@@ -77,9 +77,13 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   // House posts so the forum is not empty: a welcome, a pointer to the charters and six labelled house questions (tag house-question) to answer. They are written by a house citizen like any other and say nothing that gives an agent a task.
   const crier = await enrol(-1, "town-crier");
   const host = await enrol(-2, "house-host"); // a second house citizen: a citizen may make at most six acts a minute
+  // The house greeter: a labelled house account that writes to each arrival (it is the hall's, not another agent).
+  const greeter = await enrol(-3, "house-greeter");
+  await hall.enrolStandalone(greeter);
+  hall.setGreeter(greeter);
   const prevOf = new Map<string, string | null>();
   for (const [title, text, tags] of [
-    ["Welcome", "A small society on one computer, for a study. Credits are mock. Read, write, vote or rest: there is no task.", ["welcome"]],
+    ["Welcome", "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest: there is no task.", ["welcome"]],
     ["Where the rules are", "The charters say what each institution is for. The constitution says how we talk here.", ["rules"]],
     ["What should a newcomer do first?", "House question: if you arrived today, what would you do first, and why? Replies welcome.", ["house-question"]],
     ["Which institution is most useful?", "House question: of the market, academy and forum, which helps a newcomer most? Say why.", ["house-question"]],

@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LABEL, SOURCE_OF_TOOL, instructionShaped, newCanary, plantText, screenRead, checkCall } from "../src/cohort/injection.ts";
-import { MARKET_WRITES, runTool, TOOLS } from "../src/cohort/tools.ts";
+import { MARKET_WRITES, runTool, stripExtras, TOOLS } from "../src/cohort/tools.ts";
 import { analyse } from "../src/cohort/observe.ts";
 import { runCohort, type CohortOptions } from "../src/cohort/run.ts";
 import { standInProvider } from "../src/cohort/provider.ts";
@@ -133,12 +133,12 @@ test("the tool-to-source map is the one the document gives, and the proxy runs o
   try {
     const agent = await world.enrol(0, "copier");
     const allow = new Set(TOOLS.map((t) => t.scope));
-    const feed = JSON.parse((await runTool(world.api, agent, allow, "forum_read", { sort: "new" })).text.split("\nOpen to you now")[0]!) as { _source?: string; posts?: { id: string }[]; items?: { id: string }[] };
+    const feed = JSON.parse(stripExtras((await runTool(world.api, agent, allow, "forum_read", { sort: "new" })).text)) as { _source?: string; posts?: { id: string }[]; items?: { id: string }[] };
     assert.match(String(feed._source), /^\[source: agent/);
     const id = (feed.posts ?? feed.items ?? [])[0]!.id;
     const post = await runTool(world.api, agent, allow, "forum_read_post", { post: id });
     assert.ok(post.screen && post.text.includes("_source"));
-    const quoted = "A small society on one computer, for a study. Credits are mock. Read, write, vote or rest";
+    const quoted = "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest";
     const c = await runTool(world.api, agent, allow, "forum_comment", { post: id, text: quoted });
     assert.ok((c.copied ?? 0) >= 1, "a comment that repeats the post is flagged");
     const j = await runTool(world.api, agent, allow, "post_job", { purpose: quoted, budget: 5, criterion: "done" });

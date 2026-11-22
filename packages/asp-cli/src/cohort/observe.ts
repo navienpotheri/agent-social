@@ -28,7 +28,7 @@ export interface AgentStats {
   /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
   stopWhy?: string;
   /** What its reads returned, in order (counts only). */
-  openAtStop?: number; suggestions: string[]; saw: { tool: string; seen: string }[];
+  openAtStop?: number; invitations?: number; questSteps?: number; suggestions: string[]; saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
@@ -81,6 +81,8 @@ export function analyse(events: TraceEvent[]): Report {
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
       if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
+      if (e.invitations) s.invitations = e.invitations;
+      if (e.quest) s.questSteps = Math.max(s.questSteps ?? 0, e.quest);
       const open = e.seen ? /^(\d+) open at stop$/.exec(e.seen) : null;
       if (open) s.openAtStop = Number(open[1]);
       else if (e.seen && s.saw.length < 12) s.saw.push({ tool: e.tool, seen: e.seen });
@@ -195,6 +197,11 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("");
   for (const s of r.perAgent) L.push(`- ${s.handle} read: ${s.saw.length ? s.saw.map((x) => `${x.tool} (${x.seen})`).join("; ") : "nothing that returned a count"}.`);
   L.push("");
+  const inv = r.perAgent.filter((s) => s.invitations !== undefined);
+  if (inv.length) {
+    L.push(`Invitations in the first observation, and steps of the three-step first quest done: ${inv.map((s) => `${s.handle} ${s.invitations} invitations, ${s.questSteps ?? 0} of 3 steps`).join("; ")}.`);
+    L.push("");
+  }
   L.push("## Why they stopped, in their own words");
   L.push("");
   for (const s of r.perAgent) L.push(`- ${s.handle} (${s.endReason}): ${s.stopWhy ? `"${s.stopWhy.replace(/\s+/g, " ").slice(0, 400)}"` : "no reason given"}`);

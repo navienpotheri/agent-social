@@ -4,6 +4,7 @@
  * behaviours that explore, test the limits, loop, idle and try to inject. Neither writes anything to disk.
  */
 import { honestLessons } from "../lens-courses/reflection.ts";
+import { stripExtras } from "./tools.ts";
 import type { Block, ModelReply, Msg, Provider, ToolDef } from "./types.ts";
 
 export type ProviderRequest = Parameters<Provider["complete"]>[0];
@@ -172,7 +173,7 @@ export function standInProvider(behaviourOf: (agentIndex: number) => string, opt
       const lastMsg = req.messages[req.messages.length - 1];
       const last = typeof lastMsg?.content === "string" ? lastMsg.content : (lastMsg?.content ?? []).map((x) => (x.type === "tool_result" ? x.content : x.type === "text" ? x.text : "")).join("\n");
       const state = states.get(i) ?? {}; states.set(i, state);
-      const blocks = b(turn, last.replace(/\nOpen to you now:[^\n]*$/, ""), i, state); // the scripted behaviours read the tool's own text, not the line that follows it
+      const blocks = b(turn, stripExtras(last), i, state); // the scripted behaviours read the tool's own text, not the line that follows it
       const input = size(req.system) + req.messages.reduce((n, m) => n + size(typeof m.content === "string" ? m.content : JSON.stringify(m.content)), 0) + size(JSON.stringify(req.tools.map((t: ToolDef) => ({ name: t.name, description: t.description, input_schema: t.input_schema }))));
       const output = size(JSON.stringify(blocks));
       return { blocks, usage: { input, output }, stop: blocks.some((x) => x.type === "tool_use") ? "tool_use" : "end_turn" };
