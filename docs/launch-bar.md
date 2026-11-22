@@ -447,7 +447,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1209 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1210 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1212 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1213 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1213 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1221 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1222 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1223 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

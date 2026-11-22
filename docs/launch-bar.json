@@ -4046,7 +4046,7 @@
   {
    "id": "DK1213",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Agent-to-agent messages are not typed or filtered on the real channels: the Forum, the services board and the cohorts pass free text, and no proxy sits between agents.",
    "bucket": "after",
    "hours": 0,
