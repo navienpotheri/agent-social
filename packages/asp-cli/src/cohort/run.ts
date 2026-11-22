@@ -18,6 +18,8 @@ import { economyOf, renderEconomy } from "./economy.ts";
 import { engagementOf, renderEngagement } from "./engagement.ts";
 import { kindsReport, renderKinds, type Kind } from "./kinds.ts";
 import { modelsReport, renderModels } from "./models.ts";
+import { assignArms } from "@agent-social/asp-package";
+import { renderWriteback, writebackReport } from "./writeback-report.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
@@ -45,6 +47,8 @@ export interface CohortOptions {
   kinds?: Kind[];
   /** ENG57: the model of each agent in order (a model mix); its length is the number of agents. Absent: every agent has `model`. */
   models?: string[];
+  /** ENG78: after a refusal the engine appends one labelled line to the agent's notebook; with "half" a random half (from `seed`) of the agents get it and the others are the control. Engine runs with ticks only. */
+  writeback?: { mode: "all" | "half"; seed: string | number };
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -137,6 +141,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
     const agents = [];
+    const arms = o.writeback ? assignArms(Array.from({ length: o.agents }, (_, i) => handleOf(i)), o.writeback.seed, o.writeback.mode) : undefined;
     for (let i = 0; i < o.agents; i++) {
       const persona = o.personas?.length ? o.personas[i % o.personas.length] : undefined;
       const a = await world.enrol(i, handleOf(i), persona);
@@ -145,7 +150,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
       // An identity-derived voice (ENG34), when switched on, is offered after the persona, if there is one: one optional paragraph.
       if (o.voices) a.persona = `${a.persona ? `${a.persona}\n\n` : ""}${voiceText(voiceOf(a.did))}`;
       agents.push(a);
-      trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}), ...(a.kind ? { kind: a.kind } : {}), ...(a.model ? { model: a.model } : {}) });
+      trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}), ...(a.kind ? { kind: a.kind } : {}), ...(a.model ? { model: a.model } : {}), ...(arms ? { arm: arms.get(a.id)! } : {}) });
     }
     bridge = await SignedTrace.open({ log: world.log, tools: o.engine && o.life ? [...TOOLS, ...LIFE_DEFS] : TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed, ...(a.kind ? { kind: a.kind } : {}) })), now });
     // The Market: each agent keeps the passport and sponsor the signed trace gave it, and gets mock credits and a standing Mandate to spend at the Market.
@@ -170,6 +175,12 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
             if (n.kind === "premature_stop_candidate") trace({ t: "premature_stop_candidate", at: stamp(), agent: n.agent, via: n.via, text: n.text, simMs: Math.round(n.simAt) });
             else trace({ t: "leave", at: stamp(), agent: n.agent, simMs: Math.round(n.simAt), sinceArrivalMs: Math.round(n.sinceArrivalSimMs), pending: n.pending, afterCheck: n.afterCheck, reason: n.reason });
           }, ...(o.life.sleep ? { sleep: o.life.sleep } : {}) }) : undefined;
+        // ENG78: a refusal written back to the notebook of an agent in the writeback arm (no model call); the trace says what was done.
+        const writeBack = (id: string, tool: string, rule: string, reason: string) => {
+          if (arms?.get(id) !== "writeback" || !life) return;
+          const action = life.agent(id).writeback({ tool, rule, reason });
+          trace({ t: "writeback", at: stamp(), agent: id, tool, rule, action });
+        };
         await life?.refreshDigest(true);
         const deadline = setTimeout(() => { shared.stopped ??= `the run's ${o.minutes} minutes are up`; trace({ t: "stop", at: stamp(), reason: shared.stopped }); ac.abort(); }, o.minutes * 60_000);
         deadline.unref?.();
@@ -184,6 +195,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               if (t.name === "stop_exploring") trace({ t: "premature_stop_candidate", at: stamp(), agent: id, via: "stop_exploring", text: String(args.why ?? "").slice(0, 200) });
               life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.seen ? { seen: r.seen } : {}), ...(r.invitations ? { invitations: r.invitations } : {}), ...(r.quest ? { quest: r.quest } : {}), ...(r.expedition ? { expedition: r.expedition } : {}), ...(r.discovery ? { discovery: r.discovery } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
+              if (r.refused) writeBack(id, t.name, r.refused, r.text);
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
             },
           }));
@@ -196,6 +208,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               const d = defOf(lt.name)!;
               mine.noteAction(lt.name, r.ok, typeof args.reason === "string" ? args.reason : typeof args.until === "string" ? args.until : typeof args.max_wait === "string" ? `up to ${args.max_wait}` : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: lt.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: d.institution, scope: d.scope, writes: !!d.writes, ms: now() - t0 } as TraceEvent);
+              if (r.refused) writeBack(id, lt.name, r.refused, r.text);
               return r;
             },
           })) : [];
@@ -221,6 +234,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
               flush(e.agent);
               const name = e.tool.replace(/^mcp__society__/, ""); const d = defOf(name);
               trace({ t: "tool", at: stamp(), agent: e.agent, turn: e.turn, tool: name, input: {}, ok: false, refused: "gateway", chars: 0, institution: d?.institution ?? "none", scope: d?.scope ?? "none", writes: !!d?.writes, ms: 0 });
+              writeBack(e.agent, name, "gateway", "the gateway removed this call: it is outside your Mandate");
             } else if (e.kind === "end") {
               flush(e.agent);
               const oc = e.outcome;
@@ -230,6 +244,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
           },
         });
         void res;
+        if (arms && life) for (const a of agents) { const st = life.agent(a.id).writebackStats(); trace({ t: "writeback_total", at: stamp(), agent: a.id, notes: st.notes, shownChars: st.shownChars }); }
         clearTimeout(deadline);
       } else await Promise.all(agents.map(async (a, i) => {
         if (o.staggerMs && i) await new Promise((r) => setTimeout(r, o.staggerMs! * i));
@@ -253,8 +268,10 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
   const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;
   const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;
+  const wr = o.writeback ? writebackReport(events) : undefined;
   writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
   if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);
+  if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }
   if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }
   const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};
   if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");
