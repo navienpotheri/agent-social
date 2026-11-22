@@ -621,6 +621,11 @@ sv("valid_action_job_data_chain", "action", { contract: fakeId("c"), scopes_used
 sv("action_job_data_chain_short", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "d".repeat(63) }, false);
 sv("action_job_data_chain_uppercase", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "D".repeat(64) }, false);
 sv("action_job_data_chain_prefixed", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "sha256:" + "d".repeat(57) }, false);
+sv("valid_action_unprompted", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: true }, true);
+sv("action_unprompted_not_boolean", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: "yes" }, false);
+sv("valid_action_workflow_step", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan", to: "work" } }, true);
+sv("action_workflow_step_no_to", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan" } }, false);
+sv("action_workflow_step_bad_name", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "Plan", to: "work" } }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -661,6 +666,19 @@ sv("mandate_not_revocable", "mandate", { ...m, revocable: false }, false);
 sv("mandate_missing_purpose", "mandate", (({ purpose: _p, ...rest }) => rest)(m), false);
 sv("valid_mandate_network_rate", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org"], rate: { per_host_per_minute: 30, total_per_minute: 120 } } }, true);
 sv("valid_mandate_network_rate_only", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { rate: { per_host_per_minute: 10 } } }, true);
+sv("valid_mandate_unprompted", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 5 } }, true);
+sv("valid_mandate_unprompted_forbidden", "mandate", { ...m, unprompted: { allowed: false } }, true);
+sv("mandate_unprompted_no_allowed", "mandate", { ...m, unprompted: { per_day_cap: 5 } }, false);
+sv("mandate_unprompted_zero_cap", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 0 } }, false);
+sv("mandate_unprompted_extra_field", "mandate", { ...m, unprompted: { allowed: true, weekly: 5 } }, false);
+sv("valid_mandate_workflow", "mandate", { ...m, workflow: { states: ["plan", "work", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "done" }], terminal: ["done"] } }, true);
+sv("mandate_workflow_one_state", "mandate", { ...m, workflow: { states: ["plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_no_transitions", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [] } }, false);
+sv("mandate_workflow_repeated_state", "mandate", { ...m, workflow: { states: ["plan", "plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_extra_field", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [{ from: "plan", to: "work" }], skip: true } }, false);
+sv("valid_mandate_role_router", "mandate", { ...m, role: "router" }, true);
+sv("valid_mandate_role_watchdog", "mandate", { ...m, role: "watchdog", scopes: ["logs.read", "fleet.halt"] }, true);
+sv("mandate_role_unknown", "mandate", { ...m, role: "manager" }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -808,6 +826,17 @@ sv("memory_key_no_key", "memory_key", (({ public_key: _k, ...r }) => r)(mkBody()
 sv("memory_key_empty_name", "memory_key", mkBody({ name: "" }), false);
 sv("memory_key_extra_field", "memory_key", mkBody({ private_key: "x" }), false);
 sv("memory_key_revokes_not_an_id", "memory_key", mkBody({ revokes: "memory-1" }), false);
+// ---------- the inspectorate's warrant request and referral (spec-deltas S1605, register row DK1744) ----------
+const wrBody = (over: Record<string, unknown> = {}) => ({ subject: "did:web:example.com:agents:coder-7", sponsor: "did:web:example.com:users:alice", data: ["run_log"], grounds: "two runs read a decoy the Mandate forbade", scope: "the run log of the two runs that touched the decoy", ...over });
+sv("valid_warrant_request", "warrant_request", wrBody(), true);
+sv("warrant_request_no_data", "warrant_request", wrBody({ data: [] }), false);
+sv("warrant_request_unknown_class", "warrant_request", wrBody({ data: ["browser_history"] }), false);
+sv("warrant_request_extra_field", "warrant_request", wrBody({ key: "x" }), false);
+sv("valid_warrant_answers_request", "warrant", wBody({ request: "sha256:" + "6".repeat(64) }), true);
+sv("valid_inspectorate_referral", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "read and copied the decoy on two runs" }, true);
+sv("valid_inspectorate_referral_with_case", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), custody_case: "case-7", summary: "with the custody chain" }, true);
+sv("inspectorate_referral_no_finding", "inspectorate_referral", { summary: "x" }, false);
+sv("inspectorate_referral_penalty", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "x", slash: 5 }, false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
@@ -1840,6 +1869,34 @@ const worldRules = [
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
     ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["a_redact_mode", { outbound_scan: { mode: "redact", kinds: ["secret", "card number"] } }], ["a_dropped_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret"] } }], ["an_added_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address"] } }], ["no_outbound_scan", { outbound_scan: undefined }], ["no_outbound_mode", { outbound_scan: { kinds: ["secret", "card number"] } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // unprompted work (spec-deltas S1606): allowed only where the ceiling allows it, under its daily cap; absent reads as not allowed
+  {
+    const TU = { ...T, unprompted: { allowed: true, per_day_cap: 10 } };
+    for (const [name, ceiling, unprompted] of [
+      ["unprompted_the_same", TU, { allowed: true, per_day_cap: 10 }], ["unprompted_a_lower_cap", TU, { allowed: true, per_day_cap: 3 }], ["unprompted_forbidden", TU, { allowed: false }],
+      ["unprompted_a_higher_cap", TU, { allowed: true, per_day_cap: 11 }], ["unprompted_the_cap_dropped", TU, { allowed: true }], ["unprompted_absent_is_forbidden", TU, undefined],
+      ["unprompted_allowed_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: true, per_day_cap: 1 }], ["unprompted_forbidden_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: false }],
+      ["unprompted_allowed_under_a_ceiling_with_no_cap", { ...T, unprompted: { allowed: true } }, { allowed: true, per_day_cap: 50 }], ["unprompted_stated_under_no_ceiling", T, { allowed: true }],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, ...(unprompted === undefined ? {} : { unprompted }) } });
+  }
+  // workflow clauses (spec-deltas S1607): only ever narrowed, never dropped, never a new state or transition or start
+  {
+    const W = { states: ["plan", "work", "check", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "check" }, { from: "check", to: "work" }, { from: "check", to: "done" }], terminal: ["done"] };
+    const TW = { ...T, workflow: W };
+    for (const [name, workflow] of [
+      ["workflow_the_same", W], ["workflow_a_transition_dropped", { ...W, transitions: W.transitions.slice(0, 3) }], ["workflow_a_state_dropped", { ...W, states: ["plan", "work", "check"], terminal: [], transitions: W.transitions.slice(0, 3) }],
+      ["workflow_a_transition_added", { ...W, transitions: [...W.transitions, { from: "plan", to: "done" }] }], ["workflow_a_state_added", { ...W, states: [...W.states, "review"] }], ["workflow_another_start", { ...W, start: "work" }],
+      ["workflow_a_terminal_added", { ...W, terminal: ["done", "check"] }], ["workflow_dropped", undefined],
+    ] as [string, unknown][]) cases.push({ name, ceiling: TW, candidate: { ...TW, ...(workflow === undefined ? (({ workflow: _w, ...r }) => r)(TW) : { workflow }) } });
+    cases.push({ name: "workflow_stated_under_no_ceiling", ceiling: T, candidate: { ...T, workflow: W } });
+  }
+  // roles (spec-deltas S1608): fixed inside a template
+  {
+    const TR = { ...T, role: "worker" };
+    for (const [name, role] of [["role_the_same", "worker"], ["role_changed_to_router", "router"], ["role_changed_to_watchdog", "watchdog"], ["role_dropped", undefined]] as [string, string | undefined][])
+      cases.push({ name, ceiling: TR, candidate: role === undefined ? T : { ...T, role } });
+    cases.push({ name: "role_stated_under_no_ceiling", ceiling: T, candidate: { ...T, role: "router" } });
+  }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {
     const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };

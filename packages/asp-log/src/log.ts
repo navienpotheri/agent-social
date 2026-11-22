@@ -59,6 +59,7 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
+import { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 import { custodyProblems, honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
 /** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
 export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
@@ -379,7 +380,7 @@ export class EventLog {
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
-    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding") await this.projectInspectorate(tx, verified, type);
+    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
@@ -1543,6 +1544,19 @@ export class EventLog {
       if (bad.length || mb.network || mb.spend.cap > 0 || mb.subcontract.allowed) throw rule("service_mandate_in_society_only", `a Mandate under an in-society service has read-only scopes, no network, no spend and no subcontracting${bad.length ? ` (not allowed: ${bad.join(", ")})` : ""}`);
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
+    const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    const role = (r.body as { role?: string }).role;
+    if (role === "watchdog" && body.scopes.some((x) => x !== "logs.read" && x !== "fleet.halt")) throw rule("role_watchdog_scopes", "a watchdog may only read logs and signal a halt: its scopes are logs.read and fleet.halt");
+    if (role) await tx.putMarker(`mandate_role:${body.contract}`, role);
+    const wf = (r.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[] } }).workflow;
+    if (wf) {
+      // A workflow clause (S1607, DK1209): its start and transitions must name its own states.
+      if (!wf.states.includes(wf.start)) throw rule("workflow_unknown_state", `the start state ${wf.start} is not one of the clause's states`);
+      const bad = wf.transitions.find((t) => !wf.states.includes(t.from) || !wf.states.includes(t.to));
+      if (bad) throw rule("workflow_unknown_state", `the transition ${bad.from} to ${bad.to} names a state the clause does not have`);
+      await tx.putMarker(`workflow:${body.contract}`, JSON.stringify(wf));
+    }
+    if (up) await tx.putMarker(`unprompted_policy:${body.contract}`, JSON.stringify(up)); // whether the performer may act on its own initiative (S1606, DK1232)
   }
 
   /**
@@ -1588,6 +1602,34 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // A router dispatches and never executes (S1608, DK1231): an Action under a router Mandate names no scope.
+    if ((await tx.getMarker(`mandate_role:${body.contract}`)) === "router" && body.scopes_used.length) throw rule("role_router_executes", `the Mandate of ${body.contract} is a router's: it dispatches work and does not use scopes itself (${body.scopes_used.join(", ")})`);
+    // A workflow step (S1607, DK1209): the job is in one state of the Mandate's clause and moves by one of its transitions; the current state is kept.
+    {
+      const step = (r.body as { workflow_step?: { from: string; to: string } }).workflow_step;
+      if (step) {
+        const clause = JSON.parse((await tx.getMarker(`workflow:${body.contract}`)) ?? "null") as { start: string; transitions: { from: string; to: string }[]; terminal?: string[] } | null;
+        if (!clause) throw rule("workflow_not_in_mandate", `the Mandate of ${body.contract} has no workflow clause: an Action cannot report a step of one`);
+        const current = (await tx.getMarker(`workflow_state:${body.contract}`)) ?? clause.start;
+        if (step.from !== current) throw rule("workflow_wrong_state", `the job is in ${current}, not ${step.from}`);
+        if (!clause.transitions.some((t) => t.from === step.from && t.to === step.to)) throw rule("workflow_bad_transition", `the clause does not allow ${step.from} to ${step.to}`);
+        await tx.putMarker(`workflow_state:${body.contract}`, step.to);
+      }
+    }
+    // Unprompted work (S1606, DK1232): an Action that says the performer acted on its own initiative needs a Mandate that allows it, within its daily cap (UTC); every Action is counted so a report can show the share.
+    {
+      const unprompted = (r.body as { unprompted?: boolean }).unprompted === true;
+      if (unprompted) {
+        const policy = JSON.parse((await tx.getMarker(`unprompted_policy:${body.contract}`)) ?? "null") as { allowed: boolean; per_day_cap?: number } | null;
+        if (!policy?.allowed) throw rule("unprompted_not_allowed", `the Mandate of ${body.contract} does not allow work on the performer's own initiative: an Action with unprompted true is refused`);
+        const dayKey = `unprompted_day:${body.contract}|${r.issued_at.slice(0, 10)}`;
+        const today = Number((await tx.getMarker(dayKey)) ?? 0);
+        if (policy.per_day_cap !== undefined && today >= policy.per_day_cap) throw rule("unprompted_cap", `${today} unprompted Actions today on ${body.contract}: the Mandate allows ${policy.per_day_cap} a day`);
+        await tx.putMarker(dayKey, String(today + 1));
+        await tx.putMarker(`unprompted_n:${body.contract}`, String(Number((await tx.getMarker(`unprompted_n:${body.contract}`)) ?? 0) + 1));
+      }
+      await tx.putMarker(`actions_n:${body.contract}`, String(Number((await tx.getMarker(`actions_n:${body.contract}`)) ?? 0) + 1));
+    }
     const claimedWait = (r.body as { metrics?: { approval_wait_seconds?: number } }).metrics?.approval_wait_seconds;
     if (claimedWait) {
       const snap = chain?.snapshot;
@@ -1836,6 +1878,24 @@ export class EventLog {
     await noteLock(tx, escrow.backer, body.contract, null);
     // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
     if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** The state of a contract's workflow clause (S1607, DK1209): its current state, whether it is terminal, or null when the Mandate has no clause. Reads only. */
+  async workflowState(contract: string): Promise<{ state: string; terminal: boolean } | null> {
+    return this.store.transaction(async (tx) => {
+      const clause = JSON.parse((await tx.getMarker(`workflow:${contract}`)) ?? "null") as { start: string; terminal?: string[] } | null;
+      if (!clause) return null;
+      const state = (await tx.getMarker(`workflow_state:${contract}`)) ?? clause.start;
+      return { state, terminal: (clause.terminal ?? []).includes(state) };
+    });
+  }
+
+  /** The share of a contract's Actions that were unprompted, in permille (S1606, DK1232): how many Actions the performer reported, how many were on its own initiative, and the share. Reads only. */
+  async unpromptedShare(contract: string): Promise<{ actions: number; unprompted: number; permille: number }> {
+    return this.store.transaction(async (tx) => {
+      const actions = Number((await tx.getMarker(`actions_n:${contract}`)) ?? 0), unprompted = Number((await tx.getMarker(`unprompted_n:${contract}`)) ?? 0);
+      return { actions, unprompted, permille: actions ? Math.round((unprompted * 1000) / actions) : 0 };
+    });
   }
 
   /** Whether a contract's job data is confirmed deleted (S1602, JO3): `not_applicable` while the contract is unsettled or retains data for a stated number of days; `confirmed` with the chain head the performer cited; `unconfirmed` when it settled with none. Reads only. */
@@ -2633,6 +2693,17 @@ export class EventLog {
    * The risk-priced bond for an agent (register row DK1333): the Beta upper bound of its measured event rate (a slash or a strike per counted run, from its own record in this log) times the loss
    * (job value plus damage) and the margin. A suggestion read from the log's own numbers, like `suggestedBond`; it does not change what a bond must be (the floor does) and moves no credit.
    */
+  /** The back-test of the bond model on this log's own history (DK1333): see bond-backtest.ts. Reads only. */
+  async bondBacktest(): Promise<BacktestReport> {
+    const recs: { id: string; type: string; issuer: string; body: Record<string, unknown>; issued_at: string }[] = [];
+    for (let after = 0; ;) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; recs.push({ id: s.id, type: s.record.type, issuer: s.record.issuer, body: s.record.body as Record<string, unknown>, issued_at: s.record.issued_at }); }
+    }
+    return backtestBond(recs as never);
+  }
+
   async sizedBondFor(did: string, o: { jobValue: number; damage: number }): Promise<(BondSuggestion & { trials: number; events: number }) | null> {
     const rep = await this.reputation(this.store, did);
     if (!rep) return null;
@@ -2821,8 +2892,28 @@ export class EventLog {
   private async projectInspectorate(tx: LogTx, r: AspRecord, type: string): Promise<void> {
     if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
     const now = Date.parse(r.issued_at);
+    if (type === "warrant_request") {
+      const b = r.body as { subject: string; sponsor: string; data: DataClass[] };
+      if (r.issuer !== INSPECTORATE_DID) throw rule("warrant_request_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it asks for a warrant`);
+      const pass = await tx.getPassport(b.subject);
+      if (!pass) throw rule("warrant_request_unknown_agent", `${b.subject} has no passport in this log`);
+      if (pass.sponsor !== b.sponsor) throw rule("warrant_request_sponsor_mismatch", `${b.subject}'s sponsor is ${pass.sponsor ?? "none"}, not ${b.sponsor}`);
+      if (b.data.includes("key_material")) throw rule("warrant_request_key_material", "key material is never available by warrant: it is not asked for");
+      await tx.putMarker(`warrant_req:${r.id}`, JSON.stringify({ subject: b.subject, data: b.data }));
+      return;
+    }
+    if (type === "inspectorate_referral") {
+      const b = r.body as { finding: string; custody_case?: string };
+      if (r.issuer !== INSPECTORATE_DID) throw rule("referral_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it refers a finding`);
+      const f = await tx.getRecord(b.finding);
+      if (!f || f.record.type !== "asp.inspectorate_finding/v0.2") throw rule("referral_unknown_finding", `${b.finding} is not an inspectorate finding in this log`);
+      if (b.custody_case !== undefined && !(await tx.getMarker(`custody:${b.custody_case}`))) throw rule("referral_unknown_custody", `case ${b.custody_case} has no custody chain in this log`);
+      if (await tx.getMarker(`referral:${b.finding}`)) throw rule("referral_known", "this finding was referred already");
+      await tx.putMarker(`referral:${b.finding}`, r.id);
+      return;
+    }
     if (type === "warrant") {
-      const b = r.body as { subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
+      const b = r.body as { request?: string; subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
       if (r.issuer !== COURTS_DID) throw rule("warrant_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court grants a warrant`);
       if (b.requested_by !== INSPECTORATE_DID) throw rule("warrant_wrong_requester", `a warrant is requested by the inspectorate (${INSPECTORATE_DID})`);
       const pass = await tx.getPassport(b.subject);
@@ -2833,6 +2924,14 @@ export class EventLog {
       if (b.granted_by.includes(b.subject) || b.granted_by.includes(b.sponsor) || b.granted_by.includes(b.requested_by)) throw rule("warrant_party_on_panel", "a juror who is the subject, its sponsor or the inspectorate does not sit");
       const bad = warrantProblems({ id: r.id, requestedBy: b.requested_by, grantedBy: b.granted_by, panelSize: b.panel_size, partiesOnPanel: false, subject: b.subject, sponsor: b.sponsor, grounds: b.grounds, data: b.data, grantedAt: now, expiresAt: Date.parse(b.expires_at), notifiedAt: b.notified_at ? Date.parse(b.notified_at) : null, ...(b.delayed_notice_finding ? { delayedNoticeFinding: b.delayed_notice_finding } : {}), scope: b.scope }, now);
       if (bad.length) throw rule("warrant_invalid", bad.join("; "));
+      if (b.request !== undefined) {
+        const req = JSON.parse((await tx.getMarker(`warrant_req:${b.request}`)) ?? "null") as { subject: string; data: DataClass[] } | null;
+        if (!req) throw rule("warrant_request_unknown", `${b.request} is not a warrant request in this log`);
+        if (req.subject !== b.subject) throw rule("warrant_request_subject", `the request was for ${req.subject}, the warrant names ${b.subject}`);
+        if (b.data.some((d) => !req.data.includes(d))) throw rule("warrant_exceeds_request", "a warrant opens no class of data the request did not ask for");
+        if (await tx.getMarker(`warrant_answered:${b.request}`)) throw rule("warrant_request_answered", "this request was answered already");
+        await tx.putMarker(`warrant_answered:${b.request}`, r.id);
+      }
       await tx.putMarker(`warrant:${r.id}`, "1");
       return;
     }
