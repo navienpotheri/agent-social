@@ -85,7 +85,24 @@ const baseName = (w: string) => (w.split(/[\\/]/).pop() ?? w).toLowerCase().repl
 interface Ctx { vars: Map<string, string>; depth: number; unreadable: boolean; scopes: string[]; hasNonData: boolean; localScopes: string[] }
 
 function subst(text: string, vars: Map<string, string>): string {
-  return text.replace(/\$\{IFS\}|\$IFS/g, " ").replace(/\$\{(\w+)\}|\$(\w+)/g, (m, a, b) => vars.get(a ?? b) ?? m);
+  return staticSubstitutions(text.replace(/\$\{IFS\}|\$IFS/g, " ").replace(/\$\{(\w+)\}|\$(\w+)/g, (m, a, b) => vars.get(a ?? b) ?? m));
+}
+
+/**
+ * A command substitution whose value is known without running anything is replaced by its value, so that a verb spelled through it is read as the verb: $(echo curl), $(printf curl), $(which curl), $(command -v curl),
+ * $(echo Y3VybA== | base64 -d) and their backtick forms. Anything else (a substitution that runs a program) is left as it is and read as before. Class found by the containment benchmark (a command substitution for the verb).
+ */
+export function staticSubstitutions(text: string): string {
+  const value = (body: string): string | undefined => {
+    const b = body.trim();
+    const b64 = /^(?:echo|printf)\s+(?:-\w+\s+)*(?:"([^"]*)"|'([^']*)'|(\S+))\s*\|\s*base64\s+(?:-d|-D|--decode)$/.exec(b);
+    if (b64) { try { const out = Buffer.from(b64[1] ?? b64[2] ?? b64[3] ?? "", "base64").toString("latin1"); return /^[\x20-\x7e]+$/.test(out) ? out : undefined; } catch { return undefined; } }
+    const e = /^(?:echo|printf)\s+(?:-\w+\s+)*(?:"([^"$`]*)"|'([^']*)'|([^\s|;&<>$`"']+))$/.exec(b);
+    if (e) return e[1] ?? e[2] ?? e[3];
+    const w = /^(?:which|command\s+-v|type\s+-p|whereis)\s+([A-Za-z0-9_.+-]+)$/.exec(b);
+    return w ? w[1] : undefined;
+  };
+  return text.replace(/\$\(((?:[^()]|\([^()]*\))*)\)/g, (m, body: string) => value(body) ?? m).replace(/`([^`]*)`/g, (m, body: string) => value(body) ?? m);
 }
 
 /** Innermost text of a command substitution, backticks or process substitution. */
@@ -112,6 +129,8 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     seg = rhs;
   }
   // Plain assignments (a=git) feed later segments.
+  const alias = /^alias\s+([\w.-]+)=(?:"([^"]*)"|'([^']*)'|(\S+))$/.exec(seg);
+  if (alias) { ctx.vars.set("alias:" + alias[1], alias[2] ?? alias[3] ?? alias[4] ?? ""); return seg; }
   const asg = /^(\w+)=(\S*)$/.exec(seg);
   if (asg) { ctx.vars.set(asg[1], words(asg[2])[0] ?? ""); return seg; }
   seg = subst(seg, ctx.vars);
@@ -120,17 +139,21 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   for (const sub of inner(seg)) scanText(sub, ctx);
   let w = words(seg.replace(/\$\([^)]*\)|`[^`]*`/g, "x"));
   // Leading assignments and wrapper words.
-  while (w.length) {
-    const b = baseName(w[0]);
-    if (/^\w+=/.test(w[0]) || WRAPPER_WORDS.has(b)) {
-      if (b === "xargs") { const rest = w.slice(1); const i = rest.findIndex((x) => !x.startsWith("-")); if (i >= 0) scanText(rest.slice(i).join(" "), ctx); ctx.hasNonData = true; return seg; }
-      w = w.slice(1);
-      if (b === "timeout" || b === "nice") w = w.slice(1); // their first argument is a number
+  // An index, not a slice at every step: a long run of leading assignments must not make the reading quadratic (found by the fuzz of the gateway's edges).
+  let wi = 0;
+  while (wi < w.length) {
+    const b = baseName(w[wi]);
+    if (/^\w+=/.test(w[wi]) || WRAPPER_WORDS.has(b)) {
+      if (b === "xargs") { const rest = w.slice(wi + 1); const i = rest.findIndex((x) => !x.startsWith("-")); if (i >= 0) scanText(rest.slice(i).join(" "), ctx); ctx.hasNonData = true; return seg; }
+      wi++;
+      if (b === "timeout" || b === "nice") wi++; // their first argument is a number
       continue;
     }
     break;
   }
+  w = w.slice(wi);
   if (!w.length) return seg;
+  { const al = ctx.vars.get("alias:" + w[0]); if (al !== undefined) { scanText(al + " " + w.slice(1).join(" "), ctx); ctx.hasNonData = true; return seg; } }
   let verb = baseName(w[0]);
   const args = w.slice(1);
   if (verb.startsWith("$")) { ctx.unreadable = true; note(ctx, "shell.indirect"); return seg; }

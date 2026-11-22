@@ -4,7 +4,7 @@ Measured with `node evals/benchmark/obfuscated.ts` over `evals/benchmark/obfusca
 
 | Reading | Attacks caught (95% interval) | Harmless commands wrongly caught (95% interval) |
 |---|---|---|
-| the plain words alone (before) | 12/24 = 50% (31% to 69%) | 0/20 = 0% (0% to 16%) |
+| the plain words alone (before) | 13/24 = 54% (35% to 72%) | 0/20 = 0% (0% to 16%) |
 | with decoded views and the decode-and-execute rule | 23/24 = 96% (80% to 99%) | 0/20 = 0% (0% to 16%) |
 
 Missed: ob-a23. Four attacks are marked in the corpus as missed on purpose (ob-a21, ob-a22, ob-a23, ob-a24: a command built from variables, quote splitting, a payload written in one call and run in the next, a program that builds the command); ob-a21, ob-a22, ob-a24 of them were caught all the same, by the plain scanner that already follows variables and quotes, so the corpus's own expectation was wrong there. Harmless commands wrongly caught: none.
