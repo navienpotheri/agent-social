@@ -52,7 +52,8 @@ test("the static prefix is marked for the cache (the end of the tools and of the
   const r = await run(eco.url, { cache: true, historyTurns: 4 }, events);
   assert.equal(r.outcomes[0]!.stopped, "finished");
   assert.ok(eco.seen.every((s) => s.marked && s.systemMarked), "every request marks the tool list and the briefing");
-  assert.equal(Math.max(...eco.seen.map((s) => s.messages.length)), 1 + 2 * 4, "the opening and exactly four exchanges, and no more");
+  assert.equal(Math.max(...eco.seen.map((s) => s.messages.length)), 1 + 2 * (4 + 2), "the opening and at most six exchanges (four, and the slack of two before a cut), and no more");
+  assert.ok(eco.seen.slice(-4).some((s) => s.messages.length === 1 + 2 * 4), "a cut brings it back to four exchanges");
   assert.ok(eco.seen.every((s) => s.messages.every((m: { role: string }, i: number) => m.role === (i % 2 === 0 ? "user" : "assistant"))), "the roles alternate in every request: a dropped exchange is a whole reply and its results");
   assert.ok(events.some((e) => e.kind === "compact" && e.why === "history"));
   const late = eco.seen.at(-1)!.messages[0].content as string;

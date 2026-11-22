@@ -46,6 +46,7 @@ export type TraceEvent =
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; cacheRead?: number; cacheWrite?: number; usd: number; text?: string }
   | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; /** A short account of what a read returned (counts only), so the report can say what the agent saw. */ seen?: string; /** Invitations in the first observation of the agent. */ invitations?: number; /** Steps of the first quest done after this call. */ quest?: number; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }
   | { t: "premature_stop_candidate"; at: string; agent: string; via: "leave" | "text" | "stop_exploring"; text: string; simMs?: number }
+  | { t: "thinking_dropped"; at: string; agent: string; turn: number; blocks: number; why: "compaction" | "provider_400" }
   | { t: "wake"; at: string; agent: string; simMs: number; because: string; kinds: string[]; events: number; delayedSimMs: number }
   | { t: "arrival"; at: string; agent: string; simMs: number }
   | { t: "leave"; at: string; agent: string; simMs: number; sinceArrivalMs: number; pending: number; afterCheck: boolean; reason: string }

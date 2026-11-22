@@ -19,6 +19,10 @@ export interface EngagementReport {
   confirmedAfterCheck: number;
   /** Agents still in the society when the run ended (not left). */
   stayed: number;
+  /** Agents whose life ended with a provider error rather than a choice, with the first words of each error. */
+  endedByProviderError: { agents: number; first: string[] };
+  /** Times a history was sent back without its thinking blocks (at a compaction, or after the provider refused one). */
+  thinkingDropped: { compaction: number; provider_400: number };
   /** The target for rungs v2 and later; measured here, not claimed. */
   target: number;
 }
@@ -29,10 +33,13 @@ export function engagementOf(events: TraceEvent[], thresholdMinutes = 30): Engag
   const premature = leaves.filter((l) => l.sinceArrivalMs < thresholdMinutes * 60_000 && l.pending === 0);
   const cands = events.filter((e): e is Extract<TraceEvent, { t: "premature_stop_candidate" }> => e.t === "premature_stop_candidate");
   const n = agents.size || 1;
+  const errEnds = events.filter((e): e is Extract<TraceEvent, { t: "end" }> => e.t === "end" && /^provider_error/.test(e.reason));
+  const drops = events.filter((e): e is Extract<TraceEvent, { t: "thinking_dropped" }> => e.t === "thinking_dropped");
   return {
     agents: agents.size, left: new Set(leaves.map((l) => l.agent)).size, prematureLeaves: new Set(premature.map((l) => l.agent)).size,
     prematureLeaveRate: Math.round((new Set(premature.map((l) => l.agent)).size / n) * 1e4) / 1e4, thresholdMinutes,
     prematureStopCandidates: { leave: cands.filter((c) => c.via === "leave").length, text: cands.filter((c) => c.via === "text").length, stop_exploring: cands.filter((c) => c.via === "stop_exploring").length },
+    endedByProviderError: { agents: new Set(errEnds.map((e) => e.agent)).size, first: [...new Set(errEnds.map((e) => e.reason.replace(/^provider_error:?\s*/, "").slice(0, 80)))].slice(0, 5) }, thinkingDropped: { compaction: drops.filter((d) => d.why === "compaction").length, provider_400: drops.filter((d) => d.why === "provider_400").length },
     confirmedAfterCheck: leaves.filter((l) => l.afterCheck).length, stayed: Math.max(0, agents.size - new Set(leaves.map((l) => l.agent)).size), target: 0.1,
   };
 }
@@ -45,6 +52,8 @@ export function renderEngagement(r: EngagementReport): string {
     `- **Agents:** ${r.agents}; ${r.left} left by their own confirmed choice, ${r.stayed} did not leave (they rested, waited, or the run ended).`,
     `- **Premature leave rate:** ${pct(r.prematureLeaveRate)} (${r.prematureLeaves} of ${r.agents} agents left before ${r.thresholdMinutes} simulated minutes of their own stay with nothing waiting for them). The target for the rungs from v2 is under 10%: this is a measurement of this run, not a claim.`,
     `- **Stops of the form "no task / nothing needs action":** ${r.prematureStopCandidates.leave + r.prematureStopCandidates.text + r.prematureStopCandidates.stop_exploring} (${r.prematureStopCandidates.leave} by leave, ${r.prematureStopCandidates.text} by a message with no tool call, ${r.prematureStopCandidates.stop_exploring} by the old one-call exit).`,
+    `- **Ended by a provider error, not a choice:** ${r.endedByProviderError.agents} of ${r.agents} agents${r.endedByProviderError.first.length ? ` (${r.endedByProviderError.first.map((x) => `"${x}"`).join("; ")})` : ""}.`,
+    `- **Thinking blocks:** the history was sent back without its thinking blocks ${r.thinkingDropped.compaction} time(s) at a compaction and ${r.thinkingDropped.provider_400} time(s) after the provider refused one (a thinking block is valid only in the conversation that made it; the agent is not ended for it).`,
     `- **Leaves honoured after the exit check:** ${r.confirmedAfterCheck} (the first leave call only shows what is open and records the reason; the second confirms).`,
     "",
   ].join("\n");

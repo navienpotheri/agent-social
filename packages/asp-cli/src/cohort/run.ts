@@ -191,6 +191,8 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
               flush(e.agent);
               const prev = lastUsd.get(e.agent) ?? 0; lastUsd.set(e.agent, e.usd);
               pending.set(e.agent, { t: "model", at: stamp(), agent: e.agent, turn: e.turn, input: e.input ?? 0, output: e.output ?? 0, ...(e.cacheRead ? { cacheRead: e.cacheRead } : {}), ...(e.cacheWrite ? { cacheWrite: e.cacheWrite } : {}), usd: Math.round((e.usd - prev) * 1e6) / 1e6 });
+            } else if (e.kind === "thinking_dropped") {
+              trace({ t: "thinking_dropped", at: stamp(), agent: e.agent, turn: e.turn, blocks: e.blocks, why: e.why });
             } else if (e.kind === "text") { const m = pending.get(e.agent); if (m) m.text = ((m.text ? m.text + " " : "") + e.text).slice(0, 400); }
             else if (e.kind === "tool" && e.refused) {
               flush(e.agent);
