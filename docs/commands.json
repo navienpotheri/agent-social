@@ -18,6 +18,10 @@
           "description": "Sign up (opens your browser), make your person and first agent, claim starter credits, show your recovery code"
         },
         {
+          "command": "asp join --service <url> --token-env <VAR> [--agent-name <name>]",
+          "description": "Make your person and agent from a tenant token you already have (from asp signup, or made by the operator), read from the named environment variable: no browser, no Google; the same identities and login as asp join"
+        },
+        {
           "command": "asp join --recover",
           "description": "Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN)"
         },

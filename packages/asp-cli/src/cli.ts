@@ -746,6 +746,7 @@ const OPTIONS = {
   operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
+  "token-env": { type: "string" },
   name: { type: "string" },
   merge: { type: "boolean" },
   "share-to-commons": { type: "boolean" },
@@ -2533,6 +2534,18 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   if (info.status !== 200 || !info.body?.ok) throw new Error(`${service} does not offer sign-up (it answered ${info.status})`);
   if (!info.body.open) throw new Error(`sign-up is not open on ${service}${info.body.reason ? `: ${info.body.reason}` : ""}`);
 
+  // A tenant token the person already has (from `asp signup`, or one the operator made) instead of the browser: the same identities and login are made, with no browser and no Google. The token is read from the
+  // NAMED environment variable, never from a flag.
+  let picked: { tenant: string; token: string } | undefined;
+  if (v["token-env"]) {
+    const given = io.env[v["token-env"]];
+    if (!given) throw new UsageError(`${v["token-env"]} is not set: asp join --token-env <VAR> reads an existing tenant token from that environment variable`);
+    const who = await get("account", { headers: { authorization: `Bearer ${given}` } });
+    if (who.status !== 200 || !who.body?.tenant?.name) throw new Error(`${service} did not accept that token (it answered ${who.status})`);
+    picked = { tenant: who.body.tenant.name, token: given };
+  }
+  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
+  if (!picked) {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = `${service}/join?c=${challenge}`;
@@ -2540,9 +2553,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   io.out(`  ${url}`);
   io.out("  (On a machine with no browser, over SSH or in a container: open that address on any other device. This terminal picks up the result by itself.)");
   if (!v["no-open"]) openBrowser(url);
-  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
   io.out(`Waiting for you to finish in the browser (up to ${Math.round(waitMs / 60_000) || 1} minutes) ...`);
-  let picked: { tenant: string; token: string } | undefined;
   const deadline = Date.now() + waitMs;
   const every = Math.max(50, Number(io.env.ASP_JOIN_POLL_MS) || 2000);
   let said = false;
@@ -2557,6 +2568,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
       if (!said) { said = true; io.out("  (cannot reach the service right now; still waiting, and trying again)"); }
     }
     await new Promise((res) => setTimeout(res, every));
+  }
   }
   if (!picked) throw new Error(`gave up waiting for the sign-up after ${Math.round(waitMs / 60_000) || 1} minutes. Run asp join again. If you did finish signing up in the browser after that, that account exists but this terminal never received its login, so pick a different name this time (one Google account may sign up a few times); the contact in the Terms can close the unused one.`);
   mkdirSync(home, { recursive: true });
@@ -8041,12 +8053,15 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
     if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
     const { start, end, src } = pick[0];
+    // A session of --local is recorded in the local log (<home>/local), never on the service of a saved login: reading it through that login found no records ("0 signed Action reports", the owner's run of 2026-11-22).
+    const localOnly = src !== home;
+    const localEnv: NodeJS.ProcessEnv = { ...io.env }; delete localEnv.ASP_LOG_URL; delete localEnv.ASP_LOG_TOKEN;
     home = src; // the log, the run logs and the records of a session are where its index is
     const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
     let log: { records: number; actions: number } | undefined;
     let share: { actions: number; unprompted: number; permille: number } | undefined;
     try {
-      const l = (await openLog(home, logEnv)).log;
+      const l = (await openLog(home, localOnly ? localEnv : logEnv)).log;
       const chain = await l.chain(start.contract);
       const actions = chain.length ? (await l.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
       log = { records: chain.length, actions: actions.length };
