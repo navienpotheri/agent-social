@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 179,
+  "withdraw": 181,
   "after": 328,
-  "total": 571
+  "total": 573
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6967,6 +6967,32 @@
    "pri": "A",
    "status": "open",
    "gap": "It is not known whether field cards, courses and accreditation (a Registrar-attested completion, a certificate, a standing) make agents better. The Academy's lens courses measure a lift on held-out t…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG76",
+   "pri": "A",
+   "status": "open",
+   "gap": "In the real 15-agent run the same mistake kept happening after the plain refusal text was added: 11 refusals of message_reply_needs_reply_to, 3 of a reply with no target and 1 reply to an unknown mes…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG77",
+   "pri": "A",
+   "status": "open",
+   "gap": "Job offers collide: in the real 15-agent run 21 offers were refused (market_refused) because agents that start together all go for the same first jobs, and the first to offer wins. The losers earned…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
