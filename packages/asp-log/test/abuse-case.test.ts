@@ -50,6 +50,8 @@ test("LW5 and DK350: the Registrar refers a report, a quorum of the panel uphold
   // The panel: a quorum of the drawn three, none of whom is the accused, its sponsor, the reporter or the Registrar; restitution within the cap and only on an upheld finding.
   assert.equal(await refusedBy(log.append(await w.rule(theCase.id, {}, 1))), "panel_quorum");
   assert.equal(await refusedBy(log.append(await w.rule(theCase.id, {}, 2, [w.sponsor]))), "abuse_panel_conflict", "the sponsor does not sit");
+  assert.equal(await refusedBy(log.append(await w.rule(theCase.id, {}, 2, [w.agent]))), "abuse_panel_conflict", "the accused does not sit");
+  assert.equal(await refusedBy(log.append(await w.rule(theCase.id, {}, 2, [registrar as Party]))), "abuse_panel_conflict", "the Registrar does not sit");
   assert.equal(await refusedBy(log.append(await w.rule(theCase.id, { restitution: { amount: credit(ABUSE_RESTITUTION_CAP + 1) } }))), "abuse_restitution_cap");
   assert.equal(await refusedBy(log.append(await w.rule(theCase.id, { finding: "dismissed", restitution: { amount: credit(10) } }))), "abuse_restitution_needs_finding");
 
