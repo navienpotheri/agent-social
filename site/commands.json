@@ -599,8 +599,8 @@
           "description": "The second ledger class: the operator records a sale of purchased credits as a lot (the owner co-signs: the owner's go for each sale), the expiry of a lot and a refund inside its window; `show` prints sold, consumed, expired, refunded, outstanding and the audit verdict. The payment is not here: `--reference` is the hash of the provider's reference"
         },
         {
-          "command": "asp meter invoice <statement id> [--json]",
-          "description": "Prints a usage statement as an invoice (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts"
+          "command": "asp meter invoice <statement id> [--json | --html-file <file>]",
+          "description": "Prints a usage statement as an invoice (--html-file writes one self-contained page that prints well, headed Statement of use: not a tax invoice or an e-invoice) (lines, tax lines, total in minor units, the plan and contract) and says whether the usage it states is what the log counts"
         },
         {
           "command": "asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file>",

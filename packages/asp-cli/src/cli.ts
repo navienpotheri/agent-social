@@ -389,6 +389,7 @@ import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
+import { renderInvoiceHtml } from "./invoice-html.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -5760,12 +5761,13 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   }
   if (sub === "invoice") {
     const id = rest[0];
-    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json | --html-file <file>]");
     const r = await local.log.get(id);
     if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
     const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
     const c = await local.log.checkStatement(id);
     if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    if (v["html-file"]) { writeFileSync(resolve(io.cwd, v["html-file"]), renderInvoiceHtml({ id, issued: r.record.issued_at, body: b, matchesLog: c.ok, differences: c.ok ? [] : c.differences })); io.out(`wrote ${v["html-file"]} (a statement of use that prints well; not a tax invoice or an e-invoice)`); return 0; }
     io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
     for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
     io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
