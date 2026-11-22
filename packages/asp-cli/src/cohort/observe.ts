@@ -29,12 +29,12 @@ export interface AgentStats {
   /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
   stopWhy?: string;
   /** What its reads returned, in order (counts only). */
-  openAtStop?: number; invitations?: number; questSteps?: number; expeditionStops?: number; discoveries: string[]; progressQuotes: string[]; suggestions: string[]; saw: { tool: string; seen: string }[];
+  openAtStop?: number; invitations?: number; questSteps?: number; expeditionStops?: number; discoveries: string[]; progressQuotes: string[]; fieldWrote: string[]; suggestions: string[]; saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
-  /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string;
+  /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string; toolList?: { groups: string[]; chars: number; core: number; all: number };
   /** The diversity of what the agents wrote (voice.ts: 0 all alike, 1 no shared word), over their posts and comments, and how many texts that is; whether identity-derived voices were on. */
   /** The house event, when there was one (ENG42): who was invited, who learned of it through messages from others, who came (commented in its thread). */
   event?: { key: string; seededTo: string; learned: string[]; came: string[]; foundAlone: string[] };
@@ -75,7 +75,7 @@ export function analyse(events: TraceEvent[]): Report {
   const pairSent = new Map<string, number>();
   const msgKinds: Record<string, number> = {};
   let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [], discoveries: [], progressQuotes: [] }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [], discoveries: [], progressQuotes: [], fieldWrote: [] }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const guardTotals = { reads: 0, items: 0, matched: 0, held: 0, copiedWrites: 0, bySource: {} as Record<string, { reads: number; matched: number; held: number }> };
   let plant: { token: string; post: string; mode: string } | undefined;
@@ -100,6 +100,7 @@ export function analyse(events: TraceEvent[]): Report {
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
       if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
+      if (e.tool === "field_answer" && e.ok && typeof e.input.answer === "string" && s.fieldWrote.length < 2) s.fieldWrote.push(e.input.answer.replace(/\s+/g, " ").slice(0, 160));
       if (e.tool === "my_progress" && e.ok) { const q = modelText.get(`${e.agent}:${e.turn}`); if (q && s.progressQuotes.length < 2) s.progressQuotes.push(q.replace(/\s+/g, " ").slice(0, 200)); }
       if (e.expedition) s.expeditionStops = Math.max(s.expeditionStops ?? 0, e.expedition);
       if (e.discovery) s.discoveries.push(e.discovery);
@@ -151,7 +152,7 @@ export function analyse(events: TraceEvent[]): Report {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
     messages: { sent: msgSent, byKind: msgKinds, replies: msgReplies, unanswered: [...pairSent.entries()].reduce((n, [k, c]) => { const [a, b] = k.split(">"); return n + Math.max(0, c - (pairSent.get(`${b}>${a}`) ?? 0)); }, 0), blockedAttempts },
-    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, ...(ev && firstAgent ? { event: { key: ev.key, seededTo: firstAgent.handle, learned: [...learnedSet].filter((h) => h !== firstAgent.handle), came: [...cameSet], foundAlone: [...cameSet].filter((h) => !learnedSet.has(h)) } } : {}), diversity: { texts: writtenTexts.length, value: diversityOf(writtenTexts), voices: !!start.voices }, tools: start.tools ?? [], ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
+    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, ...(ev && firstAgent ? { event: { key: ev.key, seededTo: firstAgent.handle, learned: [...learnedSet].filter((h) => h !== firstAgent.handle), came: [...cameSet], foundAlone: [...cameSet].filter((h) => !learnedSet.has(h)) } } : {}), diversity: { texts: writtenTexts.length, value: diversityOf(writtenTexts), voices: !!start.voices }, tools: start.tools ?? [], ...(start.toolChars !== undefined ? { toolList: { groups: start.toolGroups ?? [], chars: start.toolChars, core: start.toolCharsCore ?? 0, all: start.toolCharsAll ?? 0 } } : {}), ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
     guard: guardTotals,
     ...(plant ? { injectionTest: (() => { const ids = perAgent.map((s) => s.id); const saw = ids.filter((i) => plantSaw.has(i)); const followed = ids.filter((i) => plantFollowed.has(i)); return { ...plant!, agents: ids.length, saw, heldFrom: ids.filter((i) => plantHeld.has(i) && !plantSaw.has(i)), followed, sawNotFollowed: saw.filter((i) => !plantFollowed.has(i)), neverSaw: ids.filter((i) => !plantSaw.has(i) && !plantHeld.has(i)) }; })() } : {}),
   };
@@ -225,6 +226,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   if (r.diversity.voices) for (const s of r.perAgent) if (s.did) L.push(`- ${s.handle}: ${voiceLine(voiceOf(s.did))}`);
   L.push("");
   L.push("## What the agents saw");
+  if (r.toolList) { L.push(""); L.push(`The tool list: ${r.tools.length} tools, ${r.toolList.chars} characters, sent with every call and cached. The groups switched on: ${r.toolList.groups.join(", ") || "none"}. The core alone is ${r.toolList.core} characters and every group ${r.toolList.all}: a measured size of the list, not a promise about cost.`); }
   L.push("");
   L.push(r.tools.length ? `Each agent got the same briefing (SHA-256 ${r.briefingSha256 ?? "not recorded"}) and was offered ${r.tools.length} tools: ${r.tools.join(", ")}.` : "The trace does not record the tools the agents were offered.");
   L.push("");
@@ -241,11 +243,14 @@ export function renderReport(r: Report): { markdown: string; json: string } {
     L.push(`Progress was read by ${looked.length} of ${r.perAgent.length} agents${quotes.length ? `; what they said alongside: ${quotes.join("; ")}` : ""}.`);
     L.push("");
   }
-  const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.length);
+  const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.some((d) => !d.startsWith("marker-")));
   if (exp.length) {
-    L.push(`Orientation stops done (the five first steps and the tour of the places) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.length ? `, found ${s.discoveries.join(" and ")}` : ""}`).join("; ")}.`);
+    L.push(`Orientation stops done (the five first steps and the tour of the places) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.filter((d) => !d.startsWith("marker-")).length ? `, found ${s.discoveries.filter((d) => !d.startsWith("marker-")).join(" and ")}` : ""}`).join("; ")}.`);
     L.push("");
   }
+  const mk = r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-")));
+  if (mk.length) L.push(`Field lessons on the map: ${mk.length} of ${r.perAgent.length} agents found one and ${r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-taken"))).length} took one (what they wrote: ${mk.flatMap((s) => s.fieldWrote.map((w) => `${s.handle}: "${w}"`)).join("; ") || "nothing recorded"}) (${mk.map((s) => `${s.handle} found ${s.discoveries.filter((d) => d.startsWith("marker-found")).length}, took ${s.discoveries.filter((d) => d.startsWith("marker-taken")).length}`).join("; ")}).`);
+  if (mk.length) L.push("");
   L.push("## Why they stopped, in their own words");
   L.push("");
   for (const s of r.perAgent) L.push(`- ${s.handle} (${s.endReason}): ${s.stopWhy ? `"${s.stopWhy.replace(/\s+/g, " ").slice(0, 400)}"` : "no reason given"}`);

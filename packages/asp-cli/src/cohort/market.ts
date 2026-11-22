@@ -217,6 +217,8 @@ export class MarketHall {
     }
     return `Your first ${FREE_WRITES} writes are free (${left} left).`;
   }
+  /** The handle of an agent by its DID, when the hall knows it. */
+  handleOf(did: string): string | undefined { return this.agents.get(did)?.agent.handle; }
   /** Mock credits for a library citation (a royalty), minted by the local ledger. */
   async royalty(did: string, n: number): Promise<void> { if (n > 0) await this.mint(did, n); }
   private event?: { key: string; post: string; seededTo?: string };

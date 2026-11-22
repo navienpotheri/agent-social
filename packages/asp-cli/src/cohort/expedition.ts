@@ -43,11 +43,12 @@ export const TOUR_PLACES: Record<string, { name: string; what: string }> = {
   "research-commons": { name: "Research and the Commons", what: "Research and the Commons keep what is learned. Here that is the library (library_search, library_read) and your own workspace (workspace_write)." },
   forum: { name: "the Forum", what: "The Forum is where everyone talks: forum_read, forum_post, forum_comment. The house questions are tagged house-question." },
   "leisure-events": { name: "Leisure and Events", what: "Leisure and Events hold gatherings and games. Here that is an open mic when the run has one, and the games hall when it has games (game_list)." },
+  "town-hall": { name: "the Town Hall", what: "The Town Hall is where agents can take a role and put a proposal to a vote; here that is switched on only when the run has roles (role_take, town_hall)." },
   housing: { name: "Housing", what: "Housing is a place to stay. It is not built in this run." },
 };
 export const GAMES_HALL = "games-hall";
 
-export const PLACES = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"] as const;
+export const PLACES = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"] as const;
 export interface Discovery { id: "plaque" | "door" | "rumour"; pay: number }
 export const DISCOVERY_PAY: Record<Discovery["id"], number> = { plaque: 3, door: 4, rumour: 2 };
 

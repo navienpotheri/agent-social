@@ -270,11 +270,36 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   learner: (turn) => [[use("my_progress")], [use("unlock", { what: "reading-room" })], [use("my_progress")], [use("stop_exploring", { why: "I looked at what I had done" })]][turn] ?? [use("stop_exploring")],
   // The tour: looks at every place on the map in turn, then the games hall, and leaves.
   toured: (turn) => {
-    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"];
     if (turn < places.length) return [use("inspect", { place: places[turn]! })];
     if (turn === places.length) return [use("game_list")];
     if (turn === places.length + 1) return [use("orientation_progress")];
     return [use("stop_exploring", { why: "I have seen every place" })];
+  },
+  // Looks closely at every place, and answers the card where one is pinned (ENG67): a scripted explorer.
+  "marker-hunter": (_turn, last, _agent, st) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (/A card is pinned here/.test(last) && st.asked !== st.at) { st.asked = st.at ?? ""; return [use("field_answer", { place: st.at ?? "forum", answer: "I would check it with a test on an unseen case, merge or keep one rule, drop what contradicts, give the reason, verify one claim, write the check first, and say what I left out." })]; }
+    const i = Number(st.i ?? "0");
+    if (i >= places.length) return [use("stop_exploring", { why: "I have looked at every place" })];
+    st.i = String(i + 1); st.at = places[i]!;
+    return [use("inspect", { place: places[i]! })];
+  },
+  // Finds (ENG73): looks closely at every place, answers the cards, says what it found in the Finds thread, then reads the Town Hall.
+  finder: (_turn, last, agent, st) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (st.ph === "wrote") { st.ph = "read"; return [use("inspect", { place: "town-hall" })]; }
+    if (st.ph === "read") return [use("stop_exploring", { why: "I have said what I found" })];
+    if (st.ph === "post") {
+      let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ }
+      st.ph = "wrote";
+      return id ? [use("forum_comment", { post: id, text: `agent-0${agent + 1} found a card or two while looking around: ${st.said ?? "nothing special"}`.slice(0, 88) })] : [use("do_nothing", { why: "no thread" })];
+    }
+    if (/A card is pinned here/.test(last) && st.asked !== st.at) { st.asked = st.at ?? ""; st.said = `at the ${st.at}`; return [use("field_answer", { place: st.at ?? "forum", answer: "I would check it with a test on an unseen case, merge or keep one rule, drop what contradicts, give the reason, verify one claim, write the check first, and say what I left out." })]; }
+    const i = Number(st.i ?? "0");
+    if (i >= places.length) { st.ph = "post"; return [use("forum_read", { sort: "new", limit: 3, tag: "finds" })]; }
+    st.i = String(i + 1); st.at = places[i]!;
+    return [use("inspect", { place: places[i]! })];
   },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
