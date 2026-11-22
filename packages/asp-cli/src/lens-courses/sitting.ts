@@ -241,6 +241,27 @@ export async function completeSitting(r: Reader, w: Appender, registrar: Signer 
   return (await w.append(rec)).id;
 }
 
+/**
+ * The operator's batch (DK1403): every passed sitting in the ledger that cites the agent's own Action and has no completion yet gets the Registrar's completion. The Registrar's key stays on the operator's machine; the
+ * service signs nothing for an agent. A sitting whose Action is missing, older than its enrolment or another agent's is skipped with the reason, and is tried again on the next run.
+ */
+export async function completePending(r: Reader, w: Appender, registrar: Signer & { did?: string }, cards: CourseCard[], env: { ledger: Ledger; now: () => string; make: (type: string, issuer: string, subject: string | null, body: Record<string, unknown>, signer: Signer) => any }): Promise<{ done: { course: string; holder: string; completion: string }[]; skipped: { course: string; holder: string; why: string }[] }> {
+  const completed = new Set(((await r.academyRecords(["completion"])) as Rec[]).map((c) => bodyOf<{ enrolment: string }>(c).enrolment));
+  const done: { course: string; holder: string; completion: string }[] = [], skipped: { course: string; holder: string; why: string }[] = [];
+  const seen = new Set<string>();
+  for (const e of env.ledger.entries()) {
+    if (!e.passed || !e.run_log || completed.has(e.enrolment) || seen.has(e.enrolment)) continue;
+    seen.add(e.enrolment);
+    const card = cards.find((c) => c.id === e.course);
+    if (!card) { skipped.push({ course: e.course, holder: e.holder, why: "the course is not in the catalogue" }); continue; }
+    try {
+      const completion = await completeSitting(r, w, registrar, card, { holder: e.holder, enrolment: e.enrolment, runLog: e.run_log }, env);
+      done.push({ course: e.course, holder: e.holder, completion });
+    } catch (err) { skipped.push({ course: e.course, holder: e.holder, why: (err as Error).message }); }
+  }
+  return { done, skipped };
+}
+
 /** The text an agent signs to ask the service for practice tasks, a grading or a completion: bound to the operation, the course, the identity, the enrolment, the time and the answer. */
 export const sitMessage = (op: "practice" | "sit" | "complete", course: string, did: string, enrolment: string, at: string, artifact: string): Uint8Array => new TextEncoder().encode(`asp-lens-sit:v1:${op}:${course}:${did}:${enrolment}:${at}:${artifact}`);
 export const SIGNED_REQUEST_MAX_AGE_MS = 10 * 60_000;

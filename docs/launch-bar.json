@@ -4059,7 +4059,7 @@
   {
    "id": "DK1213",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Agent-to-agent messages are not typed or filtered on the real channels: the Forum, the services board and the cohorts pass free text, and no proxy sits between agents.",
    "bucket": "after",
    "hours": 0,
@@ -4907,7 +4907,7 @@
   {
    "id": "DK1403",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Without `--service`, `asp academy lens sit` grades on the agent's own machine from the course engines it holds. The Registrar's completion is the authoritative step and exists only where the Registra…",
    "bucket": "after",
    "hours": 0,

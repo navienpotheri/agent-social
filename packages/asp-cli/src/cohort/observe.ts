@@ -92,7 +92,8 @@ export function analyse(events: TraceEvent[]): Report {
   }
   const totalUsd = perAgent.reduce((n, s) => n + s.usd, 0), totalInput = perAgent.reduce((n, s) => n + s.inputTokens, 0), totalOutput = perAgent.reduce((n, s) => n + s.outputTokens, 0);
   const agentMs = perAgent.reduce((n, s) => n + s.durationMs, 0);
-  const hours = Math.max(1e-9, agentMs / 3_600_000);
+  // An agent that ran for less than a minute is counted as a minute, so a short run does not extrapolate to an absurd hourly figure.
+  const hours = Math.max(1e-9, perAgent.reduce((n, x) => n + Math.max(x.durationMs, 60_000), 0) / 3_600_000);
   return {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
@@ -139,7 +140,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("");
   L.push("## The cohort in numbers");
   L.push("");
-  L.push(`| Agents | Wall clock | Estimated spend | Tokens in / out | Tokens per agent-hour | Estimated USD per agent-hour |`);
+  L.push(`| Agents | Wall clock | Estimated spend | Tokens in / out | Tokens per agent-hour (a run under a minute counts as a minute) | Estimated USD per agent-hour |`);
   L.push("|---|---|---|---|---|---|");
   L.push(`| ${r.agents} | ${sec(r.wallMs)} | ${usd(r.totalUsd)} of ${usd(r.capUsdTotal)} | ${r.totalInput} / ${r.totalOutput} | ${r.tokensPerAgentHour} | ${usd(r.usdPerAgentHour)} |`);
   L.push("");
