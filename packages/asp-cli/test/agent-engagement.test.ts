@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { TOOLS } from "../src/cohort/tools.ts";
+import { LIFE_DEFS, TOOLS } from "../src/cohort/tools.ts";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
@@ -34,18 +34,26 @@ test("the eight rows ENG1 to ENG8 are rows of the register: priority A, open, ch
   assert.match(register, /^\| DK1213 \|/m);
 });
 
-test("every tool that the document names exists (twenty-seven) or is listed as planned, and no planned tool is already built", () => {
+test("every tool that the document names is built (the thirty of TOOLS and the five of LIFE_DEFS) or listed as planned, and the planned one is not built", () => {
   const built = new Set(TOOLS.map((t) => t.name));
-  assert.equal(built.size, 27);
+  assert.equal(built.size, 30);
+  const life = new Set(LIFE_DEFS.map((t) => t.name));
+  assert.deepEqual([...life].sort(), ["leave", "notebook_read", "notebook_write", "rest", "wait_for"], "the engine's life tools");
+  for (const n of life) assert.ok(!built.has(n), `${n} is in the engine's list and not in TOOLS`);
   const rows = tableRows(section(3), /\| Tool \| State \|/);
-  const planned: string[] = [], existing: string[] = [];
-  for (const l of rows) { const name = /`([a-z_]+)`/.exec(cell(l, 1))![1]!; (cell(l, 2) === "planned" ? planned : existing).push(name); }
-  assert.deepEqual(planned.sort(), ["leave", "notebook_read", "notebook_write", "read_messages", "rest", "send_message", "wait_for"]);
-  for (const n of planned) assert.ok(!built.has(n), `${n} is planned and not built`);
-  for (const n of existing) assert.ok(built.has(n), `${n} exists`);
-  const listLine = doc.slice(doc.indexOf("The existing tools are the twenty-seven")).split("\n")[0]!;
-  const listed = [...listLine.matchAll(/`([a-z_]+)`/g)].map((m) => m[1]);
-  assert.deepEqual(listed.sort(), [...built].sort(), "the twenty-seven in the text are the tools of the code");
+  const planned: string[] = [], other: [string, string][] = [];
+  for (const l of rows) { const name = /`([a-z_]+)`/.exec(cell(l, 1))![1]!; const state = cell(l, 2); if (state === "planned") planned.push(name); else other.push([name, state]); }
+  assert.deepEqual(planned, ["suggest"]);
+  for (const n of planned) assert.ok(!built.has(n) && !life.has(n), `${n} is planned and not built`);
+  for (const [n, state] of other) { assert.ok(state === "built" || state === "exists", `${n}: ${state}`); assert.ok(built.has(n) || life.has(n), `${n} exists in the code`); }
+  // The doc's `built` engine tools are the life tools, and its other built tools are in TOOLS.
+  for (const n of life) assert.ok(other.some(([name, state]) => name === n && state === "built"), `${n} is marked built`);
+  const listLine = doc.slice(doc.indexOf("The existing tools are the thirty of")).split("\n")[0]!;
+  const listed = [...listLine.slice(0, listLine.indexOf("The five life tools")).matchAll(/`([a-z_]+)`/g)].map((m) => m[1]).filter((n) => n !== "TOOLS" && n !== "packages");
+  assert.deepEqual(listed.sort(), [...built].sort(), "the thirty in the text are the tools of the code");
+  // stop_exploring is not offered in the engaged loop: the engine filters it out when ticks are kept.
+  assert.match(read("packages/asp-cli/src/cohort/run.ts"), /!\(life && t\.name === "stop_exploring"\)/);
+  assert.match(doc, /Not offered in the engaged loop/);
 });
 
 test("the fifteen metric ids are unique and defined, and they match the report's names once the report has them", () => {

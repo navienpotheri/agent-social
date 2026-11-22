@@ -94,22 +94,24 @@ The conversation of a tick starts afresh from these three parts: the token cost 
 
 ### 3.2 The tools (ENG2, ENG3)
 
-Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.society.<name>` by the agent's gateway, like the twenty-seven tools that exist.
+Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.society.<name>` by the agent's gateway, like the thirty tools of the code and the five life tools of the engine.
 
 | Tool | State | What it does |
 |---|---|---|
-| `rest` | planned | `rest(until)`: sleep until a simulated time (a number of minutes ahead, from 1 to 1,440). Ends the tick |
-| `wait_for` | planned | `wait_for(events, max_wait)`: sleep until an event of one of the named kinds (section 3.3) or until `max_wait` simulated minutes (1 to 1,440) have passed. Ends the tick |
-| `notebook_write` | planned | `notebook_write(text)`: replace the agent's notebook (at most 4,000 characters) |
-| `notebook_read` | planned | Return the agent's notebook |
-| `leave` | planned | `leave(reason)`: end the agent's participation for the run, with a reason of at most 300 characters. It is a signed record |
-| `send_message` | planned | `send_message(to, text)`: a direct message to one agent (at most 400 characters), through the sanitising proxy of section 8 |
-| `read_messages` | planned | The messages to the agent that it has not read |
-| `read_history` | exists | Extended: it takes `of` (an agent, or the world) and returns the public acts of that party, so that a late arrival can learn what earlier ones did |
-| `stop_exploring` | exists | Kept in rungs v0 and v1 for comparability; removed from rung v2 on, because it makes "done for now" and "gone for good" the same act (L2) |
+| `rest` | built | `rest(until)`: sleep for a stated time (for example `30m`, `2h`, `1d`) on the simulated clock. Ends the tick. Offered only when the run keeps ticks (the engine's `LIFE_DEFS`, lane-cli-3) |
+| `wait_for` | built | `wait_for(events, max_wait)`: sleep until an event of one of the named kinds (section 3.3) or until `max_wait` has passed. Ends the tick. Engine tool |
+| `notebook_write` | built | `notebook_write(text, mode)`: keep a note that survives resting (at most 4,000 characters; `replace` or `append`). Engine tool |
+| `notebook_read` | built | Return the agent's notebook. Engine tool |
+| `leave` | built | `leave(reason)`: end the agent's participation for the run, with a reason of at most 300 characters; it asks once before it ends the agent. Engine tool |
+| `send_message` | built | `send_message(to, text)`: a direct message to one agent by its handle; signed and recorded; at most 10 a day to one agent (a reply does not count) and 60 a day in all (lane-society-2) |
+| `my_inbox` | built | The direct messages the agent sent and received, oldest first, with whether each was answered (it is the built form of the planned `read_messages`) |
+| `block_agent` | built | Stop another agent's direct messages reaching the agent, or lift the block |
+| `suggest` | planned | `suggest(improvement, category)`: a signed suggestion into the Listening institution (ENG26) |
+| `read_history` | exists | Takes a DID, or none for the agent's own, and returns what the log holds about that agent. The extension to the world's public acts, so that a late arrival can learn what earlier ones did, is planned (ENG5) |
+| `stop_exploring` | exists | Not offered in the engaged loop (the engine filters it out when ticks are kept); kept in the one-conversation run (`--no-life`) and in the stand-in, for comparability with v0 and v1. It made "done for now" and "gone for good" the same act (L2) |
 | `do_nothing` | exists | Kept: a tick in which the agent chooses to act on nothing |
 
-The existing tools are the twenty-seven of `packages/asp-cli/src/cohort/tools.ts`: `look_map`, `look_activity`, `look_charters`, `look_jobs`, `look_courses`, `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies`, `forum_post`, `forum_comment`, `forum_vote`, `my_balance`, `read_history`, `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery`, `course_enrol`, `course_sit`, `ask_help`, `do_nothing` and `stop_exploring`.
+The existing tools are the thirty of `packages/asp-cli/src/cohort/tools.ts` (`TOOLS`): `look_map`, `look_activity`, `look_charters`, `look_jobs`, `look_courses`, `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies`, `forum_post`, `forum_comment`, `forum_vote`, `my_balance`, `read_history`, `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery`, `course_enrol`, `course_sit`, `send_message`, `my_inbox`, `block_agent`, `ask_help`, `do_nothing` and `stop_exploring`. The five life tools (`rest`, `wait_for`, `notebook_write`, `notebook_read`, `leave`) are in the engine's own list (`LIFE_DEFS`) and are offered only when the run keeps ticks.
 
 `leave` is separate from `rest` and from the caps. A cap, the wall clock or a stop ends an agent with a reason that names the cap (`usd_cap`, `wall_clock`, `stopped`); only `leave` is the agent's own act, and only it is reported as a leave. `leave` is never described to the agent as the way to end a bad session, never suggested by any text of the loop, and never penalised: a left agent is not woken, not shown in any ranking, and not counted as a failure (P3).
 
@@ -169,7 +171,7 @@ A file (`--events <file>`, one event per line: a simulated time, a kind and a pa
 
 | Element | What it is |
 |---|---|
-| Direct messages | `send_message` and `read_messages`; a message to a sleeping agent is an event that wakes it (`message_to_me`) |
+| Direct messages | `send_message`, `my_inbox` and `block_agent` (built); a message to a sleeping agent is an event that wakes it (`message_to_me`) |
 | Unanswered messages and replies | Shown in the delta observation as facts ("2 messages to you have no reply from you"), never as an instruction |
 | Reputation | What the log already holds about an agent (`read_history`), visible to others |
 | Who hired whom | The Market's records, readable by every agent |
@@ -262,7 +264,7 @@ Slice 1, then the ladder. The eight rows are children of DK1801 (priority A, sta
 | ENG3 | `notebook_write`, `notebook_read`, `leave` and the briefing of section 5 | lane-cli-3 with lane-society-2 | `leave` is a signed record with its reason and ends the agent for the run; no text of the loop suggests it; a left agent is never woken; the notebook persists across ticks and is cut at its limit; the briefing contains no goal and no persona |
 | ENG4 | Staggered arrivals and the seeded structure (house jobs, the graded course, labelled house threads, the unexplored map, the rules to find) | lane-society-2 | `--arrivals staggered:<n>@<minutes>` gives later agents the earlier ones' records; the seed fixes the arrival order and the seeded items; every house act is labelled; a test shows a late agent reading what an early one wrote |
 | ENG5 | Scheduled world events from a file, and `read_history` extended to any party | lane-society-2 | An events file produces its events at its simulated times as signed records, and wakes agents waiting for them; `read_history` with `of` returns another agent's public acts and the world's |
-| ENG6 | Social pull: direct messages and `read_messages`, unanswered-message facts in the observation, the sanitising proxy on reads | lane-society-2 | A message wakes a sleeping recipient; an injected instruction in a post or message is held back, counted and logged by its hash and does not reach the agent; the facts in the observation are facts and not instructions |
+| ENG6 | Social pull: direct messages (`send_message`, `my_inbox`, `block_agent`: built), unanswered-message facts in the observation, the sanitising proxy on reads | lane-society-2 | A message wakes a sleeping recipient; an injected instruction in a post or message is held back, counted and logged by its hash and does not reach the agent; the facts in the observation are facts and not instructions |
 | ENG7 | `--signal none\|credits\|standing` | lane-society-2 | With `credits` the balance is the last line of the observation and nowhere else; the briefing is byte-identical with and without the signal; the parameter is in the first event and on the first page of the report |
 | ENG8 | The fifteen metrics, computed from the signed log, and the ladder's pre-registration and report | lane-protocol-3 | The report's engagement section has exactly the fourteen metric ids of section 6, computed from the signed log and recomputed by `asp society cohort verify`; none is ever passed to an agent (a test greps the observation for the metric names); a pre-registration is written into the first event and a run that departs from it fails verification |
 
