@@ -17,18 +17,18 @@ export function societySource(o: { world: WorldApi; didOf: (agent: string) => st
   };
   return {
     kinds: ["reply", "vote", "new_job"],
+    // At the agent's arrival: the job board as it is then is the baseline for "new". Replies need no baseline: they are answers to the agent's OWN acts, so none can predate its arrival and the cursor starts at 0.
+    // (A baseline taken at the first wait instead lost a reply that came before the agent began to wait: the lost wake-up of the owner's P0.)
+    async prime(agent) {
+      if (seenJobs.has(agent)) return;
+      const board = await o.world.get("/market/board").catch(() => undefined);
+      seenJobs.set(agent, new Set(board && board.status === 200 ? jobIds(board.text) : []));
+    },
     async poll(agent, cursor) {
       const did = o.didOf(agent);
       const events: LifeEvent[] = [];
-      let next = cursor as { since?: number; started?: boolean } | undefined;
-      if (!next) {
-        // The first look only marks where "now" is: nothing that was already there is news.
-        let head = 0;
-        try { head = Number((JSON.parse((await o.world.get("/forum/head")).text) as { seq?: number }).seq ?? 0); } catch { /* from the start */ }
-        const board = await o.world.get("/market/board").catch(() => undefined);
-        seenJobs.set(agent, new Set(board && board.status === 200 ? jobIds(board.text) : []));
-        return { events, cursor: { since: head, started: true } };
-      }
+      let next = (cursor as { since?: number } | undefined) ?? { since: 0 };
+      if (!seenJobs.has(agent)) { const board = await o.world.get("/market/board").catch(() => undefined); seenJobs.set(agent, new Set(board && board.status === 200 ? jobIds(board.text) : [])); }
       if (did) {
         const r = await o.world.get(`/forum/replies?did=${encodeURIComponent(did)}&since=${next.since ?? 0}&limit=50`).catch(() => undefined);
         if (r && r.status === 200) {

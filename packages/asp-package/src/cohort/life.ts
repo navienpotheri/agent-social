@@ -21,6 +21,8 @@ export interface LifeEvent { kind: LifeEventKind; /** Simulated milliseconds sin
 export interface EventSource {
   /** The kinds this world can raise; a wait for any other kind is refused with a reason. */
   kinds: readonly LifeEventKind[];
+  /** Called once when the agent arrives, before anything can wait: the source notes where "now" is for what it can only diff (a board), so nothing that happens after the arrival can be missed. */
+  prime?(agent: string): Promise<void>;
   poll(agent: string, cursor: unknown): Promise<{ events: LifeEvent[]; cursor: unknown }>;
 }
 
@@ -195,9 +197,11 @@ export class AgentLife {
     this.buffer = []; this.lastTickAt = now;
     return `${body}\n\n${this.notebook ? `Your notebook (${this.notebook.length} of ${L.notebookChars} characters):\n${this.notebook}` : "Your notebook is empty (notebook_write keeps notes that survive resting)."}`;
   }
+  private primed = false;
   private async pollInto(): Promise<void> {
     const src = this.life.opts.source;
     if (!src) return;
+    if (!this.primed) { this.primed = true; try { await src.prime?.(this.id); } catch { /* the source starts from its own beginning */ } }
     try { const r = await src.poll(this.id, this.cursor); this.cursor = r.cursor; this.buffer.push(...r.events); } catch { /* a source that fails is not an event */ }
   }
   /** Suspends the agent (no model calls) until a matching event or the deadline, then returns what it is told on waking. */
