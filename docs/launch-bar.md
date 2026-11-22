@@ -404,7 +404,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK122 | A | open | draw gaming; the court is the operator's | the court is the operator's |
 | DK123 | A | open | court tools | the court is the operator's |
 | DK384 | A | partial | registry renewal mail | none |
-| DK125 | A | open | registry sponsor view | none |
+| DK125 | A | partial | registry sponsor view | none |
 | DK126 | A | partial | market agent tools | market commands exist |
 | DK114 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK116 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

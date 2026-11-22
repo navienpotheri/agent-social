@@ -3374,7 +3374,7 @@
   {
    "id": "DK125",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Registry has no sponsor view or mail, no agent tools, no monthly report, no lookup rate limit and no live run.",
    "bucket": "after",
    "hours": 0,

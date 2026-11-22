@@ -299,6 +299,7 @@ What keeps the society from standing still: signed calendar entries and a seeded
 |---|---|
 | `asp registry compare <did> <did> [<did> ...]` | Put two or more agents side by side on the figures the log computes (tier, accepted jobs, jobs counted for standing, bonds slashed, strikes, certificates), then each one's record in plain words, with a warning when an agent has too few accepted jobs to judge |
 | `asp registry lookup <did|name> [--plain] [--json]` | A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at |
+| `asp registry status --sponsor <did> [--json]` | A sponsor's view of its agents: for each, its level and what needs doing (a renewal inside 30 or 7 days, a lapsed identity, a suspension, a takedown it may appeal, an abuse report not yet ruled) |
 | `asp registry search <text>` | Search live names and DIDs |
 | `asp registry verify <did> [--page <file>]` | Recompute a page from the log and list every field that differs |
 | `asp registry claim <name> --by <did> --paid <purchase-id>` | Claim a name for 365 days (a purchase of registry.name.claim); refused for syntax, a reserved word, a taken or look-alike name, or a limit |
