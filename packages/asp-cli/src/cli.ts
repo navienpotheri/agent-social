@@ -433,7 +433,7 @@ import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESET
 import { NEEDS_PASSPHRASE, isSealed, open as openSealed, seal } from "@agent-social/asp-package";
 import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
-import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
+import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, buildRunEndMail, collectMandateFacts, collectRunEndFacts, findAlerts, findRunEnds, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
   logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, priceFor, isPricedModel, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
@@ -1831,6 +1831,11 @@ async function noticesCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!did) throw new UsageError("asp notices --did <did>   (or run it where asp enrol or asp join saved your identities)");
   const log = (await openLog(home, logEnv)).log;
   const list = await noticesFor((await log.since(0, 1_000_000)) as never, did);
+  // Mail that is held back for want of an address is a notice too (ML2): the person is told why nothing arrived.
+  try {
+    const held = JSON.parse(readFileSync(join(home, "mail-held.json"), "utf8")) as Record<string, { label: string; contract: string; why: string; at: string }>;
+    for (const [key, h] of Object.entries(held)) list.push({ id: key, kind: "mail held", at: h.at, detail: `${h.label}: ${h.why}` } as never);
+  } catch { /* nothing held */ }
   if (v.json) { io.out(JSON.stringify(list, null, 2)); return 0; }
   io.out(`notices for ${did}: ${list.length}`);
   for (const n of list) io.out(`  ${n.at}  ${n.kind}: ${n.detail}  (${n.id.slice(0, 19)})`);
@@ -2633,6 +2638,19 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!acct.body?.namespace) throw new Error("this service does not give identities a namespace, so asp join cannot name your agent; use asp identity new --did ...");
   const { domain } = acct.body.namespace as { domain: string };
   const me = didFor(domain, picked.tenant, "human"), agent = didFor(domain, picked.tenant, "agent", agentName);
+  // ML2: the mail about this person's agents needs a destination. The address they signed up with (verified by Google) is set for their identity at once, so `asp mail pending` shows it and the end-of-run mail has somewhere to go;
+  // with no verified address nothing is invented: the mail is held with the reason, `asp notices` shows it, and `asp mail address set` gives it a place.
+  {
+    const email = acct.body.tenant?.signup?.google?.email as string | undefined;
+    if (email) {
+      const addrPath = join(home, "mail-addresses.json");
+      let book: Record<string, string> = {};
+      try { book = JSON.parse(readFileSync(addrPath, "utf8")); } catch { /* none yet */ }
+      book[me] = email;
+      writeFileSync(addrPath, JSON.stringify(book, null, 2));
+      io.out(`  mail      the end-of-run mail for your agents goes to ${email} (the address you signed up with); asp mail address list shows it, and every mail has a link to stop it`);
+    } else io.out("  mail      you signed up with no verified address, so the end-of-run mail is held with the reason (asp notices shows it); give it a place with: asp mail address set " + me + " <address>");
+  }
   const person = await run(["identity", "new", "--kind", "human", "--me"]);
   const code = /(ASP-[0-9A-Z-]+)/.exec(person)?.[1];
   // The recovery code is shown the moment it exists, before any later step can fail: it is kept nowhere else.
@@ -4515,7 +4533,9 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
       if ((await local.log.chainInfo(c))?.state === "Settled" && !state[c]) finals.push(c);
     }
     const alerts = (await findAlerts(local.log)).filter((a) => !state[a.key]);
-    return { finals, alerts };
+    // The end of a governed run (ML1): `asp run` settles no contract, so a run's end is its final signed Action report.
+    const runs = (await findRunEnds(local.log)).filter((r) => !state[r.key]);
+    return { finals, alerts, runs };
   };
 
   if (sub === "watch" && v["print-schedule"]) {
@@ -4535,7 +4555,7 @@ ${entries.launchd}`);
   }
   if (sub === "pending" || sub === "watch") {
     const pass = async (): Promise<number> => {
-      const { finals, alerts } = await due();
+      const { finals, alerts, runs } = await due();
       let queued = 0;
       const send = async (key: string, label: string, contract: string, build: (f: MandateFacts, to: string) => { eml: string; html: string; text: string; subject: string }) => {
         const f = await collectMandateFacts(local.log, contract);
@@ -4567,8 +4587,29 @@ ${entries.launchd}`);
           queued++;
         }
       }
+      // A mail with no address is HELD with its reason, not dropped: it stays in the pending list and in `asp notices`, and goes out when an address is set.
+      const heldPath = join(home, "mail-held.json");
+      const held: Record<string, { label: string; contract: string; why: string; at: string }> = readJson(heldPath, {});
+      const saveHeld = () => writeFileSync(heldPath, JSON.stringify(held, null, 2));
+      for (const e of runs) {
+        const f = await collectRunEndFacts(local.log, e);
+        if (!f) continue;
+        const to = v.to ?? addresses[f.contract.principal];
+        if (sub === "pending") { io.out(`  ${"run-end".padEnd(13)} ${f.contract.purpose}  (${e.action.slice(0, 19)}, principal ${f.contract.principal}${to ? ` -> ${to}` : ", NO ADDRESS"})`); continue; }
+        if (!to) {
+          if (!held[e.key]) { held[e.key] = { label: "run-end", contract: e.contract, why: `no address for ${f.contract.principal}: set one with asp mail address set ${f.contract.principal} <address>`, at: now() }; saveHeld(); }
+          io.err(`  held     run-end for ${e.action.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>); see asp notices`);
+          continue;
+        }
+        const mail = buildRunEndMail(f, { to, ...linkBase });
+        const done = await queueFiles(e.key, "run-end", mail, to);
+        if (!done) continue;
+        if (held[e.key]) { delete held[e.key]; saveHeld(); }
+        io.out(`queued ${done} to ${to}: ${mail.subject}`);
+        queued++;
+      }
       for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase, ...learned }));
-      if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
+      if (sub === "pending") io.out(`${finals.length} ended Mandate(s)${runs.length ? `, ${runs.length} run end(s)` : ""} and ${alerts.length} alert(s) not mailed yet`);
       return queued;
     };
     if (sub === "pending") { await pass(); return 0; }

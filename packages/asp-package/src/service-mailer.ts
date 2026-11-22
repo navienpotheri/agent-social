@@ -16,6 +16,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { renewalNotices, type OwnerStore, type Tenant } from "@agent-social/asp-log";
 import { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MailLog } from "./mail.ts";
+import { buildRunEndMail, collectRunEndFacts, findRunEnds } from "./mail-run.ts";
 import { RetryableMailError, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport } from "./mail-send.ts";
 
 export interface MailerOptions {
@@ -179,6 +180,14 @@ export class ServiceMailer {
         const f = await collectMandateFacts(log, c);
         if (!f) continue;
         if (await this.deliver(key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildMandateMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
+      // The end of a governed run (ML1): `asp run` signs a final Action report and settles no contract, so the run's end is read from that report; one mail for each run.
+      for (const e of await findRunEnds(log)) {
+        if (sent >= budget) break;
+        if (this.state.sent[e.key] || this.state.skipped[e.key]) continue;
+        const f = await collectRunEndFacts(log, e);
+        if (!f) continue;
+        if (await this.deliver(e.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildRunEndMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
       }
       // Alerts.
       for (const a of await findAlerts(log, this.now())) {

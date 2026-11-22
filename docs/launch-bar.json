@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 152,
+  "withdraw": 155,
   "after": 319,
-  "total": 539
+  "total": 542
  },
  "mustWorkerHours": 313.2,
  "entries": [
@@ -6357,6 +6357,45 @@
    "pri": "A",
    "status": "open",
    "gap": "The retraining path out of tier 0 asks for the sponsor's re-vouching after the slash; a key-only agent is its own sponsor, so it passes that check for itself and the second party the path was designe…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ML1",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A governed run (`asp run <runtime>`) ended with NO end-of-job mail: the live run of 2026-11-22 (session 660d3959, sponsor nprtest) left nothing in `asp mail pending`, no mail line in the server journ…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ML2",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A principal with no address got nothing and was told nothing: the mail had no destination and the reason was lost.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ML3",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The hosted service sent end-of-Mandate mail only for a Settled contract, so a governed run's end never triggered one.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

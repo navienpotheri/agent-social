@@ -1255,7 +1255,7 @@
         },
         {
           "command": "asp mail preview|queue|pending|watch|address",
-          "description": "The end-of-job mail and alerts; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)"
+          "description": "The end-of-job mail, the mail at the end of a governed run (read from its final signed report), and alerts; a mail with no address is held with the reason and shown by asp notices; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)"
         },
         {
           "command": "asp dashboard [--port n]",
