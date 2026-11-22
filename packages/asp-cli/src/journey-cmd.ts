@@ -9,11 +9,11 @@
  * `asp society tail` prints what is happening: the latest records as steps of the agents they concern, with the institution (public: no free text). Credits are accounting entries, not money.
  */
 import { writeFileSync } from "node:fs";
-import { activityOf, journeyOf, withBudget, type ActivityEvent, type Journey, type JourneyBudget, type StoredRec } from "@agent-social/asp-log";
+import { activityOf, journeyOf, withBudget, withUsdEstimate, type Pricer, type ActivityEvent, type Journey, type JourneyBudget, type StoredRec } from "@agent-social/asp-log";
 import { renderJourneyHtml } from "@agent-social/asp-package";
 
 interface Io { out: (l: string) => void; err: (l: string) => void; env: Record<string, string | undefined> }
-interface Flags { json?: boolean; "html-file"?: string; follow?: boolean; "sponsor-view"?: boolean; interval?: string; "max-polls"?: string; since?: string }
+interface Flags { json?: boolean; "html-file"?: string; follow?: boolean; "sponsor-view"?: boolean; interval?: string; "max-polls"?: string; since?: string; usd?: boolean }
 export class JourneyUsage extends Error {}
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -29,6 +29,7 @@ export function renderJourneyText(j: Journey): string[] {
   if (j.cost) {
     const c = j.cost;
     out.push(`  cost to you: ${c.tokens.total} tokens in all (${c.tokens.in} in, ${c.tokens.out} out) over ${c.actions} Action(s); ${c.tokens.month} this month, ${c.tokens.today} today; per paid job ${c.perAcceptedJob.tokens ?? "none yet"} tokens and ${c.perAcceptedJob.credits ?? "none yet"} credits spent`);
+    if (c.usd) out.push(`  estimated cost: $${c.usd.estimate.toFixed(4)} over ${c.usd.actionsPriced} Action(s)${c.usd.actionsAssumed ? `, ${c.usd.actionsAssumed} of them at an assumed (high) price because the model is not in the table` : ""}; an estimate from tokens and a price table, never a bill`);
     if (c.cap) out.push(`  cap: ${c.cap.state}${c.cap.monthlyTokens !== null ? `; month ${c.tokens.month} of ${c.cap.monthlyTokens} tokens${c.cap.monthPercent !== null ? ` (${c.cap.monthPercent}%)` : ""}` : ""}${c.cap.dailyTokens !== null ? `; today ${c.tokens.today} of ${c.cap.dailyTokens}${c.cap.dayPercent !== null ? ` (${c.cap.dayPercent}%)` : ""}` : ""}; a run past a cap is refused by the gateway`);
   }
   for (const st of j.steps) {
@@ -69,10 +70,10 @@ async function load(name: string, v: Flags, io: Io, local: () => Promise<StoredR
   return j;
 }
 
-export async function journeyCommand(name: string | undefined, v: Flags, io: Io, local: () => Promise<StoredRec[]>, budgetOf?: (did: string) => JourneyBudget): Promise<number> {
+export async function journeyCommand(name: string | undefined, v: Flags, io: Io, local: () => Promise<StoredRec[]>, budgetOf?: (did: string) => JourneyBudget, priceOf?: Pricer): Promise<number> {
   if (!name) throw new JourneyUsage("asp journey <agent name or did> [--sponsor-view] [--json] [--html-file <file>] [--follow [--interval <seconds>] [--max-polls <n>]]");
-  let j = await load(name, v, io, local);
-  if (budgetOf && j.view === "sponsor") j = withBudget(j, budgetOf(j.did));
+  const finish = (x: Journey): Journey => { let y = x; if (budgetOf && y.view === "sponsor") y = withBudget(y, budgetOf(y.did)); if (v.usd) { if (y.view !== "sponsor") throw new JourneyUsage("--usd is part of the sponsor view: add --sponsor-view"); if (priceOf) y = withUsdEstimate(y, priceOf); } return y; };
+  let j = finish(await load(name, v, io, local));
   if (v["html-file"]) { writeFileSync(v["html-file"], renderJourneyHtml(j)); io.out(`wrote ${v["html-file"]} (${j.view} view, ${j.summary.steps} steps)`); }
   if (v.json) io.out(JSON.stringify(j, null, 2));
   else if (!v["html-file"]) for (const l of renderJourneyText(j)) io.out(l);
@@ -81,8 +82,7 @@ export async function journeyCommand(name: string | undefined, v: Flags, io: Io,
   const every = Math.max(0, Number(v.interval ?? "5")) * 1000, max = v["max-polls"] ? Number(v["max-polls"]) : Infinity;
   for (let n = 0; n < max; n++) {
     await sleep(every);
-    j = await load(name, v, io, local);
-    if (budgetOf && j.view === "sponsor") j = withBudget(j, budgetOf(j.did));
+    j = finish(await load(name, v, io, local));
     for (const st of j.steps) {
       if (seen.has(st.id)) continue;
       seen.add(st.id);

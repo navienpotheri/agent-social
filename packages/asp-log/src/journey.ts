@@ -79,7 +79,9 @@ export interface JourneyStep {
   /** Free text from the record or the forum: sponsor view only. */
   detail?: string;
   /** The tokens an Action reports (the gateway's own measure, not an estimate): sponsor view only (DK1347). */
-  tokens?: { in: number; out: number };
+  tokens?: { in: number; out: number; /** The first model the Action's metrics name (sponsor view only), for the cost estimate. */ model?: string };
+  /** The estimated cost of this step in US dollars (DK1345; added by `withUsdEstimate`, sponsor view only): an estimate from tokens and a price table, never a bill. */
+  usd_estimate?: { usd: number; assumed_price: boolean };
 }
 
 export interface JourneySummary {
@@ -167,6 +169,8 @@ export interface JourneyCost {
   perAcceptedJob: { tokens: number | null; credits: number | null };
   credits: { earned: number; spent: number };
   /** The standing cap and how close the agent is, when it is known. `state` is `reached` at or over a cap, `warn` from the warning level, else `ok`; the gateway refuses a run past a cap (asp budget). */
+  /** The estimated dollar cost (DK1345), present only when the caller priced it (`withUsdEstimate`): the sum of the steps' estimates, and how many were priced with an assumed price because the model is not in the table. */
+  usd?: { estimate: number; actionsPriced: number; actionsAssumed: number; note: string };
   cap?: { dailyTokens: number | null; monthlyTokens: number | null; warnPercent: number; dayPercent: number | null; monthPercent: number | null; state: "ok" | "warn" | "reached" };
   note: string;
 }
@@ -303,7 +307,7 @@ export function stepOf(s: StoredRec, did: string, ctx: JourneyCtx, view: "public
       if (c && c.principal === did) return mk("paid", `${me} paid ${released} credits for a job (settled ${String(b.basis)})`, { flow: { dir: "out", credits: released, why: "job" }, amount: released, ...jdExtra });
       return mk("settled", `${me} was party to a settlement (${String(b.basis)})`);
     }
-    case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown }; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}${typeof b.job_data_chain === "string" ? ", citing the hash of its job-data deletion chain, so the deletion lines in its run log are bound to this signed record" : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout } } : {}); }
+    case "action": { const m = (b.metrics ?? {}) as { tokens_in?: unknown; tokens_out?: unknown; models?: unknown }; const model0 = Array.isArray(m.models) && m.models[0] && typeof (m.models[0] as { name?: unknown }).name === "string" ? String((m.models[0] as { name: string }).name).slice(0, 80) : undefined; const tin = Number(m.tokens_in ?? 0), tout = Number(m.tokens_out ?? 0); return mk("acted", `${me} reported an Action${Array.isArray(b.scopes_used) && b.scopes_used.length ? ` using ${b.scopes_used.map(String).join(", ")}` : ""}${typeof b.job_data_chain === "string" ? ", citing the hash of its job-data deletion chain, so the deletion lines in its run log are bound to this signed record" : ""}`, Number.isFinite(tin) && Number.isFinite(tout) && (tin > 0 || tout > 0) ? { tokens: { in: tin, out: tout, ...(model0 ? { model: model0 } : {}) } } : {}); }
     case "refusal": return mk("refused", `a call by ${me} was refused`);
     case "expedition": return mk("expedition_declared", `${me} was sent on an expedition into the generated world ${String(b.world)}${Array.isArray(b.group) ? ` with ${Math.max(0, b.group.length - 1)} other agent${b.group.length === 2 ? "" : "s"}` : ""} (the world cannot be regenerated: it is audited, and it is never evidence for a claim)`, { ...(view === "sponsor" && typeof b.goal === "string" ? { detail: b.goal } : {}) });
     case "expedition_result": return mk("expedition_ended", `an expedition of ${me} ended ${String(b.status)}${b.status === "scored" ? (b.reached ? ": the goal was reached" : ": the goal was not reached") : ": it is void and counts for nothing"}`);
@@ -323,6 +327,24 @@ export function capFor(tokens: { today: number; month: number }, b: JourneyBudge
   return { dailyTokens: b.dailyTokens ?? null, monthlyTokens: b.monthlyTokens ?? null, warnPercent: warn, dayPercent, monthPercent, state: worst >= 100 ? "reached" : worst >= warn ? "warn" : "ok" };
 }
 /** A sponsor-view journey with the agent's standing cap applied; any other journey is returned as it is. */
+export type Pricer = (model: string | undefined) => { inPerM: number; outPerM: number; known: boolean };
+/**
+ * The estimated dollar cost of each step and of the whole journey (DK1345), from the Actions' own token metrics and a price table the CALLER supplies (the CLI passes the gateway's table; the log does not carry prices).
+ * Sponsor view only; an estimate, never a bill; an Action whose model is not in the table is priced at the table's high default and counted as assumed. Nothing changes when this is not called.
+ */
+export function withUsdEstimate(j: Journey, price: Pricer): Journey {
+  if (j.view !== "sponsor" || !j.cost) return j;
+  let total = 0, priced = 0, assumed = 0;
+  const steps = j.steps.map((st) => {
+    if (!st.tokens) return st;
+    const p = price(st.tokens.model);
+    const usd = (st.tokens.in * p.inPerM + st.tokens.out * p.outPerM) / 1_000_000;
+    total += usd; priced++; if (!p.known) assumed++;
+    return { ...st, usd_estimate: { usd: Math.round(usd * 1e6) / 1e6, assumed_price: !p.known } };
+  });
+  return { ...j, steps, cost: { ...j.cost, usd: { estimate: Math.round(total * 1e4) / 1e4, actionsPriced: priced, actionsAssumed: assumed, note: "An estimate from the tokens each Action reports and a price table, never a bill; an Action whose model is not in the table is priced high and counted as assumed. Mock credits are not part of it." } } };
+}
+
 export function withBudget(j: Journey, b: JourneyBudget): Journey {
   if (j.view !== "sponsor" || !j.cost || !(b.dailyTokens || b.monthlyTokens)) return j;
   return { ...j, cost: { ...j.cost, cap: capFor(j.cost.tokens, b) } };
