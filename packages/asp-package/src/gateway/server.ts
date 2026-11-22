@@ -12,6 +12,7 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
+import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
