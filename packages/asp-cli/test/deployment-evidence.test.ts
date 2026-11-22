@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
@@ -322,4 +323,43 @@ test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 5);
   for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
+});
+
+test("posting by sponsor-less identities is open on the live forum by the owner's decision of 2026-11-23: the setup script passes the flag (default on, SPONSORLESS_POSTING=0 turns it off), the unit it writes has it, the 30-second kill switch is in the guides and works on the unit line, and DK1840 records the abuse readiness as open", () => {
+  const script = read("docs/deploy/setup-server.sh");
+  assert.match(script, /SPONSORLESS_POSTING="\$\{SPONSORLESS_POSTING:-1\}"/);
+  assert.match(script, /if \[ "\$SPONSORLESS_POSTING" = "0" \]; then SPONSORLESS_FLAG=""; else SPONSORLESS_FLAG="--forum-sponsorless-posting"; fi/);
+  assert.match(script, /--forum \$DATA\/forum --forum-open \$SPONSORLESS_FLAG /);
+  assert.match(script, /DK859/);
+  assert.match(script, /decision of 2026-11-23/);
+  assert.match(read("packages/asp-cli/src/cli.ts"), /"forum-sponsorless-posting": \{ type: "boolean" \}/, "the flag is a flag of the CLI");
+  // The unit's own line, rendered by bash with the script's own variable logic, for the default, 0 and 1.
+  const logic = script.split(String.fromCharCode(10)).filter((l) => l.startsWith('SPONSORLESS_POSTING="') || l.startsWith("if [ \"$SPONSORLESS_POSTING\"")).join(String.fromCharCode(10));
+  const unitLine = script.split(String.fromCharCode(10)).find((l) => l.includes("--forum-open $SPONSORLESS_FLAG"))!;
+  const bash = spawnSync("bash", ["-c", "echo ok"], { encoding: "utf8" });
+  if (bash.status === 0) {
+    const render = (env: string) => spawnSync("bash", ["-c", `${env}${logic}\nDATA=/var/lib/asp\ncat <<UNIT\n${unitLine}\nUNIT`], { encoding: "utf8" }).stdout;
+    assert.match(render(""), /--forum-open --forum-sponsorless-posting /, "on by default");
+    assert.match(render("SPONSORLESS_POSTING=1\n"), /--forum-open --forum-sponsorless-posting /);
+    const off = render("SPONSORLESS_POSTING=0\n");
+    assert.doesNotMatch(off, /sponsorless/, "off with 0");
+    assert.match(off, /--forum-open /, "registration stays open");
+    // The kill switch of the guides, run on the rendered line, removes the flag and keeps the rest.
+    const rendered = render("").trim();
+    const killed = spawnSync("bash", ["-c", `printf '%s\n' '${rendered.replace(/'/g, "'\''")}' | sed 's/ --forum-sponsorless-posting//'`], { encoding: "utf8" }).stdout;
+    assert.doesNotMatch(killed, /sponsorless/);
+    assert.match(killed, /--forum-open /);
+  }
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md"]) {
+    const d = read(p);
+    assert.ok(d.includes("sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service" + String.fromCharCode(10) + "sudo systemctl daemon-reload" + String.fromCharCode(10) + "sudo systemctl restart asp-log" + String.fromCharCode(10) + "```"), `${p}: the three kill-switch lines, in order, as one block`);
+    for (const frag of ["Close posting by sponsor-less identities in 30 seconds", "sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service", "sudo systemctl daemon-reload", "sudo systemctl restart asp-log", "writes the flag into the unit each time that it runs", "SPONSORLESS_POSTING=0", "DK1840"]) assert.ok(d.includes(frag), `${p}: ${frag}`);
+  }
+  const row = rowOf("DK1840").sort((a, b) => b.length - a.length)[0]!;
+  assert.equal(status(row), "open");
+  assert.equal(row.split("|").slice(-3)[0]!.trim(), "A");
+  for (const frag of ["SPONSORLESS_POSTING_CLOSED", "DK859", "moderation drill", "hide and restore a test post, restrict a citizen, read the report queue", "the kill switch is run once", "the first 100 outside posts are read by the owner", "first-hour watch", "The open web is not announced as open until the owner has announced it", "Not redeployed by a worker"]) assert.ok(row.includes(frag), `DK1840: ${frag}`);
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## Step 11 learned: sponsor-less posting was closed by default"));
+  for (const frag of ["SPONSORLESS_POSTING_CLOSED", "joined as forum-test-a, no sponsor", "The owner decided on 2026-11-23 (relayed by the lead) to open posting by sponsor-less identities", "did not pass the flag", "the open web is not announced until the owner has announced it"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
 });

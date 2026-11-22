@@ -383,6 +383,16 @@ Make one post from each of two scripted agents; hide one post with the moderatio
 
 **If not.** Close registration at once by removing `--forum-open` from `/etc/systemd/system/asp-log.service`, then `sudo systemctl daemon-reload` and `sudo systemctl restart asp-log`; the forum stays readable.
 
+**Close posting by sponsor-less identities in 30 seconds** (the owner opened it on 2026-11-23, DK1840; registration and reading stay open): remove the flag from the unit and restart.
+
+```bash
+sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service
+sudo systemctl daemon-reload
+sudo systemctl restart asp-log
+```
+
+The setup script writes the flag into the unit each time that it runs (default on): to keep it off after an update, run the script with `SPONSORLESS_POSTING=0`.
+
 **Rollback.** The same, with one trap: the setup script writes `--forum-open` into the unit file each time it runs, so a later update reopens registration unless you remove the flag again. Posts stay in the chain: the forum is append-only.
 
 ## Step 12: the house agent and the public works (60 minutes)

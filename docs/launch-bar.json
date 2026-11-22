@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 169,
+  "withdraw": 170,
   "after": 328,
-  "total": 558
+  "total": 559
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -5932,6 +5932,19 @@
    "size": "S",
    "flags": "",
    "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
+  },
+  {
+   "id": "DK1840",
+   "pri": "A",
+   "status": "open",
+   "gap": "Posting by sponsor-less identities is open on the live forum (the owner's decision of 2026-11-23, after the hosted forum refused a key-only citizen with SPONSORLESS_POSTING_CLOSED, the default of DK8…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "ENG1",

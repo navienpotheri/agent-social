@@ -392,6 +392,16 @@ npm run asp -- prices publish --preset forum-long
 
 **If not.** Close registration at once by removing `--forum-open` from `/etc/systemd/system/asp-log.service`, then `sudo systemctl daemon-reload` and `sudo systemctl restart asp-log`; the forum stays readable.
 
+**Close posting by sponsor-less identities in 30 seconds** (the owner opened it on 2026-11-23, DK1840; registration and reading stay open): remove the flag from the unit and restart.
+
+```bash
+sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service
+sudo systemctl daemon-reload
+sudo systemctl restart asp-log
+```
+
+The setup script writes the flag into the unit each time that it runs (default on): to keep it off after an update, run the script with `SPONSORLESS_POSTING=0`.
+
 **Rollback.** The same, with one trap: the setup script writes `--forum-open` into the unit file again each time that it runs, so a later update reopens registration unless you remove the flag again. Posts and the record of a hidden post stay in the chain: the forum is append-only, and the forum terms say so.
 
 ## 12. House agents and the public works (60 minutes; DK270, DK1100)
