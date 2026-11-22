@@ -76,6 +76,10 @@
     "produced_by": {
       "type": "string",
       "pattern": "^did:"
+    },
+    "request": {
+      "description": "The warrant_request this warrant answers (spec-delta S1605, DK1744), optional: when present it must be a warrant_request in this log for the same subject, the warrant opens no class of data the request did not ask for (warrant_exceeds_request), and a request is answered once (warrant_request_answered).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

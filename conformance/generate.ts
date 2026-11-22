@@ -808,6 +808,17 @@ sv("memory_key_no_key", "memory_key", (({ public_key: _k, ...r }) => r)(mkBody()
 sv("memory_key_empty_name", "memory_key", mkBody({ name: "" }), false);
 sv("memory_key_extra_field", "memory_key", mkBody({ private_key: "x" }), false);
 sv("memory_key_revokes_not_an_id", "memory_key", mkBody({ revokes: "memory-1" }), false);
+// ---------- the inspectorate's warrant request and referral (spec-deltas S1605, register row DK1744) ----------
+const wrBody = (over: Record<string, unknown> = {}) => ({ subject: "did:web:example.com:agents:coder-7", sponsor: "did:web:example.com:users:alice", data: ["run_log"], grounds: "two runs read a decoy the Mandate forbade", scope: "the run log of the two runs that touched the decoy", ...over });
+sv("valid_warrant_request", "warrant_request", wrBody(), true);
+sv("warrant_request_no_data", "warrant_request", wrBody({ data: [] }), false);
+sv("warrant_request_unknown_class", "warrant_request", wrBody({ data: ["browser_history"] }), false);
+sv("warrant_request_extra_field", "warrant_request", wrBody({ key: "x" }), false);
+sv("valid_warrant_answers_request", "warrant", wBody({ request: "sha256:" + "6".repeat(64) }), true);
+sv("valid_inspectorate_referral", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "read and copied the decoy on two runs" }, true);
+sv("valid_inspectorate_referral_with_case", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), custody_case: "case-7", summary: "with the custody chain" }, true);
+sv("inspectorate_referral_no_finding", "inspectorate_referral", { summary: "x" }, false);
+sv("inspectorate_referral_penalty", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "x", slash: 5 }, false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
