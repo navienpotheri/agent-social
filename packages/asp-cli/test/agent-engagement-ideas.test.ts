@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { LIFE_DEFS, TOOLS } from "../src/cohort/tools.ts";
+import { TOOLS } from "../src/cohort/tools.ts";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
@@ -58,13 +58,8 @@ test("the owner's four risks and the engagement ideas are all there, and every r
 });
 
 test("no new tool takes the name of an existing or already planned tool, and the web tool is off by default and read-only", () => {
-<<<<<<< HEAD
   const taken = new Set([...TOOLS.map((t) => t.name), "rest", "wait_for", "notebook_write", "notebook_read", "leave", "send_message", "read_messages"]);
   const fresh = ["web_read", "web_search", "doc_write", "doc_read", "doc_search", "doc_cite", "doc_rate", "tip", "endorse"];
-=======
-  const taken = new Set([...TOOLS.map((t) => t.name), ...LIFE_DEFS.map((t) => t.name)]);
-  const fresh = ["web_read", "web_search", "doc_write", "doc_read", "doc_search", "doc_cite", "doc_rate", "suggest", "tip", "endorse"];
->>>>>>> claude/sad-shannon-1be729
   for (const n of fresh) assert.ok(!taken.has(n), `${n} is new`);
   assert.match(doc, /`web_read\(url\)`: GET only/);
   assert.match(doc, /absent from the tool set unless a per-run allowlist/);

@@ -35,22 +35,18 @@ async function asp(args: string[], env: Record<string, string> = {}, home = mkdt
 const blocks = [...card.matchAll(/```powershell\n([\s\S]*?)```/g)].map((m) => m[1]!.trim());
 const lines = blocks.flatMap((b) => b.split("\n"));
 const asps = lines.filter((l) => l.startsWith("npm run asp -- ")).map((l) => l.slice("npm run asp -- ".length));
-const cohorts = asps.filter((l) => l.startsWith("society cohort ") && !l.startsWith("society cohort verify") && !l.startsWith("society cohort plan"));
-const planCmd = asps.find((l) => l.startsWith("society cohort plan "));
+const cohorts = asps.filter((l) => l.startsWith("society cohort ") && !l.startsWith("society cohort verify"));
 const tokens = (cmd: string): string[] => cmd.split(/\s+/).filter(Boolean);
 
 test("the card gives the dry run, then one, three and fifteen agents, in that order, with the owner's model and caps", () => {
   assert.equal(cohorts.length, 4);
   assert.match(cohorts[0]!, /--provider stand-in --agents 3/);
-  assert.match(cohorts[1]!, /--agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0\.40 --minutes 30$/);
-  assert.match(cohorts[2]!, /--agents 3 --model claude-haiku-5-5 .*--budget-usd 0\.40 --minutes 30 --arrivals staggered:1@10$/);
-  assert.match(cohorts[3]!, /--agents 15 --model claude-haiku-5-5 .*--budget-usd 0\.40 --total-usd 6 --minutes 60 --arrivals staggered:5@30$/);
-  assert.ok(planCmd, "the plan comes first among the real steps");
-  assert.ok(asps.indexOf(planCmd!) < asps.indexOf(cohorts[1]!), "the plan is before the first real agent");
-  assert.ok(asps.indexOf(cohorts[0]!) < asps.indexOf(planCmd!), "the dry run is first");
+  assert.match(cohorts[1]!, /--agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0\.40/);
+  assert.match(cohorts[2]!, /--agents 3 --model claude-haiku-5-5/);
+  assert.match(cohorts[3]!, /--agents 15 --model claude-haiku-5-5 .*--budget-usd 0\.40 --total-usd 6 /);
   assert.ok(isPricedModel("claude-haiku-5-5"), "the model is in the price table, so no price flags are needed");
   for (const c of cohorts) assert.ok(c.includes("--local"), `${c} is local`);
-  for (const c of cohorts.slice(1)) assert.doesNotMatch(c, /--price-in|--provider-url|--persona-file|--no-life|--sim-speed/);
+  for (const c of cohorts.slice(1)) assert.doesNotMatch(c, /--price-in|--provider-url|--persona-file/);
   assert.ok(lines.includes('$env:ANTHROPIC_API_KEY = "PASTE-YOUR-OWN-KEY"'), "the key is set in the window and is a placeholder");
 });
 
@@ -58,22 +54,14 @@ test("every cohort command on the card runs and writes a report; the lines that 
   const url = await fakeProvider();
   const expected: Record<number, string[]> = {
     0: ["cohort: 3 agents of stand-in through stand-in, on a local society only; no goal is given and no persona is used.", "worst case for the whole run: $3.00.", "3 agents enrolled", "done: 3 agents, estimated spend"],
-<<<<<<< HEAD
     1: ["cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.", "caps: $0.40 per agent, $0.40 in all, 30 minutes", "worst case for the whole run: $0.40.", "1 agent enrolled; model claude-haiku-5-5", "done: 1 agents, estimated spend $"],
     2: ["cohort: 3 agents of claude-haiku-5-5", "caps: $0.40 per agent, $1.20 in all", "worst case for the whole run: $1.20.", "3 agents enrolled"],
     3: ["cohort: 15 agents of claude-haiku-5-5", "caps: $0.40 per agent, $6.00 in all, 60 minutes", "worst case for the whole run: $6.00.", "15 agents enrolled"],
-=======
-    1: ["cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.", "caps: $0.40 per agent, $0.40 in all, 30 minutes", "plus resting, waiting for events, a notebook and leaving", "60 simulated seconds per real second, all arrive at once", "worst case for the whole run: $0.40.", "1 agent enrolled; model claude-haiku-5-5", "done: 1 agents, estimated spend $"],
-    2: ["cohort: 3 agents of claude-haiku-5-5", "caps: $0.40 per agent, $1.20 in all, 30 minutes", "arrivals staggered:1@10", "worst case for the whole run: $1.20.", "3 agents enrolled"],
-    3: ["cohort: 15 agents of claude-haiku-5-5", "caps: $0.40 per agent, $6.00 in all, 60 minutes", "arrivals staggered:5@30", "worst case for the whole run: $6.00.", "15 agents enrolled"],
->>>>>>> claude/sad-shannon-1be729
   };
-
   for (const [i, cmd] of cohorts.entries()) {
     const out = mkdtempSync(join(tmpdir(), "asp-card-out-"));
     const real = !/--provider stand-in/.test(cmd);
-    const fast = real && /--arrivals/.test(cmd);   // staggered arrivals at the default speed take real seconds; the line of the card is checked on the one-agent run, which keeps the default speed
-    const r = await asp([...tokens(cmd), "--out", out, "--max-turns", "3", ...(fast ? ["--sim-speed", "100000"] : []), ...(real ? ["--provider-url", url] : [])], { ANTHROPIC_API_KEY: SECRET });
+    const r = await asp([...tokens(cmd), "--out", out, "--max-turns", "3", ...(real ? ["--provider-url", url] : [])], { ANTHROPIC_API_KEY: SECRET });
     assert.equal(r.code, 0, `${cmd}: ${r.err || r.out}`);
     for (const frag of expected[i]!) {
       assert.ok(r.out.includes(frag), `${cmd}: the run prints ${JSON.stringify(frag)}`);
@@ -143,35 +131,4 @@ test("the card's amounts follow from its caps, and the never-dos and the standin
   // The long form's commands are the same commands: each real step of the card is in society-models-run.md.
   const long = readFileSync(new URL("../../../docs/society-models-run.md", import.meta.url), "utf8");
   for (const c of cohorts) assert.ok(long.includes(c.replace(" --max-turns 3", "")) || long.includes(`npm run asp -- ${c}`), `the long form has: ${c}`);
-});
-
-test("the plan on the card prints what the card says, and its worst cases are the caps of the three steps", async () => {
-  assert.ok(planCmd);
-  const r = await asp(tokens(planCmd!), {});
-  assert.equal(r.code, 0, r.err || r.out);
-  for (const frag of ["plan (per rung; the cap is $0.4 an agent, $6 in all):", "1 agent :", "3 agents:", "15 agents:", "worst case $0.40", "worst case $1.20", "worst case $6.00", "40 ticks an agent"]) {
-    assert.ok(r.out.includes(frag), `the plan prints ${JSON.stringify(frag)}`);
-    assert.ok(card.includes(frag), `the card says to expect ${JSON.stringify(frag)}`);
-  }
-  assert.match(card, /\*\*The expected figures are estimates from those assumptions, not a bill\*\*/);
-  // The long form has the plan command too, with the same flags.
-  const long = readFileSync(new URL("../../../docs/society-models-run.md", import.meta.url), "utf8");
-  const flags = (c: string) => tokens(c).sort().join(" ");
-  const inLong = [...long.matchAll(/society cohort plan [^`\n]+/g)].map((m) => m[0]);
-  assert.ok(inLong.some((c) => flags(c.trim()) === flags(planCmd!)), "the long form has the same plan command");
-});
-
-test("the card explains the engaged loop as the code has it: the default speed, the arrivals, --no-life, and that the stand-in refuses --arrivals and --sim-speed", async () => {
-  for (const frag of ["`--sim-speed`", "the default is 60", "`--arrivals staggered:<n>@<minutes>`", "`--no-life`", "`stop_exploring` is not offered in this loop", "`leave` asks once", "refuses `--arrivals` and `--sim-speed`"]) assert.ok(card.includes(frag), frag);
-  const r = await asp(["society", "cohort", "--local", "--provider", "stand-in", "--agents", "1", "--budget-usd", "1", "--arrivals", "staggered:1@10"], {});
-  assert.notEqual(r.code, 0);
-  assert.match(r.err + r.out, /belong to a real-model run/);
-  const nl = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "claude-haiku-5-5", "--api-key-env", "ANTHROPIC_API_KEY", "--budget-usd", "0.40", "--arrivals", "staggered:1@10", "--no-life"], { ANTHROPIC_API_KEY: SECRET });
-  assert.notEqual(nl.code, 0);
-  assert.match(nl.err + nl.out, /drop --no-life/);
-  // The code's own words: the loop is the default and --no-life turns it off, 60 is the default speed, and stop_exploring is filtered out of the engaged loop.
-  const cmd = readFileSync(new URL("../src/cohort/cmd.ts", import.meta.url), "utf8");
-  assert.match(cmd, /!f\["no-life"\]/);
-  assert.match(cmd, /f\["sim-speed"\], 60\)/);
-  assert.match(readFileSync(new URL("../src/cohort/run.ts", import.meta.url), "utf8"), /!\(life && t\.name === "stop_exploring"\)/);
 });
