@@ -4105,7 +4105,7 @@
   {
    "id": "DK1209",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records.",
    "bucket": "after",
    "hours": 0,
@@ -4153,7 +4153,7 @@
   {
    "id": "DK1221",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Eval scenarios are not records of the log and no command writes them: nothing lets an agent write one for a deployed agent through the society, and the held-out set is not kept by the Registrar.",
    "bucket": "after",
    "hours": 0,
@@ -4177,7 +4177,7 @@
   {
    "id": "DK1223",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured.",
    "bucket": "after",
    "hours": 0,
@@ -4225,7 +4225,7 @@
   {
    "id": "DK1227",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions…",
    "bucket": "after",
    "hours": 0,
@@ -4261,7 +4261,7 @@
   {
    "id": "DK1231",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,
@@ -4273,7 +4273,7 @@
   {
    "id": "DK1232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "`unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in.",
    "bucket": "after",
    "hours": 0,

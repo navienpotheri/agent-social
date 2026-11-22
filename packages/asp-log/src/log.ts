@@ -59,6 +59,7 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
+import { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 import { custodyProblems, honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
 /** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
 export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
@@ -379,6 +380,9 @@ export class EventLog {
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
+    if (type === "eval_scenario") await this.projectEvalScenario(tx, verified);
+    if (type === "grader_agreement") await this.projectGraderAgreement(tx, verified);
+    if (type === "mission" || type === "mission_fund" || type === "mission_contribution" || type === "mission_settle") await this.projectMission(tx, verified, type);
     if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
@@ -1543,6 +1547,21 @@ export class EventLog {
       if (bad.length || mb.network || mb.spend.cap > 0 || mb.subcontract.allowed) throw rule("service_mandate_in_society_only", `a Mandate under an in-society service has read-only scopes, no network, no spend and no subcontracting${bad.length ? ` (not allowed: ${bad.join(", ")})` : ""}`);
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
+    const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    const ac = (r.body as { action_classes?: { irreversible?: string[]; cool_off_seconds?: number }; irreversible?: { policy?: string } }).action_classes;
+    if (ac) await tx.putMarker(`action_classes:${body.contract}`, JSON.stringify({ irreversible: ac.irreversible ?? [], cool_off: ac.cool_off_seconds ?? 0, policy: (r.body as { irreversible?: { policy?: string } }).irreversible?.policy ?? "checkpoint" }));
+    const role = (r.body as { role?: string }).role;
+    if (role === "watchdog" && body.scopes.some((x) => x !== "logs.read" && x !== "fleet.halt")) throw rule("role_watchdog_scopes", "a watchdog may only read logs and signal a halt: its scopes are logs.read and fleet.halt");
+    if (role) await tx.putMarker(`mandate_role:${body.contract}`, role);
+    const wf = (r.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[] } }).workflow;
+    if (wf) {
+      // A workflow clause (S1607, DK1209): its start and transitions must name its own states.
+      if (!wf.states.includes(wf.start)) throw rule("workflow_unknown_state", `the start state ${wf.start} is not one of the clause's states`);
+      const bad = wf.transitions.find((t) => !wf.states.includes(t.from) || !wf.states.includes(t.to));
+      if (bad) throw rule("workflow_unknown_state", `the transition ${bad.from} to ${bad.to} names a state the clause does not have`);
+      await tx.putMarker(`workflow:${body.contract}`, JSON.stringify(wf));
+    }
+    if (up) await tx.putMarker(`unprompted_policy:${body.contract}`, JSON.stringify(up)); // whether the performer may act on its own initiative (S1606, DK1232)
   }
 
   /**
@@ -1588,6 +1607,51 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // Reversible and irreversible actions (S1609, DK1227): an irreversible scope is refused under a forbid policy; an Action may undo an earlier reversible one of the same contract inside the cool-off window, once.
+    {
+      const classes = JSON.parse((await tx.getMarker(`action_classes:${body.contract}`)) ?? "null") as { irreversible: string[]; cool_off: number; policy: string } | null;
+      if (classes?.policy === "forbid" && body.scopes_used.some((x) => classes.irreversible.includes(x))) throw rule("action_irreversible_forbidden", `the Mandate forbids irreversible actions and ${body.scopes_used.filter((x) => classes.irreversible.includes(x)).join(", ")} is classed irreversible`);
+      const undoes = (r.body as { undoes?: string }).undoes;
+      if (undoes) {
+        const target = await tx.getRecord(undoes);
+        if (!target || target.record.type !== "asp.action/v0.2") throw rule("undo_unknown_action", `${undoes} is not an Action in this log`);
+        const tb = target.record.body as { contract: string; scopes_used: string[] };
+        if (tb.contract !== body.contract || target.record.issuer !== r.issuer) throw rule("undo_other_contract", "an Action undoes an Action of its own contract, by the same performer");
+        if (!classes?.cool_off) throw rule("undo_not_allowed", `the Mandate of ${body.contract} states no cool-off window: nothing may be undone`);
+        if (Date.parse(r.issued_at) - Date.parse(target.record.issued_at) > classes.cool_off * 1000) throw rule("undo_window", `the cool-off of ${classes.cool_off} seconds has passed`);
+        if (tb.scopes_used.some((x) => classes.irreversible.includes(x))) throw rule("undo_irreversible", "that Action used an irreversible scope: it cannot be undone");
+        if (await tx.getMarker(`undone:${undoes}`)) throw rule("undo_done", "that Action was undone already");
+        await tx.putMarker(`undone:${undoes}`, r.id);
+      }
+    }
+    // A router dispatches and never executes (S1608, DK1231): an Action under a router Mandate names no scope.
+    if ((await tx.getMarker(`mandate_role:${body.contract}`)) === "router" && body.scopes_used.length) throw rule("role_router_executes", `the Mandate of ${body.contract} is a router's: it dispatches work and does not use scopes itself (${body.scopes_used.join(", ")})`);
+    // A workflow step (S1607, DK1209): the job is in one state of the Mandate's clause and moves by one of its transitions; the current state is kept.
+    {
+      const step = (r.body as { workflow_step?: { from: string; to: string } }).workflow_step;
+      if (step) {
+        const clause = JSON.parse((await tx.getMarker(`workflow:${body.contract}`)) ?? "null") as { start: string; transitions: { from: string; to: string }[]; terminal?: string[] } | null;
+        if (!clause) throw rule("workflow_not_in_mandate", `the Mandate of ${body.contract} has no workflow clause: an Action cannot report a step of one`);
+        const current = (await tx.getMarker(`workflow_state:${body.contract}`)) ?? clause.start;
+        if (step.from !== current) throw rule("workflow_wrong_state", `the job is in ${current}, not ${step.from}`);
+        if (!clause.transitions.some((t) => t.from === step.from && t.to === step.to)) throw rule("workflow_bad_transition", `the clause does not allow ${step.from} to ${step.to}`);
+        await tx.putMarker(`workflow_state:${body.contract}`, step.to);
+      }
+    }
+    // Unprompted work (S1606, DK1232): an Action that says the performer acted on its own initiative needs a Mandate that allows it, within its daily cap (UTC); every Action is counted so a report can show the share.
+    {
+      const unprompted = (r.body as { unprompted?: boolean }).unprompted === true;
+      if (unprompted) {
+        const policy = JSON.parse((await tx.getMarker(`unprompted_policy:${body.contract}`)) ?? "null") as { allowed: boolean; per_day_cap?: number } | null;
+        if (!policy?.allowed) throw rule("unprompted_not_allowed", `the Mandate of ${body.contract} does not allow work on the performer's own initiative: an Action with unprompted true is refused`);
+        const dayKey = `unprompted_day:${body.contract}|${r.issued_at.slice(0, 10)}`;
+        const today = Number((await tx.getMarker(dayKey)) ?? 0);
+        if (policy.per_day_cap !== undefined && today >= policy.per_day_cap) throw rule("unprompted_cap", `${today} unprompted Actions today on ${body.contract}: the Mandate allows ${policy.per_day_cap} a day`);
+        await tx.putMarker(dayKey, String(today + 1));
+        await tx.putMarker(`unprompted_n:${body.contract}`, String(Number((await tx.getMarker(`unprompted_n:${body.contract}`)) ?? 0) + 1));
+      }
+      await tx.putMarker(`actions_n:${body.contract}`, String(Number((await tx.getMarker(`actions_n:${body.contract}`)) ?? 0) + 1));
+    }
     const claimedWait = (r.body as { metrics?: { approval_wait_seconds?: number } }).metrics?.approval_wait_seconds;
     if (claimedWait) {
       const snap = chain?.snapshot;
@@ -1836,6 +1900,29 @@ export class EventLog {
     await noteLock(tx, escrow.backer, body.contract, null);
     // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
     if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** The Action that undid another (S1609, DK1227), or null. Reads only. */
+  async undoneBy(action: string): Promise<string | null> {
+    return this.store.transaction(async (tx) => (await tx.getMarker(`undone:${action}`)) || null);
+  }
+
+  /** The state of a contract's workflow clause (S1607, DK1209): its current state, whether it is terminal, or null when the Mandate has no clause. Reads only. */
+  async workflowState(contract: string): Promise<{ state: string; terminal: boolean } | null> {
+    return this.store.transaction(async (tx) => {
+      const clause = JSON.parse((await tx.getMarker(`workflow:${contract}`)) ?? "null") as { start: string; terminal?: string[] } | null;
+      if (!clause) return null;
+      const state = (await tx.getMarker(`workflow_state:${contract}`)) ?? clause.start;
+      return { state, terminal: (clause.terminal ?? []).includes(state) };
+    });
+  }
+
+  /** The share of a contract's Actions that were unprompted, in permille (S1606, DK1232): how many Actions the performer reported, how many were on its own initiative, and the share. Reads only. */
+  async unpromptedShare(contract: string): Promise<{ actions: number; unprompted: number; permille: number }> {
+    return this.store.transaction(async (tx) => {
+      const actions = Number((await tx.getMarker(`actions_n:${contract}`)) ?? 0), unprompted = Number((await tx.getMarker(`unprompted_n:${contract}`)) ?? 0);
+      return { actions, unprompted, permille: actions ? Math.round((unprompted * 1000) / actions) : 0 };
+    });
   }
 
   /** Whether a contract's job data is confirmed deleted (S1602, JO3): `not_applicable` while the contract is unsettled or retains data for a stated number of days; `confirmed` with the chain head the performer cited; `unconfirmed` when it settled with none. Reads only. */
@@ -2633,6 +2720,17 @@ export class EventLog {
    * The risk-priced bond for an agent (register row DK1333): the Beta upper bound of its measured event rate (a slash or a strike per counted run, from its own record in this log) times the loss
    * (job value plus damage) and the margin. A suggestion read from the log's own numbers, like `suggestedBond`; it does not change what a bond must be (the floor does) and moves no credit.
    */
+  /** The back-test of the bond model on this log's own history (DK1333): see bond-backtest.ts. Reads only. */
+  async bondBacktest(): Promise<BacktestReport> {
+    const recs: { id: string; type: string; issuer: string; body: Record<string, unknown>; issued_at: string }[] = [];
+    for (let after = 0; ;) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; recs.push({ id: s.id, type: s.record.type, issuer: s.record.issuer, body: s.record.body as Record<string, unknown>, issued_at: s.record.issued_at }); }
+    }
+    return backtestBond(recs as never);
+  }
+
   async sizedBondFor(did: string, o: { jobValue: number; damage: number }): Promise<(BondSuggestion & { trials: number; events: number }) | null> {
     const rep = await this.reputation(this.store, did);
     if (!rep) return null;
@@ -2896,6 +2994,116 @@ export class EventLog {
     if (!f.finding) throw rule("finding_not_deliberate", f.why);
     if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
     await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
+  /**
+   * Missions on the log (S1612, DK1240): a pooled goal. Funders pay into the pool account `did:web:asp.local:pool:mission-<id>`, the mission's verifier records contributions and settles: a verified goal pays the whole pool by
+   * recorded units (largest remainder, ties by DID order), an unverified one returns each funder what it put in. Credits move between accounts and none are made or lost.
+   */
+  private async projectMission(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
+    const b = r.body as { mission: string; goal_sha256?: string; verifier?: string; closes_at?: string; amount?: { value: number }; contributor?: string; units?: number; verified?: boolean };
+    const now = Date.parse(r.issued_at);
+    const pool = `did:web:asp.local:pool:mission-${b.mission}`;
+    if (type === "mission") {
+      if (await tx.getMarker(`mission:${b.mission}`)) throw rule("mission_known", `mission ${b.mission} exists already`);
+      if (b.verifier !== this.operator && !(await tx.getPassport(b.verifier!))) throw rule("mission_unknown_verifier", `${b.verifier} has no passport in this log`);
+      if (Date.parse(b.closes_at!) <= now) throw rule("mission_closes_in_past", "funding closes in the future");
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify({ verifier: b.verifier, closes_at: b.closes_at, state: "open", funders: {}, units: {} }));
+      return;
+    }
+    const raw = await tx.getMarker(`mission:${b.mission}`);
+    if (!raw) throw rule("mission_unknown", `${b.mission} is not a mission in this log`);
+    const m = JSON.parse(raw) as { verifier: string; closes_at: string; state: string; funders: Record<string, number>; units: Record<string, number> };
+    if (type === "mission_fund") {
+      if (m.state !== "open" || now >= Date.parse(m.closes_at)) throw rule("mission_closed", `mission ${b.mission} no longer takes funds`);
+      const amount = b.amount!.value;
+      if (!(amount > 0)) throw rule("mission_fund_nothing", "a fund puts in at least one credit");
+      await this.debit(tx, r.issuer, amount);
+      await this.credit(tx, pool, amount);
+      m.funders[r.issuer] = (m.funders[r.issuer] ?? 0) + amount;
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+      return;
+    }
+    if (r.issuer !== m.verifier) throw rule(type === "mission_contribution" ? "mission_contribution_wrong_issuer" : "mission_settle_wrong_issuer", `${r.issuer} is not the verifier of ${b.mission}`);
+    if (m.state === "settled") throw rule("mission_settled", `mission ${b.mission} is settled`);
+    if (type === "mission_contribution") {
+      if (!(await tx.getPassport(b.contributor!))) throw rule("mission_contributor_unknown", `${b.contributor} has no passport in this log`);
+      m.units[b.contributor!] = (m.units[b.contributor!] ?? 0) + b.units!;
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+      return;
+    }
+    // mission_settle
+    const held = Object.values(m.funders).reduce((a, x) => a + x, 0);
+    if (b.verified) {
+      const who = Object.keys(m.units).sort();
+      if (!who.length) throw rule("mission_no_contribution", "a verified mission needs at least one recorded contribution: there is no one to pay");
+      const total = who.reduce((a, x) => a + m.units[x], 0);
+      const shares = who.map((d) => ({ d, base: Math.floor((held * m.units[d]) / total), frac: (held * m.units[d]) % total }));
+      let left = held - shares.reduce((a, s) => a + s.base, 0);
+      for (const s of [...shares].sort((x, y) => y.frac - x.frac || (x.d < y.d ? -1 : 1))) { if (left <= 0) break; s.base++; left--; }
+      await this.debit(tx, pool, held);
+      for (const s of shares) await this.credit(tx, s.d, s.base);
+    } else {
+      await this.debit(tx, pool, held);
+      for (const [f, v] of Object.entries(m.funders)) await this.credit(tx, f, v);
+    }
+    m.state = "settled";
+    await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+  }
+
+  /** The state of a mission (S1612, DK1240): funds, recorded units, whether it is settled. Reads only. */
+  async missionState(id: string): Promise<{ state: string; verifier: string; funded: number; funders: number; units: Record<string, number> } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`mission:${id}`));
+    if (!raw) return null;
+    const m = JSON.parse(raw) as { verifier: string; state: string; funders: Record<string, number>; units: Record<string, number> };
+    return { state: m.state, verifier: m.verifier, funded: Object.values(m.funders).reduce((a, x) => a + x, 0), funders: Object.keys(m.funders).length, units: m.units };
+  }
+
+  /** A judge's agreement with the deterministic check (S1611, DK1223): the totals the grader's weight follows. */
+  private async projectGraderAgreement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { runs: number; agreed: number; run_set_sha256: string };
+    if (r.prev !== null) throw rule("grader_agreement_not_chained", "a grader agreement starts its own chain (prev is null)");
+    if (!(await tx.getPassport(r.issuer))) throw rule("grader_agreement_unknown_grader", `${r.issuer} has no passport in this log`);
+    if (b.agreed > b.runs) throw rule("grader_agreement_exceeds_runs", `${b.agreed} agreements out of ${b.runs} runs`);
+    if (await tx.getMarker(`grader_set:${r.issuer}|${b.run_set_sha256}`)) throw rule("grader_agreement_known", "this grader's agreement on that run set is recorded already");
+    await tx.putMarker(`grader_set:${r.issuer}|${b.run_set_sha256}`, r.id);
+    const t = JSON.parse((await tx.getMarker(`grader_total:${r.issuer}`)) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
+    await tx.putMarker(`grader_total:${r.issuer}`, JSON.stringify({ runs: t.runs + b.runs, agreed: t.agreed + b.agreed }));
+  }
+
+  /** The weight of a grader (S1611, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
+  async graderWeight(grader: string): Promise<{ weight: number; runs: number; agreed: number }> {
+    const t = JSON.parse((await this.store.transaction((tx) => tx.getMarker(`grader_total:${grader}`))) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
+    return { weight: Math.floor((1000 * (t.agreed + 5)) / (t.runs + 10)), runs: t.runs, agreed: t.agreed };
+  }
+
+  /** An eval scenario (S1610, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
+  private async projectEvalScenario(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { skill: string; task_sha256: string; held_out?: boolean };
+    if (r.prev !== null) throw rule("eval_scenario_not_chained", "an eval scenario starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID && !(await tx.getPassport(r.issuer))) throw rule("eval_scenario_unknown_author", `${r.issuer} has no passport in this log`);
+    if (b.held_out && r.issuer !== REGISTRAR_DID) throw rule("eval_held_out_not_registrar", `a held-out scenario is the Registrar's (${REGISTRAR_DID}): an author does not write the set its agent is graded on`);
+    if (await tx.getMarker(`eval_scn:${b.skill}|${b.task_sha256}`)) throw rule("eval_scenario_known", "this skill already has a scenario with that task hash");
+    await tx.putMarker(`eval_scn:${b.skill}|${b.task_sha256}`, r.id);
+  }
+
+  /** The eval scenarios of a skill (S1610, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
+  async evalScenarios(skill: string, viewer?: string): Promise<{ id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[]> {
+    const mayList = !!viewer && (viewer === REGISTRAR_DID || viewer === this.operator);
+    const out: { id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[] = [];
+    for (let after = 0; ;) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) {
+        after = s.seq;
+        if (s.record.type !== "asp.eval_scenario/v0.2") continue;
+        const b = s.record.body as { skill: string; task_sha256: string; check_sha256: string; difficulty: number; held_out?: boolean };
+        if (b.skill !== skill || (b.held_out && !mayList)) continue;
+        out.push({ id: s.id, author: s.record.issuer, task_sha256: b.task_sha256, check_sha256: b.check_sha256, difficulty: b.difficulty, held_out: !!b.held_out });
+      }
+    }
+    return out;
   }
 
   /** An identity publishes the public half of its X25519 memory key (S1604, D12/DK272): only itself, raw 32 bytes, one live key, a rotation names the entry it replaces. */

@@ -31,6 +31,8 @@ export interface MailerOptions {
   audit?: () => Promise<{ verdict: "balanced" | "mismatch"; difference: number; problems: string[]; head: { seq: number; logHash: string } }>;
   /** How often the audit runs (default 86,400,000 ms: once a day). */
   auditIntervalMs?: number;
+  /** The Insurer's stress replay (BI-18, DK491): run once in each UTC quarter, the first pass of the quarter; the result is kept in the state and mailed to the operator as one line. Omit to run none. */
+  stress?: (at: string) => Promise<{ stress: { verdict: string; note: string; windowDays: number; multiplier: number; minStressed: number; floorStressed: number }; line: { reserveStatus: string; policies: number; claims: number } }>;
   /** The service's public address (read when a link is made), for the unsubscribe links. */
   publicUrl: () => string;
   secret: Buffer;
@@ -54,6 +56,9 @@ interface State {
   auditedAt?: number;
   /** The audit's last verdict, so `asp serve` can report it without re-running the audit. */
   lastAuditVerdict?: "balanced" | "mismatch";
+  /** The UTC quarter (2026-Q4) of the last stress replay, and what it found, kept so a restart does not run it again in the same quarter. */
+  stressQuarter?: string;
+  lastStress?: { quarter: string; at: string; verdict: string; note: string; reserveStatus: string };
 }
 
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -88,6 +93,8 @@ export class ServiceMailer {
   lastAudit(): { at: string | undefined; verdict: "balanced" | "mismatch" | undefined } {
     return { at: this.state.auditedAt !== undefined ? new Date(this.state.auditedAt).toISOString() : undefined, verdict: this.state.lastAuditVerdict };
   }
+  /** The last quarterly stress replay (BI-18), or undefined when none has run. */
+  lastStress(): State["lastStress"] { return this.state.lastStress; }
   unsubscribeUrl(email: string): string { return `${this.o.publicUrl().replace(/\/$/, "")}/mail/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubscribeToken(email, this.o.secret)}`; }
   verifyUnsubscribe(email: string, token: string): boolean { return unsubscribeOk(email, token, this.o.secret); }
 
@@ -211,6 +218,29 @@ export class ServiceMailer {
           } catch (e) {
             this.save();
             this.say(`credit audit failed: ${(e as Error).message}`);
+          }
+        }
+      }
+      // The Insurer's stress replay (BI-18): once in each UTC quarter, on the first pass of it. It reads the log and writes none; the operator gets one line whatever the verdict, because a quarter with no news is also news.
+      if (this.o.stress) {
+        const at = new Date(this.now());
+        const quarter = `${at.getUTCFullYear()}-Q${Math.floor(at.getUTCMonth() / 3) + 1}`;
+        if (this.state.stressQuarter !== quarter) {
+          this.state.stressQuarter = quarter;
+          try {
+            const r = await this.o.stress(at.toISOString());
+            this.state.lastStress = { quarter, at: at.toISOString(), verdict: r.stress.verdict, note: r.stress.note, reserveStatus: r.line.reserveStatus };
+            this.save();
+            this.say(`insurer stress replay ${quarter}: ${r.stress.verdict}; reserve ${r.line.reserveStatus}`);
+            if (this.o.operatorTo && sent < budget) {
+              const subject = `Insurer stress replay ${quarter}: ${r.stress.verdict}`;
+              const text = [subject, "", `The last ${r.stress.windowDays} days of policies and paid claims, replayed with claims multiplied by ${r.stress.multiplier} (a simulation: nothing was written).`, r.stress.note, `Lowest reserve under the stress ${r.stress.minStressed}; the floor ${r.stress.floorStressed}. ${r.line.policies} policies, ${r.line.claims} paid claims; the reserve is ${r.line.reserveStatus}.`, "", "Recompute: asp insure stress", ""].join(String.fromCharCode(10));
+              const html = `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>`;
+              if (await this.deliver(`stress:${quarter}`, this.o.operatorTo, "operator", () => ({ subject, text, html }), true)) sent++;
+            }
+          } catch (e) {
+            this.save();
+            this.say(`insurer stress replay failed: ${(e as Error).message}`);
           }
         }
       }

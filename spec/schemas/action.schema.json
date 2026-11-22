@@ -168,6 +168,33 @@
       "description": "The hash of the head of the performer's job-data deletion chain for this contract (register row JO3; spec-delta S1602): `asp job-data delete` writes a hash-chained line for each contract on the performer's machine, and the Action cites the head by its SHA-256 (64 lowercase hexadecimal characters), so the run log's data_deleted and data_retained lines are bound to a signed record. Optional: absent when the contract has no data to delete, and Actions without it stay valid. The log never refuses on it: a settlement of a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by then is marked data_unconfirmed, because the performer may be offline; a later (late) Action that cites it clears the mark.",
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "unprompted": {
+      "description": "True when the performer acted on its own initiative and not because its principal or a job step asked (register row DK1232; spec-delta S1606). Absent is false. The log refuses it where the Mandate does not allow unprompted work (unprompted_not_allowed) or past its daily cap (unprompted_cap), and counts it so a report can show the share (`unpromptedShare`).",
+      "type": "boolean"
+    },
+    "workflow_step": {
+      "description": "A transition of the Mandate's workflow clause this Action reports (register row DK1209; spec-delta S1607): `from` must be the state the job is in (it starts at the clause's `start`) and `{from, to}` must be one of its transitions. The log refuses an Action that carries a step under a Mandate with no clause (workflow_not_in_mandate), from the wrong state (workflow_wrong_state) or by a transition the clause does not allow (workflow_bad_transition).",
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        }
+      }
+    },
+    "undoes": {
+      "description": "The Action of this contract this one undoes (register row DK1227; spec-delta S1609): the compensating Action a gateway records when the performer reverses a reversible action inside the Mandate's cool-off window. The log refuses an unknown Action or one of another contract or performer (undo_unknown_action, undo_other_contract), a Mandate with no cool-off (undo_not_allowed), a window that has closed (undo_window), a target that used an irreversible scope (undo_irreversible) and a second undo of one Action (undo_done).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }
