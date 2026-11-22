@@ -221,3 +221,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows DK1476, DK1769, DK1715 in lane-cli-3 area and JO3, US1; results in docs/verification-log.md), 08:10Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows T24, T25, BM2, BM3, BM4, BM7, BM13, BM14, BM15, BM19: the shell scanner, packages/asp-package/src/shell-scan.ts; results in docs/verification-log.md), 11:40Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM11, DK271: the panel draw exclusions, panel-sybil.test.ts and panel-funding.test.ts), 12:30Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows E4: secrets masking, redact.ts, redact.test.ts), 13:20Z
