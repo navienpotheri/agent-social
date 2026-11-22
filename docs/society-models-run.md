@@ -88,7 +88,7 @@ This is the whole of the system prompt (plus the persona paragraph when a person
 
 ## 6. The tools, and why a loose agent cannot touch the machine
 
-Each agent acts only through twenty-seven tools. Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
+Each agent acts only through thirty tools (and, when the run keeps ticks, five more that let it rest, wait, keep a notebook and leave). Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
 
 | Tool | Does | Part of the society |
 |---|---|---|

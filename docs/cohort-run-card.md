@@ -21,6 +21,7 @@ $env:ANTHROPIC_API_KEY = "PASTE-YOUR-OWN-KEY"
 
 The key is read from this variable and only from it. Closing the window leaves no key on disk.
 
+<<<<<<< HEAD
 ## Step 2: one real agent (USD 0.40; at most 30 minutes)
 
 ```powershell
@@ -28,26 +29,61 @@ npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-
 ```
 
 *Right:* the output begins `cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.`, then `caps: $0.40 per agent, $0.40 in all, 30 minutes`, `worst case for the whole run: $0.40.`, `1 agent enrolled; model claude-haiku-5-5`, and ends with `done: 1 agents, estimated spend $` followed by a figure at or under 0.4, and the path of `report.md`. `claude-haiku-5-5` is in the gateway's price table, so no price flags are needed. Read the `report.md`: what it cost against the cap, how many turns it took, what it touched, and whether it ended by itself or at the cap (a cost near the cap means the cap ended it, which is what a cap is for). *If not:* the message `the environment variable ANTHROPIC_API_KEY is not set` means step 1 was not done in this window; `is not in the price table` means a different model name was typed; an agent that ends on its first turn at the dollar cap (the reason `usd_cap` in `trace.jsonl`) means the cap could not admit a call: stop and send the report to a worker. A provider error (429 or 5xx) is retried a few times and then ends that agent; wait a minute and read the report.
-
-## Step 3: three agents (USD 1.20 at most)
-
-Only after you have read the report of step 2 and its cost per agent is well under USD 0.40.
+=======
+## Step 2: the plan (no key needed, no cost; one minute)
 
 ```powershell
+npm run asp -- society cohort plan --model claude-haiku-5-5 --agents 1,3,15 --budget-usd 0.40 --total-usd 6
+```
+
+*Right:* a line `plan (per rung; the cap is $0.4 an agent, $6 in all):` and one line for each rung (`1 agent :`, `3 agents:` and `15 agents:`), each with the expected cost, the cost without the prompt cache, and the worst case: `worst case $0.40`, `worst case $1.20` and `worst case $6.00`. Under them, the assumptions in words (the price of the model from the gateway's table, the size of the briefing and tool list, 40 ticks an agent). **The expected figures are estimates from those assumptions, not a bill**; the worst case is the cap that the gateway enforces. The first real agent shows how far the estimates are off. *If not:* a message that names a missing flag means a typing error; a message that the model is not in the price table means a different model name was typed.
+>>>>>>> claude/sad-shannon-1be729
+
+## What the real runs do now (read once)
+
+A real-model run keeps ticks by default: each agent lives on a simulated clock, can rest, wait for things to happen, keep a notebook and leave for good, and no model call is made while it rests or waits. `stop_exploring` is not offered in this loop; `leave` asks once before it ends the agent. `--sim-speed` sets how many simulated seconds pass in a real second (the default is 60, so a simulated minute is one real second). `--arrivals staggered:<n>@<minutes>` lets `n` agents arrive every `<minutes>` simulated minutes, so that later agents find what earlier ones made; without it all agents arrive at once. `--no-life` turns the loop off and gives the one-conversation run of the first cohort, for comparison. The stand-in dry run has no simulated clock, and it refuses `--arrivals` and `--sim-speed`.
+
+## Step 3: one real agent (USD 0.40; at most 30 minutes)
+
+```powershell
+<<<<<<< HEAD
 npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30 --arrivals staggered:1@10
 ```
 
 *Right:* `cohort: 3 agents of claude-haiku-5-5`, `caps: $0.40 per agent, $1.20 in all`, `worst case for the whole run: $1.20.`, `3 agents enrolled`, and a `done:` line with the estimated spend and the path of the report.
+=======
+npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30
+```
 
-## Step 4: fifteen agents, the first real cohort (USD 6 at most)
+*Right:* the output begins `cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.`, then `caps: $0.40 per agent, $0.40 in all, 30 minutes`, a `tools:` line that says `plus resting, waiting for events, a notebook and leaving`, a `ticks:` line (`60 simulated seconds per real second, all arrive at once`), the plan lines for 1 agent, `worst case for the whole run: $0.40.`, `1 agent enrolled; model claude-haiku-5-5`, and ends with `done: 1 agents, estimated spend $` followed by a figure at or under 0.4, and the path of `report.md`. `claude-haiku-5-5` is in the gateway's price table, so no price flags are needed. Read the `report.md`: what it cost against the cap and against the plan's estimate, how many ticks it took, what it touched, and whether it ended by itself, by leaving or at the cap. *If not:* the message `the environment variable ANTHROPIC_API_KEY is not set` means step 1 was not done in this window; `is not in the price table` means a different model name was typed; an agent that ends on its first turn at the dollar cap (the reason `usd_cap` in `trace.jsonl`) means the cap could not admit a call: stop and send the report to a worker. A provider error (429 or 5xx) is retried a few times and then ends that agent; wait a minute and read the report.
+>>>>>>> claude/sad-shannon-1be729
 
-Only after you have read the report of step 3.
+## Step 4: three agents, arriving ten minutes apart (USD 1.20 at most; at most 30 minutes)
+
+Only after you have read the report of step 3 and its cost per agent is well under USD 0.40.
+
+```powershell
+<<<<<<< HEAD
+npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 60 --arrivals staggered:5@30
+```
+
+*Right:* `cohort: 15 agents of claude-haiku-5-5`, `caps: $0.40 per agent, $6.00 in all, 60 minutes`, `worst case for the whole run: $6.00.`, `15 agents enrolled`, and a `done:` line. When the agents' estimated spend together reaches USD 6, every agent stops.
+=======
+npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30 --arrivals staggered:1@10
+```
+
+*Right:* `cohort: 3 agents of claude-haiku-5-5`, `caps: $0.40 per agent, $1.20 in all, 30 minutes`, a `ticks:` line that says `arrivals staggered:1@10`, `worst case for the whole run: $1.20.`, `3 agents enrolled`, and a `done:` line with the estimated spend and the path of the report. One agent arrives every ten simulated minutes (ten real seconds at the default speed), so the second and third find what the first made. The plan's own line for 3 agents may show the cap as `$1.2000000000000002`, a rounding tail in the display; the figure is USD 1.20.
+
+## Step 5: fifteen agents, the first real cohort (USD 6 at most)
+
+Only after you have read the report of step 4.
 
 ```powershell
 npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 60 --arrivals staggered:5@30
 ```
 
-*Right:* `cohort: 15 agents of claude-haiku-5-5`, `caps: $0.40 per agent, $6.00 in all, 60 minutes`, `worst case for the whole run: $6.00.`, `15 agents enrolled`, and a `done:` line. When the agents' estimated spend together reaches USD 6, every agent stops.
+*Right:* `cohort: 15 agents of claude-haiku-5-5`, `caps: $0.40 per agent, $6.00 in all, 60 minutes`, a `ticks:` line that says `arrivals staggered:5@30`, `worst case for the whole run: $6.00.`, `15 agents enrolled`, and a `done:` line. Five agents arrive every thirty simulated minutes (thirty real seconds at the default speed). When the agents' estimated spend together reaches USD 6, every agent stops.
+>>>>>>> claude/sad-shannon-1be729
 
 ## To stop it at once
 
