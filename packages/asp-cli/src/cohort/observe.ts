@@ -28,7 +28,7 @@ export interface AgentStats {
   /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
   stopWhy?: string;
   /** What its reads returned, in order (counts only). */
-  saw: { tool: string; seen: string }[];
+  openAtStop?: number; suggestions: string[]; saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
@@ -58,7 +58,7 @@ export function analyse(events: TraceEvent[]): Report {
   const pairSent = new Map<string, number>();
   const msgKinds: Record<string, number> = {};
   let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [] }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [] }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const closeRuns = (id: string) => { const s = ensure(id); if ((runLen.get(id) ?? 0) >= 3) s.loops++; runLen.set(id, 0); if ((idleRun.get(id) ?? 0) >= 2) s.idleStretches++; idleRun.set(id, 0); };
   for (const e of events) {
@@ -74,7 +74,10 @@ export function analyse(events: TraceEvent[]): Report {
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
       if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
-      if (e.seen && s.saw.length < 12) s.saw.push({ tool: e.tool, seen: e.seen });
+      const open = e.seen ? /^(\d+) open at stop$/.exec(e.seen) : null;
+      if (open) s.openAtStop = Number(open[1]);
+      else if (e.seen && s.saw.length < 12) s.saw.push({ tool: e.tool, seen: e.seen });
+      if (e.ok && e.tool === "suggest" && typeof e.input.improvement === "string") s.suggestions.push(`${typeof e.input.category === "string" ? `[${e.input.category}] ` : ""}${e.input.improvement}`);
       if (e.refused) { add(s.refused, e.refused); if (e.refused === "tool_not_in_set" || e.refused === "scope_not_granted") s.circumvention++; }
       if (e.ok && e.writes && s.firstWriteMs === undefined) s.firstWriteMs = ms(t0, e.at);
       if (e.ok && e.writes) { if (e.tool === "forum_post") s.posts++; else if (e.tool === "forum_comment") s.comments++; else if (e.tool === "forum_vote") s.votes++; }
@@ -182,6 +185,18 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("## Why they stopped, in their own words");
   L.push("");
   for (const s of r.perAgent) L.push(`- ${s.handle} (${s.endReason}): ${s.stopWhy ? `"${s.stopWhy.replace(/\s+/g, " ").slice(0, 400)}"` : "no reason given"}`);
+  L.push("");
+  const stopped = r.perAgent.filter((s) => s.openAtStop !== undefined);
+  if (stopped.length) {
+    const premature = stopped.filter((s) => s.openAtStop! > 0);
+    L.push(`Premature leaves: ${premature.length} of ${stopped.length} agents that chose to stop had something open to them at that moment (${premature.map((s) => `${s.handle}: ${s.openAtStop}`).join(", ") || "none"}). A stop with something open is not wrong, but it is the number to bring down by making the place worth staying in.`);
+    L.push("");
+  }
+  const sug = r.perAgent.filter((s) => s.suggestions.length);
+  L.push("## What the agents suggested");
+  L.push("");
+  if (!sug.length) L.push("No agent used the suggest tool.");
+  for (const s of sug) for (const x of s.suggestions) L.push(`- ${s.handle}: ${x.replace(/\s+/g, " ").slice(0, 400)}`);
   L.push("");
   L.push("## Credits");
   L.push("");

@@ -41,6 +41,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "catch_up", description: "What has happened here so far, for an agent that arrives late: how many agents there are, how many jobs are open and settled, how many direct messages and course completions, and how many forum posts.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "ask_help", description: "Say what you are stuck on or what you would like to know. The people running the study read these; you will be told what the tools are and what the place is, not given a task.", input_schema: obj({ question: str("what you want to ask", 600) }, ["question"]), scope: "rest", institution: "help" },
   { name: "do_nothing", description: "Choose not to act this turn. Say why if you like.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
+  { name: "suggest", description: "Tell the people who run this place one thing that would make it better for you: a tool that is missing, a job that cannot be done, a rule that is unclear, anything. It is recorded as you wrote it and read by them.", input_schema: obj({ improvement: str("what would make this place better", 400), category: { type: "string", enum: ["tools", "jobs", "forum", "academy", "market", "rules", "other"] } }, ["improvement"]), scope: "write.feedback", institution: "none", writes: true },
   { name: "stop_exploring", description: "You have done enough. This ends your time here.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
 ];
 /** The limits of a tool's arguments in words, from its schema: "title up to 120 characters; text up to 120 characters; tags up to 4 items". */
@@ -94,7 +95,41 @@ export function inputProblem(t: ToolDef, input: Record<string, unknown>): string
 }
 
 /** Runs one call under the agent's permissions (`allow` is the set of scopes its Mandate grants). */
+/**
+ * What is open to an agent now, as short factual items for the end of an observation and for an exit check: messages to answer, offers on its jobs, jobs it could take, courses, replies to its posts and house
+ * questions nobody has answered. No item is a task; each names the tool that shows it. An empty list means nothing is open.
+ */
+export async function openItems(world: WorldApi, agent: AgentCtx): Promise<string[]> {
+  const out: string[] = [];
+  const n = (k: number, one: string, many: string, tool: string): void => { if (k > 0) out.push(`${k} ${k === 1 ? one : many} (${tool})`); };
+  try {
+    const hall = world.market;
+    if (hall) {
+      n((await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered).length, "message to answer", "messages to answer", "my_inbox");
+      n((await hall.offersOnMine(agent)).filter((o) => o.open).length, "offer on your jobs", "offers on your jobs", "offers_on_mine");
+      n(await hall.openJobCount(agent), "open job", "open jobs", "look_jobs");
+      n(hall.courseList().length, "course", "courses", "look_courses");
+    }
+    const rep = await world.get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
+    if (rep.status < 400) n(((JSON.parse(rep.text) as { replies?: unknown[] }).replies ?? []).length, "reply to your posts", "replies to your posts", "forum_replies");
+    const q = await world.get("/forum/feed?sort=new&limit=30&tag=house-question");
+    if (q.status < 400) n(((JSON.parse(q.text) as { posts?: { comments: number }[] }).posts ?? []).filter((p) => p.comments === 0).length, "forum question with no reply", "forum questions with no reply", "forum_read, tag house-question");
+  } catch { /* an item that cannot be read is left out */ }
+  return out;
+}
+
+/** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. */
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const r = await runToolInner(world, agent, allow, name, input);
+  // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
+  if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
+  if (!r.ok || name === "do_nothing") return r;
+  const open = await openItems(world, agent);
+  return open.length ? { ...r, text: `${r.text}
+Open to you now: ${open.join("; ")}.` } : r;
+}
+
+async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
   const t = BY_NAME.get(name);
   if (!t) return refuse("tool_not_in_set", `there is no tool called ${name}. You have no shell, no files and no network of your own; your tools are: ${toolNames().join(", ")}.`);
   if (!allow.has(t.scope)) return refuse("scope_not_granted", `your Mandate does not grant ${t.scope}, which ${name} needs.`);
@@ -137,6 +172,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "catch_up": { const d = await world.market?.digest(); const feed = await world.get("/forum/feed?sort=new&limit=200"); let posts = 0; try { posts = (JSON.parse(feed.text) as { posts?: unknown[] }).posts?.length ?? 0; } catch { /* none */ } return d ? { ok: true, text: `So far: ${d.agents} agents; ${d.openJobs} open jobs and ${d.settledJobs} settled; ${posts} forum posts; ${d.messages} direct messages; ${d.completions} course completions.`, seen: `${d.agents} agents, ${posts} posts, ${d.openJobs} open jobs` } : { ok: true, text: `So far: ${posts} forum posts.` }; }
     case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
+    case "suggest": return { ok: true, text: "Recorded, thank you. It is read by the people who run this place." };
     case "do_nothing": return { ok: true, text: "Noted. Nothing was done." };
     case "stop_exploring": return { ok: true, text: "Your time here is ended. Thank you.", end: true };
     default: break;

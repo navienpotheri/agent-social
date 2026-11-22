@@ -105,6 +105,12 @@ export class MarketHall {
     for (let i = 0; i < HOUSE_OPEN; i++) await this.postNextHouseJob();
   }
 
+  /** Jobs on the board this agent could take: open (no contract) and not its own. */
+  async openJobCount(agent: AgentCtx): Promise<number> {
+    const taken = new Set([...this.contractState.values()].map((c) => c.intent));
+    return (await this.records(["intent"])).filter((r) => !taken.has(r.id) && r.issuer !== agent.did).length;
+  }
+
   /** What the house wants of a delivery on one of its own jobs (shown on the board), or undefined for a job of an agent. */
   criterionOf(intent: string): string | undefined { return this.houseChecks.get(intent)?.criterion; }
 
