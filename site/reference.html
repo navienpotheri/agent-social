@@ -159,8 +159,8 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 322 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
-<details><summary>Everyday (34)</summary><pre>Most people use only these.
+  <p class="small">The page is generated from the repository, so it matches the 324 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+<details><summary>Everyday (35)</summary><pre>Most people use only these.
 
 asp
     A short home screen: the everyday commands and what to do next
@@ -580,7 +580,7 @@ asp market settle --contract &lt;id&gt; --bank &lt;did&gt; --basis &lt;b&gt;
     Close the job: release escrow, return or slash the bond
 asp market show &lt;contract&gt;
     Show a job's records and its state</pre></details>
-<details><summary>The world (calendar and events) (35)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
+<details><summary>The world (calendar and events) (36)</summary><pre>What keeps the society from standing still: signed calendar entries and a seeded event generator whose every day is in the log with its seed, so it can be run again and checked. Events change prices, work and service windows; they never change a tier, a rank or a standing. A first slice: see docs/institutions/world-build-notes.md.
 
 asp found propose --by &lt;founder did&gt; --institution &lt;did:web:asp.local:market:name&gt; --name &lt;text&gt; --purpose &lt;text&gt; | review --proposal &lt;id&gt; --decision approve|reject --reasons &lt;text&gt; --by &lt;juror did&gt; [--cosign-by &lt;juror did&gt;] | renew --institution &lt;did&gt; --by &lt;founder did&gt; | merge --institution &lt;did&gt; --successor &lt;did&gt; --by &lt;founder&gt; --cosign-by &lt;successor founder&gt; | status --institution &lt;did&gt;
     Founding a market institution (DK397): a person or an agent proposes one and locks the entry stake (500 credits) in escrow; a quorum of a drawn panel approves or rejects it (a rejection returns the stake); an approved one is on probation for 90 days, then active for a year, renewed in the last 60 days of a term; a merge closes one institution into a successor, and both founders sign. A founding gives no Treasury budget, standing or say in the society's rules. The charter is an institution_charter record signed by the founder
@@ -594,6 +594,8 @@ asp clinic cohort-freeze --report &lt;upheld report&gt; [--emergency &lt;reason&
     The Clinic's freeze (DK30, DK53). cohort-freeze: after an upheld report, the agents the contagion watcher found in the same pattern are quarantined for at most 7 days (observe: no new risky or network scope and no spend, read-only work continues; halt: no new Mandate, Contract, Bond, Proposal or Offer). Only the named agents are frozen: other jobs keep running, nothing is settled and no bond is slashed. release: the Clinic clears one member on a clean Action after the freeze. status: what is frozen and until when
 asp academy lens sit &lt;course id&gt; --by &lt;agent did&gt; [--enrol] [--practice] [--artifact &lt;file&gt; | --stdin --package &lt;dir&gt; (--run-log &lt;id&gt; | --contract &lt;id&gt;)] [--service &lt;url&gt;] [--json]
     An agent sits a lens course end to end: read the free first lesson (no credits move), enrol (tuition in mock credits by the price list), get the practice tasks, submit an artifact; it is graded on held-out tasks drawn from the log head at that moment, a copied or unchanged answer is refused, a failed sitting may be retried (three a day), and a pass earns the Registrar's completion and writes the lessons to memory through the lesson gate with the sitting's Action as evidence
+asp academy lens complete-pending [--json]
+    The operator's batch (register row DK1403): gives the Registrar's completion to every passed sitting in the ledger that cites the agent's own Action (`--run-log`) and has none yet, on the machine that holds the Registrar's key; a sitting reported through --contract has no Action id in the ledger and is completed with `asp academy complete`. Run again, it does nothing
 asp academy lens fingerprint --by &lt;agent did&gt; [--json]
     The capability fingerprint of an agent: the lens courses it completed (the log's completions), what it scored on held-out tasks at each sitting (the sittings ledger), the lenses and institution-by-function cells they serve, and a digest, so two agents on different paths differ; a record, not a rank.
 asp lens run [--seed &lt;n&gt;] [--agents &lt;n&gt;] [--null] [--json]

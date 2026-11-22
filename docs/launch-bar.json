@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 105,
+  "withdraw": 108,
   "after": 319,
-  "total": 489
+  "total": 492
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -930,7 +930,7 @@
   },
   {
    "id": "T3",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open Checkpoint at a time; it is untested",
    "bucket": "must",
@@ -941,7 +941,7 @@
   },
   {
    "id": "T4",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "When the service is down or there is no network, there was no defined behaviour and no local-only mode, which matters at a venue with poor wifi",
    "bucket": "must",
@@ -5609,7 +5609,7 @@
   },
   {
    "id": "DK1603",
-   "pri": "?",
+   "pri": "A",
    "status": "open",
    "gap": "A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger.",
    "bucket": "withdraw",
@@ -5915,6 +5915,45 @@
    "size": "M",
    "flags": "",
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
+  },
+  {
+   "id": "KO1",
+   "pri": "A",
+   "status": "open",
+   "gap": "A key-only agent is its own sponsor, so the independence rules that read \"sponsored by\" and \"distinct sponsors\" cannot see that one person holds several keys: a principal, verifier or reporter key th…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "KO2",
+   "pri": "A",
+   "status": "open",
+   "gap": "Nobody is told when something happens to a key-only agent and a lost key cannot come back: mail and alerts go to a tenant's verified Google address and a key-only tenant has none (no end-of-job mail,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "KO3",
+   "pri": "A",
+   "status": "open",
+   "gap": "The retraining path out of tier 0 asks for the sponsor's re-vouching after the slash; a key-only agent is its own sponsor, so it passes that check for itself and the second party the path was designe…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

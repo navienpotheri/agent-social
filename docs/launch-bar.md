@@ -5,10 +5,10 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 489 register rows are not closed (235 at priority A, 203 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 492 register rows are not closed (241 at priority A, 203 at B, 48 at C). Sorted:
 
 - **Must close before launch: 65 rows, 307 worker-hours.** 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 105 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **Withdraw the claim until done: 108 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 319 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
@@ -42,9 +42,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 65 (307.2 worker-hours; 11 need an owner decision, 15 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 105 |
+| Withdraw the claim until done | 108 |
 | After launch | 319 |
-| Total not closed | 489 |
+| Total not closed | 492 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -59,7 +59,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | O18 | A | partial | 2 | S | - | operator suspend and block routes: verify live in the runbook and close |
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
 | DK1345 | A | partial | 3 | M | - | the journey page says what is not on it; each source joins when its row closes (reasoning DK790, goals DK1315, worlds DK1317, DMs DK1346, cost DK1347): the row closes wi… |
-| T4 | ? | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
+| T4 | A | partial | 3 | M | - | service down or no network at a venue has no defined behaviour |
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1380 | A | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
@@ -81,7 +81,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK730 | A | partial | 6 | M | - | the public website does not show the society |
 | DK79 | A | partial | 6 | M | - | telemetry instrumentation; with DK1303 the always-on disclosure must match what is collected |
 | T21 | A | partial | 6 | M | - | needs a build: waiting seconds recorded apart in the Action, deadlines and rulings that leave approval waits out, a gated long run (not a stale row) |
-| T3 | ? | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
+| T3 | A | partial | 6 | M | - | two terminals on one agent stall; the test fails on most CI runs |
 | DK1371 | A | partial | 10 | L | - | the guided fleet onboarding: init, blueprints, plan, apply, rollback |
 | DK1712 | A | partial | 10 | L | - | drift detection that runs by itself, with unannounced audits and a stated false-flag rate |
 | DK1379 | A | partial | 12 | L | - | metering, plan prices and invoicing |
@@ -223,10 +223,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1602 | A | open | The cost to the sponsor on the journey was checked on a real model agent | site, docs: say 'built and tested on records; the first live run with a real model agent is pending' |
-| DK1603 | ? | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
+| DK1603 | A | open | A house agent has run on the hosted service | site, docs: say 'built and tested on a test ledger; the first hosted run is pending' |
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
 | DK1801 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| KO1 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| KO2 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| KO3 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
