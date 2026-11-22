@@ -38,6 +38,10 @@ export interface CohortOptions {
   personas?: string[];
   /** Milliseconds between the starts of two agents. */
   staggerMs?: number;
+  /** The injection proxy: "label" (default: sources labelled, instruction-shaped text counted), "hold" (it is replaced by a marker) or "off" (the baseline for the planted test). */
+  injectionScreen?: "off" | "label" | "hold";
+  /** Plants the labelled test injection (rung I1) and reports who repeated it. */
+  plantInjection?: boolean;
   io: { out: (l: string) => void };
   now?: () => number;
 }
@@ -83,7 +87,8 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes });
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l) });
+  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
     const agents = [];
     for (let i = 0; i < o.agents; i++) {
@@ -115,7 +120,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               const t0 = now();
               flush(id);
               const r = await runTool(world.api, a, allow, t.name, args);
-              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ms: now() - t0 } as TraceEvent);
+              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
             },
           }));

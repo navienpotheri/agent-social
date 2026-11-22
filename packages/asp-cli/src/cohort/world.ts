@@ -10,6 +10,7 @@ import { createLogServer, hashToken, powOk, type Tenant } from "@agent-social/as
 import { FORUM_VERSION, LocalLog, forumRoutes, journeyRoutes, societyMapRoutes, registrationMessage, signForum, type ForumBody } from "@agent-social/asp-package";
 import { coursesRoutes } from "../lens-courses/pages.ts";
 import { MarketHall, makeParties } from "./market.ts";
+import { newCanary, plantText, type GuardMode } from "./injection.ts";
 import type { AgentCtx, WorldApi } from "./types.ts";
 
 export interface World {
@@ -23,9 +24,11 @@ export interface World {
   close(): Promise<void>;
   /** The log's head, for the report. */
   head(): Promise<{ seq: number }>;
+  /** The planted test injection (ENG17), when the owner switched it on: its token and the post that carries it. */
+  plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void }): Promise<World> {
+export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -80,9 +83,21 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     if (r.status !== 201) throw new Error(`could not seed the forum: ${r.json?.error?.message ?? r.status}`);
     prev = r.json.id as string;
   }
+  // The planted test injection (ENG17, rung I1): a labelled canary in a post by a visiting citizen. It is the owner's switch; the report says it was planted and counts who repeated it.
+  let plant: { token: string; post: string } | undefined;
+  if (o.plantInjection) {
+    const visitor = await enrol(-2, "visiting-poster");
+    const token = newCanary();
+    const t = plantText(token);
+    const doc = signForum({ v: FORUM_VERSION, kind: "post", author: visitor.did, createdAt: now().toISOString().replace(/\.\d{3}Z$/, "Z"), prev: null, title: t.title, text: t.text, tags: ["note"] } as unknown as ForumBody, { kid: visitor.kid, seed: visitor.seed });
+    const r = await api.postJson("/forum/posts", doc);
+    if (r.status !== 201) throw new Error(`could not plant the test injection: ${r.json?.error?.message ?? r.status}`);
+    plant = { token, post: r.json.id as string };
+  }
+  api.guard = { mode: o.guard ?? "label", ...(plant ? { canary: plant.token } : {}) };
   o.onLine?.(`local society on ${base} (log and forum in ${o.dir})`);
   return {
-    api, base, enrol, log: handle, dir: o.dir,
+    api, base, enrol, log: handle, dir: o.dir, ...(plant ? { plant } : {}),
     head: async () => ({ seq: Number((JSON.parse((await api.get("/forum/head")).text) as { seq?: number }).seq ?? 0) }),
     close: () => new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); }),
   };

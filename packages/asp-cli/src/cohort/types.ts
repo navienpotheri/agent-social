@@ -36,13 +36,16 @@ export interface WorldApi {
   /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
   market?: import("./market.ts").MarketHall;
   now(): Date;
+  /** The injection proxy's settings (injection.ts); absent: the default, which labels sources and counts instruction-shaped text. */
+  guard?: import("./injection.ts").Guard;
 }
 
 export type TraceEvent =
   | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string }
   | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string }
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; usd: number; text?: string }
-  | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; ms: number }
+  | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }
+  | { t: "plant"; at: string; token: string; post: string; mode: string }
   | { t: "end"; at: string; agent: string; reason: string; turns: number; usd: number }
   | { t: "credits"; at: string; agent: string; when: "start" | "end"; balance: number }
   | { t: "stop"; at: string; reason: string };

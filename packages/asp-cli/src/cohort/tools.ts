@@ -5,6 +5,7 @@
  * (sit) and direct messages are the next slice (docs/society-models-run.md, "What is built and what is not"). Credits are accounting entries, not money.
  */
 import { FORUM_FORM, FORUM_VERSION, signForum, type ForumBody } from "@agent-social/asp-package";
+import { DEFAULT_GUARD, checkCall, screenRead, type ScreenNote } from "./injection.ts";
 import type { AgentCtx, ToolDef, WorldApi } from "./types.ts";
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object" as const, properties, ...(required.length ? { required } : {}), additionalProperties: false });
@@ -43,7 +44,7 @@ const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
-export interface ToolResult { ok: boolean; text: string; refused?: string; target?: string; targetAuthor?: string; end?: boolean }
+export interface ToolResult { ok: boolean; text: string; refused?: string; target?: string; targetAuthor?: string; end?: boolean; /** The injection proxy's note on a read (injection.ts). */ screen?: ScreenNote; /** Spans of untrusted text this write or spend repeats. */ copied?: number; plant?: "seen" | "held" | "followed" }
 const MAX_CHARS = 3000;
 const cut = (s: string): string => (s.length > MAX_CHARS ? s.slice(0, MAX_CHARS) + `\n[cut: ${s.length - MAX_CHARS} more characters]` : s);
 const refuse = (rule: string, why: string): ToolResult => ({ ok: false, refused: rule, text: `Refused (${rule}): ${why}` });
@@ -62,8 +63,28 @@ export function inputProblem(t: ToolDef, input: Record<string, unknown>): string
   return undefined;
 }
 
-/** Runs one call under the agent's permissions (`allow` is the set of scopes its Mandate grants). */
+/**
+ * Runs one call under the agent's permissions (`allow` is the set of scopes its Mandate grants), with the injection proxy on what comes back (injection.ts, ENG17): a read of text another party wrote is labelled by
+ * source and screened, and a write or spend that repeats such text is flagged. The proxy changes nothing about what a call may do: the Mandate's scopes are checked first and are the wall that does not depend on it.
+ */
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const r = await runToolRaw(world, agent, allow, name, input);
+  const guard = world.guard ?? DEFAULT_GUARD;
+  if (guard.mode === "off" && !guard.canary) return r;
+  if (r.ok && !r.end) {
+    const o = screenRead(guard, name, r.text, agent);
+    if (o.screen) r.text = o.text, r.screen = o.screen, o.plant && (r.plant = o.plant);
+  }
+  if (BY_NAME.get(name)?.writes || MARKET_WRITES.has(name)) {
+    const c = checkCall(guard, input, agent);
+    if (c.copied) r.copied = c.copied;
+    if (c.followed) r.plant = "followed";
+  }
+  return r;
+}
+const MARKET_WRITES = new Set(["post_job", "offer_on_job", "deliver_job", "accept_offer", "accept_delivery"]);
+
+async function runToolRaw(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
   const t = BY_NAME.get(name);
   if (!t) return refuse("tool_not_in_set", `there is no tool called ${name}. You have no shell, no files and no network of your own; your tools are: ${toolNames().join(", ")}.`);
   if (!allow.has(t.scope)) return refuse("scope_not_granted", `your Mandate does not grant ${t.scope}, which ${name} needs.`);

@@ -12,7 +12,7 @@ export class CohortUsage extends Error {}
 
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
-  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean;
+  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "injection-screen"?: string; "plant-injection"?: boolean;
 }
 
 const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
@@ -48,6 +48,8 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
     if (f["price-out"] !== undefined) priceOut = num("--price-out", f["price-out"]);
     engine = { keyEnv, env: o.io.env, ...(f["provider-url"] ? { upstream: f["provider-url"] } : {}), ...(priceIn !== undefined || priceOut !== undefined ? { price: { ...(priceIn !== undefined ? { inPerM: priceIn } : {}), ...(priceOut !== undefined ? { outPerM: priceOut } : {}) } } : {}) };
   } else throw new CohortUsage("--provider is anthropic (a real model, with your key) or stand-in (offline, scripted)");
+  const screen = f["injection-screen"] ?? "label";
+  if (!["off", "label", "hold"].includes(screen)) throw new CohortUsage("--injection-screen is off, label (the default: sources labelled, instruction-shaped text counted) or hold (instruction-shaped text from others is replaced by a marker)");
   const maxTokens = 600;
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
   o.io.out(`cohort: ${agents} agent${agents === 1 ? "" : "s"} of ${model} through ${kind}, on a local society only; no goal is given and ${personas ? `${personas.length} persona(s) from ${f["persona-file"]} are used in rotation` : "no persona is used"}.`);
@@ -56,7 +58,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
     out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,
-    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), staggerMs: agents > 1 ? 400 : 0,
+    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), injectionScreen: screen as "off" | "label" | "hold", ...(f["plant-injection"] ? { plantInjection: true } : {}), staggerMs: agents > 1 ? 400 : 0,
     io: { out: o.io.out }, ...(o.now ? { now: o.now } : {}),
   });
   o.io.out(`  what happened, in words: ${r.markdownPath}`);

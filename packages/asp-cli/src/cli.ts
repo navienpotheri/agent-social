@@ -712,6 +712,8 @@ const OPTIONS = {
   "persona-file": { type: "string" },
   "provider-url": { type: "string" },
   "max-turns": { type: "string" },
+  "injection-screen": { type: "string" },
+  "plant-injection": { type: "boolean" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
@@ -1368,7 +1370,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "society" && sub === "cohort") {
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
