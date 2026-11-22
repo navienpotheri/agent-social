@@ -117,6 +117,9 @@ Read the left column first. Nothing here needs a key typed into a command line o
 | 13 | The log service is unreachable (AMBER or RED) | No network, or a wrong service address | Run with `--local`, or check what the service holds with `npm run asp -- account show` |
 | 14 | A Windows Firewall prompt | It should not appear: the gateway listens on 127.0.0.1 only | If it appears, choose Cancel, or Private networks only |
 | 15 | A red `NativeCommandError` banner in PowerShell 5.1 | Cosmetic: stderr lines when you pipe with `2>&1` | Run without `2>&1` |
+| 16 | `this run was not started by a person's prompt ... does not allow unprompted work` | `--unprompted` or `ASP_UNPROMPTED=1` is set (a schedule or hook) and the Mandate gives no leave | Not used on the evening path. Start the run with a prompt, or allow it: `asp market mandate ... --allow-unprompted` |
+| 17 | A call is refused with `this agent is a router` or `a watchdog` | The Mandate names a role (an option; the evening Mandate carries none) | Use a worker Mandate for a run that must run tools |
+| 18 | A call is refused with `stands on the ladder at "tighten"` or `"quarantine"` | The ladder is on (`--escalation-ladder` or `--ladder-file`; off by default): the run retried refused calls | Read the refusal, tell the agent the goal in other words, and start a new run; do not retry the refused call |
 
 When a run stops at the cap, Claude Code prints a line of this form, and the summary shows `stopped  dollar cap reached`: "API Error: 403 ASP gateway: this run was stopped (dollar cap reached). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on (raise --budget-usd if the limit was too low)." Do not read "Failed to authenticate" as a key problem when this text is present.
 

@@ -8,6 +8,10 @@ import { ENGINES, engineIds } from "../src/lens-courses/index.ts";
 import { lintCard } from "../src/lens-courses/lint.ts";
 import { heldoutFor as evalsHeld, practiceFor as evalsPractice } from "../src/lens-courses/evolving-evals.ts";
 import { credit, jump, kit, nowIso, registrar, treasury } from "../../asp-log/test/society-kit.ts";
+import { heldoutFor as procHeld } from "../src/lens-courses/procedure.ts";
+import { heldoutFor as mpHeld } from "../src/lens-courses/message-passing.ts";
+import { leakTokensFor as procTokens } from "../src/lens-courses/procedure.ts";
+import { leakTokensFor as mpTokens } from "../src/lens-courses/message-passing.ts";
 import { REGISTRAR_DID, TREASURY_DID } from "@agent-social/asp-log";
 
 const cards = loadCatalogue(engineIds()).courses;
@@ -34,6 +38,7 @@ test("DK1752: every card of the catalogue is clean or listed as not linted with 
   assert.deepEqual(results.filter((r) => r.problems.length).map((r) => `${r.id}: ${r.problems[0]}`), [], "no card fails");
   const unlinted = results.filter((r) => !r.linted);
   assert.ok(unlinted.every((r) => /offers no distinctive tokens/.test(r.note ?? "")), "each unlinted card says why");
+  assert.equal(unlinted.length, 0, `cards not linted: ${unlinted.map((r) => r.id).join(", ")}`);
   assert.ok(results.filter((r) => r.linted).length >= 20, `${results.filter((r) => r.linted).length} of ${cards.length} cards are linted; the engines of ${unlinted.map((r) => r.id).join(", ")} offer no tokens`);
 });
 
@@ -65,7 +70,7 @@ test("DK1752: `asp academy lens lint` prints each card and exits 1 on a failure;
   out.length = 0;
   assert.equal(await run(["lint"], { all: true }), 0);
   assert.equal(out.filter((l) => /^C-L/.test(l)).length, cards.length);
-  assert.ok(out.some((l) => /not linted: the engine/.test(l)));
+  assert.ok(!out.some((l) => /not linted/.test(l)), "every engine of the catalogue now offers tokens, so no card is listed as not linted");
   await assert.rejects(() => run(["lint", "C-NOPE"]), /lens lint/);
   // publish refuses a leaky card before anything is signed
   const { publishCmd } = await import("../src/lens-courses/publish-cmd.ts");
@@ -81,3 +86,33 @@ test("DK1752: `asp academy lens lint` prints each card and exits 1 on a failure;
 
 import { createHash } from "node:crypto";
 function require_sha(s: string): string { return createHash("sha256").update(s).digest("hex"); }
+
+test("DK1752: the procedure and message-passing engines now offer distinctive tokens; a card of either that carries one fails the lint, a clean one passes, and none is any longer listed as not linted", () => {
+  for (const id of ["procedure", "message-passing"]) {
+    const card = cards.find((c) => c.generator.engine === id);
+    if (!card) continue; // the catalogue may hold no card of the engine
+    const e = ENGINES[id]!;
+    assert.ok(e.leakTokens, `${id} offers tokens`);
+    const r = lintCard(card, e);
+    assert.deepEqual([r.linted, r.problems], [true, []], `${id}: ${r.problems.join(" | ")}`);
+    const seed = "sha256:" + require_sha(`lint|${card.id}|0`);
+    const token = e.leakTokens!(seed)[0];
+    assert.ok(token, `${id} has a token for the sampled seed`);
+    const leaky = lintCard({ ...card, free_first_lesson: `${card.free_first_lesson}; note ${token}` }, e);
+    assert.ok(leaky.problems.some((p) => p.startsWith("free_first_lesson carries ") && p.includes(token)), leaky.problems.join(" | "));
+  }
+  // the tokens are real: held-out only, never in the practice set
+  for (let i = 0; i < 40; i++) {
+    const seed = `seed-${i}`;
+    for (const [tokens, engine] of [[procTokens, ENGINES["procedure"]], [mpTokens, ENGINES["message-passing"]]] as const) {
+      const practice = JSON.stringify(engine!.practice(seed));
+      for (const t of tokens(seed)) assert.ok(!practice.includes(t), `${t} is in the practice set`);
+    }
+  }
+  assert.ok(procTokens("seed-1").length > 0 && mpTokens("seed-1").length > 0);
+  // and they are the held-out tasks themselves, not strings of the right shape
+  const games = new Set(mpHeld("seed-1").map((g) => g.id));
+  assert.ok(mpTokens("seed-1").every((x) => games.has(x)) && mpTokens("seed-1").length === games.size);
+  const tails = new Set(procHeld("seed-1").tail.map((c) => c.input.join(",")));
+  assert.ok(procTokens("seed-1").every((x) => tails.has(x)));
+});

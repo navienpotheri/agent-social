@@ -1,6 +1,6 @@
 // DK211: the escalation ladder at the next call, wired into the gateway behind an opt-in option (default off). A scripted circumvention (the same refused network call retried) is held at 5 refused attempts and
 // refused except for reading at 8; an honest control that is never refused is not touched; with the option off nothing changes.
-import { after, test } from "node:test";
+import { after, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { createGateway, type Gateway } from "../src/index.ts";
@@ -10,7 +10,7 @@ const gateways: Gateway[] = [];
 after(async () => { for (const s of servers) s.close(); for (const g of gateways) await g.close(); });
 
 type Call = { name: string; args: unknown };
-async function run(ladder: boolean, calls: Call[], fileStep?: "none" | "warn" | "tighten" | "quarantine" | "review") {
+async function run(ladder: boolean, calls: Call[], fileStep?: "none" | "warn" | "tighten" | "quarantine" | "review", before?: (i: number) => void) {
   let i = 0;
   const up = createServer((req, res) => { req.resume(); req.on("end", () => {
     const c = calls[Math.min(i++, calls.length - 1)];
@@ -23,6 +23,7 @@ async function run(ladder: boolean, calls: Call[], fileStep?: "none" | "warn" | 
   const port = await g.listen();
   const results: { kept: boolean; text: string }[] = [];
   for (let n = 0; n < calls.length; n++) {
+    before?.(n);
     const r: any = await (await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: "m", messages: [{ role: "user", content: "go" }] }) })).json();
     const m = r.choices[0].message;
     results.push({ kept: (m.tool_calls ?? []).length > 0, text: String(m.content ?? "") });
@@ -62,4 +63,28 @@ test("one ladder, two inputs: a step from the Clinic's file alone acts; the stri
   assert.equal(stricter[9].kept, false); assert.match(stricter[9].text, /ladder at "quarantine"/, "the in-run quarantine outranks the file's tighten");
   const neither = await run(false, [EXEC, EXEC]);
   assert.ok(neither.every((x) => x.kept));
+});
+
+test("the window of the in-run ladder is exact: five refusals count until they are 600,000 ms old, and at exactly that age they no longer do", async () => {
+  mock.timers.enable({ apis: ["Date"], now: 1_000_000 });
+  try {
+    const inside = await run(true, [...Array(5).fill(CURL), EXEC], undefined, (i) => { if (i === 5) mock.timers.tick(599_999); });
+    assert.equal(inside[5].kept, false, "599,999 ms later the five refusals still count: a local command is held");
+    mock.timers.reset(); mock.timers.enable({ apis: ["Date"], now: 2_000_000 });
+    const outside = await run(true, [...Array(5).fill(CURL), EXEC], undefined, (i) => { if (i === 5) mock.timers.tick(600_000); });
+    assert.equal(outside[5].kept, true, "at exactly 600,000 ms they have left the window: the command runs");
+  } finally { mock.timers.reset(); }
+});
+
+test("the thresholds are exact: four refused attempts change nothing, five hold a local command, seven still allow it to be read, eight quarantine", async () => {
+  const four = await run(true, [...Array(4).fill(CURL), EXEC]);
+  assert.equal(four[4].kept, true, "four refusals: no step");
+  const five = await run(true, [...Array(5).fill(CURL), EXEC]);
+  assert.equal(five[5].kept, false, "five refusals: tighten holds a local command");
+  const seven = await run(true, [...Array(7).fill(CURL), READ, EXEC]);
+  assert.equal(seven[7].kept, true, "seven: reading allowed");
+  assert.equal(seven[8].kept, false, "seven: tighten still holds a command, quarantine is not reached");
+  assert.doesNotMatch(seven[8].text, /nothing but reading is allowed/, "seven refusals are not yet quarantine");
+  const eight = await run(true, [...Array(8).fill(CURL), EXEC]);
+  assert.match(eight[8].text, /nothing but reading is allowed/, "eight: quarantine");
 });

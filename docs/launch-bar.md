@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 492 register rows are not closed (212 at priority A, 204 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 492 register rows are not closed (213 at priority A, 204 at B, 48 at C). Sorted:
 
 - **Must close before launch: 63 rows, 301 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 102 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -98,7 +98,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
 | E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
-| GV6 | ? | partial | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
+| GV6 | A | partial | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
 | O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
 | U1 | A | partial | 2 | S | LO | token recovery tested only with a stand-in for Google; one live run with a real account |
@@ -347,13 +347,13 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | JB2 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | JB3 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG1 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| AG2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| AG2 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG5 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| AG6 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| AG6 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG8 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG10 | A | partial | mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come l… | the forum has mute, block, abuse reports and the injection defence; no teams or guilds |
-| AG11 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| AG11 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG12 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US3 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US5 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

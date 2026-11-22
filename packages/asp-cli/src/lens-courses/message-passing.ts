@@ -127,7 +127,9 @@ export function runPolicy(artifact: unknown, seed: string): CourseRun {
   return { score_permille: score, passed: failures.length === 0, measures: { mean_payoff_x100: score, safe_joint: plays.filter((p) => p.payoff === PAYOFF.safe).length, matches: plays.filter((p) => p.payoff === PAYOFF.match).length, misses: plays.filter((p) => p.payoff === PAYOFF.miss).length, ...byFamily }, failures };
 }
 
-export const messagePassing: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runPolicy(artifact, seed) };
+/** Distinctive strings of the held-out tasks (DK1752): the ids of the held-out games, eight hex digits each, which no practice game or card text should carry. */
+export const leakTokensFor = (seed: string): string[] => heldoutFor(seed).map((g) => g.id);
+export const messagePassing: Engine = { id: ENGINE_ID, practice: practiceFor, run: (artifact, seed) => runPolicy(artifact, seed), leakTokens: leakTokensFor };
 register(messagePassing);
 
 // ---- scripted agents
