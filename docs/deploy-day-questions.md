@@ -17,7 +17,7 @@ Ready to ask. Written 2026-11-22 from section 0 of [deployment-plan.md](deployme
 
 ## Answers of 2026-11-22
 
-Answered by the owner on 2026-11-22 (relayed by the lead): **1** update the running server in place after a disk snapshot; **2** the Google Cloud project that holds the running server, and its region; **3** the backup bucket in the Delhi region, different from the server's; **4** a hosted outside checker every minute (every five if the free plan requires it), with the alert to his phone; **5** a public-read bucket in the same project, at `status.` plus his domain; **6** yes to both: the sending domain is the default, thedeeptransformation.com, verified at the mail provider, and the operator's mail address is navien@thedeeptransformation.com (answered later on 2026-11-22); **8** the forum opens in this deployment after the monitor and the backups have passed; **9** one house agent, and public works at 600 credits a month with a 30-day floor (PW1); **10** key-only sign-up ON (KO1 stands). **Still open: 7** (the operator and owner DIDs: the `person` line of `asp status` is the owner's DID, which for a one-person service is both, pending his yes; `asp status` prints no operator or owner as such).
+Answered by the owner on 2026-11-22 (relayed by the lead): **1** update the running server in place after a disk snapshot; **2** the Google Cloud project that holds the running server, and its region; **3** the backup bucket in the Delhi region, different from the server's; **4** a hosted outside checker every minute (every five if the free plan requires it), with the alert to his phone; **5** a public-read bucket in the same project, at `status.` plus his domain; **6** yes to both: the sending domain is the default, thedeeptransformation.com, verified at the mail provider, and the operator's mail address is navien@thedeeptransformation.com (answered later on 2026-11-22); **8** the forum opens in this deployment after the monitor and the backups have passed; **9** one house agent, and public works at 600 credits a month with a 30-day floor (PW1); **10** key-only sign-up ON (KO1 stands). **7** yes: one identity is both the operator and the owner, did:web:log.thedeeptransformation.com:u:navien-agentrun (the `person` line of `asp status`; its key stays in the `keys` folder of his ASP home and the server never holds it). **The caveat, stated plainly:** one key as both operator and owner removes the two-party control that the co-signature was designed for; that is acceptable for a one-person beta, and a separate operator can be made later (`asp identity new --kind human --did <a did in his namespace>`, then `asp identity register <did>`; not tried against the hosted namespace). **All ten decisions are answered; none is open.**
 
 | Q | State | Recorded as |
 |---|---|---|
@@ -27,9 +27,9 @@ Answered by the owner on 2026-11-22 (relayed by the lead): **1** update the runn
 | Q4 | answered | the default of the question |
 | Q5 | answered | the default of the question |
 | Q6 | answered | yes to both: the default sending domain and navien@thedeeptransformation.com |
+| Q7 | answered | yes: one identity for both operator and owner, did:web:log.thedeeptransformation.com:u:navien-agentrun; the two-party control of the co-signature is given up, which is acceptable for a one-person beta |
 | Q8 | answered | the default of the question |
 | Q9 | answered | the default of the question |
 | Q10 | answered | the default of the question |
-| Q7 | **open** | waits for his yes to one DID (the `person` line of `asp status`) for both |
 
 After your answers, a worker records them in [owner-decisions.md](owner-decisions.md) and moves the question to the answered list of [owner-questions-all.md](owner-questions-all.md); the plan then needs no further decision from you except the go for each push and each signature, which stay yours.

@@ -46,11 +46,11 @@ test("every command in the walkthrough is a command of the plan (none is invente
   assert.deepEqual([...new Set(problems)], []);
 });
 
-test("a step that needs an open answer says which: answer 7 for the DIDs; the others say that nothing is open", () => {
+test("no step waits on an open answer now (6 and 7 were answered on 2026-11-22), and each says so", () => {
   for (const s of wsteps) {
     const needs = /\*\*Needs from you(.*?)\n/.exec(s.body)?.[0] ?? "";
     const code = [...s.body.matchAll(/```(?:bash|powershell)\n([\s\S]*?)```/g)].map((m) => m[1]).join("\n");
-    const wants7 = /THE-OPERATOR-DID|THE-OWNER-DID/.test(code) || s.n === 12;   // step 12: the operator is named by ASP_OPERATOR_DID
+    const wants7 = false;   // decision 7 was answered on 2026-11-22 (one DID for both): no step waits on it now
     const wants6 = false;   // decision 6 was answered on 2026-11-22: no step needs it now
     if (wants7) assert.match(needs, /answer 7/, `step ${s.n} needs answer 7`);
     if (wants6) assert.match(needs, /answer 6/, `step ${s.n} needs answer 6`);
@@ -62,8 +62,10 @@ test("a step that needs an open answer says which: answer 7 for the DIDs; the ot
 
 test("the walkthrough carries the owner's answers as recorded, keeps 6 and 7 open, and keeps the plan's warnings", () => {
   const decisions = read("docs/owner-decisions.md");
-  assert.match(decisions, /\*\*Still open: 7\*\* \(the operator and owner DIDs/);
-  assert.match(walk, /\*\*Still open: 7\*\* \(the operator and owner DIDs/);
+  assert.match(decisions, /All ten decisions are answered; none is open/);
+  assert.match(walk, /All ten are answered; none is open/);
+  assert.doesNotMatch(walk, /THE-OPERATOR-DID|THE-OWNER-DID/, "the DID is filled in");
+  assert.ok(walk.includes("did:web:log.thedeeptransformation.com:u:navien-agentrun"));
   assert.ok(walk.includes("navien@thedeeptransformation.com") && walk.includes("noreply@thedeeptransformation.com"), "the mail variables are the answers of decision 6");
   assert.doesNotMatch(walk, /YOUR-ADDRESS|YOUR-DOMAIN/);
   for (const frag of ["update in place after a snapshot", "Delhi region", "every five if the free plan requires it", "one house agent, public works at 600 credits a month with a 30-day floor", "key-only sign-up on"]) assert.ok(walk.includes(frag), frag);
