@@ -74,7 +74,8 @@ Each row is judged by its own Done line. Seen by the lead on the owner's screens
 | Row | Before | After | Evidence line |
 |---|---|---|---|
 | E9 | partial | partial | Reverted and kept: only a direct test mail was received; the end-of-job mail from a real governed run has NOT been received (DK1807); its Done line's first words are met by the direct send, the row's gap is not |
-| O18 | partial | partial | Suspend, resume, block and unblock ran on the hosted service and the audit trail (5 entries, hash-linked, chain ok) was seen; the "signed record of a suspension" is not met (the service holds no signing key); question 54 |
+| O18 | partial | closed | The live run (5 audit entries, hash-linked, chain ok, the suspended tenant refused) and the owner's decision to accept the hash-chained, attributed audit for the beta; the 401 check and `asp serve audit` on the server were not run |
 | DK382 | closed | closed | Live evidence: 13 charters published as version 1 on the hosted service, each signed by the operator and co-signed by the owner |
 | DK396 | closed | closed | The 13 charters are in the live log; the cross-check and the `GET /charters` page (built, tested) have not been run on the hosted service until it is redeployed with the 21 new read methods; the row is not reopened |
 | DK1808 | (new) | open | PowerShell 5.1 mangles an inline JSON body in curl.exe; write the body to a file and send --data-binary |
+| DK1809 | (new) | open | A signed suspension record (the owner's key on the operator's machine): the later hardening of O18 |

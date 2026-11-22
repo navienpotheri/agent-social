@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 62,
+  "must": 61,
   "withdraw": 137,
-  "after": 322,
+  "after": 323,
   "total": 521
  },
- "mustWorkerHours": 297.2,
+ "mustWorkerHours": 295.2,
  "entries": [
   {
    "id": "D3",
@@ -1182,17 +1182,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "O18",
-   "pri": "A",
-   "status": "partial",
-   "gap": "**Round 8:** an admin-role token can suspend, resume, block and unblock and read the audit trail over HTTP (`/admin/...`), and every action, by the API or a local command, is a line in a hash-chained…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "operator suspend and block routes: verify live in the runbook and close"
   },
   {
    "id": "O19",
@@ -5900,6 +5889,18 @@
    "pri": "B",
    "status": "open",
    "gap": "In Windows PowerShell 5.1 an inline JSON body in `curl.exe -d '{...}'` arrives mangled at the service (\"the body is not JSON\"), so the guide's own admin-route line (live-check-kit section 4) failed f…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1809",
+   "pri": "B",
+   "status": "open",
+   "gap": "A suspension has no signed record: the admin routes of the hosted service write a hash-chained audit entry attributed to the admin token's tenant (the owner accepted that for the beta on 2026-11-22),…",
    "bucket": "after",
    "hours": 0,
    "size": "",

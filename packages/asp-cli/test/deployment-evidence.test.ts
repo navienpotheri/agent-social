@@ -125,7 +125,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
   for (const [id, re] of Object.entries(touched)) {
     const row = rowOf(id).sort((a, b) => b.length - a.length)[0]!;
     assert.match(row, re, `${id}: the note and what is missing`);
-    assert.equal(status(row), id === "DK1802" ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802 closed later the same evening)`);
+    assert.equal(status(row), ["DK1802", "O18"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802 and O18 closed later the same evening)`);
     assert.doesNotMatch(row.split("|").slice(-2)[0]!, /\*\*/, `${id}: the status cell holds one word`);
   }
   // The overnight table: every row id is a row of the register and the 'after' status is the register's.
@@ -139,7 +139,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     const rows = rowOf(c[1]!);
     assert.ok(rows.length >= 1, `${c[1]} is a row of the register`);
     const reg = rows.map((r) => r.split("|").slice(-2)[0]!.trim()).find((st) => /^(open|partial|closed|designed)/.test(st)) ?? "";
-    const later = ["DK1802", "DK546"].includes(c[1]!) && reg.startsWith("closed");   // closed later the same evening (the second table)
+    const later = ["DK1802", "DK546", "O18"].includes(c[1]!) && reg.startsWith("closed");   // closed later the same evening (the later tables)
     assert.ok(reg.startsWith(c[3]!) || later, `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
     if (c[3] === "closed") closed.push(c[1]!);
   }
@@ -204,12 +204,12 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   for (const frag of ["No end-of-job mail arrived for the sponsored run", "the owner ran it and the lead has not seen the output", "DK1807", "E9 stays partial"]) assert.ok(ckPart.includes(frag), `checklist: ${frag}`);
 });
 
-test("the O18 live run and the 13 charters (seen by the lead): O18 stays partial because the signed record of a suspension is not met, DK382 and DK396 stay closed with live notes, DK1808 is opened, E9 is judged plainly, and question 54 is a proposed default", () => {
+test("the O18 live run and the 13 charters (seen by the lead): O18 closes on the owner's decision to accept the hash-chained audit (the signed record is the later row DK1809), DK382 and DK396 stay closed with live notes, DK1808 is opened, and E9 is judged plainly", () => {
   const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
   assert.equal(status(row("E9")), "partial");
   for (const frag of ["The Done line, judged (2026-11-22)", "a live send to the owner's own address", "are met by the direct test mail alone", "**the end-of-job mail from a real governed run has NOT been received**", "the cause found is that `asp run` creates no settled contract (DK1807)"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
-  assert.equal(status(row("O18")), "partial");
-  for (const frag of ["Live run, 2026-11-22 about 21:30 to 21:35 IST (16:00 to 16:04 UTC)", "ops-owner", "this tenant is suspended: O18 live check", "192.0.2.1", "chain ok and 5 entries, hash-linked", "seq 1 resume", "16:02:29Z", "16:03:50Z", "Not run:** `asp serve audit --tokens` on the server, and a 401 check without the admin token", "**the row stays partial** until the owner decides", "owner question 54", "so the audit entries are hash-chained and attributed to the admin tenant, not signed"]) assert.ok(row("O18").includes(frag), `O18: ${frag}`);
+  assert.equal(status(row("O18")), "closed");
+  for (const frag of ["Live run, 2026-11-22 about 21:30 to 21:35 IST (16:00 to 16:04 UTC)", "ops-owner", "this tenant is suspended: O18 live check", "192.0.2.1", "chain ok and 5 entries, hash-linked", "seq 1 resume", "16:02:29Z", "16:03:50Z", "Not run:** `asp serve audit --tokens` on the server, and a 401 check without the admin token", "Judged by the Done line, and closed 2026-11-22", "accept the hash-chained, attributed audit trail for the beta as the record of a suspension", "**DK1809** (priority B, open: a signed suspension record, the owner's key on the operator's machine", "Not run, and not part of the Done line", "the owner is asked to run that check", "deployment-evidence.test.ts holds this evidence"]) assert.ok(row("O18").includes(frag), `O18: ${frag}`);
   assert.equal(status(row("DK382")), "closed");
   for (const frag of ["Live evidence 2026-11-22", "published 13 charters as version 1", "each signed by the operator and co-signed by the owner", "489f2a90", "no server redeploy", "the first time that the live society has its charters"]) assert.ok(row("DK382").includes(frag), `DK382: ${frag}`);
   assert.equal(status(row("DK396")), "closed");
@@ -225,18 +225,26 @@ test("the O18 live run and the 13 charters (seen by the lead): O18 stays partial
     assert.match(d, /DK1808/, p);
     assert.doesNotMatch(d, /curl\.exe[^\n]* -d '\{/, `${p}: no inline JSON body for curl.exe`);
   }
-  const all = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
-  const q54 = all.split(String.fromCharCode(10)).find((l) => l.startsWith("54. **O18:**"))!;
-  assert.match(q54, /Recommended default: accept the hash-chained audit for the beta/);
-  assert.match(q54, /until you answer, O18 stays partial/);
-  assert.doesNotMatch(read("docs/owner-decisions.md"), /accept the hash-chained audit/, "not recorded as decided");
+  const all54 = read("docs/owner-questions-all.md");
+  assert.doesNotMatch(all54.split("## Answered, no action")[0]!, /^54\. \*\*O18:\*\*/m, "question 54 has left the open list");
+  assert.match(all54.split("## Answered, no action")[1]!, /O18 \(the record of a suspension\): the owner accepted the hash-chained, attributed audit trail for the beta/);
+  assert.match(all54, /Count of open questions: 53\*\*/);
+  const dec = read("docs/owner-decisions.md");
+  assert.match(dec, /## O18: the record of a suspension \(answered 2026-11-22 evening, relayed by the lead/);
+  assert.match(dec, /\*\*Accept the hash-chained, attributed audit trail for the beta\*\*/);
+  assert.match(dec, /DK1809 \(priority B, open\)/);
+  const dk1809 = row("DK1809");
+  assert.equal(status(dk1809), "open");
+  assert.equal(dk1809.split("|").slice(-3)[0]!.trim(), "B");
+  assert.match(dk1809, /Done: a suspension \(and a resume, a block and an unblock\) can also be written as a record signed by the operator's key on the operator's machine/);
+  assert.match(dk1809, /and a test that an unsigned entry is not accepted as the signed record/);
   const log = read("docs/overnight-log.md");
   const table = log.slice(log.indexOf("## 2026-11-22 later still (launch-bar-2)"));
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
-  assert.equal(lines.length, 5);
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808") assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
+  assert.equal(lines.length, 6);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808" && c[1] !== "DK1809") assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## O18 live run and the 13 charters"));
-  for (const frag of ["`GET /admin/tenants` listed the five tenants", "{ok:true, action:suspend}", "this tenant is suspended: O18 live check", "5 entries, hash-linked", "seq 5 block of 192.0.2.1 (16:03:50Z", "O18 stays partial", "13 charters as version 1", "Housing housing", "The end-of-job mail from a real governed run has **not** been received"]) assert.ok(part.includes(frag), frag);
+  for (const frag of ["`GET /admin/tenants` listed the five tenants", "{ok:true, action:suspend}", "this tenant is suspended: O18 live check", "5 entries, hash-linked", "seq 5 block of 192.0.2.1 (16:03:50Z", "**O18 is closed**", "13 charters as version 1", "Housing housing", "The end-of-job mail from a real governed run has **not** been received"]) assert.ok(part.includes(frag), frag);
   assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|sk-[A-Za-z0-9]{20,}/, "no token");
 });
