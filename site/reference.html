@@ -159,8 +159,8 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 294 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
-<details><summary>Everyday (30)</summary><pre>Most people use only these.
+  <p class="small">The page is generated from the repository, so it matches the 295 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+<details><summary>Everyday (31)</summary><pre>Most people use only these.
 
 asp
     A short home screen: the everyday commands and what to do next
@@ -192,6 +192,8 @@ asp live report [--session &lt;id&gt;] [--json]
     Summarise what a live session proved, from its own hash-checked run log and the session index: calls allowed and refused and why, the estimated spend against the cap, the identities used, what was held (outbound scan, untrusted text and flow, injection, circumvention), and the records the log holds for the job. It says what it could not read; dollar figures are estimates, not the provider's bill
 asp gateway ... --budget-usd &lt;n&gt; [--price-in &lt;n&gt; --price-out &lt;n&gt;]
     A hard cap in US dollars for a run (also asp run --budget-usd): the spend is estimated from the tokens each reply reports and a price table (dollars per million tokens; a model not in the table is priced high, and --price-in and --price-out override), and once it reaches the cap, or the next call could pass it (its whole request plus the largest reply it allows), no call is made to the provider and the run stops. An estimate for stopping, not the provider's bill
+asp gateway ... --ladder-file &lt;path&gt;
+    Apply the ladder step the operator or the watcher wrote for this agent: the file holds {"step": "none"|"warn"|"tighten"|"quarantine"|"review"} and is read at every call; tighten holds a call that reaches outside the project for your approval, quarantine and review refuse all but reading (never a strike); a missing file is no step and an unreadable one is read as tighten
 asp gateway ... --private-scopes &lt;a,b&gt; --package &lt;dir&gt; [--principal &lt;did&gt;]
     Give the agent private memory for this run: the named scopes, sealed to you and this agent (an X25519 key for each, the agent's sealed to yours), opened only inside the gateway for the length of the run and offered to the agent as the tools asp_memory_private_list, _read and _write (256 KiB a scope, 16 scopes, names a-z 0-9 - _). The run log holds a scope, a size and a hash, never the text; no other agent of yours, and no host with only a node key, can read a scope. The agent's text still reaches its model provider when it reads a scope into a prompt (DK272, D12)
 asp stop [&lt;id&gt; | --all]

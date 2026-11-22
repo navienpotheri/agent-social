@@ -12,6 +12,7 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
+import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -41,6 +42,11 @@ import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayO
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
 export interface GatewayOptions {
+  /**
+   * The ladder step the agent stands on now (DK211, DK92; circumvention.ts `ladderAtCall`), read at every call: warn changes nothing, tighten holds a call that reaches outside the project for the principal's
+   * approval, quarantine and review refuse everything but reading. A step is written by the Clinic or the watcher, never by the agent; absent, no step applies.
+   */
+  ladder?: () => LadderStep;
   /** The second check on risky calls (DK531, S955): a small model that may only make an allowed call stricter. Absent or off, the rules answer alone. */
   secondCheck?: SecondCheck;
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
@@ -452,6 +458,21 @@ export function createGateway(opts: GatewayOptions): Gateway {
       } else {
         const a = await askPrincipalOnce(call, gateScope);
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
+      }
+    }
+    // The ladder (DK211): the step the agent stands on decides this call. A hold is asked about like a gated call; a refusal is a refusal without a strike (the strike was the circumvention that put it on the ladder).
+    if (allow && opts.ladder && j.scope) {
+      const step = opts.ladder();
+      const d = ladderAtCall(step, j.scope);
+      if (d.action === "refuse") { allow = false; strike = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}": ${d.why}. Tell your principal; the Clinic lifts it.`; rec?.event("ladder_refusal", { scope: j.scope, step }); }
+      else if (d.action === "hold") {
+        strike = false;
+        if (!opts.gate?.approvalsDir) { allow = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and this run cannot ask for it.`; rec?.event("ladder_refusal", { scope: j.scope, step }); }
+        else {
+          const a = await askPrincipalOnce(call, j.scope);
+          rec?.event("ladder_hold", { scope: j.scope, step, approved: a.approved });
+          if (!a.approved) { allow = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and it was not given${a.reason ? `: ${a.reason}` : ""}.`; }
+        }
       }
     }
     // Brute force and scanning (gap H1): a command that reads as guessing credentials or probing ports is refused, and it is a strike: a network scope does not allow it.

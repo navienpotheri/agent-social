@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 104,
+  "withdraw": 103,
   "after": 329,
-  "total": 497
+  "total": 496
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -3187,19 +3187,6 @@
    "flags": "",
    "why": "",
    "claim": "Drift probes run against real agents",
-   "where": "deck, site"
-  },
-  {
-   "id": "DK211",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Two of DK92's detections are not built: hiding intent (an agent that conceals what it is doing from its own summary) and the red-team suite that tries to circumvent and must be caught (LW4); and the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Hiding intent and sandbagging are detected",
    "where": "deck, site"
   },
   {

@@ -356,7 +356,7 @@ import { sitRoutes } from "./lens-courses/sit-routes.ts";
 import { Ledger as SittingLedger } from "./lens-courses/sitting.ts";
 import { cohortRoutes } from "./lens-courses/cohort-pages.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
-import { httpEnrol } from "@agent-social/asp-package";
+import { httpEnrol, readLadderFile } from "@agent-social/asp-package";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
 import { readFleetCeiling } from "./fleet-ceiling.ts";
@@ -931,6 +931,7 @@ const OPTIONS = {
   gate: { type: "string", multiple: true },
   irreversible: { type: "string" },
   "approval-wait": { type: "string" },
+  "ladder-file": { type: "string" },
   expires: { type: "string" },
   correction: { type: "string" },
   question: { type: "string" },
@@ -3825,8 +3826,10 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     onOverflow: (e) => runLog?.event("gateway_refusal_overflow", { scope: e.scope, rule: e.rule, why: e.reason, not_recorded: e.skipped }),
     onError: (e) => { if (!/gateway_refusal_duplicate/.test(e.message)) runLog?.event("gateway_refusal_not_recorded", { reason: e.message.slice(0, 200) }); },
   });
+  const ladderFile = v["ladder-file"] ? resolve(v["ladder-file"]) : undefined;
   const gw = createGateway({
     cognition,
+    ...(ladderFile ? { ladder: () => readLadderFile(ladderFile) } : {}),
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),

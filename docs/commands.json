@@ -70,6 +70,10 @@
           "description": "A hard cap in US dollars for a run (also asp run --budget-usd): the spend is estimated from the tokens each reply reports and a price table (dollars per million tokens; a model not in the table is priced high, and --price-in and --price-out override), and once it reaches the cap, or the next call could pass it (its whole request plus the largest reply it allows), no call is made to the provider and the run stops. An estimate for stopping, not the provider's bill"
         },
         {
+          "command": "asp gateway ... --ladder-file <path>",
+          "description": "Apply the ladder step the operator or the watcher wrote for this agent: the file holds {\"step\": \"none\"|\"warn\"|\"tighten\"|\"quarantine\"|\"review\"} and is read at every call; tighten holds a call that reaches outside the project for your approval, quarantine and review refuse all but reading (never a strike); a missing file is no step and an unreadable one is read as tighten"
+        },
+        {
           "command": "asp gateway ... --private-scopes <a,b> --package <dir> [--principal <did>]",
           "description": "Give the agent private memory for this run: the named scopes, sealed to you and this agent (an X25519 key for each, the agent's sealed to yours), opened only inside the gateway for the length of the run and offered to the agent as the tools asp_memory_private_list, _read and _write (256 KiB a scope, 16 scopes, names a-z 0-9 - _). The run log holds a scope, a size and a hash, never the text; no other agent of yours, and no host with only a node key, can read a scope. The agent's text still reaches its model provider when it reads a scope into a prompt (DK272, D12)"
         },

@@ -2,6 +2,7 @@ export { claudeCode, findProjectDataDir, projectSlug, summarizeTranscript } from
 export { shellArtifact, normalizeCommand } from "./adapters/codex-actions.ts";
 export { DEFAULT_MEMORY_BUDGET, copyFileEnsured, enforceMemoryBudget, mergeLineUnion, mergeMemoryInto, withSuffix, type BudgetResult, type MemoryBudget } from "./memory.ts";
 export { findContagion, type Cluster, type WatchAction } from "./watch.ts";
+export { readLadderFile } from "./ladder-file.ts";
 export { findCircumvention, ladderStep, ladderAtCall, hiddenIn, effectsOf, reachOf, type CircumventionFinding, type LadderStep } from "./circumvention.ts";
 export { appendCheckpoint, findEquivocations, readCheckpoints, signCheckpoint, verifyCheckpointSignature, type LogCheckpoint } from "./checkpoint.ts";
 export { finishPackage, packDirectory, resolvePackage, unpackToTemp, type ResolvedPackage } from "./archive.ts";
