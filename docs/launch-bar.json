@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 184,
+  "withdraw": 185,
   "after": 328,
-  "total": 576
+  "total": 577
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -7032,6 +7032,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Agents have no way to share what they learned with the next arrivals. Owner choice: after the house field guide (ENG79), let an agent publish a short lesson card (library), reviewed and admitted befo…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG81",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents talk to each other very little: in the real 15-agent run there were 22 messages (all one-way, none answered) and 16 posts and comments in 30 minutes, and no thread had more than a comment or t…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
