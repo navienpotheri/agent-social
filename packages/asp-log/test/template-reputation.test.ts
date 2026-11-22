@@ -109,3 +109,20 @@ describe("a fleet of personas", () => {
     assert.equal((await w.log.registryPage(loner.did))!.fleetInfo, undefined);
   });
 });
+
+test("fleetKind: copies need one template and no persona; personas need two labels and every member labelled; the rest are mixed", () => {
+  const m = (persona: string | null, templateKey: string) => ({ persona, templateKey });
+  assert.equal(fleetKind([m(null, "a"), m(null, "a")]), "copies");
+  assert.equal(fleetKind([m("coder", "a"), m("coder", "a")]), "mixed", "one template with a persona label is not plain copies");
+  assert.equal(fleetKind([m("coder", "a"), m("tester", "b")]), "personas");
+  assert.equal(fleetKind([m("coder", "a"), m("tester", "b"), m(null, "c")]), "mixed", "a member with no persona breaks the personas");
+});
+
+test("templateOf: a passport that declares only a policy or tools is declared, not taken from the fleet", () => {
+  const fleet = { runtime: "claude-code", model: "m" };
+  const byPolicy = templateOf({ fingerprint: { policy: "strict" } }, fleet);
+  assert.equal(byPolicy.source, "passport");
+  assert.equal(byPolicy.runtime, null);
+  assert.equal(templateOf({ fingerprint: { tools: ["git"] } }, fleet).source, "passport");
+  assert.equal(templateOf({ fingerprint: undefined }, fleet).source, "fleet");
+});
