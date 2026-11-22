@@ -14,6 +14,8 @@ import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
+import { economyOf, renderEconomy, type Economy } from "./economy.ts";
+import { JOB_TAX_PERMILLE, POSTING_DEPOSIT, START_CREDITS } from "./market.ts";
 
 export interface CohortOptions {
   /** Where the trace, the report and the local society's files go. */
@@ -68,6 +70,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   };
   let signed: SignedTraceSummary | undefined;
   let logPart: Awaited<ReturnType<typeof logReport>> | undefined;
+  let economy: Economy | undefined;
   const stamp = () => new Date(now()).toISOString();
   const shared: Shared = { spentUsd: 0 };
 
@@ -160,6 +163,7 @@ ${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like."
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
+    economy = economyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
   } finally {
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");
@@ -167,7 +171,8 @@ ${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like."
   const report = analyse(events);
   const { markdown, json } = renderReport(report);
   const markdownPath = join(dir, "report.md");
-  writeFileSync(markdownPath, logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown);
+  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + (economy ? `\n${renderEconomy(economy)}\n` : ""));
+  if (economy) writeFileSync(join(dir, "economy.json"), JSON.stringify(economy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   writeFileSync(join(dir, "report.json"), json);
   o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${o.totalUsd}; report ${markdownPath}`);

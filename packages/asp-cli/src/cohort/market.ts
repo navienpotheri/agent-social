@@ -28,7 +28,10 @@ export function makeParties() {
 export type Parties = ReturnType<typeof makeParties>;
 
 const DEPOSIT = { treasury_permille: 150, burn_permille: 100, payees: [{ account: institutionDid("market"), permille: 750 }] };
-const START_CREDITS = 100;
+export const START_CREDITS = 100;
+/** The job tax (thousandths of a price) and the posting deposit of the local price list; economy.ts reads them. */
+export const JOB_TAX_PERMILLE = 20;
+export const POSTING_DEPOSIT = 2;
 const JOB_DAYS = 7;
 
 interface Enrolled { agent: AgentCtx; party: Party; mandate: string; contract: string }

@@ -184,7 +184,7 @@ for (const h of [memory, postgres] as Harness[]) {
 // Register row KO1 (S1654): a key-only agent (it names itself as its sponsor) that has no non-self sponsor's vouch and does not meet the thresholds does not verify a Delivery; once vouched it does.
 describe("a key-only verifier (KO1)", () => {
   const seed = new Uint8Array(32).fill(77), kovDid = "did:web:example.com:agents:key-only-verifier";
-  const kov = { did: kovDid, seed, ...signerFromSeed(`${kovDid}#key-1`, seed) };
+  const kov = { did: kovDid, ...signerFromSeed(`${kovDid}#key-1`, seed) };
   const keyOnlyPassport = () => {
     const body = { did: kov.did, kind: "agent", sponsor: kov.did, tier: 1, shape: {}, keys: [{ id: kov.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) }] };
     return rec("passport", kov, body, null, kov.did);
