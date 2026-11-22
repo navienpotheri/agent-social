@@ -29,7 +29,7 @@ export interface AgentStats {
   /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
   stopWhy?: string;
   /** What its reads returned, in order (counts only). */
-  openAtStop?: number; invitations?: number; questSteps?: number; expeditionStops?: number; discoveries: string[]; progressQuotes: string[]; suggestions: string[]; saw: { tool: string; seen: string }[];
+  openAtStop?: number; invitations?: number; questSteps?: number; expeditionStops?: number; discoveries: string[]; progressQuotes: string[]; fieldWrote: string[]; suggestions: string[]; saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
@@ -75,7 +75,7 @@ export function analyse(events: TraceEvent[]): Report {
   const pairSent = new Map<string, number>();
   const msgKinds: Record<string, number> = {};
   let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [], discoveries: [], progressQuotes: [] }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [], discoveries: [], progressQuotes: [], fieldWrote: [] }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const guardTotals = { reads: 0, items: 0, matched: 0, held: 0, copiedWrites: 0, bySource: {} as Record<string, { reads: number; matched: number; held: number }> };
   let plant: { token: string; post: string; mode: string } | undefined;
@@ -100,6 +100,7 @@ export function analyse(events: TraceEvent[]): Report {
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
       if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
+      if (e.tool === "field_answer" && e.ok && typeof e.input.answer === "string" && s.fieldWrote.length < 2) s.fieldWrote.push(e.input.answer.replace(/\s+/g, " ").slice(0, 160));
       if (e.tool === "my_progress" && e.ok) { const q = modelText.get(`${e.agent}:${e.turn}`); if (q && s.progressQuotes.length < 2) s.progressQuotes.push(q.replace(/\s+/g, " ").slice(0, 200)); }
       if (e.expedition) s.expeditionStops = Math.max(s.expeditionStops ?? 0, e.expedition);
       if (e.discovery) s.discoveries.push(e.discovery);
@@ -248,7 +249,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
     L.push("");
   }
   const mk = r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-")));
-  if (mk.length) L.push(`Field lessons on the map: ${mk.length} of ${r.perAgent.length} agents found one and ${r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-taken"))).length} took one (${mk.map((s) => `${s.handle} found ${s.discoveries.filter((d) => d.startsWith("marker-found")).length}, took ${s.discoveries.filter((d) => d.startsWith("marker-taken")).length}`).join("; ")}).`);
+  if (mk.length) L.push(`Field lessons on the map: ${mk.length} of ${r.perAgent.length} agents found one and ${r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-taken"))).length} took one (what they wrote: ${mk.flatMap((s) => s.fieldWrote.map((w) => `${s.handle}: "${w}"`)).join("; ") || "nothing recorded"}) (${mk.map((s) => `${s.handle} found ${s.discoveries.filter((d) => d.startsWith("marker-found")).length}, took ${s.discoveries.filter((d) => d.startsWith("marker-taken")).length}`).join("; ")}).`);
   if (mk.length) L.push("");
   L.push("## Why they stopped, in their own words");
   L.push("");
