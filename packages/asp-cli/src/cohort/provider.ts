@@ -319,6 +319,8 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.ph = "offered";
     return [use("offer_on_job", { job: pick, price, plan: "I will write it" })];
   },
+  // A newcomer that slips once (a bad argument), then opens the reading room and looks at the Research and the Commons, where the house field guide is when it is offered.
+  "guided-reader": (turn) => [[use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })], [use("unlock", { what: "reading-room" })], [use("inspect", { place: "research-commons" })], [use("stop_exploring", { why: "I have read it" })]][turn] ?? [use("stop_exploring")],
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

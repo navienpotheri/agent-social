@@ -23,6 +23,7 @@ import { renderWriteback, writebackReport } from "./writeback-report.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
+import { buildGuide, countRefusals, loadCounts, renderGuideComparison } from "./field-guide.ts";
 import { findsSection } from "./finds.ts";
 import { renderMarkerWindows } from "./markers.ts";
 import { renderDayCycle } from "./day-cycle.ts";
@@ -75,6 +76,10 @@ export interface CohortOptions {
   event?: boolean;
   /** The orientation expedition (groups of four, a house guide, five small stops) and the places to discover (expedition.ts). */
   expedition?: boolean;
+  /** The house field guide to the most common refusals, built from the refusals counted in this run data (a run folder, its trace.jsonl or its refusal-counts.json) (ENG79). */
+  fieldGuide?: string;
+  /** Who is offered the guide: "half" (every other agent, so the two groups can be compared; the default) or "all". */
+  guideMode?: "half" | "all";
   /** Leave out the two true lines about learning and about more to find (a briefing variant to compare against, ENG69). */
   noHints?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
@@ -149,6 +154,14 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   world.api.groups = groups;
+  let guideInfo: { guide: ReturnType<typeof buildGuide>; mode: "half" | "all" } | undefined;
+  if (o.fieldGuide) {
+    const guide = buildGuide(loadCounts(o.fieldGuide), o.fieldGuide.replace(/.*[/\\]/, "") || o.fieldGuide);
+    const mode = o.guideMode ?? "half";
+    guideInfo = { guide, mode };
+    world.api.fieldGuide = { guide, offered: (n) => mode === "all" || n % 2 === 0 };
+    if (world.api.market) world.api.market.guideFor = (a) => !!world.api.fieldGuide?.offered(a.n) && guide.entries.length > 0;
+  }
   world.api.hintLines = !o.noHints;
   await world.api.market?.scaleFor(o.agents); // a board as big as the cohort, so agents that arrive together do not all rush the same first jobs
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
@@ -282,7 +295,8 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
-  const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;  const wr = o.writeback ? writebackReport(events) : undefined;  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (world.api.markers ? `\n${renderMarkerWindows(world.api.markers)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
+  const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;  const wr = o.writeback ? writebackReport(events) : undefined;  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (world.api.markers ? `\n${renderMarkerWindows(world.api.markers)}` : "") + (guideInfo ? `\n${renderGuideComparison(events, (h) => { const k = Number(/(\d+)$/.exec(h)?.[1] ?? "0") - 1; return !!world.api.fieldGuide?.offered(k); }, guideInfo.guide)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  { const rc = countRefusals(events); writeFileSync(join(dir, "refusal-counts.json"), JSON.stringify({ counts: rc.counts, agents: rc.agents }, null, 2) + "\n"); } // the counts that a later run can build its field guide from
+  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   if (o.snapshotOut && founding) {

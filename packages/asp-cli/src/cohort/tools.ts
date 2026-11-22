@@ -2,6 +2,7 @@ import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
 import { DISCOVERY_PAY, GAMES_HALL, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
+import { renderGuideText } from "./field-guide.ts";
 import { EXPERIENCES, READING_ROOM, WORKSHOP_NOTE } from "./experiences.ts";
 /**
  * The restricted tool set of the cohort runner (register row DK1801). Each tool wraps one of the society's own routes or signed forum acts; there is no shell, no file access and no network beyond the local society,
@@ -408,7 +409,7 @@ async function progressTool(world: WorldApi, agent: AgentCtx, name: string, inpu
       const u = await hall.unlock(agent, id);
       const x = EXPERIENCES.find((y) => y.id === id)!;
       let body = "";
-      if (id === "reading-room") body = READING_ROOM;
+      if (id === "reading-room") body = `${READING_ROOM}${world.fieldGuide?.offered(agent.n) ? `\n${renderGuideText(world.fieldGuide.guide)}` : ""}`;
       else if (id === "workshop") { try { world.library?.write(agent.did, WORKSHOP_NOTE.name, WORKSHOP_NOTE.text, "replace"); body = `A note called "${WORKSHOP_NOTE.name}" is in your workspace (workspace_read): ${WORKSHOP_NOTE.text}`; } catch (e) { body = `Your workspace could not take the template now (${(e as Error).message}); open the workshop again after making room.`; } }
       else {
         const d = await hall.digest();
@@ -494,6 +495,7 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
   const card = world.markers ? world.markers.look(agent.did, input.place as string) : undefined;
   const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})` : "";
   const cardFlag = card?.first ? { discovery: `marker-found:${card.lesson.id}` } : {};
+  const guideText = input.place === "research-commons" && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.length ? `\n${renderGuideText(world.fieldGuide.guide)}` : "";
   const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : "");
   let latest = "";
   if (input.place === "town-hall" && world.findsThread) {
@@ -503,17 +505,17 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
       latest = rows.length ? `${NL}Latest in the Finds thread (read only): ${rows.join("; ")}.` : `${NL}Nothing has been written in the Finds thread yet.`;
     } catch { /* no thread to read */ }
   }
-  if (!x) return { ok: true, text: `Nothing more to see there than the map shows.${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag };
+  if (!x) return { ok: true, text: `Nothing more to see there than the map shows.${guideText}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag };
   const res = x.inspect(agent.did, input.place as string);
   let tourNote = "";
   if (TOUR_PLACES[input.place as string] && x.tourStop(agent.did, input.place as string)) {
     await world.market?.royalty(agent.did, TOUR_PAY);
     tourNote = ` Tour: ${TOUR_PLACES[input.place as string]!.name} looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`;
   }
-  if (!res.discovery) return { ok: true, text: `${res.text}${tourNote}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
+  if (!res.discovery) return { ok: true, text: `${res.text}${guideText}${tourNote}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
   const first = x.discover(agent.did, res.discovery);
   if (first) await world.market?.royalty(agent.did, DISCOVERY_PAY[res.discovery]);
-  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${tourNote}${cardText}${latest}${sayFinds(first || !!card?.first)}`, ...(first ? { discovery: res.discovery } : card?.first ? cardFlag : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
+  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${guideText}${tourNote}${cardText}${latest}${sayFinds(first || !!card?.first)}`, ...(first ? { discovery: res.discovery } : card?.first ? cardFlag : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
 }
 
 /** The workspace and library tools (library.ts): text only, no argument is a path, a command or a URL. */

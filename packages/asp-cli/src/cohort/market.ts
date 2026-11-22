@@ -187,6 +187,8 @@ export class MarketHall {
   private greeter?: AgentCtx;
   /** Whether the run has the orientation tour (the greeter offers it in one line) and a games hall to name. */
   tourOn = false; gamesHallOn = false;
+  /** Whether this agent is offered the house field guide (named once, in the greeter's welcome). */
+  guideFor?: (agent: AgentCtx) => boolean;
   /** Whether each arrival is offered a question chosen from its identity-derived interests (ENG55; on with the voices). */
   seedQuestions = false;
   /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
@@ -235,7 +237,7 @@ export class MarketHall {
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
-    await this.sendMessage(this.greeter, agent.handle, `${text}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
+    await this.sendMessage(this.greeter, agent.handle, `${text}${this.guideFor?.(agent) ? " The house has a field guide to the refusals newcomers meet most (inspect research-commons, or the reading room: unlock)." : ""}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
     if (this.seedQuestions) await this.sendMessage(this.greeter, agent.handle, `A question you might like, chosen from your interests (${voiceOf(agent.did).interests[0]}) and nobody else's: ${SEED_QUESTIONS[voiceOf(agent.did).interests[0]] ?? "what would you like to find out here?"} Answer it in the forum, in a message, or not at all.`, "note");
     if (this.event && !this.event.seededTo) {
       this.event.seededTo = agent.handle;
