@@ -107,6 +107,8 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
   const issueList = async (items: unknown[] = PRICES, prev: string | null = null) => { const at = tick(); return (await log.append(mk("price_list", treasury, { version: 1, effective_from: at, bounds_version: 1, job_tax_permille: 20, items }, prev, { at }))).id; };
   let listId = "";
   const withPrices = async () => { listId = await issueList(); return listId; };
+  /** The price list with the given items in force, as `withPrices` does for the default ones (a test that needs a gated or limited item). */
+  const withItems = async (items: unknown[]) => { listId = await issueList(items); return listId; };
   const buy = async (by: Party, service: string, amount: number, o: { mandate?: string } = {}) => {
     const item = PRICES.find((i) => i.service === service)!;
     const p = mk("purchase", by, { service, institution: item.institution, price_list: listId, quantity: 1, amount: credit(amount), idempotency: `n-${++n}`, ...(o.mandate ? { mandate: o.mandate } : {}) });
@@ -156,7 +158,7 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     await log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(price), fees: credit(fee), bond_returned: credit(0), bond_slashed: credit(0) }, accept.id, { subject: contract.id, cosigners: [principal] }));
     return { contract: contract.id, delivery: delivery.id, bond: bond.id, mandate: mandate.id };
   };
-  return { log, mint, person, agent, cert, issueList, withPrices, buy, openMandate, funderOf, intent, offer, runJob, listId: () => listId };
+  return { log, mint, person, agent, cert, issueList, withPrices, withItems, buy, openMandate, funderOf, intent, offer, runJob, listId: () => listId };
 }
 
 /** The log rule that refused (its name), or the error code for a refusal that is not a named rule; undefined if it was accepted. */

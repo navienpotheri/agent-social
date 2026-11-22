@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:invitation_revocation",
+  "title": "Invitation revocation body",
+  "description": "The organisation that signed a fleet invitation (register row DK1505; spec-delta S1706) takes it back before it is used. Issued by the organisation of the fleet (invitation_revocation_not_the_org); the fleet is declared (invitation_revocation_unknown_fleet); the invitation is named by its nonce, which has not been used (invitation_revocation_already_used) and has not been revoked (invitation_revocation_known). After it the log refuses a passport that carries that invitation (invitation_revoked); other invitations of the fleet are not touched. A used invitation cannot be revoked: the agent has joined, and leaving is the sponsor's passport update. Subject: the fleet. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "fleet",
+    "nonce"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "fleet": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "nonce": {
+      "description": "The nonce of the invitation, as it appears in the token (a random string of 8 to 64 URL-safe characters).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,64}$"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

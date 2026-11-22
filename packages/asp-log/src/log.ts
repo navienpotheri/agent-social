@@ -26,12 +26,17 @@ import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
+/** A quality review panel (JO8, S1704): at most 7 reviewers a delivery; 3 make a panel that counts for a reviewer's record; a criterion is contested when its scores are 4 or more points apart. */
+/** The observer phase of a community juror (DK122, S1705): five cases whose ruling has since been made. */
+export const OBSERVER_CASES = 5;
+export const QUALITY_PANEL_MAX = 7, QUALITY_PANEL_MIN = 3, QUALITY_CONTESTED_SPREAD = 4;
+export interface QualityReport { delivery: string; reviewers: number; criteria: { criterion: number; median: number; spread: number; contested: boolean }[]; overall: number; contested: boolean; panel: { reviewer: string; deviation: number }[]; enough: boolean }
 import { FAILURE_GRACE_MS, FAILURE_SLASH_PERMILLE, failureSlash } from "./contract-failure.ts";
 import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRUCK_SHARE_PERMILLE, AUTHOR_WINDOW_DAYS, CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, ALLOWANCE_SLASH_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
@@ -71,7 +76,7 @@ import { projectHousingAct } from "./housing-rules.ts";
 import { projectEventsAct } from "./events-rules.ts";
 import { projectResearchAct } from "./research-rules.ts";
 import { projectTelemetryAct } from "./telemetry-rules.ts";
-import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
+import { assertNotDormant, checkGate, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
@@ -252,7 +257,7 @@ export const MAX_LATE_ACTIONS = 5;
 
 interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
-  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"]; max_per_buyer_period?: { count: number; period: "day" | "week" | "month" } }[];
 }
 interface PurchaseBody { buyer?: string; service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
@@ -426,6 +431,7 @@ export class EventLog {
     await tx.insertRecord(stored);
     if (type === "passport") await this.projectPassport(tx, verified);
     if (type === "fleet") await this.projectFleet(tx, verified);
+    if (type === "invitation_revocation") await this.projectInvitationRevocation(tx, verified);
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
@@ -501,6 +507,8 @@ export class EventLog {
     if (type === "exam_retirement") await this.projectExamWithdrawal(tx, verified);
     if (type === "contract_cancellation" || type === "contract_amendment") await this.projectContractChange(tx, verified, type);
     if (type === "team_split") await this.projectTeamSplit(tx, verified);
+    if (type === "quality_review") await this.projectQualityReview(tx, verified);
+    if (type === "shadow_opinion") await this.projectShadowOpinion(tx, verified);
     if (type === "contract_failure") await this.projectContractFailure(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
@@ -796,9 +804,25 @@ export class EventLog {
     let good = false;
     try { good = !!key && verifyBytes(b64urlDecode(inv.sig), new TextEncoder().encode(invitationMessage(inv)), b64urlDecode(key.publicKey)); } catch { good = false; }
     if (!good) throw rule("invitation_bad_signature", `the invitation's signature does not verify against a current key of ${fleet.org}`);
+    if (await tx.getMarker(`invite_revoked:${inv.fleet}:${inv.nonce}`)) throw rule("invitation_revoked", "the organisation took this invitation back before it was used");
     if (await tx.getMarker(`invite_used:${inv.nonce}`)) throw rule("invitation_used", "this invitation has already been used: one invitation joins one agent");
     await tx.putMarker(`invite_used:${inv.nonce}`, body.did);
     return true;
+  }
+
+  /**
+   * An invitation revocation (DK1505, S1706): the organisation of a fleet takes back an invitation it signed and nobody has used. The fleet is declared, the invitation is named by its nonce, which has not been
+   * used and has not been revoked; `checkInvitation` then refuses a passport that carries it. Other invitations are not touched.
+   */
+  private async projectInvitationRevocation(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; nonce: string };
+    if (r.prev !== null) throw rule("invitation_revocation_not_chained", "an invitation revocation starts its own chain (prev is null)");
+    const fleet = await tx.getFleet(b.fleet);
+    if (!fleet) throw rule("invitation_revocation_unknown_fleet", `fleet ${b.fleet} is not declared`);
+    if (r.issuer !== fleet.org) throw rule("invitation_revocation_not_the_org", `${r.issuer} is not the organisation of ${b.fleet} (${fleet.org}): only the organisation that signs invitations takes them back`);
+    if (await tx.getMarker(`invite_used:${b.nonce}`)) throw rule("invitation_revocation_already_used", "this invitation has been used: the agent has joined");
+    if (await tx.getMarker(`invite_revoked:${b.fleet}:${b.nonce}`)) throw rule("invitation_revocation_known", "this invitation is already revoked");
+    await tx.putMarker(`invite_revoked:${b.fleet}:${b.nonce}`, r.id);
   }
 
   private async fleetCount(tx: LogTx, fleetDid: string): Promise<number> {
@@ -2094,6 +2118,7 @@ export class EventLog {
   private async checkRulingPanel(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { kind: string; about: string };
     if (body.kind !== "ruling") return;
+    await tx.putMarker(`ruled:${body.about}`, r.id); // a shadow opinion (S1705) is given before this
     const contract = await tx.getRecord(body.about);
     if (!contract) return; // the lifecycle's own about_contract guard already rejects this
     const cbody = contract.record.body as { principal: string; performer: string };
@@ -2390,6 +2415,16 @@ export class EventLog {
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
     if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
+    else if (item.gate) await checkGate(tx, buyer, item, r.issued_at, rep?.tier); // a gate on any other institution's item (DK93)
+    // At most `count` units of the item for one buyer in a period (DK93): counted by quantity when bought.
+    let periodMark: { key: string; total: number } | undefined;
+    if (item.max_per_buyer_period) {
+      const key = `bought:${buyer}|${b.service}|${periodKey(item.max_per_buyer_period.period, r.issued_at)}`;
+      const had = Number((await tx.getMarker(key)) ?? 0);
+      if (had + b.quantity > item.max_per_buyer_period.count) throw rule("purchase_over_period_limit", `${b.service} is limited to ${item.max_per_buyer_period.count} per ${item.max_per_buyer_period.period} for one buyer; ${buyer} has ${had} this ${item.max_per_buyer_period.period} and asks for ${b.quantity} more`);
+      periodMark = { key, total: had + b.quantity };
+    }
+
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
@@ -2399,6 +2434,7 @@ export class EventLog {
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
+    if (periodMark) await tx.putMarker(periodMark.key, String(periodMark.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await noteIncome(tx, parts.treasury, r.issued_at);
@@ -4024,7 +4060,11 @@ export class EventLog {
       if (Date.parse(r.issued_at) - Date.parse(born) < 30 * 86_400_000) throw rule("allowance_floor_too_soon", `the unemployment floor is for an identity at least 30 days old with no accepted job; ${who} is ${Math.floor((Date.parse(r.issued_at) - Date.parse(born)) / 86_400_000)} days old`);
       if (((await this.reputation(tx, who))?.acceptedJobs ?? 0) > 0) throw rule("allowance_floor_has_job", `${who} has had a job accepted: the floor is for an identity that found none`);
     } else     if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
-    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
+    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) {
+      // A slash in the last ALLOWANCE_SLASH_DAYS days refuses it (DK230); an older one does not. A slash with no recorded date (a row from before the date was kept) refuses it, as before.
+      const when = await tx.getMarker(`slashed_at:${who}`);
+      if (!when || Date.parse(r.issued_at) - Date.parse(when) < ALLOWANCE_SLASH_DAYS * 86_400_000) throw rule("allowance_slashed", `${who} was slashed ${when ? `on ${when}, less than ${ALLOWANCE_SLASH_DAYS} days ago` : "(no date is recorded)"}: the allowance is for an agent with a clean record`);
+    }
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
     if (!bb || bb.institution !== TREASURY_DID || bb.purpose !== "allowance") throw rule("allowance_budget_wrong", `${b.budget} is not the Treasury's allowance budget: the allowance is paid only from one`);
@@ -4263,6 +4303,106 @@ export class EventLog {
     if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule("team_split_too_late", `the contract is ${chain?.state ?? "not started"}: the split is made before delivery`);
     if (await tx.getMarker(`team_split:${b.contract}`)) throw rule("team_split_known", `${b.contract} already has a team split`);
     await tx.putMarker(`team_split:${b.contract}`, JSON.stringify({ id: r.id, members: b.members.map((m) => ({ agent: m.agent, share_permille: m.share_permille })) }));
+  }
+
+  /**
+   * A quality review (JO8, S1704): one reviewer's scores, from 0 to 10, for each acceptance criterion of the intent a contract rests on, for a delivery the check cannot settle by a command. It is advice and moves
+   * nothing. The reviewer has a passport and is neither party; the delivery is in this log for that contract and the contract is not settled; every criterion is scored once; a reviewer reviews a delivery once and
+   * at most `QUALITY_PANEL_MAX` do. `qualityReport` reads the panel; `reviewerAgreement` reads the reviewer.
+   */
+  private async projectQualityReview(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string; delivery: string; scores: { criterion: number; score: number }[] };
+    if (r.prev !== null) throw rule("quality_review_not_chained", "a quality review starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("quality_review_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string; basis: { intent?: string } };
+    const d = await tx.getRecord(b.delivery);
+    if (!d || d.record.type !== "asp.delivery/v0.2" || (d.record.body as { contract: string }).contract !== b.contract) throw rule("quality_review_unknown_delivery", `${b.delivery} is not a delivery of ${b.contract}`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || chain.state === "Settled") throw rule("quality_review_too_late", "the contract is settled: a review would advise on a decision already taken");
+    if (r.issuer === cb.principal || r.issuer === cb.performer) throw rule("quality_review_party", `${r.issuer} is a party to ${b.contract}: a party does not review its own job`);
+    const team = JSON.parse((await tx.getMarker(`team_split:${b.contract}`)) ?? "null") as { members: { agent: string }[] } | null;
+    if (team?.members.some((m) => m.agent === r.issuer)) throw rule("quality_review_party", `${r.issuer} is a member of the team on ${b.contract}`);
+    if (!(await this.reputation(tx, r.issuer))) throw rule("quality_review_unknown_reviewer", `${r.issuer} has no passport in this log`);
+    let n = 1;
+    if (cb.basis.intent !== undefined) {
+      const it = await tx.getRecord(cb.basis.intent);
+      n = ((it?.record.body as { acceptance_criteria?: unknown[] } | undefined)?.acceptance_criteria ?? []).length || 1;
+    }
+    const seen = new Set(b.scores.map((x) => x.criterion));
+    if (seen.size !== b.scores.length || b.scores.length !== n || b.scores.some((x) => x.criterion >= n)) throw rule("quality_review_items", `a review scores each of the ${n} criteria once (0 to ${n - 1})`);
+    const key = `quality_review:${b.delivery}`;
+    const panel = JSON.parse((await tx.getMarker(key)) ?? "[]") as string[];
+    if (panel.includes(r.issuer)) throw rule("quality_review_known", `${r.issuer} has already reviewed ${b.delivery}`);
+    if (panel.length >= QUALITY_PANEL_MAX) throw rule("quality_review_panel_full", `${b.delivery} has its ${QUALITY_PANEL_MAX} reviewers`);
+    await tx.putMarker(key, JSON.stringify([...panel, r.issuer]));
+  }
+
+  /**
+   * A shadow opinion (DK122, S1705, courts.md CT-14): a registered juror who is not a party to a disputed contract states how it would decide, before any ruling, once. It moves nothing; `observerRecord` compares
+   * it with the ruling afterwards, which is the observer phase of a community juror.
+   */
+  private async projectShadowOpinion(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string };
+    if (r.prev !== null) throw rule("shadow_not_chained", "a shadow opinion starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("shadow_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string };
+    if (r.issuer === cb.principal || r.issuer === cb.performer) throw rule("shadow_party", `${r.issuer} is a party to ${b.contract}`);
+    if (!(await tx.getJuror(r.issuer))) throw rule("shadow_unknown_juror", `${r.issuer} is not a registered juror`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || chain.state === "Settled") throw rule("shadow_after_ruling", `${b.contract} is settled: a shadow opinion is given before the ruling`);
+    if (chain.state !== "Disputed") throw rule("shadow_no_dispute", `${b.contract} is ${chain.state ?? "not started"}, not in dispute`);
+    if (await tx.getMarker(`ruled:${b.contract}`)) throw rule("shadow_after_ruling", `${b.contract} already has a ruling`);
+    if (await tx.getMarker(`shadow:${b.contract}:${r.issuer}`)) throw rule("shadow_known", `${r.issuer} has already given an opinion on ${b.contract}`);
+    await tx.putMarker(`shadow:${b.contract}:${r.issuer}`, r.id);
+  }
+
+  /**
+   * An observer's record (DK122, courts.md CT-14): its shadow opinions, the ones on cases that have since been ruled (and where it did not sit on the panel) as `closed`, how many agreed with the ruling's verdict, and
+   * whether it has completed the observer phase, which is OBSERVER_CASES closed opinions. Agreement is published and gates nothing: a juror who disagrees with the panel is not thereby wrong. Reads only.
+   */
+  async observerRecord(did: string): Promise<{ did: string; opinions: number; closed: number; agreed: number; agreementPermille: number | null; phaseComplete: boolean }> {
+    const mine = (await this.recordsOfTypes(["shadow_opinion"])).filter((r) => r.issuer === did);
+    const rulings = (await this.recordsOfTypes(["attestation"])).filter((r) => (r.body as { kind?: string }).kind === "ruling" && r.subject);
+    let closed = 0, agreed = 0;
+    for (const s of mine) {
+      const rs = rulings.filter((r) => r.subject === (s.body as { contract: string }).contract);
+      if (!rs.length || rs.some((r) => r.issuer === did)) continue; // not yet ruled, or the observer sat on the panel
+      closed++;
+      if ((rs.at(-1)!.body as { verdict?: string }).verdict === (s.body as { verdict: string }).verdict) agreed++;
+    }
+    return { did, opinions: mine.length, closed, agreed, agreementPermille: closed ? Math.floor((agreed * 1000) / closed) : null, phaseComplete: closed >= OBSERVER_CASES };
+  }
+
+  /** The panel of a delivery (JO8): the reviews, the median and the spread of each criterion, the criteria the reviewers disagree on, and each reviewer's mean distance from the panel's medians. Reads only. */
+  async qualityReport(delivery: string): Promise<QualityReport | null> {
+    const reviews = (await this.recordsOfTypes(["quality_review"])).filter((r) => (r.body as { delivery: string }).delivery === delivery);
+    if (!reviews.length) return null;
+    const median = (xs: number[]) => { const s = [...xs].sort((p, q) => p - q); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+    const by = new Map<number, number[]>();
+    for (const r of reviews) for (const x of (r.body as { scores: { criterion: number; score: number }[] }).scores) by.set(x.criterion, [...(by.get(x.criterion) ?? []), x.score]);
+    const criteria = [...by.entries()].sort((p, q) => p[0] - q[0]).map(([criterion, v]) => ({ criterion, median: median(v), spread: Math.max(...v) - Math.min(...v), contested: v.length >= 3 && Math.max(...v) - Math.min(...v) >= QUALITY_CONTESTED_SPREAD }));
+    const overall = median(criteria.map((c) => c.median));
+    const reviewers = reviews.map((r) => {
+      const mine = (r.body as { scores: { criterion: number; score: number }[] }).scores;
+      const dev = mine.reduce((acc, x) => acc + Math.abs(x.score - (criteria.find((c) => c.criterion === x.criterion)?.median ?? x.score)), 0) / mine.length;
+      return { reviewer: r.issuer, deviation: Math.round(dev * 10) / 10 };
+    });
+    return { delivery, reviewers: reviews.length, criteria, overall, contested: criteria.some((c) => c.contested), panel: reviewers, enough: reviews.length >= QUALITY_PANEL_MIN };
+  }
+
+  /** A reviewer's record (JO8): over every delivery it reviewed that had at least QUALITY_PANEL_MIN reviewers, the mean distance of its scores from the panel median, in tenths of a point; null when it has none. Reads only. */
+  async reviewerAgreement(did: string): Promise<{ reviewer: string; panels: number; meanDeviation: number } | null> {
+    const mine = (await this.recordsOfTypes(["quality_review"])).filter((r) => r.issuer === did);
+    const devs: number[] = [];
+    for (const r of mine) {
+      const rep = await this.qualityReport((r.body as { delivery: string }).delivery);
+      if (!rep || !rep.enough) continue;
+      devs.push(rep.panel.find((p) => p.reviewer === did)!.deviation);
+    }
+    if (!devs.length) return null;
+    return { reviewer: did, panels: devs.length, meanDeviation: Math.round((devs.reduce((a, x) => a + x, 0) / devs.length) * 10) / 10 };
   }
 
   /** A contract's team (JO6, S1702): the lead and each member with its part and its share, or null when the contract has none. Reads only. */

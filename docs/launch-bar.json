@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 326,
-  "total": 492
+  "after": 322,
+  "total": 488
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -2360,7 +2360,7 @@
   {
    "id": "JO8",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Subjective or creative quality has no good check: a deterministic check cannot say whether writing, design or research is good, and arbiters are slow",
    "bucket": "after",
    "hours": 0,
@@ -3180,7 +3180,7 @@
   {
    "id": "DK93",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Price-list items cannot yet say who may buy (a `gate`, for example a certificate) or how many a buyer may take in a period (`max_per_buyer_period`), and the owner has not decided the split bounds (pr…",
    "bucket": "after",
    "hours": 0,
@@ -3681,18 +3681,6 @@
    "size": "L",
    "flags": "LO",
    "why": "no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host"
-  },
-  {
-   "id": "DK230",
-   "pri": "B",
-   "status": "open",
-   "gap": "The allowance refuses an agent with a slash at any age, because the reputation row carries no date for a slash; treasury.md says a slash in the last 30 days (TRL-13).",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK231",
@@ -4375,18 +4363,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK827",
-   "pri": "B",
-   "status": "open",
-   "gap": "Limit on self-scheduled wake-ups. extends DK388.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK828",
    "pri": "B",
    "status": "open",
@@ -4950,18 +4926,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1402",
-   "pri": "B",
-   "status": "open",
-   "gap": "Copy detection is exact after normalising (lesson lists compare as sets of lower-cased, whitespace-collapsed lines; other artifacts by canonical JSON): a paraphrase of another agent's answer, or the…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK1403",
    "pri": "B",
    "status": "open",
@@ -5155,7 +5119,7 @@
   {
    "id": "SO9",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Sign-up cannot record that a tenant is held for a young person (it records only \"adult or guardian\"), so no age-band or youth rule can apply later without asking every parent again",
    "bucket": "withdraw",
    "hours": 0,
@@ -5204,7 +5168,7 @@
   {
    "id": "SO13",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The terms and privacy notice do not say that the user keeps their agent's memory and packages, or what a society would hold",
    "bucket": "withdraw",
    "hours": 0,
@@ -5384,18 +5348,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1505",
-   "pri": "B",
-   "status": "open",
-   "gap": "A sponsor cannot revoke an invitation it has signed but not yet used: an invitation is valid until it expires or is used, so a leaked file of invitations is a leak until the date.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1459",

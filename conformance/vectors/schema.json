@@ -5912,6 +5912,331 @@
       "valid": false
     },
     {
+      "name": "valid_quality_review",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7
+          },
+          {
+            "criterion": 1,
+            "score": 4,
+            "note": "the second section repeats the first"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "quality_review_score_over_10",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 11
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_negative_score",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": -1
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_fractional_score",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7.5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_no_scores",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": []
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_thirteen_scores",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5
+          },
+          {
+            "criterion": 1,
+            "score": 5
+          },
+          {
+            "criterion": 2,
+            "score": 5
+          },
+          {
+            "criterion": 3,
+            "score": 5
+          },
+          {
+            "criterion": 4,
+            "score": 5
+          },
+          {
+            "criterion": 5,
+            "score": 5
+          },
+          {
+            "criterion": 6,
+            "score": 5
+          },
+          {
+            "criterion": 7,
+            "score": 5
+          },
+          {
+            "criterion": 8,
+            "score": 5
+          },
+          {
+            "criterion": 9,
+            "score": 5
+          },
+          {
+            "criterion": 10,
+            "score": 5
+          },
+          {
+            "criterion": 11,
+            "score": 5
+          },
+          {
+            "criterion": 12,
+            "score": 5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_no_delivery",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_empty_note",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5,
+            "note": ""
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_extra_field",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7
+          },
+          {
+            "criterion": 1,
+            "score": 4,
+            "note": "the second section repeats the first"
+          }
+        ],
+        "verdict": "accepted"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_shadow_opinion",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_shadow_opinion_split",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "split",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": true
+    },
+    {
+      "name": "shadow_opinion_bad_verdict",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "dismissed",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_no_reasons",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_no_contract",
+      "schema": "shadow_opinion",
+      "instance": {
+        "verdict": "split",
+        "reasons": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_extra_field",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": "the delivery meets the stated criteria",
+        "fault": {
+          "a": 1000
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_invitation_revocation",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_invitation_revocation_reason",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "reason": "the file of invitations was shared by mistake"
+      },
+      "valid": true
+    },
+    {
+      "name": "invitation_revocation_no_nonce",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_short_nonce",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_bad_nonce_chars",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "has spaces and symbols!!"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_fleet_not_did",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_empty_reason",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_extra_field",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "all": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_contract_failure",
       "schema": "contract_failure",
       "instance": {
@@ -9444,6 +9769,175 @@
               ]
             },
             "class": "standard"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_price_list_gated_limited",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "gate": {
+              "min_tier": 1,
+              "certificate": "foundations"
+            },
+            "max_per_buyer_period": {
+              "count": 3,
+              "period": "week"
+            }
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "price_list_limit_zero",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "max_per_buyer_period": {
+              "count": 0,
+              "period": "day"
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_limit_bad_period",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "max_per_buyer_period": {
+              "count": 2,
+              "period": "year"
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_limit_no_period",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "max_per_buyer_period": {
+              "count": 2
+            }
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "price_list_limit_extra_field",
+      "schema": "price_list",
+      "instance": {
+        "version": 1,
+        "effective_from": "2026-11-01T00:00:00Z",
+        "bounds_version": 1,
+        "job_tax_permille": 20,
+        "items": [
+          {
+            "service": "market.posting.deposit",
+            "institution": "did:web:asp.local:market",
+            "price": 40,
+            "split": {
+              "treasury_permille": 150,
+              "burn_permille": 100,
+              "payees": [
+                {
+                  "account": "did:web:asp.local:market",
+                  "permille": 750
+                }
+              ]
+            },
+            "class": "standard",
+            "max_per_buyer_period": {
+              "count": 2,
+              "period": "day",
+              "refundable": true
+            }
           }
         ]
       },

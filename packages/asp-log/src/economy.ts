@@ -107,6 +107,8 @@ export const DEMAND_MINT_PERMILLE = 100;
 /** The most one in-society service on the services board may cost, in credits (DK660, S970; owner decision SB1). */
 export const SERVICE_PRICE_MAX = 100;
 export const ALLOWANCE_MAX_AGE_DAYS = 90;
+/** A slash in the last this many days refuses the allowance (treasury.md TRL-13, register row DK230); an older one does not. */
+export const ALLOWANCE_SLASH_DAYS = 30;
 
 /** The Clinic's priced services (clinic.md 4, CL-12; DK161): a checkup beyond the free ones, and a restore. The price in the list in force is the price; this is what a free checkup draws from the Treasury's budget line for it. */
 export const CLINIC_CHECKUP_SERVICE = "clinic.checkup";

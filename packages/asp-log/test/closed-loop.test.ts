@@ -5,7 +5,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createRecord, cosign, b64urlEncode, signerFromSeed, staticResolver, type AspRecord, type RecordType, type Signer } from "@agent-social/asp-core";
-import { BURN_DID, EventLog, MemoryStore, TREASURY_DID, REGISTRAR_DID, ALLOWANCE_AMOUNT, institutionDid } from "../src/index.ts";
+import { BURN_DID, EventLog, MemoryStore, TREASURY_DID, REGISTRAR_DID, ALLOWANCE_AMOUNT, ALLOWANCE_SLASH_DAYS, institutionDid } from "../src/index.ts";
 import { alice, bank, coder, failure, registerParties } from "./harness.ts";
 
 type Party = { did: string } & Signer & { publicKey: Uint8Array };
@@ -159,6 +159,26 @@ describe("the newcomer allowance (T5)", () => {
     await newcomer(w, slashed, party("did:web:example.com:users:poster-six", 43), list);
     await w.store.transaction(async (tx) => { await tx.putReputation({ did: slashed.did, tier: 0, slashCount: 1, strikeLog: [] }); });
     assert.equal(await refused(w.log.append(w.claim(slashed, line))), "allowance_slashed");
+  });
+
+  test("DK230: a slash in the last 30 days refuses the allowance, a slash 31 days ago does not, and a slash with no recorded date still refuses it", async () => {
+    assert.equal(ALLOWANCE_SLASH_DAYS, 30);
+    const w = await world();
+    await w.mint(TREASURY_DID, 500);
+    const list = await academyList(w);
+    const line = (await w.budget(TREASURY_DID, 400)).id;
+    const CLAIM = "2026-11-20T00:00:00Z"; // a passport of 2026-11-02 is 18 days old
+    const slashedOn = async (p: Party, slashAt: string | null) => { await w.store.transaction(async (tx) => { await tx.putReputation({ did: p.did, tier: 0, slashCount: 1, strikeLog: [] }); if (slashAt) await tx.putMarker(`slashed_at:${p.did}`, slashAt); }); };
+    const recent = party("did:web:example.com:agents:slash-29", 60), old = party("did:web:example.com:agents:slash-31", 61), edge = party("did:web:example.com:agents:slash-30", 63), undated = party("did:web:example.com:agents:slash-undated", 62);
+    for (const [p, n] of [[recent, 64], [old, 65], [edge, 66], [undated, 67]] as const) await newcomer(w, p, party(`did:web:example.com:users:sponsor-${n}`, n), list);
+    await slashedOn(recent, "2026-10-22T00:00:00Z"); // 29 days before the claim
+    await slashedOn(old, "2026-10-20T00:00:00Z");    // 31 days before
+    await slashedOn(edge, "2026-10-21T00:00:00Z");   // exactly 30 days before
+    await slashedOn(undated, null);
+    assert.equal(await refused(w.log.append(w.claim(recent, line, {}, CLAIM))), "allowance_slashed", "29 days ago");
+    assert.equal(await refused(w.log.append(w.claim(undated, line, {}, CLAIM))), "allowance_slashed", "no date recorded: refused as before");
+    assert.ok(await w.log.append(w.claim(edge, line, {}, CLAIM)), "exactly 30 days ago is not in the last 30 days");
+    assert.ok(await w.log.append(w.claim(old, line, {}, CLAIM)), "31 days ago: paid");
   });
 
   test("the allowance does not pay in another month than its budget's", async () => {
