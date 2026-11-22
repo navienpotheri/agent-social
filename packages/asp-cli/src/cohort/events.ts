@@ -7,6 +7,9 @@ import type { EventSource, LifeEvent, SimClock } from "@agent-social/asp-package
 import type { WorldApi } from "./types.ts";
 
 export function societySource(o: { world: WorldApi; didOf: (agent: string) => string | undefined; clock: SimClock }): EventSource {
+  const day = o.world.dayCycle;
+  const lastSim = new Map<string, number>();
+  const seenMsg = new Map<string, Set<string>>(), seenOffer = new Map<string, Set<string>>();
   const seenJobs = new Map<string, Set<string>>();
   const jobIds = (text: string): string[] => {
     try {
@@ -16,10 +19,14 @@ export function societySource(o: { world: WorldApi; didOf: (agent: string) => st
     } catch { return text.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[-*]|\bjob\b/i.test(l)).map((l) => l.slice(0, 120)); }
   };
   return {
-    kinds: ["reply", "vote", "new_job"],
+    // Messages, offers on the agent's jobs and (with a day cycle) the scheduled events come from the Market hall and the day cycle of the local society.
+    kinds: o.world.market ? ["reply", "vote", "new_job", "message", "offer", ...(day ? (["course", "event"] as const) : [])] : ["reply", "vote", "new_job"],
     // At the agent's arrival: the job board as it is then is the baseline for "new". Replies need no baseline: they are answers to the agent's OWN acts, so none can predate its arrival and the cursor starts at 0.
     // (A baseline taken at the first wait instead lost a reply that came before the agent began to wait: the lost wake-up of the owner's P0.)
     async prime(agent) {
+      lastSim.set(agent, o.clock.now());
+      const did0 = o.didOf(agent), hall0 = o.world.market;
+      if (did0 && hall0) { seenMsg.set(agent, new Set(await hall0.messageIdsTo(did0))); seenOffer.set(agent, new Set(await hall0.offerIdsOn(did0))); }
       if (seenJobs.has(agent)) return;
       const board = await o.world.get("/market/board").catch(() => undefined);
       seenJobs.set(agent, new Set(board && board.status === 200 ? jobIds(board.text) : []));
@@ -40,6 +47,18 @@ export function societySource(o: { world: WorldApi; didOf: (agent: string) => st
             next = { ...next, since: j.next_since ?? next.since };
           } catch { /* not JSON: no events */ }
         }
+      }
+      const hall = o.world.market;
+      if (did && hall) {
+        const sm = seenMsg.get(agent) ?? new Set<string>(), so = seenOffer.get(agent) ?? new Set<string>();
+        for (const id of await hall.messageIdsTo(did)) if (!sm.has(id)) { sm.add(id); events.push({ kind: "message", at: o.clock.now(), text: "a message has come for you (my_inbox)", ref: id }); }
+        for (const id of await hall.offerIdsOn(did)) if (!so.has(id)) { so.add(id); events.push({ kind: "offer", at: o.clock.now(), text: "someone made an offer on one of your jobs (my_job_offers)", ref: id }); }
+        seenMsg.set(agent, sm); seenOffer.set(agent, so);
+      }
+      if (day) {
+        const from = lastSim.get(agent) ?? 0, to = o.clock.now();
+        for (const e of await day.due(from, to)) events.push({ kind: e.kind === "new_job" ? "new_job" : e.kind, at: e.at, text: e.text, ref: e.id });
+        lastSim.set(agent, to);
       }
       const board = await o.world.get("/market/board").catch(() => undefined);
       if (board && board.status === 200) {

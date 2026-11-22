@@ -19,6 +19,8 @@ import { engagementOf, renderEngagement } from "./engagement.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
+import { renderDayCycle } from "./day-cycle.ts";
+import { renderTown } from "./town.ts";
 import { parseSnapshot, snapshotOf, snapshotProblems } from "./snapshot.ts";
 import { voiceOf, voiceText } from "./voice.ts";
 import { creditEconomyOf, renderCreditEconomy, type CreditEconomy } from "./credit-economy.ts";
@@ -64,6 +66,10 @@ export interface CohortOptions {
   /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */
   games?: boolean;
   gameRound?: number;
+  /** The day cycle on the simulated clock (day-cycle.ts: market hour, social hour, open mic, course opening, weekly town meeting). Needs the engine (a real-model run keeps ticks). */
+  dayCycle?: boolean;
+  /** Roles and a Town Hall for the agents (town.ts). */
+  roles?: boolean;
   /** Offers each agent a voice derived from its identity (voice.ts, ENG34); off by default. */
   voices?: boolean;
   /** Writes a founding snapshot of the forum (snapshot.ts, ENG31) to this file when the run ends. */
@@ -120,7 +126,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
@@ -200,6 +206,8 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
               flush(e.agent);
               const prev = lastUsd.get(e.agent) ?? 0; lastUsd.set(e.agent, e.usd);
               pending.set(e.agent, { t: "model", at: stamp(), agent: e.agent, turn: e.turn, input: e.input ?? 0, output: e.output ?? 0, ...(e.cacheRead ? { cacheRead: e.cacheRead } : {}), ...(e.cacheWrite ? { cacheWrite: e.cacheWrite } : {}), usd: Math.round((e.usd - prev) * 1e6) / 1e6 });
+            } else if (e.kind === "thinking_dropped") {
+              trace({ t: "thinking_dropped", at: stamp(), agent: e.agent, turn: e.turn, blocks: e.blocks, why: e.why });
             } else if (e.kind === "text") { const m = pending.get(e.agent); if (m) m.text = ((m.text ? m.text + " " : "") + e.text).slice(0, 400); }
             else if (e.kind === "tool" && e.refused) {
               flush(e.agent);
@@ -235,7 +243,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
-  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
+  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
   if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify(eng, null, 2) + "\n");
   writeFileSync(join(dir, "economy.json"), JSON.stringify(eco, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");

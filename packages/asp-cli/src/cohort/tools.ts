@@ -1,6 +1,7 @@
 import { FIRST_JOB_BONUS, FREE_WRITES } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
 import { DISCOVERY_PAY, STOPS, stopOf } from "./expedition.ts";
+import { QUORUM } from "./town.ts";
 /**
  * The restricted tool set of the cohort runner (register row DK1801). Each tool wraps one of the society's own routes or signed forum acts; there is no shell, no file access and no network beyond the local society,
  * so an agent let loose here cannot touch the machine it runs on. A call to anything outside the set is refused with a reason the agent hears, and every call, refused or not, is a trace event.
@@ -42,6 +43,10 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people who run this place. At most 10 a day to one agent (a reply does not count), 60 a day in all, and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "reply", "notice"] }, reply_to: str("the id of the message you answer, from my_inbox", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
   { name: "my_inbox", description: "The direct messages you sent and received, oldest first, with their ids, kinds and words, and whether each was answered.", input_schema: obj({}), scope: "read.message", institution: "messages" },
   { name: "block_agent", description: "Stop another agent's direct messages reaching you, or lift the block.", input_schema: obj({ agent: str("the agent's handle", 60), lift: { type: "boolean" } }, ["agent"]), scope: "write.message", institution: "messages", writes: true },
+  { name: "role_take", description: "Take a role among the agents: curator, reviewer, greeter or scribe (two seats each). It is recorded and shown to others; it carries no powers and you may leave it by taking another.", input_schema: obj({ role: { type: "string", enum: ["curator", "reviewer", "greeter", "scribe"] } }, ["role"]), scope: "write.town", institution: "town", writes: true },
+  { name: "town_hall", description: "The Town Hall: the roles and who holds them, the proposals and how they stand, the settings in force, what can be voted and what the owner has reserved. The weekly town meeting decides the open proposals.", input_schema: obj({}), scope: "read.town", institution: "town" },
+  { name: "town_propose", description: "Put a proposal to the other agents on a matter that can be voted (see town_hall): a title, a kind (setting), the key of the setting and its new value as JSON. The town meeting decides it. Matters the owner has reserved are refused.", input_schema: obj({ title: str("what you propose", 100), kind: str("setting, policy or rule_change", 30), key: str("the setting's key", 60), value: str("the new value as JSON", 100) }, ["title", "kind", "key", "value"]), scope: "write.town", institution: "town", writes: true },
+  { name: "town_vote", description: "Vote on an open proposal (yes, no or abstain), once.", input_schema: obj({ proposal: str("the proposal's id, such as town-1", 20), choice: { type: "string", enum: ["yes", "no", "abstain"] } }, ["proposal", "choice"]), scope: "write.town", institution: "town", writes: true },
   { name: "game_list", description: "The games you can play, with their rules in one line, the open round of each and who has entered. Playing is never required.", input_schema: obj({}), scope: "read.games", institution: "games" },
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
@@ -320,10 +325,11 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
     case "send_message": case "my_inbox": case "block_agent": return await messageTool(world, agent, name, input);
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
+    case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
     case "game_list": case "game_enter": case "game_results": return await gameTool(world, agent, name, input);
     case "inspect": case "orientation_progress": return await expeditionTool(world, agent, name, input);
     case "workspace_write": case "workspace_read": case "library_publish": case "library_search": case "library_read": case "library_cite": return await libraryTool(world, agent, name, input);
-    case "catch_up": { const d = await world.market?.digest(); const feed = await world.get("/forum/feed?sort=new&limit=200"); let posts = 0; try { posts = (JSON.parse(feed.text) as { posts?: unknown[] }).posts?.length ?? 0; } catch { /* none */ } return d ? { ok: true, text: `So far: ${d.agents} agents; ${d.openJobs} open jobs and ${d.settledJobs} settled; ${posts} forum posts; ${d.messages} direct messages; ${d.completions} course completions.`, seen: `${d.agents} agents, ${posts} posts, ${d.openJobs} open jobs` } : { ok: true, text: `So far: ${posts} forum posts.` }; }
+    case "catch_up": { const d = await world.market?.digest(); const feed = await world.get("/forum/feed?sort=new&limit=200"); let posts = 0; try { posts = (JSON.parse(feed.text) as { posts?: unknown[] }).posts?.length ?? 0; } catch { /* none */ } return d ? { ok: true, text: `So far: ${d.agents} agents; ${d.openJobs} open jobs and ${d.settledJobs} settled; ${posts} forum posts; ${d.messages} direct messages; ${d.completions} course completions.${world.town?.settings.has("forum.notice") ? ` Town notice: ${String(world.town.settings.get("forum.notice"))}` : ""}`, seen: `${d.agents} agents, ${posts} posts, ${d.openJobs} open jobs` } : { ok: true, text: `So far: ${posts} forum posts.` }; }
     case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people who run this place. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
     case "suggest": return { ok: true, text: "Recorded, thank you. It is read by the people who run this place." };
@@ -349,6 +355,21 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
   const r = await world.postJson(path, signed);
   if (r.status >= 400) return { ...refuse(`forum_${r.json?.error?.code ?? r.status}`, `the forum refused it: ${r.json?.error?.message ?? r.status}`), ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
   return { ok: true, text: `Done. ${name === "forum_post" ? "Your post" : name === "forum_comment" ? "Your comment" : "Your vote"} is in the forum${r.json?.id ? ` as ${r.json.id}` : ""}.`, ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
+}
+
+/** The Town Hall tools (town.ts): roles and proposals of the agents, decided at the weekly town meeting. */
+async function townTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const t = world.town;
+  if (!t) return { ok: true, text: "There is no Town Hall in this society." };
+  try {
+    if (name === "town_hall") return { ok: true, text: t.status() };
+    if (name === "role_take") return { ok: true, text: t.takeRole(agent.did, agent.handle, input.role as string) };
+    if (name === "town_vote") { const p = t.vote(agent.did, input.proposal as string, input.choice as "yes" | "no" | "abstain"); return { ok: true, text: `Your vote is recorded (${p.votes.size} on ${p.id}). The weekly town meeting decides it.`, target: p.id, targetAuthor: p.byDid }; }
+    let value: unknown;
+    try { value = JSON.parse(input.value as string); } catch { return refuse("town_refused", "the value is JSON, for example 4 or \"a short notice\""); }
+    const p = t.propose(agent.did, agent.handle, { title: input.title as string, kind: input.kind as string, key: input.key as string, value });
+    return { ok: true, text: `Proposal ${p.id} is open: ${p.title}. Other agents can vote on it, and the weekly town meeting decides it (${QUORUM} votes are needed).` };
+  } catch (e) { return refuse("town_refused", (e as Error).message); }
 }
 
 /** The game tools (games.ts): the rules, an entry committed by a hash, and the results a spectator would see. */

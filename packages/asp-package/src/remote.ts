@@ -7,6 +7,9 @@ import { AspError, type AspErrorCode, type AspRecord } from "@agent-social/asp-c
 import type { AppendResult, EventLog, LogHandle } from "@agent-social/asp-log";
 import { fetchRetry } from "./http-retry.ts";
 
+/** One version of an institution's charter as the local log returns it: the record body, with the id of the record and when it was issued. */
+export interface RemoteCharter { institution: string; version: number; kind: string; status: string; text_sha256: string; effective_from: string; officers: string[]; funding: string; reason?: string; record: string; at: string }
+
 export class RemoteLog implements LogHandle {
   readonly log: EventLog;
   private readonly url: string;
@@ -15,9 +18,29 @@ export class RemoteLog implements LogHandle {
   constructor(url: string, token?: string) {
     this.url = url.replace(/\/+$/, "");
     this.token = token;
+    // A few methods of the local log are not in the service's list of callable reads (LOG_METHODS) but can be answered, with the same result, from reads that are: they are derived here, so a command that needs one
+    // works over the service (the owner's `asp charter publish-all`, 2026-11-23, failed with "log.charterOf is not available").
+    const derived: Record<string, (...args: any[]) => Promise<unknown>> = {
+      charterOf: (institution: string, at?: string) => this.charterOf(institution, at),
+    };
     this.log = new Proxy({}, {
-      get: (_t, method) => (typeof method === "string" && method !== "then" ? (...args: unknown[]) => this.call("log", method, args) : undefined),
+      get: (_t, method) => (typeof method === "string" && method !== "then" ? (derived[method] ?? ((...args: unknown[]) => this.call("log", method, args))) : undefined),
     }) as unknown as EventLog;
+  }
+
+  /**
+   * An institution's charter versions, oldest first, and the one in force at `at` (default: now): the same answer as the local log's `charterOf`. Every accepted `institution_charter` record is one version (a refused
+   * record leaves nothing in the log), so the versions are read from the records the service already lets a client read, and the one in force is the latest whose `effective_from` has come.
+   */
+  async charterOf(institution: string, at?: string): Promise<{ inForce: RemoteCharter | null; versions: RemoteCharter[] }> {
+    const when = Date.parse(at ?? new Date().toISOString());
+    const recs = (await this.call("log", "recordsOfTypes", [["institution_charter"]])) as AspRecord[];
+    const versions = recs
+      .filter((r) => (r.body as { institution?: string }).institution === institution)
+      .map((r) => ({ ...(r.body as object), record: r.id, at: r.issued_at }) as RemoteCharter)
+      .sort((x, y) => x.version - y.version);
+    const inForce = [...versions].reverse().find((c) => Date.parse(c.effective_from) <= when) ?? null;
+    return { inForce, versions };
   }
 
   private async call(target: "log" | "handle", method: string, args: unknown[]): Promise<any> {

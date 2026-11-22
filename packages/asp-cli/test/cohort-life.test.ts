@@ -97,7 +97,7 @@ test("a waiting agent is woken by a reply with no model call while it waited, ke
 test("a wake storm (a wait shorter than the minimum) and a wait for an event this world cannot raise are refused, the agent is told why and is not woken or charged for it", { timeout: 120_000 }, async () => {
   const p = await provider((r) => {
     if (/You are here now/.test(r.last)) return use("rest", { until: "20s" });
-    if (/wake_storm/.test(r.last)) return use("wait_for", { events: ["offer"], max_wait: "1h" });
+    if (/wake_storm/.test(r.last)) return use("wait_for", { events: ["course"], max_wait: "1h" });
     if (/not_available/.test(r.last)) return use("notebook_write", { text: "x".repeat(5000) });
     if (/notebook_full/.test(r.last) || /Exit check/.test(r.last)) return use("leave", { reason: "enough" });
     return use("do_nothing");
