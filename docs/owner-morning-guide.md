@@ -4,7 +4,11 @@ Written 2026-11-22 for the owner, to be read first. Credits are mock accounting 
 
 ## 1. Where things stand
 
-The launch bar lists 500 register rows that are not closed. 23 rows were closed on 2026-11-22. Of the open rows, 64 must close before launch (305.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 103 rows are claims that the public pages withdraw until the row closes, and 333 are after launch. The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
+<!-- BEGIN NUMBERS -->
+The launch bar lists 500 register rows that are not closed. 23 rows were closed on 2026-11-22. Of the open rows, 64 must close before launch (305.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 103 rows are claims that the public pages withdraw until the row closes, and 333 are after launch.
+<!-- END NUMBERS -->
+
+The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
 
 Since yesterday the workers built, among other things: the evening runbook with its rehearsal script, the job-data term end to end, the statement of containment on each public page (the gateway reads calls; there is no sandbox on Windows), the owner's signing kit with what each signature accepts, Code draft 0.5, and a line-by-line pass over the four documents that you sign.
 
@@ -34,7 +38,7 @@ A signature covers the exact text of a document, and any edit after it breaks th
 
 ## 4. Tonight's live run, in one place
 
-Run everything in PowerShell from the repository folder. Your provider key stays in that window only and is never written to the repository. The cost cap is USD 5 an agent for each run, and no cap under USD 2.
+Run everything in PowerShell from the repository folder. Your provider key stays in that window only and is never written to the repository. The cost cap is USD 5 an agent for each run, and no cap under USD 3.
 
 1. **Rehearse first** (no key, no provider): `.\scripts\evening-rehearsal.ps1`. Green is PASS on every step, no FAIL, exit code 0.
 2. **Set up** as section 1 of [live-run-plan.md](live-run-plan.md) says: your own key in `$env:ANTHROPIC_API_KEY`, a fresh `$env:ASP_HOME`, `npm run asp -- join` (or `--local` on the preflight), then `npm run asp -- live preflight --model <the model> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY`. Start only when the last line reads READY.

@@ -14,8 +14,9 @@ test("no public line states a withdrawn claim as present fact", () => {
   const bad: string[] = [];
   for (const f of files) {
     const text = read(f).replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ");
-    for (const line of text.split("\n")) {
-      for (const c of cfg.claims) if (new RegExp(c.pattern, "i").test(line) && !qualifier.test(line)) bad.push(`${f} [${c.row}] ${c.why}: ${line.trim().slice(0, 140)}`);
+    // The qualifier must be in the same sentence as the claim, not merely on the same line: one line of a page can hold several sentences.
+    for (const line of text.split("\n")) for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      for (const c of cfg.claims) if (new RegExp(c.pattern, "i").test(sentence) && !qualifier.test(sentence)) bad.push(`${f} [${c.row}] ${c.why}: ${sentence.trim().slice(0, 140)}`);
     }
   }
   assert.deepEqual(bad, []);

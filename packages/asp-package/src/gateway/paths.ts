@@ -50,6 +50,8 @@ export function resolveIn(p: string, c: Confine): string {
   const root = c.root.replace(/\\/g, "/");
   const drive = /^[a-zA-Z]:\//.test(s) || /^[a-zA-Z]:\//.test(root);
   const abs = s.startsWith("/") || /^[a-zA-Z]:\//.test(s);
+  // Windows drops trailing dots and spaces from every path segment, so `.. ` is `..` and `dir. ` is `dir`: a segment that only looks harmless cannot walk out of the folder. (A segment of only dots is read as `..`: stricter, never looser.)
+  if (drive) s = s.split("/").map((seg, i) => { if (i === 0 && /^[a-zA-Z]:$/.test(seg)) return seg; const t = seg.replace(/[. ]+$/, ""); return t === "" && /^\.+ *$/.test(seg) ? (/^\. *$/.test(seg) ? "." : "..") : t === "" ? seg : t; }).join("/");
   const out = posix.normalize(abs ? s : `${root}/${s}`).replace(/\/+$/, "") || "/";
   return drive ? out.toLowerCase() : out;
 }
@@ -112,7 +114,7 @@ export function shellPaths(cmd: string): { path: string; write: boolean }[] {
   const show = (b: string) => HIDE.reduce((t, [from, to]) => t.split(to).join(from), b);
   // A quoted body that STARTS like a path is one word; any other quoted body (a command inside `bash -c "..."`, a message) is read word by word as before, so a path inside it is still found.
   const text = cmd.replace(/(["'`])((?:(?!\1)[\s\S])*)\1/g, (_m, _q, body: string) => (/^\s*(?:~|\$|%|\/|\.\.|[a-zA-Z]:[\\/])/.test(body) ? ` ${hide(body.trim())} ` : ` ${body} `));
-  const re = /(^|[\s;|&<>=(])(>{1,2}\s*)?((?:~[A-Za-z0-9_.-]*|\$\{?HOME\}?|%[A-Za-z_]+%|\$\{env:[A-Za-z_]+\}|\$env:[A-Za-z_]+|\/|\.\.(?=\/|\s|$)|[a-zA-Z]:[\\/])[^\s;|&<>()]*|[^\s;|&<>()]*\/\.\.(?=\/|\s|$)[^\s;|&<>()]*)/g;
+  const re = /(^|[\s;|&<>=(])(>{1,2}\s*)?((?:~[A-Za-z0-9_.-]*|\$\{?HOME\}?|%[A-Za-z_]+%|\$\{env:[A-Za-z_]+\}|\$env:[A-Za-z_]+|\/|\\\\|\.\.(?=[\\/]|\s|$)|[a-zA-Z]:[\\/])[^\s;|&<>()]*|[^\s;|&<>()]*[\\/]\.\.(?=[\\/]|\s|$)[^\s;|&<>()]*)/g;
   for (const m of text.matchAll(re)) {
     const raw = m[3];
     if (!raw || /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) continue;
