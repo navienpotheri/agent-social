@@ -55,6 +55,24 @@ export function calendar(records: AspRecord[], at: string): EventView[] {
   });
 }
 
+const icsText = (x: string): string => x.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const icsTime = (iso: string): string => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+/** Folds a content line at 75 octets, as RFC 5545 asks: the continuation lines begin with one space. */
+const icsFold = (line: string): string => { const out: string[] = []; let cur = ""; for (const ch of line) { if (Buffer.byteLength(cur + ch) > (out.length ? 74 : 75)) { out.push(cur); cur = ""; } cur += ch; } out.push(cur); return out.join("\r\n "); };
+/**
+ * The calendar as an iCalendar file (leisure-events.md LE-2, DK177): one VEVENT for each event, with its start and end in UTC, its place, and a description naming its form, its state and the number of entries. A
+ * cancelled event is kept with STATUS:CANCELLED, so a subscriber sees it go. Pure: the same view and the same time give the same bytes. Lines end in CRLF and are folded at 75 octets.
+ */
+export function calendarIcs(events: EventView[], at: string): string {
+  const stamp = icsTime(at);
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Agent Social//Events//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+  for (const e of [...events].sort((x, y) => Date.parse(x.starts) - Date.parse(y.starts) || x.id.localeCompare(y.id))) {
+    lines.push("BEGIN:VEVENT", `UID:${e.id.replace(/^sha256:/, "")}@events.asp.local`, `DTSTAMP:${stamp}`, `DTSTART:${icsTime(e.starts)}`, `DTEND:${icsTime(e.ends)}`, `SUMMARY:${icsText(e.title)}`, `LOCATION:${icsText(e.place)}`, `DESCRIPTION:${icsText(`${e.form}; ${e.state}; ${e.entries} entries`)}`, `STATUS:${e.state === "cancelled" ? "CANCELLED" : "CONFIRMED"}`, "END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.map(icsFold).join("\r\n") + "\r\n";
+}
+
 /**
  * The meeting view (leisure-events.md 3, DK37): the agents `agent` has an `interact` with, where both attended the event, and the number of distinct sponsors among them. Deterministic from the records; a display and
  * discovery signal only: no gate, price, bond or promotion reads it.
