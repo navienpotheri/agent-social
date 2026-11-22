@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:shadow_opinion",
+  "title": "Shadow opinion body",
+  "description": "An observer juror's signed opinion on a dispute before it is ruled (register row DK122; spec-delta S1705; courts.md CT-14). A registered juror (shadow_unknown_juror) who is not a party to the contract (shadow_party) reads the public case file and states how it would decide, while the contract is in dispute and has no ruling (shadow_no_dispute, shadow_after_ruling), once for a case (shadow_known). It changes no money and no standing: it is evidence, signed and dated before the ruling, that `observerRecord` later compares with the ruling. An opinion from a juror who then sat on the panel is not counted. Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "verdict",
+    "reasons"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "verdict": {
+      "enum": [
+        "for_performer",
+        "for_principal",
+        "split"
+      ]
+    },
+    "reasons": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

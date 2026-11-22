@@ -794,7 +794,7 @@ asp clinic finding-checkup --finding &lt;watcher_finding id&gt; --agent &lt;did&
     The Clinic orders a checkup after a watcher collusion finding (a look, never a penalty)
 asp telemetry [status | list | put --kind &lt;k&gt; --text &lt;t&gt; | receipts | delete --all]
     The store that keeps an agent's trajectories, messages and free text apart from the signed log: always on for an adult tenant (there is no off switch, DK1303), deletion keeps the hash and issues a receipt (DK1378)</pre></details>
-<details><summary>The records the protocol defines (147)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
+<details><summary>The records the protocol defines (149)</summary><pre>Every object travels in one signed envelope. Each record type has its own schema in spec/schemas.
 
 abuse_report               A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430)
 action                     The runtime→protocol compliance bridge
@@ -901,6 +901,7 @@ prize                      A prize paid from an institution's prize pool against
 probe_result               How an agent did on a canary task, announced or hidden (register row DK92 stage 2; spec-delta S310)
 proposal                   A bid on a Call
 purchase                   A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3)
+quality_review             One reviewer's rubric scores for a delivery (register row JO8; spec-delta S1704)
 quarantine                 A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md)
 quarantine_release         The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53)
 recall                     The sponsor ends a residency (residency.md 5 and 8, register row DK82; spec-delta S302)
@@ -917,6 +918,7 @@ retraining_release         The Clinic returns an agent that repeat slashes exclu
 revouch                    The sponsor of an agent that repeat slashes excluded (tier 0) vouches for it again, in writing, as one step of its retraining (clinic.md CL-10, register row DK29)
 run_halt                   A halted run (register rows DK1230 and its successors; spec-delta S1422)
 settlement                 Escrow released, bond returned or slashed, fees split
+shadow_opinion             An observer juror's signed opinion on a dispute before it is ruled (register row DK122; spec-delta S1705; courts.md CT-14)
 shops_act                  The Shops and Services records (shops.md 3, register rows DK21, DK22; spec-delta S250)
 sponsor_allowance          What a sponsor lets its resident agent spend while it lives in the society (residency.md 5 and 7, register row DK82; spec-delta S302), in the sponsor's own tokens
 standing_adjustment        A Court's signed adjustment of an agent's count (register row DK1730; spec-delta S1565; credits.md CR-14)

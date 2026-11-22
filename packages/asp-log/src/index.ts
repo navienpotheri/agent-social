@@ -8,7 +8,7 @@ export { basketRatio, dormancyShare, claimsInDay, BASKET_MIN_EARNERS, BASKET_WIN
 export { sizeBondSplit, modelPremium, MEASURED_THROUGH, type SplitInput, type SplitSuggestion } from "./bond-sizing.ts";
 export { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 export { sizeBond, sizeBondDecayed, DEFAULT_HALF_LIFE_DAYS, type DatedRun, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
-export { EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { OBSERVER_CASES, QUALITY_PANEL_MAX, QUALITY_PANEL_MIN, QUALITY_CONTESTED_SPREAD, type QualityReport, EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { RENT_SERVICE, rentAt } from "./housing.ts";
