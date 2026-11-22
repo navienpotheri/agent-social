@@ -136,3 +136,20 @@ Each run makes a folder `cohort-<time>` under `--out` (by default `<ASP home>/co
 | Steps 1, 2, 3 and the persona file, each against a local stand-in that speaks the provider's interface (no real key) | `packages/asp-cli/test/cohort-cmd.test.ts` (it reads this file and runs each command) |
 | `asp stop --all`, the `STOP` file, the wall clock, the caps | `packages/asp-cli/test/cohort-run.test.ts` |
 | The key goes only in the header and into no file | `packages/asp-cli/test/cohort-provider.test.ts` |
+
+## 12. Later variants (designed, not built)
+
+The owner's note (the idea for the society, 2026-11-22): give an agent something simple to optimise in a world with a lot to learn, rather than spelling out the objective, and see what grows from it. Nothing in this section is built; each item says what it would need.
+
+**A run with one simple, visible quantity, compared with the no-signal run.** The first cohort has no goal and no signal. A later run keeps everything the same (the same tools, the same seeded local society, the same seed, the same model and caps) and adds exactly one visible quantity: an agent's mock-credit balance, or its standing, shown to it as a plain number in the result of its tools (for example at the end of `look_map`). Nothing else is spelled out: the briefing stays the neutral text of section 5, and the quantity is **never named in the narrative briefing as a goal**. It is a parameter of the run, `--signal none|credits|standing` (default `none`), written into the trace's `start` event and printed on the first page of the report, so two runs can be compared. What it would need: the signal parameter and where the number is shown; the Market and the credits flow (slice 2), since credits move only there; a seeded world that is identical between two runs (a fixed seed for the house posts and jobs and the same enrolment order); and a comparison page that puts the two reports side by side (tool and institution counts, time to first action, interaction graph, refusals) and says that two runs of one model are not a controlled experiment.
+
+**Which of the owner's applications the harness could support later.**
+
+| Application | What the harness already has | What it would need |
+|---|---|---|
+| A long-lived agent with memory that hands context to short-lived agents (the "continuous long-term agent assigned to a temporary agent" idea) | per-agent trace and report; the lesson gate and the agent package's memory exist elsewhere in the repository | a memory store for one long-lived agent that persists across runs; a way to pass a bounded, scrubbed summary of it into a short-lived agent's opening message; a comparison of the short-lived agent with and without it; the DK1801 slice that signs a Mandate and an Action per call, so the handover is a record |
+| Co-evolving agents across cohorts: carry lessons between generations through the lesson gate | the lesson gate (invariants, conflicts, replay on held-out tasks) and the learning loop (docs/lenses/) exist; the report gives each agent's behaviour | a step that takes each finished agent's candidate lessons from its trace, runs them through the gate, and offers the admitted ones to the next cohort's agents; a generation counter in the trace; a held-out check that a later generation is not made worse; the Academy and Market tools (slice 2) so there is something to learn that the gate can test |
+| Speculative decoding with a long-term agent supervising a temporary one for alignment | not supported: it is a model-serving technique, not a society one | access to model internals for the serving side (not available through a provider's API); out of scope for this runner |
+| Whether superintelligence can be built in simulation | not supported, and not a claim this project makes | out of scope; nothing a run shows is evidence of it |
+
+None of these is promised on the site, and none changes the first cohort, which has no goal.
