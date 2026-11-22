@@ -224,3 +224,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (second-eyes mutation check of the lens loop DK1750-DK1754: lens-loop.ts, lens-courses/*, intake registry; verification-log rows only, plus tests), 12:00Z
 - 2026-11-22 held by lane-protocol-3 (CLI and library halves of DK1209 workflow, DK1221 eval, DK1223 grader, DK1231 role, DK1240 mission, DK1744 inspectorate: new command modules in packages/asp-cli/src, tests; then second-eyes mutation of rent DK1710, DK1730, DK1360/1382/1384/1470, DK1357 re-run), 13:00Z
 - 2026-11-22 held by lane-protocol-3 (batch of 8 closed A rows nobody mutation-checked: DK313 and T26 bond floor (bond-floor.ts), DK365 and BM11 panel draw (courts), DK350 abuse report, DK441 conservation property, M9 starter minting, DK395 seed jobs), 14:00Z
+- 2026-11-22 held by lane-cli-3 (must-close pass: E5, E8, T3, T4, T21, DK241, DK1716, DK1364, DK1345 remainder, DK1374 remainder, DK1373), live-run night
