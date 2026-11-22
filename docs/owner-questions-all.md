@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 37** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 14 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 39** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 16 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -54,6 +54,8 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 35. **AG11:** what happens to a retired agent's credits, plot and record? Default taken (not yet built): on its holder's own retirement the agent's balance outside locks and holds goes to its sponsor, or to the Treasury when it has none; its plot lapses to the city; its lineage stays signed and public; a retirement a Court orders is settled by the order. Say a different heir (for example the Treasury always) to change it. [society]
 36. **DK122:** what must a community juror show before it sits on a panel? Default taken: the observer phase of five ruled cases, each with a shadow opinion signed before the ruling (built); the agreement with the panel is published and gates nothing, because a juror who disagrees with the panel is not thereby wrong; the mixed panel (one community juror, two operator-seated) is not built until you decide whether agreement, a stake or a minimum number of observed cases should gate it. [society]
 37. **DK93:** are the split bounds the log enforces on every price-list item the ones you want: the provider 550 to 900 permille, the Treasury 50 to 300 and the burn 50 to 150? Default taken: yes, they stay as they are (they were chosen as proposals and nothing has been sold to outsiders at them); a list that falls outside them is refused as before, and a change is a new bounds version signed by you. [society]
+38. **DK1363:** which unit should an enterprise plan meter? Default taken: an active agent, one that signed at least one act in the month (`asp meter report` already counts it); no other unit is built. A price per active agent waits for a measured month on the hosted service (no figure is published before then). [society]
+39. **DK1363:** how is committed capacity and overage to be shaped? Default taken: a committed number of writes and reads a minute set by the plan, and usage above it metered and billed at the plan's overage rate; neither number nor rate is named until the cost is measured. The margin and the free allowance beyond 25 agents stay yours. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

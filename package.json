@@ -13,6 +13,7 @@
     "vectors": "node conformance/generate.ts",
     "replay-sample": "node conformance/generate-replay-sample.ts",
     "hire-evidence": "node conformance/generate-hire-evidence.ts",
+    "pricing-inputs": "node conformance/generate-pricing-inputs.ts",
     "spec": "node conformance/generate-spec-doc.ts",
     "commands": "node conformance/generate-command-reference.ts",
     "ai-files": "node conformance/generate-ai-files.ts",
