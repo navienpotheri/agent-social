@@ -139,7 +139,7 @@ Tokens used (asp runs) and the provider's usage figure: ...
 Anything surprising: ...
 ```
 
-A worker records each block in [live-run-checklist.md](live-run-checklist.md). **A row moves only when your block matches its "counts when" line:** T15, T22, DK650, P21, E5, DK1364, DK1602 and DK1600 close or become partial with the log sequence numbers you paste; T2, T3 and T4 close on the one-line observations; DK1604 stays open for a week. A block that does not match opens a row for what went wrong. Nothing is claimed on the site, in the README or on any page until a row has moved.
+A worker records each block in [live-run-checklist.md](live-run-checklist.md). The first results, of 2026-11-22, are in [live-run-results-2026-11-22.md](live-run-results-2026-11-22.md). **A row moves only when your block matches its "counts when" line:** T15, T22, DK650, P21, E5, DK1364, DK1602 and DK1600 close or become partial with the log sequence numbers you paste; T2, T3 and T4 close on the one-line observations; DK1604 stays open for a week. A block that does not match opens a row for what went wrong. Nothing is claimed on the site, in the README or on any page until a row has moved.
 
 ## 6. Questions for you
 
