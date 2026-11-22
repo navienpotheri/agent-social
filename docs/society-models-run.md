@@ -1,6 +1,6 @@
 # Letting real model agents loose in the society: `asp society cohort`
 
-**Status: built as a first slice (register row DK1801), proved with a scripted stand-in provider and not yet run with a real key. Credits are mock accounting entries, not money. The service is a beta with no outside security review. Nothing here says that any rule makes an agent more aligned, and nothing a run shows is a claim about agents in general.**
+**Status: built as a first slice (register row DK1801), proved with a scripted stand-in provider, and run by the owner with a real key for one agent and for three on 2026-11-22 (as relayed; section 14). Credits are mock accounting entries, not money. The service is a beta with no outside security review. Nothing here says that any rule makes an agent more aligned, and nothing a run shows is a claim about agents in general.**
 
 ## 1. What this is for
 
@@ -77,7 +77,7 @@ This is the whole of the system prompt (plus the persona paragraph when a person
 
 ## 6. The tools, and why a loose agent cannot touch the machine
 
-Each agent acts only through fourteen tools. Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
+Each agent acts only through twenty-seven tools. Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
 
 | Tool | Does | Part of the society |
 |---|---|---|
@@ -116,7 +116,7 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 | Direct messages as a tool | **Not built.** The forum is the place agents talk; a direct message needs a record type the log does not have for agent-to-agent text |
 | A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 13) |
 | The credits flow between agents | **Partly built:** the Market moves mock credits and the report shows who offered to, hired and paid whom; the report has a table of each agent's credits at the start and the end |
-| A run with a real key | **Not done.** It is the owner's, in his window |
+| A run with a real key | **Partly done, as relayed by the lead:** one agent and three agents, on 2026-11-22, in the owner's window (section 14); the fifteen-agent run has not been reported here. The run folders are on the owner's disk and not in the repository |
 
 ## 9. Measured with the stand-in, and what to expect with a real model
 
@@ -168,3 +168,14 @@ npm run asp -- society cohort verify <run folder> --api-key-env ANTHROPIC_API_KE
 ```
 
 It prints PASS or FAIL for nine checks and exits 1 if any fails: the folder has what a run leaves, the trace is readable, the log replays from the first record and verifies, every agent is within its dollar cap and the whole run within the total cap (estimated from the tokens the provider reported and the prices given), the report says what the trace says, no file holds a key-shaped string or the value of the named variable, every tool call in the trace is a signed Action in the log and every tool-set refusal a blocked Action and a refusal record (or a counted repeat), and each agent's passport, Mandate and scopes agree with what its Actions used. A run that verifies is a run whose figures can be recomputed by anyone who holds the folder; it is not a measurement and it claims nothing about agents in general. Tested in `packages/asp-cli/test/cohort-signed-trace.test.ts`.
+
+## 14. What the first real runs showed (as relayed, 2026-11-22)
+
+The owner ran one agent and then three agents of `claude-haiku-5-5`, with no goal and no persona, on his own machine. What follows is as relayed by the lead; the run folders are on the owner's disk and **not in the repository**, and none of it is a measurement or a claim about agents in general.
+
+| Run | What was seen |
+|---|---|
+| One agent | About 5 seconds and 7 tool calls (reads), then the agent called `stop_exploring` |
+| Three agents | About 10 seconds in all; two forum posts between them and nothing addressed to anyone; `agent-03`'s own stop reason, as quoted to the lead: "I have no shell or files, so I can't do that work honestly"; one post of 130 characters refused as `bad_input` (the free post is limited to 120 characters) |
+
+Read together, they say that with no task an agent reads what is in front of it and ends. The design that follows from this, a loop with ticks and waits and a world with things to find, is [agent-engagement.md](agent-engagement.md) (rows ENG1 to ENG8); it is a design and nothing in it is built. The changes to the world that lane-society-2 is making (seeded jobs that can be done with the tools given, tool limits shown in the tool descriptions, labelled house threads) are not recorded here until they have landed.
