@@ -300,8 +300,11 @@ test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes
     const order = ["**9a.", "**9b.", "**9c.", "**9d.", "**9e."].map((x) => sec.indexOf(x));
     assert.ok(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1]!)), `${p}: 9a to 9e in order`);
     assert.ok(sec.indexOf("identity new --kind human --did did:web:asp.local:treasury --no-recovery") < sec.indexOf("--reason treasury_issuance") && sec.indexOf("--reason treasury_issuance") < sec.indexOf("treasury sign --draft"), `${p}: keys, then funding, then signing`);
-    for (const frag of ["did:web:asp.local:registry --no-recovery", "did:web:asp.local:bank --no-recovery", "no key for did:web:asp.local:treasury", "GUARD_FAILED: the Treasury holds 0 credits", "seq 453 (treasury), 454 (registry) and 455 (bank)", "14 lines totalling 42,100 credits", "market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600", "the draft ids are the institution names", "STOPPED at $id", "seq 457 to 470", "1,104,500 minted", "reconciles to the ledger"]) assert.ok(sec.includes(frag), `${p}: ${frag}`);
-    const ids = /foreach \(\$id in ([^)]+)\)/.exec(sec)![1]!.split(",").map((x) => x.trim().replace(/"/g, ""));
+    for (const frag of ["did:web:asp.local:registry --no-recovery", "did:web:asp.local:bank --no-recovery", "no key for did:web:asp.local:treasury", "GUARD_FAILED: the Treasury holds 0 credits", "seq 453 (treasury), 454 (registry) and 455 (bank)", "14 lines totalling 42,100 credits", "market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600", "the draft ids are the institution names", "STOPPED at $i", "seq 457 to 470", "1,104,500 minted", "reconciles to the ledger"]) assert.ok(sec.includes(frag), `${p}: ${frag}`);
+    const ids = /\$ids = @\(([^)]+)\)/.exec(sec)![1]!.split(",").map((x) => x.trim().replace(/"/g, ""));
+    assert.ok(sec.includes("foreach ($i in $ids) { npm run asp -- treasury sign --draft \"$HOME" + String.fromCharCode(92) + "treasury-draft.json\" --id $i --cosign-by $OP; if ($LASTEXITCODE -ne 0)"), `${p}: the owner's loop`);
+    assert.ok(sec.includes("treasury draft --period 2026-12 --out $HOME" + String.fromCharCode(92) + "treasury-draft.json"), `${p}: the draft file`);
+    assert.ok(sec.includes("as run on 2026-11-23 and seen by the lead"), `${p}: said to be run`);
     assert.equal(ids.length, 14);
     assert.equal(new Set(ids).size, 14);
   }
@@ -310,7 +313,7 @@ test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes
   assert.equal(1_004_500 + 100_000, 1_104_500, "the audit after the Treasury's issuance");
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## Step 9 on the hosted service, 2026-11-23"));
-  for (const frag of ["seq 453", "(454)", "(455)", "seq 456", "seq 457 to 470", "1,104,500", "The owner's own loop was not relayed to the worker", "has not been run by a worker", "DK1812 closes"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+  for (const frag of ["seq 453", "(454)", "(455)", "seq 456", "seq 457 to 470", "1,104,500", "is the owner's own loop as run on 2026-11-23 (seen by the lead)", "all 14 were signed (seq 457 to 470) and nothing printed STOPPED", "DK1812 closes"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
   assert.match(ck, /there were TWO end-of-job mails/);
   assert.match(row("DK1807"), /The second mail is seen by the owner on his phone; the lead has not seen its text/);
   assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|AGE-SECRET-KEY/);

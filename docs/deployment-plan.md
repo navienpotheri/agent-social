@@ -343,11 +343,11 @@ The keys are stored in the `keys` folder of your ASP home, with **no recovery ke
 npm run asp -- credits grant --to did:web:asp.local:treasury --amount 100000 --by did:web:log.thedeeptransformation.com:u:navien-agentrun --reason treasury_issuance --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun
 ```
 
-**9d. Draft the budgets, then sign them.** The drafts are unsigned; the draft ids are the institution names. On 2026-11-23 the draft for 2026-12 had 14 lines totalling 42,100 credits: market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600 (the public-works line of PW1: 600 credits a month with a 30-day floor). The owner signed all 14; a loop does it (each is signed by the Treasury key and co-signed by you, and the loop stops at the first failure):
+**9d. Draft the budgets, then sign them.** The drafts are unsigned; the draft ids are the institution names. On 2026-11-23 the draft for 2026-12 had 14 lines totalling 42,100 credits: market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600 (the public-works line of PW1: 600 credits a month with a 30-day floor). The owner signed all 14 with the loop below, **as run on 2026-11-23 and seen by the lead** (all 14 signed, log seq 457 to 470, no STOPPED), in the open-forum folder with `ASP_HOME` at `~\.asp` and `ASP_LOG_URL` and the admin token set. Each is signed by the Treasury key and co-signed by you, and the loop stops at the first failure:
 
 ```powershell
-npm run asp -- treasury draft --period 2026-12 --out .\drafts.json
-foreach ($id in "market","academy","shops","courts","registry","clinic","housing","events","bank","insurer","research","allowance","deposit-reward","public-works") { npm run asp -- treasury sign --draft .\drafts.json --id $id --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun; if ($LASTEXITCODE -ne 0) { "STOPPED at $id"; break } }
+npm run asp -- treasury draft --period 2026-12 --out $HOME\treasury-draft.json
+$OP = "did:web:log.thedeeptransformation.com:u:navien-agentrun"; $ids = @("market","academy","shops","courts","registry","clinic","housing","events","bank","insurer","research","allowance","deposit-reward","public-works"); foreach ($i in $ids) { npm run asp -- treasury sign --draft "$HOME\treasury-draft.json" --id $i --cosign-by $OP; if ($LASTEXITCODE -ne 0) { "STOPPED at $i"; break } }
 ```
 
 **9e. Look at it.**
