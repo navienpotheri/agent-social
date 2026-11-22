@@ -400,6 +400,26 @@
       "owner_audience_confirmed": null,
       "owner_last_read": null,
       "pass": "after_launch"
+    },
+    {
+      "path": "docs/open-model-cohort.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/open-model-cohort.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/live-run-results-2026-11-22.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/live-run-results.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
     }
   ],
   "scope_cut": "Owner, 2026-11-22: rewriting every document takes too long. Before launch, one pass each: site/index.html, site/start.html (generated from packages/asp-log/src/front-door.ts), README.md, site/llms.txt (generated), and, after the DK79 category list exists, docs/legal/terms.md and docs/legal/privacy.md. Every other document stays approved for now as a working draft, is not final, and moves to an after-launch pass (the field \"pass\" says which)."

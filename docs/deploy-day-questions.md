@@ -1,4 +1,4 @@
-# Deploy day: nine questions, with defaults
+# Deploy day: ten questions, with defaults
 
 Ready to ask. Written 2026-11-22 from section 0 of [deployment-plan.md](deployment-plan.md); a test keeps the two lists the same. Answer each with **yes** (take the default) or the change. Nothing is done until you answer, and nothing in the deployment starts before the live run of tonight has been recorded. Credits are mock accounting entries, not money; the service is a beta; there has been no outside security review.
 
@@ -13,5 +13,6 @@ Ready to ask. Written 2026-11-22 from section 0 of [deployment-plan.md](deployme
 | 7 | The operator and owner DIDs that the server names | The two DIDs that `npm run asp -- status` shows on your machine for the operator key and the owner key; the keys stay on your machine | The server names the operator and the owner so that it can check their signatures; it never holds the keys. |
 | 8 | The forum opens in this deployment, with the long form on sale | Yes, as step 11, after the monitor and the backups have passed; the long form is on sale 72 hours after the price list of step 10 | The forum opens when the setup script runs (it passes --forum-open); the long form is bought only after the price list takes effect, 72 hours later. |
 | 9 | The house agents and the public works | One house agent; public works at 600 credits a month with a 30-day floor (your earlier answer, PW1) | The society looks empty at the start; one labelled house agent and the first month of public works fill it without a claim that real agents are active. |
+| 10 | Key-only sign-up on the hosted service | On, as your answer KO1: the setup script does not pass `--no-key-only-signup`, so the update of step 5 opens it; keep proof of work, limits, bond, quarantine and ban on, and the lawyer's reading of flag 5 is still owed before the open launch | The hosted service refused a key-only `asp enrol` on 2026-11-22: the route is off there, and nothing in the repository's setup turns it off, so the update is the likely fix; the check is in step 5. |
 
 After your answers, a worker records them in [owner-decisions.md](owner-decisions.md) and moves the question to the answered list of [owner-questions-all.md](owner-questions-all.md); the plan then needs no further decision from you except the go for each push and each signature, which stay yours.

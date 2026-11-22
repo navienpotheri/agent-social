@@ -1,4 +1,4 @@
-// docs/deploy-day-questions.md is the short list of the nine deployment decisions, ready to ask. It carries the same nine questions and the same defaults as section 0 of docs/deployment-plan.md, each with a reason,
+// docs/deploy-day-questions.md is the short list of the ten deployment decisions, ready to ask. It carries the same ten questions and the same defaults as section 0 of docs/deployment-plan.md, each with a reason,
 // and it keeps the standing statements.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,12 +10,12 @@ const plan = read("docs/deployment-plan.md");
 const list = read("docs/deploy-day-questions.md");
 const rows = (text: string) => [...text.matchAll(/^\| (\d+) \| (.+?) \| (.+?) \|(?: (.+?) \|)?$/gm)].filter((m) => !Number.isNaN(Number(m[1])));
 
-test("the list has the plan's nine questions with the plan's defaults, each with a reason", () => {
+test("the list has the plan's ten questions with the plan's defaults, each with a reason", () => {
   const sec = plan.slice(plan.indexOf("## 0. "), plan.indexOf("## 1. "));
   const fromPlan = rows(sec);
   const fromList = rows(list);
-  assert.equal(fromPlan.length, 9);
-  assert.equal(fromList.length, 9);
+  assert.equal(fromPlan.length, 10);
+  assert.equal(fromList.length, 10);
   fromPlan.forEach((p, i) => {
     assert.equal(fromList[i]![2], p[2], `question ${i + 1}`);
     assert.equal(fromList[i]![3], p[3], `default ${i + 1}`);

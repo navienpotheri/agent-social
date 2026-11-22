@@ -73,7 +73,7 @@ test("every step has its way in, its check and its way back; the steps run from 
     for (const label of ["**Do.**", "**Right.**", "**If not.**", "**Rollback.**", "*Settles:*"]) assert.ok(body.includes(label), `step ${n} has ${label}`);
   }
   const decisions = plan.slice(plan.indexOf("## 0. "), plan.indexOf("## 1. "));
-  assert.equal([...decisions.matchAll(/^\| \d+ \| /gm)].length, 9, "nine decisions");
+  assert.equal([...decisions.matchAll(/^\| \d+ \| /gm)].length, 10, "ten decisions");
   assert.match(decisions, /\| Decision \| Default \|/);
   assert.ok(plan.indexOf("## 0. ") < plan.indexOf("## 1. "));
 });
@@ -96,5 +96,14 @@ test("the plan keeps the standing statements and no worker touches the live serv
 
 test("the decisions are also questions for the owner, with the plan named as the source", () => {
   const questions = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
-  assert.match(questions, /Deployment: nine decisions[\s\S]*deployment-plan\.md/);
+  assert.match(questions, /Deployment: ten decisions[\s\S]*deployment-plan\.md/);
+});
+
+test("step 12 makes the house agent with the command that exists, and says who may make one", () => {
+  const step = plan.slice(plan.indexOf("## 12. "), plan.indexOf("## 13. "));
+  assert.ok(step.includes('npm run asp -- house create house-one --purpose'), "the command");
+  assert.match(step, /signed by the operator's key as sponsor/);
+  assert.match(step, /label is permanent/);
+  assert.doesNotMatch(step, /No command marks an identity as a house agent/);
+  assert.match(read("docs/commands.md"), /`asp house create <name>/);
 });

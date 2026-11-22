@@ -7975,11 +7975,15 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
 =======
   const all = sessionsAll(home);
 >>>>>>> claude/protocol-ledger-3
+=======
+  const all = sessionsAll(home);
+>>>>>>> claude/sad-shannon-1be729
   if (!id && v["html-file"]) {
     // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
     const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));
@@ -7987,9 +7991,12 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
     io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
     return 0;
   }
+<<<<<<< HEAD
 =======
   const all = sessionsAll(home);
 >>>>>>> claude/sharp-dirac-595b53
+=======
+>>>>>>> claude/sad-shannon-1be729
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
