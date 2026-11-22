@@ -38,6 +38,7 @@ test("decorAt: a holding is live from its start to its end (the end is not live)
   assert.equal(decorAt([d], AGENT, day(8.9)).length, 1);
   assert.equal(decorAt([d], AGENT, day(9)).length, 0, "the end is the first moment it is not live");
   assert.equal(decorAt([d, receipt("d1", "refunded")], AGENT, day(3)).length, 0);
+  assert.equal(decorAt([d, receipt("d1", "failed")], AGENT, day(3)).length, 0, "a failed delivery is refunded as well");
   assert.equal(decorAt([d, receipt("d1", "delivered")], AGENT, day(3)).length, 1);
   assert.equal(decorAt([d], "did:web:example.com:agents:other", day(3)).length, 0);
 });
