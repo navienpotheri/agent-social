@@ -133,3 +133,5 @@ lane-society block 1 (DK1211 and DK1344 closed) merged into the lead branch (1e1
 - 2026-11-22 11:05 push: gate green on tip a9029d9c (cli 1207/1208 with 0 failed, core 1334, log 1171, package 604, python 1470) after one stale regex in containment-classes.test.ts was updated to the formal README wording.
 
 - 2026-11-22 12:17 push: tip 34603749. Full run: core 1334, log 1176, Python ok, package 629/629 after the fix, cli 1208/1218 with 9 load failures and 1 import failure all passing alone (45/45 plus live-scripts 6/6). Gateway repaired (ladderAtCall import). Not in this push: tips after 0ee462b9 (cli-3), de1cb432+ (society-2), latest protocol-3 and launch-bar-2.
+
+- 2026-11-22 14:20 push: tip 2bca717a: all four lane branches merged in the open-forum folder. Full run: core 1364, log 1237, package 699, Python 1500, CLI 1307 of 1310 with 2 failures from my merge (owner-question key collision for DK1363, testing-map gap id), both fixed and re-run green alone with the owner-index, guide, launch-bar and testing-map tests. CLI tests now have a 15-minute per-test limit.
