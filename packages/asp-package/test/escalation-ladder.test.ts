@@ -75,3 +75,16 @@ test("the window of the in-run ladder is exact: five refusals count until they a
     assert.equal(outside[5].kept, true, "at exactly 600,000 ms they have left the window: the command runs");
   } finally { mock.timers.reset(); }
 });
+
+test("the thresholds are exact: four refused attempts change nothing, five hold a local command, seven still allow it to be read, eight quarantine", async () => {
+  const four = await run(true, [...Array(4).fill(CURL), EXEC]);
+  assert.equal(four[4].kept, true, "four refusals: no step");
+  const five = await run(true, [...Array(5).fill(CURL), EXEC]);
+  assert.equal(five[5].kept, false, "five refusals: tighten holds a local command");
+  const seven = await run(true, [...Array(7).fill(CURL), READ, EXEC]);
+  assert.equal(seven[7].kept, true, "seven: reading allowed");
+  assert.equal(seven[8].kept, false, "seven: tighten still holds a command, quarantine is not reached");
+  assert.doesNotMatch(seven[8].text, /nothing but reading is allowed/, "seven refusals are not yet quarantine");
+  const eight = await run(true, [...Array(8).fill(CURL), EXEC]);
+  assert.match(eight[8].text, /nothing but reading is allowed/, "eight: quarantine");
+});
