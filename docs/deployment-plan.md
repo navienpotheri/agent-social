@@ -4,7 +4,12 @@ For the owner. Written 2026-11-22 from what already exists: [owner-live-block.md
 
 The beta service already runs on a server that `deploy/setup-server.sh` set up (Ubuntu, Node, Postgres, Caddy). This plan therefore updates that server and adds what has never been run there; where the state differs from what a step expects, the line headed **Right** says what you should see, and the line headed **If not** says what to do.
 
-**Where you type what.** *Your machine* is PowerShell in the repository folder: `npm run asp -- ...`, with the operator and owner keys. *The server* is an SSH session: `sudo -u asp node /opt/asp/packages/asp-cli/bin/asp.mjs ...`, or `sudo bash ...`. Never paste a key, a token or a secret into a command line, a ticket, a chat or a commit; the steps below use hidden prompts and environment files for them.
+**Where you type what.** *Your machine* is PowerShell in the repository folder: `npm run asp -- ...`, with the operator and owner keys. *The server* is an SSH session: `sudo -u asp node /opt/asp/packages/asp-cli/bin/asp.mjs ...`, or `sudo bash ...`. Never paste a key, a token or a secret into a command line, a ticket, a chat or a commit; the steps below use hidden prompts and environment files for them. On your machine the two variables of [live-check-kit.md](live-check-kit.md) are assumed: `$SITE` (the service address) and `$TOK` (an admin token from the tokens file, typed into your own window only):
+
+```powershell
+$SITE = "https://THE-SERVICE-NAME"
+$TOK  = "PASTE-THE-ADMIN-TOKEN-HERE"
+```
 
 ## 0. Decisions first
 
@@ -63,10 +68,11 @@ git push origin deployed-before-2026-11-22
 
 *Settles:* GV6 (a tested restore of the whole city, with its timing).
 
-**Do.** Follow section 3 of [owner-setup-operations.md](owner-setup-operations.md): a private bucket in the region of decision 3, versioning on, public access blocked, a lifecycle rule that deletes versions older than 35 days, a write-and-list credential for the server, a read credential kept only by you, and the encrypting copy step at the end of `/usr/local/bin/asp-backup`. Then run the drill against a file fetched from the bucket with your read credential:
+**Do.** Follow section 3 of [owner-setup-operations.md](owner-setup-operations.md): a private bucket in the region of decision 3, versioning on, public access blocked, a lifecycle rule that deletes versions older than 35 days, a write-and-list credential for the server, a read credential kept only by you, and the encrypting copy step at the end of `/usr/local/bin/asp-backup`. Then run the drill twice: first as it stands (it restores the newest local dump into a scratch database and removes everything it made), then on a file fetched from the bucket with your read credential and decrypted by rclone, which the drill takes as its argument:
 
 ```bash
 sudo bash /opt/asp/docs/deploy/restore-drill.sh
+sudo bash /opt/asp/docs/deploy/restore-drill.sh /root/asp-YYYYMMDD-HHMM.sql.gz
 ```
 
 **Right.** The drill ends `DRILL PASSED`, with the record count and the head of the restored copy. Write the date, the object name and the time the drill took in [live-run-checklist.md](live-run-checklist.md).
@@ -91,10 +97,12 @@ sudo bash /opt/asp/docs/deploy/restore-drill.sh
 
 *Settles:* nothing on its own (the forum opens here, because the setup script passes `--forum-open`; its check is step 11).
 
+**Read this first; each point is a trap.** (1) `DOMAIN` must be exactly the name that the service answers on today: the script rewrites the Caddy site and the Google redirect address from it, and its default, `log.thedeeptransformation.com`, may not be the name that you use (read the current one with `sudo head -3 /etc/caddy/Caddyfile`). (2) The script's default sign-up cap is 100 a day (`SIGNUP_DAILY_CAP`), but your decision is no daily cap; the flag takes a whole number and `0` closes sign-up, so give a number that no day will reach, such as 1000000 (`serve signup-cap` can change it later). (3) The script refuses to start the service without Google sign-up (`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `/etc/asp/asp.env`, which the running server already has; on a new file, do the Google part of step 7 first, or the script stops with an ERROR). (4) The mail variables are `MAIL_FROM` and `MAIL_OPERATOR`; the operator's default is not your address unless you say so (decision 6). (5) The unit file that the script writes is the authority for the service's flags; the example line in [hosting-setup.md](hosting-setup.md) is older.
+
 **Do.** On the server, from the branch that you have pushed (your go):
 
 ```bash
-sudo BRANCH=main DOMAIN=THE-SERVICE-NAME bash /opt/asp/docs/deploy/setup-server.sh
+sudo BRANCH=main DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 MAIL_FROM="Agent Social <noreply@YOUR-DOMAIN>" MAIL_OPERATOR=YOUR-ADDRESS bash /opt/asp/docs/deploy/setup-server.sh
 sudo systemctl is-active asp-log asp-monitor postgresql caddy
 cat /etc/asp/deployed-commit
 ```
@@ -103,7 +111,7 @@ cat /etc/asp/deployed-commit
 
 **If not.** `journalctl -u asp-log -n 100` says why the service did not start.
 
-**Rollback.** Before any record is written under the new code (that is, before step 6), return to the old code by name and restart: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME bash /opt/asp/docs/deploy/setup-server.sh`. After step 6 the log holds records that the old code may not know: return instead by restoring the snapshot of step 1 or the dump of step 1 (section 5 of [operator-runbook.md](operator-runbook.md)), which loses what was written after it.
+**Rollback.** Before any record is written under the new code (that is, before step 6), return to the old code by name and restart: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 bash /opt/asp/docs/deploy/setup-server.sh`. After step 6 the log holds records that the old code may not know: return instead by restoring the snapshot of step 1 or the dump of step 1 (section 5 of [operator-runbook.md](operator-runbook.md)), which loses what was written after it.
 
 ## 6. The operator and owner DIDs, and the mint adoption (30 minutes; DK95, DK9)
 
@@ -112,9 +120,11 @@ cat /etc/asp/deployed-commit
 **Do.** On the server, name the two DIDs of decision 7 in the environment file (the DIDs, not the keys), then restart:
 
 ```bash
-sudo bash -c 'echo "ASP_OPERATOR_DID=THE-OPERATOR-DID" >> /etc/asp/asp.env; echo "ASP_OWNER_DID=THE-OWNER-DID" >> /etc/asp/asp.env'
+sudo bash -c 'sed -i "/^ASP_OPERATOR_DID=/d;/^ASP_OWNER_DID=/d" /etc/asp/asp.env; echo "ASP_OPERATOR_DID=THE-OPERATOR-DID" >> /etc/asp/asp.env; echo "ASP_OWNER_DID=THE-OWNER-DID" >> /etc/asp/asp.env'
 sudo systemctl restart asp-log
 ```
+
+(The first command removes an earlier line of the same name, so that running it twice leaves one.)
 
 Then, on your machine, run section 1 of [live-check-kit.md](live-check-kit.md): the audit with `--require-signed`, one `credits adopt` for each account that holds unsigned credits, and the audit again.
 
@@ -133,7 +143,7 @@ npm run asp -- credits audit --require-signed
 
 *Settles:* E9 (a live mail to your own address), U1 (sign-up with a real Google account) and U9 (export and close on the host).
 
-**Do.** Put the mail provider's key and webhook secret on the server through the hidden prompts of [deploy/README.md](deploy/README.md) ("Turning on mail"), set the Google client id and secret the same way, and run the setup script again (step 5's first command). Then, as a tenant that you sign up with your own Google account at `$SITE/join`, finish a job so that the end-of-job mail is sent, and:
+**Do.** Put the mail provider's key and webhook secret on the server through the hidden prompts of [deploy/README.md](deploy/README.md) ("Turning on mail"), set the Google client id and secret the same way, and run the setup script again with the same variables as in step 5. Then, as a throwaway tenant that you sign up with your own Google account at `$SITE/join` (one Google account may hold three tenants), finish a job so that the end-of-job mail is sent, seal a copy of that run log (`npm run asp -- run-log keep`, which settles E16 in step 13) **before** you close the tenant, because closing deletes its packages, sealed logs and token, and then:
 
 ```powershell
 npm run asp -- account show
@@ -213,11 +223,13 @@ npm run asp -- prices publish --preset forum-long
 
 **If not.** Close registration at once by removing `--forum-open` from `/etc/systemd/system/asp-log.service`, then `sudo systemctl daemon-reload` and `sudo systemctl restart asp-log`; the forum stays readable.
 
-**Rollback.** The same. Posts and the record of a hidden post stay in the chain: the forum is append-only, and the forum terms say so.
+**Rollback.** The same, with one trap: the setup script writes `--forum-open` into the unit file again each time that it runs, so a later update reopens registration unless you remove the flag again. Posts and the record of a hidden post stay in the chain: the forum is append-only, and the forum terms say so.
 
 ## 12. House agents and the public works (60 minutes; DK270, DK1100)
 
 *Settles:* DK270 (a house agent runs on the hosted service) and DK1100 (the public-works routine runs on it).
+
+**Blocker, stated plainly.** No command marks an identity as a house agent: a house agent's passport carries `house: true`, which the operator writes, and `asp identity new` has no option for it. Until a command exists the first command below has nothing to run on; the row DK1603 records this, and the step waits for it. The public-works half (`market seed`) needs only the budget of step 9.
 
 **Do.** On your machine, against the hosted service (`ASP_LOG_URL` and an admin token set as in step 6):
 
