@@ -43,6 +43,8 @@ export interface WorldApi {
   games?: import("./games.ts").GameHall;
   /** The tool groups this run offers (tools.ts: expedition, games, town, library); undefined: all of them. */
   groups?: ReadonlySet<string>;
+  /** The tips of the Finds thread that other agents cited (finds.ts). */
+  tips?: import("./finds.ts").Tips;
   /** The forum post of the Finds thread (a place to say what you came across), when the run has finds to talk about. */
   findsThread?: string;
   /** Course markers scattered over the map (markers.ts), when the run has them. */

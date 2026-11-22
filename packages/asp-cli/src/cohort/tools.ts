@@ -54,7 +54,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
-  { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
+  { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
   { name: "orientation_progress", description: "Your orientation expedition, if there is one: your group, your guide, the stops you have done and what you have found. Nothing in it is required.", input_schema: obj({}), scope: "read.society", institution: "map" },
   { name: "workspace_write", description: "Keep a note of your own in your workspace: a plain name (letters, digits, spaces, dashes) and a text. Notes are private to you until you publish one. No names that look like paths or addresses.", input_schema: obj({ name: str("the note's name", 40), text: str("the note's text", 1500), mode: { type: "string", enum: ["replace", "append"] } }, ["name", "text"]), scope: "write.workspace", institution: "workspace", writes: true },
   { name: "workspace_read", description: "List your notes, or read one of them by name.", input_schema: obj({ name: str("the note's name; leave out to list", 40) }), scope: "read.workspace", institution: "workspace" },
@@ -408,7 +408,7 @@ async function progressTool(world: WorldApi, agent: AgentCtx, name: string, inpu
         const cats = hall.houseJobCounts();
         body = `The society so far: ${d.agents} agents; posts by tag: ${tags}; ${d.openJobs} jobs open and ${d.settledJobs} settled (house jobs by category: ${Object.entries(cats).map(([k, v]) => `${k} ${v.open} open/${v.settled} done`).join(", ") || "none"}); ${d.messages} messages; ${d.completions} course completions; ${world.games ? `${world.games.rounds.filter((r) => r.results).length} game rounds played` : "no games in this run"}.`;
       }
-      return { ok: true, text: `${u.paid ? `Opened ${x.name} for ${u.price} mock credits.` : `You opened ${x.name} before; it is yours.`}${"\n"}${body}${u.paid && world.findsThread ? `${"\n"}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : ""}` };
+      return { ok: true, text: `${u.paid ? `Opened ${x.name} for ${u.price} mock credits.` : `You opened ${x.name} before; it is yours.`}${"\n"}${body}${u.paid && world.findsThread ? `${"\n"}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : ""}` };
     }
     // my_progress
     const bal = await hall.balance(agent), paid = hall.paidJobs(agent.did);
@@ -469,12 +469,23 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
     if (!m) return { ok: true, text: "There are no field lessons in this society." };
     const a = m.answer(agent.did, input.place as string, input.answer as string);
     if (a.reward) await world.market?.royalty(agent.did, a.reward);
-    return { ok: true, text: `${a.text}${a.reward && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : ""}`, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
+    let tip = "";
+    if (a.reward && a.lesson && typeof input.cite === "string" && input.cite && world.findsThread && world.tips) {
+      try {
+        const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.findsThread)}`)).text) as { comments?: { id: string; author: string; text: string }[] };
+        const c = (th.comments ?? []).find((x) => x.id === input.cite);
+        const words = [input.place as string, ...a.lesson.topic.split(" ").filter((w) => w.length > 4)];
+        if (!c) tip = " That is not a post in the Finds thread, so nothing was cited.";
+        else if (!words.some((w) => c.text.toLowerCase().includes(w.toLowerCase()))) tip = " That post does not say where or what the card is, so nothing was cited.";
+        else { const r = world.tips.cite(agent.did, c.id, c.author); if (!r.ok) tip = ` Nothing was cited: ${r.why}.`; else { if (r.credits) await world.market?.royalty(c.author, r.credits); tip = ` Cited: ${world.market?.handleOf(c.author) ?? "the author"} ${r.credits ? `received ${r.credits} mock credit for the tip` : "has reached the cap for tips, so nothing was paid"}.`; } }
+      } catch { /* no thread to read */ }
+    }
+    return { ok: true, text: `${a.text}${tip}${a.reward && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : ""}`, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
   }
   const card = world.markers ? world.markers.look(agent.did, input.place as string) : undefined;
   const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})` : "";
   const cardFlag = card?.first ? { discovery: `marker-found:${card.lesson.id}` } : {};
-  const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : "");
+  const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : "");
   let latest = "";
   if (input.place === "town-hall" && world.findsThread) {
     try {
