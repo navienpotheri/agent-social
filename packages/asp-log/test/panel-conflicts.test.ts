@@ -41,3 +41,16 @@ test("the panel has the size asked for (3 by default), the same jurors listed in
   assert.equal((await drawPanel(source(passports, names(2)), { principal: P, performer: F, seed: "sha256:c", size: 5 })).length, 2);
   assert.notDeepEqual(await drawPanel(source(passports, jurors), { principal: P, performer: F, seed: "sha256:x1", size: 4 }), await drawPanel(source(passports, jurors), { principal: P, performer: F, seed: "sha256:x2", size: 4 }), "another seed, another panel");
 });
+
+test("v2: a juror is out when its SPONSOR was paid by the same source as a party, even if the juror itself was paid by no one", async () => {
+  const SRC = "did:web:t:users:the-common-source", SPON = "did:web:t:users:juror-sponsor";
+  const passports: Record<string, { sponsor?: string; fleet?: string }> = { [P]: {}, [F]: {}, "did:web:t:agents:funded-by-sponsor": { sponsor: SPON } };
+  const clean = names(8, "c");
+  for (const d of clean) passports[d] = {};
+  const markers = new Map<string, string>([[`funders:${P}`, JSON.stringify([SRC])], [`funders:${SPON}`, JSON.stringify([SRC])]]);
+  const src: PanelSource = { ...source(passports, ["did:web:t:agents:funded-by-sponsor", ...clean]), getMarker: async (k: string) => markers.get(k) };
+  for (let k = 0; k < 30; k++) {
+    const picked = await drawPanel(src, { principal: P, performer: F, seed: `sha256:${k}`, size: 4, v2: true });
+    assert.ok(!picked.includes("did:web:t:agents:funded-by-sponsor"), `seed ${k}`);
+  }
+});
