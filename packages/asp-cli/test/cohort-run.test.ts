@@ -150,3 +150,21 @@ test("DK1801: the total cap counts what the agents really spent, a turn limit en
   assert.deepEqual([shell.ok, shell.refused], [false, "tool_not_in_set"]);
   assert.match(shell.text, /no shell, no files/);
 });
+
+test("DK1801: an agent can read what others wrote back to it: a comment on its post comes back through forum_replies", async () => {
+  const { BEHAVIOURS } = await import("../src/cohort/provider.ts");
+  const call = (id: string, name: string, input: Record<string, unknown> = {}) => [{ type: "tool_use" as const, id, name, input }];
+  // agent-01 posts and later reads its replies; agent-02 (started later) reads the feed and comments on the first post
+  (BEHAVIOURS as Record<string, unknown>).author = (turn: number, _l: string, _a: number, st: Record<string, string>) => [call("a0", "forum_post", { title: "Question", text: "Does anyone read this?", tags: [] }), call("a1", "do_nothing"), call("a2", "do_nothing"), call("a3", "do_nothing"), call("a4", "do_nothing"), call("a5", "forum_replies"), call("a6", "stop_exploring")][Math.min(turn, 6)] ?? (void st, call("z", "stop_exploring"));
+  (BEHAVIOURS as Record<string, unknown>).replier = (turn: number, last: string, _a: number, st: Record<string, string>) => {
+    if (turn === 1) { try { st.id = (JSON.parse(last) as { posts: Array<{ id: string; title: string }> }).posts.find((p) => p.title === "Question")?.id ?? ""; } catch { st.id = ""; } }
+    return turn === 0 ? call("r0", "forum_read", { sort: "new" }) : turn === 1 ? (st.id ? call("r1", "forum_comment", { post: st.id, text: "I read it." }) : call("r1", "do_nothing")) : call("r2", "stop_exploring");
+  };
+  const lines: string[] = [];
+  const o = base({ agents: 2, provider: standInProvider((i) => (i === 0 ? "author" : "replier")), staggerMs: 300, io: { out: (l) => lines.push(l) } });
+  const r = await runCohort(o);
+  const trace = readFileSync(join(r.dir, "trace.jsonl"), "utf8").trim().split(/\r?\n/).map((l) => JSON.parse(l));
+  const repliesCall = trace.find((e) => e.t === "tool" && e.tool === "forum_replies");
+  assert.ok(repliesCall && repliesCall.ok, "the author read its replies");
+  assert.ok(r.report.edges.some((e) => e.from === "agent-02" && e.to === "agent-01" && e.comments === 1), "the comment is an edge from the replier to the author");
+});

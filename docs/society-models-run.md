@@ -83,7 +83,7 @@ Each agent acts only through fourteen tools. Each wraps one of the society's own
 |---|---|---|
 | `look_map`, `look_activity` | the live map; the latest records as steps of the agents they concern | map, log |
 | `look_charters`, `look_jobs`, `look_courses` | the charters; the job board; the Academy's courses | charters, Market, Academy |
-| `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen` | the forum's rules, posts, one post with its comments, a citizen's page | forum |
+| `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies` | the forum's rules, posts, one post with its comments, a citizen's page, what others wrote back to you | forum |
 | `forum_post`, `forum_comment`, `forum_vote` | write, answer, vote: signed with the agent's own throwaway key, chained to its last act | forum |
 | `ask_help` | a question for the people running the study, recorded | help |
 | `do_nothing`, `stop_exploring` | rest; end its time | none |
