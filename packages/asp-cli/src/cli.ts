@@ -346,6 +346,7 @@ import { alertLine, ceilingsFor, DEFAULT_DAY_TOKENS, DEFAULT_RUN_TOKENS, OPERATO
 import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
+import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -3207,9 +3208,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
         for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
       } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
     };
-    const timer = setInterval(() => { void pass(); }, every);
-    timer.unref();
-    server.on("close", () => clearInterval(timer));
+    startKeyOnlyReviewTimer({ everyMs: every, pass, server });
     (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
   }
   if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
