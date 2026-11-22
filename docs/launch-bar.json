@@ -4177,7 +4177,7 @@
   {
    "id": "DK1221",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Eval scenarios are not records of the log and no command writes them: nothing lets an agent write one for a deployed agent through the society, and the held-out set is not kept by the Registrar.",
    "bucket": "after",
    "hours": 0,
