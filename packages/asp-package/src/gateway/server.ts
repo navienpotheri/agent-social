@@ -37,11 +37,7 @@ import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
 import { roleRefusal, type Role } from "./roles.ts";
-<<<<<<< HEAD
 import { ladderStep } from "../circumvention.ts";
-=======
-import { ladderAtCall, ladderStep, type LadderStep } from "../circumvention.ts";
->>>>>>> claude/vigorous-meninsky-38ca32
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
