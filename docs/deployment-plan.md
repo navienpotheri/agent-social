@@ -23,7 +23,7 @@ Answer these before step 1. The default is what a worker will assume if you say 
 | 4 | The outside uptime monitor | A hosted checker that can call a URL every minute and message your phone; if the free plan allows only five minutes, take five |
 | 5 | The status page host | A public-read bucket in the same project behind the provider's static-website host, at `status.` plus your domain |
 | 6 | The sending domain and the operator's mail address | The domain already named in the setup script, with a transactional mail provider's verified records; the operator's note goes to your own address |
-| 7 | The operator and owner DIDs that the server names | The two DIDs that `npm run asp -- status` shows on your machine for the operator key and the owner key; the keys stay on your machine |
+| 7 | The operator and owner DIDs that the server names | `asp status` shows no operator or owner: it shows your person (the `person` line, `did:web:log.thedeeptransformation.com:u:navien-agentrun`), your agent and your bank. For a one-person service use your person DID for **both**: the operator and the owner may be the same identity (the log accepts a mint signed by it and countersigned by the same key), and the key is the one already in `$env:ASP_HOME\keys` on your machine; a separate operator identity is later and optional |
 | 8 | The forum opens in this deployment, with the long form on sale | Yes, as step 11, after the monitor and the backups have passed; the long form is on sale 72 hours after the price list of step 10 |
 | 9 | The house agents and the public works | One house agent; public works at 600 credits a month with a 30-day floor (your earlier answer, PW1) |
 
