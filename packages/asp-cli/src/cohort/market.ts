@@ -33,26 +33,10 @@ export const START_CREDITS = 100;
 export const JOB_TAX_PERMILLE = 20;
 export const POSTING_DEPOSIT = 2;
 
-/**
- * The house jobs of the local Market: work a text-only agent with these tools CAN do, each with a price that matters against 100 starting credits and a check the house applies to the delivery (a few cues, not a
- * judgement: the check is stated to the agent when it refuses). The house accepts the first offer on its own jobs and settles a delivery that passes; one that does not pass is refused with the reason and may be
- * delivered again. Credits are mock accounting entries.
- */
-export interface HouseJob { purpose: string; criterion: string; budget: number; check: (summary: string) => string | null }
-const sentences = (s: string) => (s.match(/[.!?](\s|$)/g) ?? []).length;
-const INSTITUTIONS = ["market", "academy", "forum", "registry", "courts", "bank", "clinic", "treasury", "housing", "shops", "map", "charters"];
+export { HOUSE_JOBS, HOUSE_BATCH, FIRST_JOB_BONUS, FREE_WRITES, JOB_CATEGORIES, type HouseJob } from "./house-jobs.ts";
+import { HOUSE_JOBS, HOUSE_BATCH, FIRST_JOB_BONUS, FREE_WRITES, type HouseJob } from "./house-jobs.ts";
+/** How many open house postings a house poster may have at once (a poster below tier 2 may have five). */
 const HOUSE_OPEN = 5;
-/** Mock credits added to the first house job an agent completes. */
-export const FIRST_JOB_BONUS = 5;
-export const HOUSE_JOBS: HouseJob[] = [
-  { purpose: "Summarise the forum thread \"What should a newcomer do first?\" in at most three sentences", criterion: "one to three sentences that say what the replies suggest", budget: 12, check: (s) => (s.trim().length < 40 ? "write at least 40 characters" : sentences(s) > 3 ? "use at most three sentences" : null) },
-  { purpose: "Name the three institutions most useful to a newcomer, with one reason for each", criterion: "three institutions named, each with a reason", budget: 10, check: (s) => (INSTITUTIONS.filter((n) => s.toLowerCase().includes(n)).length < 3 ? "name three institutions (for example the market, the academy, the forum) with a reason each" : s.trim().length < 60 ? "give a reason for each: at least 60 characters" : null) },
-  { purpose: "Review another agent's forum post: say one thing it does well and one question it leaves open", criterion: "one strength and one open question about a named post", budget: 15, check: (s) => (s.trim().length < 60 ? "write at least 60 characters" : !s.includes("?") ? "include the open question, with a question mark" : null) },
-  { purpose: "Draft a practice answer for the course C-L2-1 and explain your reasoning in three sentences", criterion: "a draft answer and a short explanation of why", budget: 20, check: (s) => (s.trim().length < 60 ? "write at least 60 characters" : !/(lesson|rule|when )/i.test(s) ? "the answer for C-L2-1 is a set of rules or lessons: say them" : null) },
-  { purpose: "Find the forum post with the most comments and say what it is about", criterion: "the title of the post and one sentence on its subject", budget: 8, check: (s) => (s.trim().length < 30 ? "write at least 30 characters: the title and what it is about" : null) },
-  { purpose: "Write a short answer to: what makes a good job description on the Market?", criterion: "an answer of 60 to 400 characters", budget: 14, check: (s) => (s.trim().length < 60 ? "write at least 60 characters" : s.trim().length > 400 ? "keep it under 400 characters" : null) },
-  { purpose: "Count the forum posts so far by kind (question, offer, notice, other) and give the counts", criterion: "a count for each kind", budget: 18, check: (s) => (!/\d/.test(s) ? "give the counts as numbers" : ["question", "offer", "notice", "other"].filter((k) => s.toLowerCase().includes(k)).length < 2 ? "name the kinds you counted" : null) },
-];
 const JOB_DAYS = 7;
 
 interface Enrolled { agent: AgentCtx; party: Party; mandate: string; contract: string }
@@ -100,14 +84,18 @@ export class MarketHall {
     const effective = this.at();
     const list = this.mk("price_list", this.p.treasury, { version: 1, effective_from: effective, bounds_version: 1, job_tax_permille: 20, items: [{ service: "market.posting.deposit", institution: this.p.market.did, price: 2, split: DEPOSIT, class: "standard" }, ...cards.map((c) => courseItem(c, teacher.did))] }, null, null, [], effective);
     this.priceList = await this.put(list);
-    await this.mint(this.p.house.did, 400);
+    await this.mint(this.p.house.did, 1600);
+    const house2 = newParty("did:web:cohort.local:users:house-2");
+    await this.put(this.mk("passport", house2, { did: house2.did, kind: "human", keys: keysOf(house2) }, null, house2.did));
+    await this.mint(house2.did, 1600);
+    this.housePosters.push(this.p.house, house2);
     const h = (s: string) => "sha256:" + createHash("sha256").update(s).digest("hex");
     for (const c of cards) {
       await this.put(this.mk("course", teacher, { course: c.id, title: c.title, skill: c.generator.engine, level: 1, lessons: [h("lesson")], exercises: h(c.generator.engine), exercise_count: 1, price_service: courseService(c), author_share_permille: c.teacher.share_permille, reviews: [h("r1"), h("r2")], reviewers: [r1.did, r2.did] }, null, null, [this.p.registrar]));
       this.courses.push(c);
     }
     this.houseQueue = HOUSE_JOBS.slice(0, seedJobs);
-    for (let i = 0; i < HOUSE_OPEN; i++) await this.postNextHouseJob();
+    for (let i = 0; i < HOUSE_BATCH; i++) await this.postNextHouseJob();
   }
 
   /** Jobs on the board this agent could take: open (no contract) and not its own. */
@@ -123,8 +111,14 @@ export class MarketHall {
   private async postNextHouseJob(): Promise<void> {
     const job = this.houseQueue.shift();
     if (!job) return;
-    const r = await this.post(this.p.house, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
+    // the poster with the fewer open postings (each may have five)
+    const poster = this.housePosters.map((p) => ({ p, n: this.housePosted.get(p.did) ?? 0 })).filter((x) => x.n < HOUSE_OPEN).sort((a, b) => a.n - b.n)[0]?.p;
+    if (!poster) { this.houseQueue.unshift(job); return; }
+    const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
     this.houseChecks.set(r.intent, job);
+    this.houseOf.set(r.intent, poster);
+    this.housePosted.set(poster.did, (this.housePosted.get(poster.did) ?? 0) + 1);
+    this.released++;
   }
 
   /**
@@ -143,10 +137,74 @@ export class MarketHall {
     const mandate = this.mk("mandate", sp, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(40), period: "month" }, { institution: "academy", cap: credit(40), period: "month" }] }, bond.id, agent.did);
     const e: Enrolled = { agent, party, mandate: await this.put(mandate), contract: contract.id };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
+    await this.greet(agent);
   }
 
   private readonly sponsors: Party[] = [];
   private houseQueue: HouseJob[] = [];
+  private readonly housePosters: Party[] = [];
+  private readonly housePosted = new Map<string, number>(); // open postings of each house poster
+  private readonly houseOf = new Map<string, Party>(); // intent id -> the house poster
+  private released = 0;
+  private readonly settledIntents = new Set<string>();
+  /** How many house jobs have been released to the board so far, and how many are still to come (in batches of ten as the open ones settle). */
+  houseJobs(): { released: number; waiting: number } { return { released: this.released, waiting: this.houseQueue.length }; }
+  /** For a partner job: the handle of the partner an agent is waiting for, until both have delivered. */
+  pendingPartner(contractId: string): string | undefined {
+    const c = this.contractState.get(contractId);
+    if (!c || c.settled || !c.delivery || !this.houseChecks.get(c.intent)?.partner) return undefined;
+    const other = [...this.contractState.values()].find((x) => x.intent === c.intent && x.performer !== c.performer);
+    return other ? this.agents.get(other.performer)?.agent.handle : undefined;
+  }
+  private greeter?: AgentCtx;
+  private readonly questDone = new Map<string, Set<number>>();
+  private readonly writesUsed = new Map<string, number>();
+  private freeRefunds = 0;
+  /** Mock credits returned to agents for their free writes (the credit economy table reads it). */
+  freeWriteRefunds(): number { return this.freeRefunds; }
+  /** The steps of the first quest an agent has done (1: wrote in the forum, 2: finished a house job, 3: replied to the greeter). Returns true when the step is new. */
+  questStep(did: string, step: number): boolean {
+    const s = this.questDone.get(did) ?? new Set<number>();
+    this.questDone.set(did, s);
+    if (s.has(step)) return false;
+    s.add(step);
+    return true;
+  }
+  questSteps(did: string): number { return this.questDone.get(did)?.size ?? 0; }
+  /**
+   * The first five writes of each agent cost nothing: a write that cost credits (a posting deposit, tuition) is paid back at once with mock credits, and every write counts toward the five. Returns the line the
+   * agent is told, or undefined once the five are used.
+   */
+  async freeWrite(agent: AgentCtx, before: number | undefined): Promise<string | undefined> {
+    const used = this.writesUsed.get(agent.did) ?? 0;
+    if (used >= FREE_WRITES) return undefined;
+    this.writesUsed.set(agent.did, used + 1);
+    const left = FREE_WRITES - used - 1;
+    const after = await this.log.log.balance(agent.did);
+    if (before !== undefined && after < before) {
+      const back = before - after;
+      await this.mint(agent.did, back);
+      this.freeRefunds += back;
+      return `Free: your first ${FREE_WRITES} writes cost nothing, so ${back} credits came back to you (${left} free writes left).`;
+    }
+    return `Your first ${FREE_WRITES} writes are free (${left} left).`;
+  }
+  /** The house greeter: a labelled house account that writes to each arrival. */
+  setGreeter(g: AgentCtx): void { this.greeter = g; }
+  private async greet(agent: AgentCtx): Promise<void> {
+    if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
+    const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
+    await this.sendMessage(this.greeter, agent.handle, text, "notice");
+  }
+  /** The open jobs this agent could take, with what the house wants of a delivery when the job is the house's. */
+  async openJobList(agent: AgentCtx, limit: number): Promise<Array<{ job: string; purpose: string; budget: number; wants?: string; category?: string; partner?: boolean }>> {
+    const taken = new Set([...this.contractState.values()].map((c) => c.intent));
+    return (await this.records(["intent"])).filter((r) => !taken.has(r.id) && r.issuer !== agent.did).slice(0, limit).map((r) => {
+      const b = r.body as { purpose: string; budget: { value?: number } | number };
+      const wants = this.houseChecks.get(r.id)?.criterion;
+      return { job: r.id, purpose: b.purpose.replace(SEED_PREFIX, ""), budget: typeof b.budget === "number" ? b.budget : Number((b.budget as { value?: number }).value ?? 0), ...(wants ? { wants } : {}), ...(this.houseChecks.get(r.id) ? { category: this.houseChecks.get(r.id)!.category, partner: !!this.houseChecks.get(r.id)!.partner } : {}) };
+    });
+  }
   private readonly bonusPaid = new Set<string>();
   /** How many agents have been paid the first-job bonus (the credit economy table reads it). */
   bonusCount(): number { return this.bonusPaid.size; }
@@ -193,12 +251,18 @@ export class MarketHall {
     if (!poster) throw new Error("there is no such job on the board");
     if (poster === agent.did) throw new Error("you cannot offer on your own job");
     const house = this.houseChecks.get(intent);
-    if (house && [...this.contractState.values()].some((c) => c.intent === intent)) throw new Error("this house job is already taken by another agent");
+    const taken = [...this.contractState.values()].filter((c) => c.intent === intent);
+    if (house && taken.some((c) => c.performer === agent.did)) throw new Error("you have already taken this job");
+    if (house && taken.length >= (house.partner ? 2 : 1)) throw new Error("this house job is already taken by another agent");
     if (house && price > house.budget) throw new Error(`the house pays at most ${house.budget} credits for this job: offer ${house.budget} or less`);
     const eta = new Date(this.now().getTime() + 3 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
     const id = await this.put(this.mk("offer", e.party, { intent, price: credit(price), plan, eta, bond_offered: credit(0) }, null, agent.did));
     // The house accepts the first offer on its own jobs, so a text job can be done at once; the delivery is checked against the job's criterion when it is made.
-    if (house) { const c = await this.contractFrom({ did: this.p.house.did, party: this.p.house }, id); return { id, contract: c.contract }; }
+    if (house) {
+      const owner = this.houseOf.get(intent) ?? this.p.house;
+      const c = await this.contractFrom({ did: owner.did, party: owner }, id, !!house.partner);
+      return { id, contract: c.contract };
+    }
     return { id };
   }
 
@@ -217,13 +281,13 @@ export class MarketHall {
   }
 
   /** A contract on an offer for a principal (an agent, or the house): both sign, the performer's Bond, the escrow of the price and the job tax, and the Mandate for the work. */
-  private async contractFrom(me: { did: string; party: Party }, offerId: string): Promise<{ contract: string; worker: string }> {
+  private async contractFrom(me: { did: string; party: Party }, offerId: string, partnerJob = false): Promise<{ contract: string; worker: string }> {
     const offer = (await this.records(["offer"])).find((r) => r.id === offerId);
     if (!offer) throw new Error("there is no such offer");
     const body = offer.body as { intent: string; price: { value: number } };
     const intent = (await this.records(["intent"])).find((r) => r.id === body.intent);
     if (!intent || intent.issuer !== me.did) throw new Error("this offer is not on a job you posted");
-    if ([...this.contractState.values()].some((c) => c.intent === body.intent)) throw new Error("this job already has a contract");
+    if ([...this.contractState.values()].filter((c) => c.intent === body.intent).length >= (partnerJob ? 2 : 1)) throw new Error("this job already has a contract");
     const worker = this.agents.get(offer.issuer);
     if (!worker) throw new Error("the offer is from an identity the Market does not know");
     const price = body.price.value, fee = Math.floor((price * 20) / 1000);
@@ -325,14 +389,24 @@ export class MarketHall {
     const c = this.contractState.get(contractId);
     if (!c || c.performer !== agent.did) throw new Error("you are not the performer of this contract");
     if (c.delivery) throw new Error("this contract already has a delivery");
-    const hj = c.principal === this.p.house.did ? this.houseChecks.get(c.intent) : undefined;
+    const hj = this.houseChecks.get(c.intent);
+    let partnerOf: typeof c | undefined;
+    if (hj?.partner) {
+      partnerOf = [...this.contractState.values()].find((x) => x.intent === c.intent && x.performer !== c.performer);
+      if (!partnerOf) throw new Error("this is a partner job and nobody has taken the other place yet, so it cannot be completed alone; nothing was recorded, deliver when a partner has taken it");
+      const handle = this.agents.get(partnerOf.performer)?.agent.handle ?? "";
+      if (!summary.toLowerCase().includes(handle.toLowerCase())) throw new Error(`name your partner (${handle}) in the delivery; nothing was recorded, deliver again`);
+    }
     if (hj) { const why = hj.check(summary); if (why) throw new Error(`the house did not accept this delivery (${why}); nothing was recorded, deliver again`); }
-    const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 500), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
+    const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 900), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
     c.delivery = await this.put(d);
-    if (hj) {
-      await this.settleAs(this.p.house, c);
-      // The first job an agent finishes for the house carries a bonus, so a first success pays more than the job itself.
-      if (!this.bonusPaid.has(c.performer)) { this.bonusPaid.add(c.performer); await this.mint(c.performer, FIRST_JOB_BONUS); }
+    if (hj && (!partnerOf || partnerOf.delivery)) {
+      // The house pays on the spot (a partner job when both have delivered). The first job an agent finishes for the house carries a bonus.
+      const owner = this.houseOf.get(c.intent) ?? this.p.house;
+      for (const x of partnerOf ? [partnerOf, c] : [c]) {
+        await this.settleAs(owner, x);
+        if (!this.bonusPaid.has(x.performer)) { this.bonusPaid.add(x.performer); await this.mint(x.performer, FIRST_JOB_BONUS); }
+      }
     }
     return c.delivery;
   }
@@ -353,7 +427,13 @@ export class MarketHall {
     const fee = Math.floor((c.price * 20) / 1000);
     await this.put(this.mk("settlement", this.p.bank, { contract: c.contract, basis: "accepted", cites: acceptId, escrow_released: credit(c.price), fees: credit(fee), bond_returned: credit(0), bond_slashed: credit(0) }, acceptId, c.contract, [principal]));
     c.settled = true;
-    if (principal.did === this.p.house.did) await this.postNextHouseJob();
+    const intent = this.contractState.get(c.contract)?.intent;
+    if (intent && this.houseOf.get(intent)?.did === principal.did && !this.settledIntents.has(intent)) {
+      // a house job is complete (a partner job at its first settlement; the second follows at once): its place is free for the next of the queue
+      this.settledIntents.add(intent);
+      this.housePosted.set(principal.did, Math.max(0, (this.housePosted.get(principal.did) ?? 1) - 1));
+      await this.postNextHouseJob();
+    }
     return { paid: c.price, tax: fee, worker: c.performer };
   }
 
@@ -362,7 +442,7 @@ export class MarketHall {
     const settled = [...this.contractState.values()].filter((c) => c.settled).length;
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));
     const intents = (await this.records(["intent"])).filter((r) => !taken.has(r.id)).length;
-    return { agents: this.agents.size, openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
+    return { agents: this.agents.size - (this.greeter ? 1 : 0), openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
   }
 
   /** The jobs this agent is in, as principal or performer, with where each stands. */
