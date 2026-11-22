@@ -4983,6 +4983,34 @@ export class EventLog {
   }
 
   /**
+   * The Courts' report for a calendar month (courts.md CT-20, DK123), computed from the records: disputes opened (a delivery rejected), rulings made and for whom, the days a ruling took, appeals filed and how they
+   * were decided, the share of decided appeals that reversed or varied, and the disputes still open at the month's end. A month is `YYYY-MM` (UTC); a ruling, appeal or rejection counts in the month it was issued.
+   * Counts only: no name, no amount. Reads only.
+   */
+  async courtReport(month: string): Promise<{ month: string; from: string; to: string; disputesOpened: number; rulings: number; forPrincipal: number; forPerformer: number; medianDaysToRuling: number | null; appealsFiled: number; appealsDecided: number; appealsAffirmed: number; appealsReversed: number; appealsVaried: number; reversedShare: number | null; openAtEnd: number }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const recs = await this.recordsOfTypes(["attestation", "court_act"]);
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const rejections = new Map<string, number>();
+    for (const r of recs) { const b = r.body as { kind?: string; verdict?: string }; if (r.type === "asp.attestation/v0.2" && b.kind === "acceptance" && b.verdict === "rejected" && r.subject && !rejections.has(r.subject)) rejections.set(r.subject, Date.parse(r.issued_at)); }
+    const rulings = recs.filter((r) => r.type === "asp.attestation/v0.2" && (r.body as { kind?: string }).kind === "ruling" && r.subject);
+    const rulingOf = new Map<string, number>();
+    for (const r of rulings) if (!rulingOf.has(r.subject!)) rulingOf.set(r.subject!, Date.parse(r.issued_at));
+    const month_rulings = rulings.filter(inMonth);
+    const days = month_rulings.filter((r) => rejections.has(r.subject!)).map((r) => (Date.parse(r.issued_at) - rejections.get(r.subject!)!) / 86_400_000).sort((x, y) => x - y);
+    const median = days.length ? (days.length % 2 ? days[(days.length - 1) / 2] : (days[days.length / 2 - 1] + days[days.length / 2]) / 2) : null;
+    const appeals = recs.filter((r) => r.type === "asp.court_act/v0.2" && (r.body as { act?: string }).act === "appeal");
+    const decided = recs.filter((r) => r.type === "asp.court_act/v0.2" && (r.body as { act?: string }).act === "appeal_ruling" && inMonth(r));
+    const count = (o: string) => decided.filter((r) => (r.body as { outcome?: string }).outcome === o).length;
+    const forPrincipal = month_rulings.filter((r) => (r.body as { verdict?: string }).verdict === "for_principal").length;
+    const open = [...rejections].filter(([c, at]) => at < to && !(rulingOf.has(c) && rulingOf.get(c)! < to)).length;
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), disputesOpened: [...rejections.values()].filter((at) => at >= from && at < to).length, rulings: month_rulings.length, forPrincipal, forPerformer: month_rulings.length - forPrincipal, medianDaysToRuling: median === null ? null : Math.round(median * 10) / 10, appealsFiled: appeals.filter(inMonth).length, appealsDecided: decided.length, appealsAffirmed: count("affirmed"), appealsReversed: count("reversed"), appealsVaried: count("varied"), reversedShare: decided.length ? Math.round(((count("reversed") + count("varied")) * 1000) / decided.length) : null, openAtEnd: open };
+  }
+
+  /**
    * A principal's record as a poster of work (AG5): of the jobs it commissioned, how many it accepted and rejected, how each rejection fared before a Court (a ruling that put the greater share of the fault on
    * the principal means the rejection was not justified, on the fault map the ruling stands on after any appeal), the rejections no Court has ruled on, and how long it took to review a delivery. Built from the
    * records; a count is not a verdict, and a principal with fewer than five rejections has no share stated. Reads only.
