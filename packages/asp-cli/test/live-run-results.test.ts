@@ -7,26 +7,41 @@ import { existsSync, readFileSync } from "node:fs";
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
 const doc = read("docs/live-run-results-2026-11-22.md");
-const IDS = ["36f6fb95", "1681ffc5", "0364ec86", "61ed67fe"];
+const IDS = ["36f6fb95", "1681ffc5", "0364ec86", "61ed67fe", "926945bb", "b0f686b6", "03629401"];
 
-test("the four sessions are recorded once each, as eight-digit hexadecimal session ids", () => {
+test("the seven sessions are recorded once each, as eight-digit hexadecimal session ids", () => {
   for (const id of IDS) assert.match(id, /^[0-9a-f]{8}$/);
   const rows = [...doc.slice(doc.indexOf("## 1."), doc.indexOf("## 2.")).matchAll(/^\| `([0-9a-f]{8})` \|/gm)].map((m) => m[1]);
   assert.deepEqual(rows, IDS);
 });
 
 test("every figure in the prose is the figure of the tables, and the arithmetic holds", () => {
-  const table = doc.slice(doc.indexOf("## 5."));
-  const figures: [RegExp, string][] = [[/2 \(1 allowed, 1 refused\)/, "judged"], [/18,525 in and 142 out/, "tokens"], [/7, the hash chain verifies/, "events"], [/11\.26 and 6\.45, unchanged/, "balances"], [/USD 5/, "cap"]];
+  const table = doc.slice(doc.indexOf("## 6."));
+  const figures: [RegExp, string][] = [[/2 \(1 allowed, 1 refused\)/, "judged"], [/18,525 in and 142 out/, "tokens"], [/7, the hash chain verifies/, "events"], [/11\.26 and 6\.45, unchanged/, "balances"], [/USD 3 for the three Codex runs, USD 5 for the Claude Code run/, "cap"], [/77 and 76/, "simultaneous tokens"], [/\| Sessions recorded \| 7 \|/, "count"]];
   for (const [re, what] of figures) assert.match(table, re, `${what} is in the table of figures`);
   const sessions = doc.slice(doc.indexOf("## 1."), doc.indexOf("## 2."));
   assert.match(sessions, /2 calls judged, 1 allowed and 1 refused/);
   assert.match(sessions, /18,525 tokens in and 142 out/);
   assert.match(sessions, /a run log of 7 events whose hash chain verifies/);
   assert.equal(1 + 1, 2, "judged = allowed + refused");
+  assert.equal(IDS.length, 7, "the table of figures counts seven sessions");
+  assert.match(doc, /77 tokens; finished/);
+  assert.match(doc, /76 tokens; finished/);
+  assert.match(doc, /did not reach|never reached a provider/);
   assert.equal([...doc.matchAll(/11\.26 and 6\.45/g)].length, 2, "the balances are the same in the prose and in the table");
   assert.equal([...doc.matchAll(/18,525/g)].length, 2, "the token figure appears in the sessions table and in the table of figures only");
   assert.equal([...doc.matchAll(/[Ss]essions with one refused call \| 2 \(`36f6fb95`, `1681ffc5`\)/g)].length, 1);
+});
+
+test("the facts relayed for the Codex runs and the two ends are stated: the command, no price flags, the pause, the swapped variables", () => {
+  assert.ok(doc.includes("run codex --local --project C:" + String.fromCharCode(92) + "scratch" + String.fromCharCode(92) + "repo --prompt"), "the command");
+  assert.ok(doc.includes("--budget-usd 3"));
+  assert.match(doc, /with no price flags/);
+  assert.match(doc, /gpt-5\.5/);
+  assert.match(doc, /stopped \(exit 1\)/);
+  assert.match(doc, /held by an `asp pause`/);
+  assert.match(doc, /swapping the variables fixed it/);
+  assert.match(doc, /could not reach api\.anthropic\.com/);
 });
 
 test("the limits are stated and the file claims no row", () => {
