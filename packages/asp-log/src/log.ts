@@ -504,7 +504,7 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") {
-      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.panelV3From ? { panelV3From: this.panelV3From } : {}) });
       const ca = verified.body as { act?: string; contest?: string; case?: string };
       if (ca.act === "contest_answer" && ca.contest) await this.reverseContested(tx, ca.contest, verified.issued_at);
       else if (ca.act === "contest_ruling" && ca.case) { const c = JSON.parse((await tx.getMarker(`contest_case:${ca.case}`)) || "null") as { contest?: string } | null; if (c?.contest) await this.reverseContested(tx, c.contest, verified.issued_at); }
