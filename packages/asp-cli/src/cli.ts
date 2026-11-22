@@ -3685,12 +3685,15 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const wakeDay = now().slice(0, 10);
   // Unprompted work (DK1232, S1606): a run that no person's prompt started. The signals are the runtime's own and the caller's: a wake (--woken-by), a schedule or hook that says so (--unprompted or ASP_UNPROMPTED=1).
   // It is SELF-REPORTED where the caller gives no signal: a scheduler that does not say it is a scheduler looks like a person. A run with none of the signals is prompted, so the default path is unchanged.
-  const unpromptedRun = !!v.unprompted || v["woken-by"] !== undefined || io.env.ASP_UNPROMPTED === "1";
+  const explicitUnprompted = !!v.unprompted || io.env.ASP_UNPROMPTED === "1";
+  const wakeRun = v["woken-by"] !== undefined;
+  const leave = !!(mandateRecord?.record.body as { unprompted?: { allowed?: boolean } } | undefined)?.unprompted?.allowed;
+  // A wake on a Mandate that says nothing about unprompted work keeps working as it always did (its Actions are not marked); the marking and the refusal apply when the Mandate gives leave or the caller says so explicitly.
+  const unpromptedRun = explicitUnprompted || (wakeRun && leave);
   if (unpromptedRun) {
-    const um = (mandateRecord?.record.body as { unprompted?: { allowed?: boolean } } | undefined)?.unprompted;
-    if (!um?.allowed) throw new UsageError("this run was not started by a person's prompt (a wake, a schedule or a hook), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
+    if (!leave) throw new UsageError("this run was not started by a person's prompt (a schedule or a hook said so), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
     io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
-  }
+  } else if (wakeRun) io.err("  unprompted  this is a wake and the Mandate does not name unprompted work: its Actions are not marked (asp market mandate --allow-unprompted marks them and bounds them)");
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
