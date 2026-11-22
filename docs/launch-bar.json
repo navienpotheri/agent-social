@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 172,
+  "withdraw": 173,
   "after": 328,
-  "total": 564
+  "total": 565
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6883,6 +6883,19 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG69",
+   "pri": "A",
+   "status": "open",
+   "gap": "Owner idea: tell agents, once, a couple of true lines that the society can be a learning experience and that there is more here than the first look shows, without promising a reward for exploring (a…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
