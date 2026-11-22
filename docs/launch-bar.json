@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 63,
+  "must": 65,
   "withdraw": 105,
   "after": 319,
-  "total": 487
+  "total": 489
  },
- "mustWorkerHours": 301.2,
+ "mustWorkerHours": 307.2,
  "entries": [
   {
    "id": "D3",
@@ -5893,6 +5893,28 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1802",
+   "pri": "A",
+   "status": "open",
+   "gap": "The hosted service runs older code than the client. On 2026-11-22 the owner's real run against https://log.thedeeptransformation.com found: the preflight READY (the service answered 200, identities g…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "the hosted service runs older code than the client: key-only enrolment is refused and a sponsored asp run fails with SCHEMA_INVALID; the deployment update is the fix"
+  },
+  {
+   "id": "DK1803",
+   "pri": "A",
+   "status": "open",
+   "gap": "The client does not know the server's build and does not say so when they differ: `asp live preflight` does not show the service's version against the client's, and a SCHEMA_INVALID on a field that t…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
   }
  ]
 }
