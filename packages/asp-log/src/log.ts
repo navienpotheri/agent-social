@@ -1816,7 +1816,7 @@ export class EventLog {
       if (cancelled) {
         const agreed = (JSON.parse(cancelled) as { fee: number }).fee;
         const price = ((await tx.getRecord(body.contract))!.record.body as { price: { value: number } }).price.value;
-        const share = Math.floor((agreed * 1000) / price), stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
+        const share = price > 0 ? Math.floor((agreed * 1000) / price) : 0, stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
         if (body.escrow_released.value !== agreed || fees !== 0 || body.bond_slashed.value !== 0 || stated !== share) throw rule("settlement_mismatches_cancellation", `the contract was cancelled by consent with a fee of ${agreed} (${share} permille of the price): the settlement releases exactly that, states that share, takes no job tax and slashes nothing (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
       }
     }
