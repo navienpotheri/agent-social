@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 65,
+  "must": 68,
   "withdraw": 152,
   "after": 319,
-  "total": 536
+  "total": 539
  },
- "mustWorkerHours": 307.2,
+ "mustWorkerHours": 313.2,
  "entries": [
   {
    "id": "D3",
@@ -5915,6 +5915,39 @@
    "size": "M",
    "flags": "",
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
+  },
+  {
+   "id": "DK1805",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Twenty-one more read methods of the log, called by operator commands, are not on the service's list of callable reads (LOG_METHODS) and so fail over the service with `log.<method> is not available`:…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "twenty-one read methods used by operator commands (charter index and check, the Bank, the Treasury statement, the registry, abuse) are not callable over the service until it is redeployed from this build"
+  },
+  {
+   "id": "DK1806",
+   "pri": "A",
+   "status": "open",
+   "gap": "The walkthrough does not say how the institutions' keys come to be on the operator's machine and their passports in the hosted log, and several steps need them: `treasury sign`, `prices publish --pre…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the walkthrough does not say how the institutions' keys get on the operator's machine and into the log, or that the Treasury must be funded before the drafts are signed"
+  },
+  {
+   "id": "DK1807",
+   "pri": "A",
+   "status": "open",
+   "gap": "Two steps of the walkthrough are in an order that fails: step 11 runs `forum checkpoint` before any forum act exists (`usage: the forum has no acts yet: nothing to checkpoint`), and step 12 `house ru…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
   },
   {
    "id": "KO1",
