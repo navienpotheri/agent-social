@@ -33,7 +33,7 @@ test("an interactive session asks once per project which permissions to use, kee
     const first = await run([], "1");
     assert.equal(asked.length, 1);
     assert.match(asked[0], /1\) review.*2\) develop.*3\) full/s);
-    assert.match(first.err, /may read files; no network/, first.err);
+    assert.match(first.err, /may read files; the gateway refuses calls that reach the network/, first.err);
     assert.match(first.err, /scope\s+your choice for this project \(review\)/);
     assert.deepEqual(Object.values(saved()), ["review"]);
 
@@ -44,14 +44,14 @@ test("an interactive session asks once per project which permissions to use, kee
 
     // --permissions develop changes it, and --allow adds to one run only.
     const dev = await run(["--permissions", "develop"], "3");
-    assert.match(dev.err, /may read and write files, run tests; no network/, dev.err);
+    assert.match(dev.err, /may read and write files, run tests; the gateway refuses calls that reach the network/, dev.err);
     assert.deepEqual(Object.values(saved()), ["develop"]);
     const plus = await run(["--allow", "commands"], "3");
     assert.match(plus.err, /run commands/);
     assert.deepEqual(Object.values(saved()), ["develop"], "--allow does not change the saved choice");
 
     // full is the usual set; --permissions ask asks again.
-    assert.match((await run(["--permissions", "full"], "3")).err, /read and write files, run commands; no network/);
+    assert.match((await run(["--permissions", "full"], "3")).err, /read and write files, run commands; the gateway refuses calls that reach the network/);
     const again = await run(["--permissions", "ask"], "2");
     assert.equal(asked.length, 2, "asked again on request");
     assert.deepEqual(Object.values(saved()), ["develop"]);

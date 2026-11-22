@@ -125,7 +125,7 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   const cap = c.flags.budgetUsd === undefined ? undefined : Number(c.flags.budgetUsd);
   if (cap === undefined) add("the budget cap", "fail", "no --budget-usd: a live run with a real model must have a hard dollar cap");
   else if (!(cap > 0)) add("the budget cap", "fail", "--budget-usd must be a number of dollars above 0");
-  else if (cap < 2) add("the budget cap", "warn", `${cap} dollars is a very small cap: the gateway also refuses a call whose WORST case (the whole request plus the largest reply it allows, 32,000 tokens for Claude Code) could pass the cap, and one such call can be worth about 0.5 to 1 dollar, so a cap this small can stop the run at its first call; use 2 dollars or more`);
+  else if (cap < 3) add("the budget cap", "warn", `${cap} dollars is a small cap: the gateway also refuses a call whose WORST case (the whole request plus the largest reply it allows, 32,000 tokens for Claude Code) could pass the cap, and one such call was measured at about 1.35 dollars with Claude Code, so a cap this small can stop the run at its first call; use 3 dollars or more (the runbook uses 5)`);
   else {
     const pi = c.flags.priceIn === undefined ? undefined : Number(c.flags.priceIn), po = c.flags.priceOut === undefined ? undefined : Number(c.flags.priceOut);
     const price = priceFor(c.flags.model, { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) });
@@ -165,6 +165,7 @@ export interface ReportInput {
   runLogPath?: string;
   /** Records the log holds for the job and the Action reports among them, when the log could be read. */
   log?: { records: number; actions: number };
+  unprompted?: { actions: number; unprompted: number; permille: number };
 }
 export interface Report {
   session: string; runtime: string; started: string; ended?: string; state: string; exitCode?: number; task: string;
@@ -174,6 +175,8 @@ export interface Report {
   holds: { outboundScan: number; untrustedHold: number; untrustedFlowHold: number; injectionSuspect: number; circumvention: number; budgetStops: number };
   runLog: { path?: string; events: number; chainOk?: boolean; problem?: string };
   records?: { onTheJob: number; actionReports: number };
+  /** The share of the job's Actions that no person's prompt started (DK1232), from the log. */
+  unprompted?: { actions: number; unprompted: number; permille: number };
   stopped?: string;
   notes: string[];
 }
@@ -203,6 +206,7 @@ export function buildReport(i: ReportInput): Report {
     holds: { outboundScan: count("outbound_scan"), untrustedHold: count("untrusted_hold"), untrustedFlowHold: count("untrusted_flow_hold"), injectionSuspect: count("injection_suspect"), circumvention: count("circumvention"), budgetStops: budgetStops.length },
     runLog: { ...(i.runLogPath ? { path: i.runLogPath } : {}), events: events.length, ...(chainOk !== undefined ? { chainOk } : {}), ...(problem ? { problem } : {}) },
     ...(i.log ? { records: { onTheJob: i.log.records, actionReports: i.log.actions } } : { }),
+    ...(i.unprompted ? { unprompted: i.unprompted } : {}),
     ...(i.end?.stopped ? { stopped: i.end.stopped } : {}),
     notes: [...notes, ...(spend === undefined ? ["no spend was recorded: the run did not use --budget-usd, or ended before it was written"] : ["the dollar figures are estimates from tokens and a price table, not the provider's bill"]), "credits are accounting entries, not money"],
   };
@@ -213,7 +217,7 @@ export function printReport(r: Report, out: (l: string) => void): void {
   out(`  runtime     ${r.runtime}; started ${r.started}${r.ended ? `, ended ${r.ended}` : ""}`);
   out(`  task        ${r.task}`);
   out(`  identities  sponsor ${r.identities.sponsor}; agent ${r.identities.agent}; bank ${r.identities.bank}`);
-  out(`  mandate     ${r.mandate.scopes.join(", ") || "none"}${r.mandate.hosts.length ? `; network to ${r.mandate.hosts.join(", ")}` : "; no network"}`);
+  out(`  mandate     ${r.mandate.scopes.join(", ") || "none"}${r.mandate.hosts.length ? `; network to ${r.mandate.hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}`);
   out(`  calls       ${r.calls.judged} judged: ${r.calls.allowed} allowed, ${r.calls.refused} refused`);
   for (const f of r.calls.refusals.slice(0, 12)) out(`    refused   ${f.tool ? `${f.tool} -> ${f.scope || "no scope"}: ` : ""}${f.reason}`);
   if (r.calls.refusals.length > 12) out(`    ... ${r.calls.refusals.length - 12} more in the run log`);
@@ -222,6 +226,7 @@ export function printReport(r: Report, out: (l: string) => void): void {
   out(`  held        outbound scan ${h.outboundScan}, untrusted text ${h.untrustedHold}, untrusted flow ${h.untrustedFlowHold}, injection suspected ${h.injectionSuspect}, circumvention ${h.circumvention}, budget stops ${h.budgetStops}`);
   out(`  run log     ${r.runLog.events} event(s)${r.runLog.chainOk === undefined ? "" : r.runLog.chainOk ? ", hash chain verifies" : `, DOES NOT VERIFY: ${r.runLog.problem}`}${r.runLog.path ? `  ${r.runLog.path}` : ""}`);
   if (r.records) out(`  in the log  ${r.records.onTheJob} record(s) on the job, ${r.records.actionReports} signed Action report(s)`);
+  if (r.unprompted) out(`  unprompted  ${r.unprompted.unprompted} of ${r.unprompted.actions} Action(s) of the job (${(r.unprompted.permille / 10).toFixed(1)}%) were not started by a person's prompt (a wake, a schedule or a hook; self-reported where the caller gives no signal)`);
   if (r.stopped) out(`  stopped     ${r.stopped}`);
   for (const n of r.notes) out(`  note        ${n}`);
 }

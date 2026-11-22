@@ -97,3 +97,38 @@ test("DK1744: a finding needs two deliberate touches on two runs; one touch or a
   assert.equal(JSON.stringify([await k.log.balance(w.agent.did), (await k.log.reputationOf(w.agent.did))?.slashCount]), before, "a finding reports and moves nothing");
   assert.equal((await k.log.verify()).ok, true);
 });
+
+test("DK1744: the Courts' grant route: a warrant answers a request from the inspectorate, for the same subject, never wider, once", async () => {
+  const w = await world();
+  const { k } = w;
+  const request = (over: Record<string, unknown> = {}, by: Party = w.insp) => mk("warrant_request", by, { subject: w.agent.did, sponsor: w.sponsor.did, data: ["run_log", "sponsor_mail"], grounds: "two runs read a decoy the Mandate forbade", scope: "the run log of the two runs that touched the decoy", ...over }, null, { subject: w.agent.did });
+  assert.equal(await refusedBy(k.log.append(request({}, w.sponsor))), "warrant_request_wrong_issuer", "only the inspectorate asks");
+  assert.equal(await refusedBy(k.log.append(request({ subject: "did:web:example.com:agents:ghost" }))), "warrant_request_unknown_agent");
+  assert.equal(await refusedBy(k.log.append(request({ sponsor: w.j1.did }))), "warrant_request_sponsor_mismatch");
+  assert.equal(await refusedBy(k.log.append(request({ data: ["key_material"] }))), "warrant_request_key_material", "a key is not even asked for");
+  const req = await k.log.append(request());
+  assert.equal(await refusedBy(k.log.append(w.warrant({ request: "sha256:" + "4".repeat(64) }))), "warrant_request_unknown");
+  const other = await k.agent("insp-other-agent", w.sponsor);
+  assert.equal(await refusedBy(k.log.append(w.warrant({ request: req.id, subject: other.did }))), "warrant_request_subject", "a warrant for someone the request was not about");
+  assert.equal(await refusedBy(k.log.append(w.warrant({ request: req.id, data: ["run_log", "private_memory"], produced_by: w.sponsor.did }))), "warrant_exceeds_request", "private memory was not asked for");
+  await k.log.append(w.warrant({ request: req.id, data: ["run_log"] }));
+  assert.equal(await refusedBy(k.log.append(w.warrant({ request: req.id, data: ["run_log"] }))), "warrant_request_answered", "one warrant for each request");
+  assert.equal((await k.log.verify()).ok, true);
+});
+
+test("DK1744: a referral sends a finding to the Courts, once, from the inspectorate, with an optional custody case; it penalises nothing", async () => {
+  const w = await world();
+  const { k } = w;
+  const reg = await k.log.append(w.decoy());
+  const fnd = await k.log.append(w.finding(reg.id, [{ run: "r1", kind: "read", forbidden: true }, { run: "r2", kind: "copied", forbidden: true }]));
+  const refer = (over: Record<string, unknown> = {}, by: Party = w.insp) => mk("inspectorate_referral", by, { finding: fnd.id, summary: "read and copied the decoy on two runs", ...over }, null, { subject: w.agent.did });
+  assert.equal(await refusedBy(k.log.append(refer({}, w.sponsor))), "referral_wrong_issuer");
+  assert.equal(await refusedBy(k.log.append(refer({ finding: reg.id }))), "referral_unknown_finding", "a decoy registration is not a finding");
+  assert.equal(await refusedBy(k.log.append(refer({ custody_case: "no-such-case" }))), "referral_unknown_custody");
+  const at = nowIso();
+  await k.log.append(mk("custody_item", w.insp, { case: "case-9", n: 0, what: "copy of the run log", sha256: "e".repeat(64), held_by: w.insp.did, at, prev_item: "genesis" }, null, { subject: null }));
+  const before = JSON.stringify([await k.log.balance(w.agent.did), (await k.log.reputationOf(w.agent.did))?.slashCount]);
+  await k.log.append(refer({ custody_case: "case-9" }));
+  assert.equal(await refusedBy(k.log.append(refer({ summary: "again" }))), "referral_known", "one referral for each finding");
+  assert.equal(JSON.stringify([await k.log.balance(w.agent.did), (await k.log.reputationOf(w.agent.did))?.slashCount]), before, "a referral moves nothing");
+});

@@ -97,7 +97,7 @@
     {
       "id": "R08",
       "where": "README.md",
-      "says": "By default the agent can read and write files and run commands inside the project folder. It has no network access unless you name hosts.",
+      "says": "By default the agent can read and write files and run commands inside the project folder. The gateway refuses a call that reaches the network, judged from the call's command text or tool, unless you name hosts; it does not block network traffic at the system level.",
       "status": "complete",
       "evidence": [
         "packages/asp-cli/test/gateway.test.ts"

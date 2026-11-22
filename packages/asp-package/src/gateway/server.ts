@@ -12,7 +12,6 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
-import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,6 +35,8 @@ import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
+import { roleRefusal, type Role } from "./roles.ts";
+import { ladderAtCall, ladderStep, type LadderStep } from "../circumvention.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -67,6 +68,10 @@ export interface GatewayOptions {
   untrustedByType?: boolean;
   /** Untrusted flow (DK1713 follow-up 2): an outward call that carries a host, address, email, command or opaque string copied from a tool result, and found neither in the principal's own messages nor among the Mandate's hosts, is held for the principal. Narrower than holding every outward call after a read. */
   untrustedFlow?: boolean;
+  /** The escalation ladder at the next call (DK211; OFF by default, so a run is unchanged without it): once this run's own refusals show an agent retrying a refused scope (5 refused attempts of one scope in ten minutes: tighten; 8: quarantine), a call that reaches outside the project is held for approval (or refused when this run cannot ask) and under quarantine everything but reading is refused. The same retry reading `ladderStep` makes from the log, made in-run. */
+  escalationLadder?: boolean;
+  /** The role the Mandate names (DK1231): a router executes nothing and a watchdog only reads logs and signals a halt. Absent: no role, no change. */
+  role?: Role;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
@@ -240,6 +245,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** The salient tokens of every tool result read in this run, and the text the principal typed (untrusted flow). */
   const readTokens = new Set<string>();
   let spendUsd = 0;
+  /** The worst case of every model call in flight, reserved when it starts and released when it ends, so calls that run at the same time cannot each pass the cap and together pass it. */
+  let reservedUsd = 0;
   /** Ids of calls to the private memory tools: their results are not written to the run log (the text is sealed memory). */
   const privateCallIds = new Set<string>();
   let principalText = "";
@@ -268,10 +275,17 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
     tokens.text = ""; tokens.thinking = undefined;
-    return { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead ?? 0, cacheWrite: tokens.cacheWrite ?? 0, at: Date.now(), model: body?.model };
+    return { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead ?? 0, cacheWrite: tokens.cacheWrite ?? 0, at: Date.now(), model: body?.model, reqChars: (() => { try { return JSON.stringify(body).length; } catch { return 0; } })() };
   };
-  const endModelCall = (snap: { input: number; output: number; cacheRead?: number; cacheWrite?: number; at: number; model?: unknown }, text: string, thinking?: string) => {
+  const endModelCall = (snap: { input: number; output: number; cacheRead?: number; cacheWrite?: number; at: number; model?: unknown; reqChars?: number }, text: string, thinking?: string) => {
     spendUsd += costUsd(tokens.input - snap.input, tokens.output - snap.output, priceFor(snap.model, opts.price), (tokens.cacheRead ?? 0) - (snap.cacheRead ?? 0), (tokens.cacheWrite ?? 0) - (snap.cacheWrite ?? 0));
+    // A reply that carried no usage (an error body, a stream cut before its usage event, a provider that leaves it out) is not free: the spend is estimated from the request and from what was read of the reply (a token is about three characters).
+    if (opts.usdCap !== undefined) {
+      const dIn = tokens.input - snap.input, dOut = tokens.output - snap.output;
+      const outChars = String(text ?? "").length + String(thinking ?? "").length;
+      if (dIn === 0 && (snap.reqChars ?? 0) > 0 && (tokens.cacheRead ?? 0) - (snap.cacheRead ?? 0) === 0) spendUsd += costUsd(Math.ceil((snap.reqChars ?? 0) / 3), 0, priceFor(snap.model, opts.price));
+      if (dOut === 0 && outChars > 0) spendUsd += costUsd(0, Math.ceil(outChars / 3), priceFor(snap.model, opts.price));
+    }
     opts.cognition?.observeReply({ text, ...(thinking ? { thinking } : {}) });
     rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
     tokens.text = ""; tokens.thinking = undefined;
@@ -375,6 +389,15 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   const sessionRecord = new SessionRecord();
   const attempts = new Attempts();
+  /** Refusals by scope with their times, for the escalation ladder (opt-in). */
+  const refusalStamps = new Map<string, number[]>();
+  const ladderNow = (): { step: ReturnType<typeof ladderStep>["step"]; why: string } => {
+    const now = Date.now();
+    let retry = 0, scope = "";
+    for (const [k, ts] of refusalStamps) { const n = ts.filter((t) => now - t < 600_000).length; if (n > retry) { retry = n; scope = k; } }
+    if (!retry) return { step: "none", why: "no refused action was retried" };
+    return ladderStep([{ kind: "retry", issuer: "this run", scope, attempts: retry, firstAt: "", lastAt: "", contracts: [] }], 0);
+  };
   let circumventions = 0;
   const breaker = opts.loop && (opts.loop.equivalentCalls !== undefined || opts.loop.depth !== undefined || opts.loop.dailyTokens !== undefined) ? new GatewayBreaker(opts.loop) : undefined;
   let loopTold = false;
@@ -460,6 +483,22 @@ export function createGateway(opts: GatewayOptions): Gateway {
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
+    // The Mandate's role (DK1231): a router dispatches and does not execute, a watchdog only reads logs and signals a halt. Only when the Mandate carries a role.
+    if (opts.role && allow && j.scope) {
+      const rr = roleRefusal(opts.role, gated && gateScope ? gateScope : j.scope);
+      if (rr) { allow = false; strike = false; reason = `[ASP] ${rr}`; rec?.event("role_refusal", { role: opts.role, scope: j.scope }); }
+    }
+    // The escalation ladder (DK211), only when asked for: what this run's own refusals call for decides the next call.
+    if (opts.escalationLadder && allow && j.scope) {
+      const { step, why: stepWhy } = ladderNow();
+      const l = ladderAtCall(step, gated && gateScope ? gateScope : j.scope);
+      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}); tell your principal what you need and why`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
+      else if (l.action === "hold") {
+        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, gated && gateScope ? gateScope : j.scope) : { approved: false as boolean, reason: "this run cannot ask for approval" };
+        rec?.event("ladder", { step, action: a.approved ? "held_then_approved" : "held_then_refused", scope: j.scope });
+        if (!a.approved) { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}) and the approval was not given${a.reason ? `: ${a.reason}` : ""}`; }
+      }
+    }
     // The ladder (DK211): the step the agent stands on decides this call. A hold is asked about like a gated call; a refusal is a refusal without a strike (the strike was the circumvention that put it on the ladder).
     if (allow && opts.ladder && j.scope) {
       const step = opts.ladder();
@@ -494,6 +533,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     // the same kind of thing in ten minutes is called what it is.
     if (!allow) {
       const attempt = attempts.refused(j.scope || call.name);
+      if (opts.escalationLadder) { const k = j.scope || call.name; const ts = refusalStamps.get(k) ?? []; ts.push(Date.now()); refusalStamps.set(k, ts.slice(-50)); }
       reason = `${(reason ?? "outside the Mandate").replace(/\.$/, "")}. ${explainRefusal(reason ?? "", j.scope, attempt)}`;
       // The third refused attempt at one kind of thing in ten minutes is recorded as what it is: repeated circumvention is itself a violation (Article 8), in the run log the Action commits to.
       if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }
@@ -537,8 +577,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
     res.end(text);
   }
   const stoppedBody = (style: "openai" | "anthropic") => style === "openai"
-    ? { error: { message: `ASP gateway: this run was stopped (${stopped})`, type: "asp_stopped", code: "asp_stopped" } }
-    : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped})` } };
+    ? { error: { message: `ASP gateway: this run was stopped (${stopped}). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on${/dollar cap/.test(String(stopped)) ? " (raise --budget-usd if the limit was too low)" : ""}.`, type: "asp_stopped", code: "asp_stopped" } }
+    : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped}). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on${/dollar cap/.test(String(stopped)) ? " (raise --budget-usd if the limit was too low)" : ""}.` } };
 
   /** Adds the Code to the request's system context, once: after the system messages the client sent, or in the field its API uses for them. */
   function addCode(body: Record<string, any>, api: "chat" | "anthropic" | "responses"): void {
@@ -833,13 +873,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (opts.usdCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         let model: unknown, worst = 0;
         try { const b = JSON.parse(rawBody.toString("utf8")); model = b?.model; worst = worstCaseUsd(b, priceFor(model, opts.price)); } catch { /* an unreadable body is judged as it is below */ }
-        if (spendUsd >= opts.usdCap || spendUsd + worst > opts.usdCap) {
-          const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged)`;
+        if (spendUsd >= opts.usdCap || spendUsd + reservedUsd + worst > opts.usdCap) {
+          const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged). The run is stopped: raise --budget-usd to go on`;
           rec?.event("budget_stop", { usd: Number(spendUsd.toFixed(6)), cap_usd: opts.usdCap, worst_case_usd: Number(worst.toFixed(6)) });
           opts.onCall?.({ tool: "model request", scope: "model.usd", allowed: false, reason });
-          stop("dollar cap reached");
+          if (spendUsd >= opts.usdCap) stop("dollar cap reached");
           return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_usd_budget", code: "asp_usd_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
         }
+        if (worst > 0) { reservedUsd += worst; let freed = false; const free = () => { if (!freed) { freed = true; reservedUsd = Math.max(0, reservedUsd - worst); } }; res.once("close", free); res.once("finish", free); }
       }
       if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;

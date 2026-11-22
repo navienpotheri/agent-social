@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mission_fund",
+  "title": "Mission fund body",
+  "description": "A funder puts credits into a mission's pool (register row DK1240; spec-delta S1612). Signed by the funder, who pays from its own account (insufficient_balance otherwise). Refused for an unknown mission (mission_unknown), after it closed or settled (mission_closed) and for an amount of nothing. Credits move to the pool account; none are made. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "mission",
+    "amount"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mission": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,48}$"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    }
+  }
+}

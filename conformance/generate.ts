@@ -621,6 +621,13 @@ sv("valid_action_job_data_chain", "action", { contract: fakeId("c"), scopes_used
 sv("action_job_data_chain_short", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "d".repeat(63) }, false);
 sv("action_job_data_chain_uppercase", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "D".repeat(64) }, false);
 sv("action_job_data_chain_prefixed", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "sha256:" + "d".repeat(57) }, false);
+sv("valid_action_unprompted", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: true }, true);
+sv("action_unprompted_not_boolean", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: "yes" }, false);
+sv("valid_action_workflow_step", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan", to: "work" } }, true);
+sv("action_workflow_step_no_to", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan" } }, false);
+sv("action_workflow_step_bad_name", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "Plan", to: "work" } }, false);
+sv("valid_action_undoes", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], undoes: fakeId("a") }, true);
+sv("action_undoes_not_an_id", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], undoes: "the last one" }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -661,6 +668,24 @@ sv("mandate_not_revocable", "mandate", { ...m, revocable: false }, false);
 sv("mandate_missing_purpose", "mandate", (({ purpose: _p, ...rest }) => rest)(m), false);
 sv("valid_mandate_network_rate", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org"], rate: { per_host_per_minute: 30, total_per_minute: 120 } } }, true);
 sv("valid_mandate_network_rate_only", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { rate: { per_host_per_minute: 10 } } }, true);
+sv("valid_mandate_unprompted", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 5 } }, true);
+sv("valid_mandate_unprompted_forbidden", "mandate", { ...m, unprompted: { allowed: false } }, true);
+sv("mandate_unprompted_no_allowed", "mandate", { ...m, unprompted: { per_day_cap: 5 } }, false);
+sv("mandate_unprompted_zero_cap", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 0 } }, false);
+sv("mandate_unprompted_extra_field", "mandate", { ...m, unprompted: { allowed: true, weekly: 5 } }, false);
+sv("valid_mandate_workflow", "mandate", { ...m, workflow: { states: ["plan", "work", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "done" }], terminal: ["done"] } }, true);
+sv("mandate_workflow_one_state", "mandate", { ...m, workflow: { states: ["plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_no_transitions", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [] } }, false);
+sv("mandate_workflow_repeated_state", "mandate", { ...m, workflow: { states: ["plan", "plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_extra_field", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [{ from: "plan", to: "work" }], skip: true } }, false);
+sv("valid_mandate_role_router", "mandate", { ...m, role: "router" }, true);
+sv("valid_mandate_role_watchdog", "mandate", { ...m, role: "watchdog", scopes: ["logs.read", "fleet.halt"] }, true);
+sv("mandate_role_unknown", "mandate", { ...m, role: "manager" }, false);
+sv("valid_mandate_action_classes", "mandate", { ...m, action_classes: { irreversible: ["repo.push"], cool_off_seconds: 600 } }, true);
+sv("valid_mandate_action_classes_empty", "mandate", { ...m, action_classes: {} }, true);
+sv("mandate_action_classes_zero_cool_off", "mandate", { ...m, action_classes: { cool_off_seconds: 0 } }, false);
+sv("mandate_action_classes_duplicate_scope", "mandate", { ...m, action_classes: { irreversible: ["a", "a"] } }, false);
+sv("mandate_action_classes_extra_field", "mandate", { ...m, action_classes: { reversible: ["a"] } }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -854,6 +879,45 @@ sv("memory_key_no_key", "memory_key", (({ public_key: _k, ...r }) => r)(mkBody()
 sv("memory_key_empty_name", "memory_key", mkBody({ name: "" }), false);
 sv("memory_key_extra_field", "memory_key", mkBody({ private_key: "x" }), false);
 sv("memory_key_revokes_not_an_id", "memory_key", mkBody({ revokes: "memory-1" }), false);
+// ---------- the inspectorate's warrant request and referral (spec-deltas S1605, register row DK1744) ----------
+const wrBody = (over: Record<string, unknown> = {}) => ({ subject: "did:web:example.com:agents:coder-7", sponsor: "did:web:example.com:users:alice", data: ["run_log"], grounds: "two runs read a decoy the Mandate forbade", scope: "the run log of the two runs that touched the decoy", ...over });
+sv("valid_warrant_request", "warrant_request", wrBody(), true);
+sv("warrant_request_no_data", "warrant_request", wrBody({ data: [] }), false);
+sv("warrant_request_unknown_class", "warrant_request", wrBody({ data: ["browser_history"] }), false);
+sv("warrant_request_extra_field", "warrant_request", wrBody({ key: "x" }), false);
+sv("valid_warrant_answers_request", "warrant", wBody({ request: "sha256:" + "6".repeat(64) }), true);
+sv("valid_inspectorate_referral", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "read and copied the decoy on two runs" }, true);
+sv("valid_inspectorate_referral_with_case", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), custody_case: "case-7", summary: "with the custody chain" }, true);
+sv("inspectorate_referral_no_finding", "inspectorate_referral", { summary: "x" }, false);
+sv("inspectorate_referral_penalty", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "x", slash: 5 }, false);
+// ---------- the eval scenario (spec-deltas S1650, register row DK1221) ----------
+const esBody = (over: Record<string, unknown> = {}) => ({ skill: "foundations", task_sha256: "1".repeat(64), check_sha256: "2".repeat(64), difficulty: 3, ...over });
+sv("valid_eval_scenario", "eval_scenario", esBody(), true);
+sv("valid_eval_scenario_held_out", "eval_scenario", esBody({ held_out: true }), true);
+sv("eval_scenario_difficulty_zero", "eval_scenario", esBody({ difficulty: 0 }), false);
+sv("eval_scenario_difficulty_six", "eval_scenario", esBody({ difficulty: 6 }), false);
+sv("eval_scenario_short_hash", "eval_scenario", esBody({ task_sha256: "abc" }), false);
+sv("eval_scenario_task_text", "eval_scenario", esBody({ task: "write a function" }), false);
+sv("eval_scenario_bad_skill", "eval_scenario", esBody({ skill: "Found ations" }), false);
+// ---------- the grader agreement (spec-deltas S1651, register row DK1223) ----------
+const gaBody = (over: Record<string, unknown> = {}) => ({ runs: 40, agreed: 37, run_set_sha256: "7".repeat(64), ...over });
+sv("valid_grader_agreement", "grader_agreement", gaBody(), true);
+sv("valid_grader_agreement_skill", "grader_agreement", gaBody({ skill: "foundations" }), true);
+sv("grader_agreement_zero_runs", "grader_agreement", gaBody({ runs: 0, agreed: 0 }), false);
+sv("grader_agreement_negative_agreed", "grader_agreement", gaBody({ agreed: -1 }), false);
+sv("grader_agreement_short_hash", "grader_agreement", gaBody({ run_set_sha256: "ab" }), false);
+sv("grader_agreement_a_weight_field", "grader_agreement", gaBody({ weight: 900 }), false);
+// ---------- missions (spec-deltas S1612, register row DK1240) ----------
+sv("valid_mission", "mission", { mission: "find-the-bug", goal_sha256: "8".repeat(64), verifier: "did:web:example.com:users:alice", closes_at: "2026-12-01T00:00:00Z" }, true);
+sv("mission_bad_id", "mission", { mission: "Find The Bug", goal_sha256: "8".repeat(64), verifier: "did:web:example.com:users:alice", closes_at: "2026-12-01T00:00:00Z" }, false);
+sv("mission_no_verifier", "mission", { mission: "m", goal_sha256: "8".repeat(64), closes_at: "2026-12-01T00:00:00Z" }, false);
+sv("valid_mission_fund", "mission_fund", { mission: "find-the-bug", amount: { value: 50, unit: "credit" } }, true);
+sv("mission_fund_no_amount", "mission_fund", { mission: "find-the-bug" }, false);
+sv("valid_mission_contribution", "mission_contribution", { mission: "find-the-bug", contributor: "did:web:example.com:agents:coder-7", units: 3 }, true);
+sv("mission_contribution_zero_units", "mission_contribution", { mission: "find-the-bug", contributor: "did:web:example.com:agents:coder-7", units: 0 }, false);
+sv("valid_mission_settle", "mission_settle", { mission: "find-the-bug", verified: true }, true);
+sv("valid_mission_settle_unverified", "mission_settle", { mission: "find-the-bug", verified: false }, true);
+sv("mission_settle_not_boolean", "mission_settle", { mission: "find-the-bug", verified: "yes" }, false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
@@ -1886,6 +1950,45 @@ const worldRules = [
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
     ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["a_redact_mode", { outbound_scan: { mode: "redact", kinds: ["secret", "card number"] } }], ["a_dropped_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret"] } }], ["an_added_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address"] } }], ["no_outbound_scan", { outbound_scan: undefined }], ["no_outbound_mode", { outbound_scan: { kinds: ["secret", "card number"] } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // unprompted work (spec-deltas S1606): allowed only where the ceiling allows it, under its daily cap; absent reads as not allowed
+  {
+    const TU = { ...T, unprompted: { allowed: true, per_day_cap: 10 } };
+    for (const [name, ceiling, unprompted] of [
+      ["unprompted_the_same", TU, { allowed: true, per_day_cap: 10 }], ["unprompted_a_lower_cap", TU, { allowed: true, per_day_cap: 3 }], ["unprompted_forbidden", TU, { allowed: false }],
+      ["unprompted_a_higher_cap", TU, { allowed: true, per_day_cap: 11 }], ["unprompted_the_cap_dropped", TU, { allowed: true }], ["unprompted_absent_is_forbidden", TU, undefined],
+      ["unprompted_allowed_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: true, per_day_cap: 1 }], ["unprompted_forbidden_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: false }],
+      ["unprompted_allowed_under_a_ceiling_with_no_cap", { ...T, unprompted: { allowed: true } }, { allowed: true, per_day_cap: 50 }], ["unprompted_stated_under_no_ceiling", T, { allowed: true }],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, ...(unprompted === undefined ? {} : { unprompted }) } });
+  }
+  // workflow clauses (spec-deltas S1607): only ever narrowed, never dropped, never a new state or transition or start
+  {
+    const W = { states: ["plan", "work", "check", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "check" }, { from: "check", to: "work" }, { from: "check", to: "done" }], terminal: ["done"] };
+    const TW = { ...T, workflow: W };
+    for (const [name, workflow] of [
+      ["workflow_the_same", W], ["workflow_a_transition_dropped", { ...W, transitions: W.transitions.slice(0, 3) }], ["workflow_a_state_dropped", { ...W, states: ["plan", "work", "check"], terminal: [], transitions: W.transitions.slice(0, 3) }],
+      ["workflow_a_transition_added", { ...W, transitions: [...W.transitions, { from: "plan", to: "done" }] }], ["workflow_a_state_added", { ...W, states: [...W.states, "review"] }], ["workflow_another_start", { ...W, start: "work" }],
+      ["workflow_a_terminal_added", { ...W, terminal: ["done", "check"] }], ["workflow_dropped", undefined],
+    ] as [string, unknown][]) cases.push({ name, ceiling: TW, candidate: { ...TW, ...(workflow === undefined ? (({ workflow: _w, ...r }) => r)(TW) : { workflow }) } });
+    cases.push({ name: "workflow_stated_under_no_ceiling", ceiling: T, candidate: { ...T, workflow: W } });
+  }
+  // roles (spec-deltas S1608): fixed inside a template
+  {
+    const TR = { ...T, role: "worker" };
+    for (const [name, role] of [["role_the_same", "worker"], ["role_changed_to_router", "router"], ["role_changed_to_watchdog", "watchdog"], ["role_dropped", undefined]] as [string, string | undefined][])
+      cases.push({ name, ceiling: TR, candidate: role === undefined ? T : { ...T, role } });
+    cases.push({ name: "role_stated_under_no_ceiling", ceiling: T, candidate: { ...T, role: "router" } });
+  }
+  // action classes (spec-deltas S1609): irreversible scopes only added, the cool-off only lengthened
+  {
+    const AC = { irreversible: ["repo.push", "email.send"], cool_off_seconds: 600 };
+    const TA = { ...T, action_classes: AC };
+    for (const [name, ac] of [
+      ["classes_the_same", AC], ["classes_a_scope_added", { ...AC, irreversible: ["repo.push", "email.send", "db.drop"] }], ["classes_a_scope_dropped", { ...AC, irreversible: ["repo.push"] }],
+      ["classes_a_longer_cool_off", { ...AC, cool_off_seconds: 900 }], ["classes_a_shorter_cool_off", { ...AC, cool_off_seconds: 300 }], ["classes_the_cool_off_dropped", { irreversible: AC.irreversible }], ["classes_dropped", undefined],
+    ] as [string, unknown][]) cases.push({ name, ceiling: TA, candidate: { ...TA, ...(ac === undefined ? (({ action_classes: _a, ...r }) => r)(TA) : { action_classes: ac }) } });
+    cases.push({ name: "classes_stated_under_no_ceiling", ceiling: T, candidate: { ...T, action_classes: { irreversible: ["x"] } } });
+    cases.push({ name: "classes_ceiling_with_no_cool_off", ceiling: { ...T, action_classes: { irreversible: ["x"] } }, candidate: { ...T, action_classes: { irreversible: ["x"], cool_off_seconds: 5 } } });
+  }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {
     const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };

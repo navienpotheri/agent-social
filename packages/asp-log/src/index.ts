@@ -6,7 +6,8 @@ export { MESSAGES_PER_DAY, MESSAGES_PER_PAIR_PER_DAY, MESSAGE_MAX_BYTES } from "
 export { stressReplay, dynamicsLine, type StressResult, type StressEvent, type DynamicsLine } from "./insurer-stress.ts";
 export { basketRatio, dormancyShare, claimsInDay, BASKET_MIN_EARNERS, BASKET_WINDOW_DAYS, type BasketReport } from "./guard-basket.ts";
 export { sizeBondSplit, modelPremium, MEASURED_THROUGH, type SplitInput, type SplitSuggestion } from "./bond-sizing.ts";
-export { sizeBond, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
+export { backtestBond, type BacktestReport } from "./bond-backtest.ts";
+export { sizeBond, sizeBondDecayed, DEFAULT_HALF_LIFE_DAYS, type DatedRun, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
 export { EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";

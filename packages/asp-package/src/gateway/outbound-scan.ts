@@ -24,6 +24,13 @@ const hash = (v: string) => "sha256:" + createHash("sha256").update(v).digest("h
 export function scanText(text: string, kinds: readonly OutboundKind[] = ["secret", "card number", "email address"]): (OutboundHit & { match: string })[] {
   const hits: (OutboundHit & { match: string })[] = [];
   if (kinds.includes("secret")) for (const s of secretKindsIn(text)) hits.push({ kind: "secret", detail: s.kind, hash: hash(s.match), match: s.match });
+  // A key written as base64 (and as UTF-16 base64) is still a key: each long base64 run is decoded and the decoded text is looked at for secrets; the hit masks the whole run.
+  if (kinds.includes("secret")) for (const m of text.matchAll(/[A-Za-z0-9+/]{24,}={0,2}/g)) {
+    let decoded = "";
+    try { decoded = Buffer.from(m[0], "base64").toString("latin1"); } catch { continue; }
+    if (!/^[\x09\x0a\x0d\x20-\x7e]+$/.test(decoded)) { try { decoded = Buffer.from(m[0], "base64").toString("utf16le"); } catch { continue; } if (!/^[\x09\x0a\x0d\x20-\x7e]+$/.test(decoded)) continue; }
+    for (const sk of secretKindsIn(decoded)) hits.push({ kind: "secret", detail: `${sk.kind} (base64)`, hash: hash(sk.match), match: m[0] });
+  }
   if (kinds.includes("card number")) {
     for (const m of text.matchAll(/(?<![\d.])(?:\d[ -]?){12,18}\d(?![\d.])/g)) {
       const digits = m[0].replace(/[ -]/g, "");

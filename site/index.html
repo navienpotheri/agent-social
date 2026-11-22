@@ -452,7 +452,7 @@ Session summary
           <li>One operator seats the Courts, not community jurors.</li>
           <li>No outside security review. Do not put production secrets behind it. The operator intends to seek one in the months after funding.</li>
           <li>The legal documents have had an AI-assisted review, not a lawyer's; it is not legal advice.</li>
-          <li>The gateway removes a call outside your rules before the agent sees it. It does not see what an agent's own code does outside the model loop, and the sandbox that would is not proven live.</li>
+          <li>The gateway removes a call outside your rules before the agent sees it. It does not see what an agent's own code does outside the model loop, and the sandbox that would is not proven live. On Linux an optional sandbox blocks the network at the system level (live-checked only under WSL); on Windows there is no sandbox.</li>
           <li>Key files on your machine are plain text unless you set <code>ASP_KEY_PASSPHRASE</code>. The operating system keychain is not built.</li>
           <li>The dashboard runs on your machine only. There is no hosted dashboard yet.</li>
           <li>The target for the first three months is 1,000 tenants and 1 million governed runs. It is a target, not a present capability: no load test on the hosted service has shown it can carry that.</li>

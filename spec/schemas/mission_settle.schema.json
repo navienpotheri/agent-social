@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mission_settle",
+  "title": "Mission settlement body",
+  "description": "The verifier settles a mission (register row DK1240; spec-delta S1612). `verified` true: the whole pool is paid to the recorded contributors by their units (largest remainder, ties by DID order, so every credit is paid and a contributor with no recorded units gets nothing); at least one contribution must be recorded (mission_no_contribution). `verified` false: each funder gets back what it put in. Once (mission_settled). Signed by the verifier (mission_settle_wrong_issuer). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "mission",
+    "verified"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mission": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,48}$"
+    },
+    "verified": {
+      "type": "boolean"
+    }
+  }
+}

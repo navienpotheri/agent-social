@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mission",
+  "title": "Mission body",
+  "description": "A pooled goal with a shared reward on the log (register row DK1240, from DK813; spec-delta S1612): `mission` is its id, `goal_sha256` the hash of the goal text, `verifier` who decides whether the whole goal was met and records each contributor's share (a DID the log knows, or the operator), `closes_at` when funding ends. Funders put credits into the mission's pool (`mission_fund`), the verifier records contributions (`mission_contribution`), and `mission_settle` pays the pool by recorded shares if the goal was met, or returns each funder what it put in. The pool is an account of the society (did:web:asp.local:pool:mission-<id>): credits move, none are made or lost, and the credit audit holds. Refused: an id used twice (mission_known), an unknown verifier (mission_unknown_verifier), a closing time that is not in the future (mission_closes_in_past). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "mission",
+    "goal_sha256",
+    "verifier",
+    "closes_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mission": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,48}$"
+    },
+    "goal_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verifier": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "closes_at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    }
+  }
+}

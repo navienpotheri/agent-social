@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 103,
-  "after": 328,
-  "total": 495
+  "withdraw": 102,
+  "after": 326,
+  "total": 492
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1913,7 +1913,7 @@
   },
   {
    "id": "GV6",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
@@ -2576,18 +2576,6 @@
    "why": "monetary policy for the credit economy written down and tested against the audit"
   },
   {
-   "id": "DK390",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Standing orders (a purchase repeated on a schedule the agent signed once), institution-signed purchases and `auto_refund` (a refund made without the holder asking when the institution fails to delive…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "standing orders",
-   "says": "no claim"
-  },
-  {
    "id": "DK9",
    "pri": "A",
    "status": "partial",
@@ -2621,19 +2609,6 @@
    "flags": "",
    "why": "signing the treasury statement is the owner's step",
    "says": "none"
-  },
-  {
-   "id": "DK180",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Bank has no deposits: a holder cannot lock credits for a term and earn a small reward funded by a Treasury budget line (bank-insurer.md 3, BI-5). The spec's decision 6 recommends leaving deposits…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Bank deposits earn a monthly reward",
-   "where": "deck, site"
   },
   {
    "id": "DK182",
@@ -3996,18 +3971,6 @@
    "says": "reasoning traces are not recorded; no page says they are"
   },
   {
-   "id": "DK793",
-   "pri": "A",
-   "status": "open",
-   "gap": "The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "the 120/90 funnel is a polish step",
-   "says": "agents use the start page"
-  },
-  {
    "id": "DK1204",
    "pri": "A",
    "status": "partial",
@@ -4068,14 +4031,14 @@
   },
   {
    "id": "DK1209",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4117,7 +4080,7 @@
   {
    "id": "DK1221",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Eval scenarios are not records of the log and no command writes them: nothing lets an agent write one for a deployed agent through the society, and the held-out set is not kept by the Registrar.",
    "bucket": "after",
    "hours": 0,
@@ -4141,7 +4104,7 @@
   {
    "id": "DK1223",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured.",
    "bucket": "after",
    "hours": 0,
@@ -4176,14 +4139,14 @@
   },
   {
    "id": "DK1227",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4212,20 +4175,20 @@
   },
   {
    "id": "DK1231",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "`unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in.",
    "bucket": "after",
    "hours": 0,
@@ -4321,7 +4284,7 @@
   {
    "id": "DK1240",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A mission is not a record on the services board: funding and contributions are in memory, the verifier of a whole-goal result is a flag and the shares are not from the log.",
    "bucket": "after",
    "hours": 0,

@@ -36,7 +36,7 @@ test("--size-with-model: the model's answer sizes the session, a hint names what
     // The model says "read only" for a task whose words suggest writing: the model wins, and the key and the task reached it.
     answer = '{"scopes": [], "extras": [], "unsure": false, "note": "a review reads"}';
     const a = await run(["--prompt", "Fix the review comments by reading them first", "--size-with-model"]);
-    assert.match(a.err, /may read files; no network/, a.err);
+    assert.match(a.err, /may read files; the gateway refuses calls that reach the network/, a.err);
     assert.match(a.err, /sized by a model that read your task/);
     assert.equal(seen.at(-1)?.key, "test-key");
     assert.match(seen.at(-1)?.task ?? "", /^Task: Fix the review comments/);
@@ -44,7 +44,7 @@ test("--size-with-model: the model's answer sizes the session, a hint names what
     // The model says the task needs a push: told to the person, never granted.
     answer = '{"scopes": ["repo.write"], "extras": ["repo.push", "shell.network"], "unsure": false, "note": "push"}';
     const b = await run(["--prompt", "Commit and push the change", "--size-with-model"]);
-    assert.match(b.err, /may read and write files; no network/);
+    assert.match(b.err, /may read and write files; the gateway refuses calls that reach the network/);
     assert.match(b.err, /also needs a push .*network.*never granted automatically/);
 
     // An answer that is not JSON: the words decide, and the person is told.

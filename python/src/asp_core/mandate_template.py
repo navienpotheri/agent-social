@@ -74,6 +74,25 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
             if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
                 out.append("loop_limits")
                 break
+    if has(ceiling.get("unprompted")):
+        c = ceiling["unprompted"]
+        s = m.get("unprompted")
+        if s and s.get("allowed") and (not c.get("allowed") or (has(c.get("per_day_cap")) and not (isinstance(s.get("per_day_cap"), int) and not isinstance(s.get("per_day_cap"), bool) and s["per_day_cap"] <= c["per_day_cap"]))):
+            out.append("unprompted")
+    if has(ceiling.get("workflow")):
+        c = ceiling["workflow"]
+        s = m.get("workflow")
+        if not s or s.get("start") != c.get("start") or not all(x in (c.get("states") or []) for x in (s.get("states") or [])) or not all(x in (c.get("terminal") or []) for x in (s.get("terminal") or [])) or not all(any(u.get("from") == t.get("from") and u.get("to") == t.get("to") for u in (c.get("transitions") or [])) for t in (s.get("transitions") or [])):
+            out.append("workflow")
+    if has(ceiling.get("role")) and m.get("role") != ceiling.get("role"):
+        out.append("role")
+    if has(ceiling.get("action_classes")):
+        c = ceiling["action_classes"]
+        s = m.get("action_classes") or {}
+        kept = all(x in (s.get("irreversible") or []) for x in (c.get("irreversible") or []))
+        window = (not has(c.get("cool_off_seconds"))) or (isinstance(s.get("cool_off_seconds"), int) and not isinstance(s.get("cool_off_seconds"), bool) and s["cool_off_seconds"] >= c["cool_off_seconds"])
+        if not kept or not window:
+            out.append("action_classes")
     if has(ceiling.get("outbound_scan")):
         c = ceiling["outbound_scan"]
         s = m.get("outbound_scan") or {}

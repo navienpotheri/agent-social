@@ -39,7 +39,7 @@ export function prizeFor(pool: number, splitPermille: readonly number[], rank: n
 export const inTopHalf = (rank: number, field: number): boolean => rank >= 1 && rank * 2 <= field;
 
 /**
- * The author suspension rule (DK117, S1700; academy.md 6, owner question 34 with a conservative default): an author whose course's learners are struck is suspended from publishing. A learner is struck when it has a
+ * The author suspension rule (DK117, S1700; academy.md 6, owner question 33 with a conservative default): an author whose course's learners are struck is suspended from publishing. A learner is struck when it has a
  * blocked attempt in the AUTHOR_STRIKE_DAYS after it completed one of the author's courses; the author is suspended from publishing a new course while at least AUTHOR_MIN_LEARNERS different learners completed its
  * courses in the last AUTHOR_WINDOW_DAYS, at least AUTHOR_STRUCK_MIN of them are struck, and the struck are at least AUTHOR_STRUCK_SHARE_PERMILLE of them. Enrolment in courses already published is not affected.
  */

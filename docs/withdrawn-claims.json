@@ -2,22 +2,115 @@
   "note": "Claims that must not appear on a public page (site pages, README, llms.txt, the start page) as present fact until their register rows close (the 'withdraw the claim' bucket of docs/launch-bar.md, row DK1307). A line that matches a pattern must also say that the thing is planned, absent, scripted or a target. The owner's list of claims that stay off until proven: monitored, backed up, encrypted at rest, two sessions on one agent are safe.",
   "qualifier": "\\b(not|no|never|without|until|will|planned|plan|coming|target|goal|scripted|stand-in|in part|built and tested|has not|have not|is not|are not|cannot|does not|do not|none)\\b",
   "claims": [
-    { "row": "DK310, T15, T22, US1", "pattern": "used by (a )?real agents?", "why": "the institutions are built and tested with scripted agents" },
-    { "row": "H25", "pattern": "aider[^.]{0,60}(contained|governed|held)", "why": "self-acting agents are not contained" },
-    { "row": "H26", "pattern": "docker[^.]{0,60}(egress|sandbox)[^.]{0,60}(proven|stops|blocks)", "why": "the Docker sandbox's egress path is not proven live" },
-    { "row": "DK314, P21", "pattern": "(goose|openhands|antigravity)[^.]{0,60}(tested live|run live|live)", "why": "those runtimes are tested in part" },
-    { "row": "P22", "pattern": "subscription (login|plan)[^.]{0,60}(works|supported|runs)", "why": "bring your own API key; nothing is promised for a subscription login" },
-    { "row": "IS4", "pattern": "community jurors?", "why": "one operator seats the Courts" },
-    { "row": "IS4", "pattern": "independent court", "why": "the court is not independent of the operator" },
-    { "row": "IS9", "pattern": "inspectorate", "why": "no inspectorate exists" },
-    { "row": "IS3", "pattern": "central bank", "why": "no central bank runs" },
-    { "row": "DK180", "pattern": "deposits? earn", "why": "bank deposit rewards are not live" },
-    { "row": "DK186", "pattern": "insurer policy (bought|claimed)", "why": "not run on the hosted service" },
-    { "row": "DK27", "pattern": "clean history raises a tier", "why": "not built as a rule that has run" },
-    { "row": "T29", "pattern": "zero-trust", "why": "not shown for out-of-distribution deployments" },
-    { "row": "T28", "pattern": "structural alignment", "why": "no alignment claim" },
-    { "row": "DK1341", "pattern": "\\b(is|are) (monitored|backed up)\\b", "why": "monitoring and backups are not running on the live host" },
-    { "row": "DK1411", "pattern": "encrypted at rest", "why": "encryption at rest is not verified" },
-    { "row": "T3", "pattern": "two (sessions|terminals) on one agent (are|is) safe", "why": "two terminals on one agent stall" }
+    {
+      "row": "DK310, T15, T22, US1",
+      "pattern": "used by (a )?real agents?",
+      "why": "the institutions are built and tested with scripted agents"
+    },
+    {
+      "row": "H25",
+      "pattern": "aider[^.]{0,60}(contained|governed|held)",
+      "why": "self-acting agents are not contained"
+    },
+    {
+      "row": "H26",
+      "pattern": "docker[^.]{0,60}(egress|sandbox)[^.]{0,60}(proven|stops|blocks)",
+      "why": "the Docker sandbox's egress path is not proven live"
+    },
+    {
+      "row": "DK314, P21",
+      "pattern": "(goose|openhands|antigravity)[^.]{0,60}(tested live|run live|live)",
+      "why": "those runtimes are tested in part"
+    },
+    {
+      "row": "P22",
+      "pattern": "subscription (login|plan)[^.]{0,60}(works|supported|runs)",
+      "why": "bring your own API key; nothing is promised for a subscription login"
+    },
+    {
+      "row": "IS4",
+      "pattern": "community jurors?",
+      "why": "one operator seats the Courts"
+    },
+    {
+      "row": "IS4",
+      "pattern": "independent court",
+      "why": "the court is not independent of the operator"
+    },
+    {
+      "row": "IS9",
+      "pattern": "inspectorate",
+      "why": "no inspectorate exists"
+    },
+    {
+      "row": "IS3",
+      "pattern": "central bank",
+      "why": "no central bank runs"
+    },
+    {
+      "row": "DK180",
+      "pattern": "deposits? earn",
+      "why": "bank deposit rewards are not live"
+    },
+    {
+      "row": "DK186",
+      "pattern": "insurer policy (bought|claimed)",
+      "why": "not run on the hosted service"
+    },
+    {
+      "row": "DK27",
+      "pattern": "clean history raises a tier",
+      "why": "not built as a rule that has run"
+    },
+    {
+      "row": "T29",
+      "pattern": "zero-trust",
+      "why": "not shown for out-of-distribution deployments"
+    },
+    {
+      "row": "T28",
+      "pattern": "structural alignment",
+      "why": "no alignment claim"
+    },
+    {
+      "row": "DK1341",
+      "pattern": "\\b(is|are) (monitored|backed up)\\b",
+      "why": "monitoring and backups are not running on the live host"
+    },
+    {
+      "row": "DK1411",
+      "pattern": "encrypted at rest",
+      "why": "encryption at rest is not verified"
+    },
+    {
+      "row": "T3",
+      "pattern": "two (sessions|terminals) on one agent (are|is) safe",
+      "why": "two terminals on one agent stall"
+    },
+    {
+      "row": "H1, H13, H26",
+      "pattern": "network access is limited",
+      "why": "on Windows the gateway reads calls and there is no sandbox; the system-level network block is Linux only and live-checked only under WSL"
+    },
+    {
+      "row": "H1, H13, H26",
+      "pattern": "(blocks?|blocked|blocking) (all )?(the )?(network|egress)",
+      "why": "a system-level network block exists only in the optional Linux sandbox; the gateway reads calls"
+    },
+    {
+      "row": "H26",
+      "pattern": "(sandboxed|isolates? (the |an )?(agent|process)|contains? (an |the )?agent|containing (an |the )?agent|agents? (is|are) contained)",
+      "why": "the gateway reads calls and does not isolate the process; on Windows there is no sandbox"
+    },
+    {
+      "row": "SC1",
+      "pattern": "\\b(fully|completely|totally|100 ?%) (secure|secured|safe)\\b",
+      "why": "there has been no outside security review; no page says that the service is fully secure or safe"
+    },
+    {
+      "row": "SC1",
+      "pattern": "\\bguarantee[sd]? (safety|security|alignment|that agents)",
+      "why": "nothing guarantees safety, security or alignment; the pages state what is tested"
+    }
   ]
 }

@@ -25,8 +25,8 @@
     {
       "path": "docs/owner-questions-all.md",
       "audience": "internal",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -35,8 +35,8 @@
     {
       "path": "docs/owner-decisions.md",
       "audience": "internal",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -55,8 +55,8 @@
     {
       "path": "docs/owner-sign-kit.md",
       "audience": "internal",
-      "status": "working_draft",
-      "ai_read_through": "2026-11-21",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -168,8 +168,8 @@
     {
       "path": "docs/law/code.md",
       "audience": "signed",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-log/test/code-clause-37.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -178,8 +178,8 @@
     {
       "path": "docs/institutions/economy/credits.md",
       "audience": "signed",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-log/test/monetary-policy.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -340,6 +340,26 @@
       "claims_check": "packages/asp-cli/test/site-pages.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null
+    },
+    {
+      "path": "docs/owner-morning-guide.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/owner-morning-guide.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/first-15-minutes.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
     }
   ],
   "scope_cut": "Owner, 2026-11-22: rewriting every document takes too long. Before launch, one pass each: site/index.html, site/start.html (generated from packages/asp-log/src/front-door.ts), README.md, site/llms.txt (generated), and, after the DK79 category list exists, docs/legal/terms.md and docs/legal/privacy.md. Every other document stays approved for now as a working draft, is not final, and moves to an after-launch pass (the field \"pass\" says which)."

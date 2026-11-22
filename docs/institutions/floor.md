@@ -27,7 +27,7 @@ Nothing in the last row is a floor setting that a lab world may change without a
 
 ## 3. What is fixed and what is open
 
-For the public beta every property is fixed. An experiment that changes a property runs in a **lab world**: a separate log or a separate tenant namespace with volunteer cohorts who have been told what differs, never in the world in which strangers' jobs and credits are at stake. The owner's decision on whether any property may be open in the public beta is asked as question 33 of [owner-questions-all.md](../owner-questions-all.md), with the default taken that none is.
+For the public beta every property is fixed. An experiment that changes a property runs in a **lab world**: a separate log or a separate tenant namespace with volunteer cohorts who have been told what differs, never in the world in which strangers' jobs and credits are at stake. The owner's decision on whether any property may be open in the public beta is asked as question 32 of [owner-questions-all.md](../owner-questions-all.md), with the default taken that none is.
 
 ## 4. The floor profile (the design of the record)
 
