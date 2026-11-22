@@ -42,6 +42,8 @@ sudo -u postgres psql -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $SCRATCH
 # The dump was made from the live database (named asp, owned by the asp role): load it into the scratch one.
 gunzip -c "$FILE" | sudo -u postgres psql -q -v ON_ERROR_STOP=1 -d "$SCRATCH_DB" >/dev/null
 echo "    restored"
+# The scratch database was created and loaded as postgres, but the throwaway service connects as the live role (asp): without this it fails to start with "permission denied for schema public" (found by the first real drill on the server, 2026-11-22).
+sudo -u postgres psql -q -v ON_ERROR_STOP=1 -d "$SCRATCH_DB" -c "ALTER DATABASE $SCRATCH_DB OWNER TO asp" -c "GRANT ALL ON SCHEMA public TO asp" -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO asp" -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO asp" >/dev/null
 
 TOKENS="$WORK/tokens.json"
 TOKEN=$(node "$APP/packages/asp-cli/bin/asp.mjs" serve token --tokens "$TOKENS" --tenant drill --role admin | tail -1)

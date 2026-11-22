@@ -263,3 +263,16 @@ test("the restore drill refuses an encrypted file before it touches anything", {
   assert.match(r.stderr, /refusing an encrypted file/);
   assert.match(r.stderr, /private key must never be on the server/);
 });
+
+test("the restore drill hands the scratch database to the service's role right after the restore (the first real drill failed with permission denied for schema public), and the checklist records the failure and the fix", () => {
+  const drill = readFileSync(new URL("docs/deploy/restore-drill.sh", root), "utf8");
+  const restored = drill.indexOf('echo "    restored"');
+  const grant = drill.indexOf('sudo -u postgres psql -q -v ON_ERROR_STOP=1 -d "$SCRATCH_DB" -c "ALTER DATABASE $SCRATCH_DB OWNER TO asp"');
+  const start = drill.indexOf("starting a throwaway service");
+  assert.ok(restored > 0 && grant > restored && start > grant, "the grant is after the restore and before the service starts");
+  for (const c of ['-c "GRANT ALL ON SCHEMA public TO asp"', '-c "GRANT ALL ON ALL TABLES IN SCHEMA public TO asp"', '-c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO asp"']) assert.ok(drill.includes(c), c);
+  assert.match(drill.slice(restored, start), /permission denied for schema public/, "a comment says why");
+  const list = readFileSync(new URL("docs/live-run-checklist.md", root), "utf8");
+  assert.match(list, /FAILED, then fixed \(2026-11-22\): the first real restore drill/);
+  assert.match(list, /Not yet re-run on the server/);
+});
