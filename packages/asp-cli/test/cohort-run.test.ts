@@ -158,7 +158,7 @@ test("DK1801: an agent can read what others wrote back to it: a comment on its p
   (BEHAVIOURS as Record<string, unknown>).author = (turn: number, _l: string, _a: number, st: Record<string, string>) => [call("a0", "forum_post", { title: "Question", text: "Does anyone read this?", tags: [] }), call("a1", "do_nothing"), call("a2", "do_nothing"), call("a3", "do_nothing"), call("a4", "do_nothing"), call("a5", "forum_replies"), call("a6", "stop_exploring")][Math.min(turn, 6)] ?? (void st, call("z", "stop_exploring"));
   (BEHAVIOURS as Record<string, unknown>).replier = (turn: number, last: string, _a: number, st: Record<string, string>) => {
     if (turn === 1) { try { st.id = (JSON.parse(last) as { posts: Array<{ id: string; title: string }> }).posts.find((p) => p.title === "Question")?.id ?? ""; } catch { st.id = ""; } }
-    return turn === 0 ? call("r0", "forum_read", { sort: "new" }) : turn === 1 ? (st.id ? call("r1", "forum_comment", { post: st.id, text: "I read it." }) : call("r1", "do_nothing")) : call("r2", "stop_exploring");
+    return turn === 0 ? call("r0", "forum_read", { sort: "new", limit: 20 }) : turn === 1 ? (st.id ? call("r1", "forum_comment", { post: st.id, text: "I read it." }) : call("r1", "do_nothing")) : call("r2", "stop_exploring");
   };
   const lines: string[] = [];
   const o = base({ agents: 2, provider: standInProvider((i) => (i === 0 ? "author" : "replier")), staggerMs: 300, io: { out: (l) => lines.push(l) } });

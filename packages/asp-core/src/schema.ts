@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,4 +77,16 @@ let defaultSet: SchemaSet | undefined;
 export function defaultSchemas(): SchemaSet {
   defaultSet ??= new SchemaSet();
   return defaultSet;
+}
+
+/**
+ * A short fingerprint of each record schema this build holds (the first 8 hex characters of the SHA-256 of the schema's canonical JSON), keyed by record name. The log service reports it in its health answer so that a
+ * client can tell whether the service runs the same schemas as the client (DK1803: a service older than the client refuses a record the client's schema allows). Not a secret: the schemas are the public spec.
+ */
+export function schemaFingerprint(schemaDir: string = join(SPEC_DIR, "schemas")): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const file of readdirSync(schemaDir).filter((f) => f.endsWith(".schema.json")).sort()) {
+    out[file.replace(".schema.json", "")] = createHash("sha256").update(JSON.stringify(JSON.parse(readFileSync(join(schemaDir, file), "utf8")))).digest("hex").slice(0, 8);
+  }
+  return out;
 }

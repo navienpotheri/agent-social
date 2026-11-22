@@ -4,7 +4,7 @@ export { b64urlDecode, b64urlEncode, publicKeyFromSeed, randomSeed, sha256Id, si
 export { didKeyFromPublicKey, isDidKeyFor, publicKeyFromDidKey } from "./didkey.ts";
 export { didWebUrl, fetchDidWebKeys, fetchSmallText, passportKeysNotPublished, type FetchLike } from "./didweb.ts";
 export {
-  RECORD_TYPES, SchemaSet, SPEC_DIR, defaultSchemas, fullType, shortType, type RecordType,
+  RECORD_TYPES, SchemaSet, SPEC_DIR, defaultSchemas, fullType, schemaFingerprint, shortType, type RecordType,
 } from "./schema.ts";
 export {
   cosign, createRecord, didOf, resolverFromPassports, signerFromSeed, signingBytes, staticResolver,

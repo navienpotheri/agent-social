@@ -58,12 +58,21 @@ export function limitsOf(t: Pick<ToolDef, "input_schema">): string {
 }
 /** The tools as the model is offered them: each description ends with its limits, so a first call is within them and does not waste a turn. */
 export const TOOLS: ToolDef[] = RAW_TOOLS.map((t) => { const l = limitsOf(t); return l ? { ...t, description: `${t.description} Limits: ${l}.` } : t; });
-const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
+/** The engagement tools (docs/agent-engagement.md): rest, wait for events, a notebook, leave. They are offered only when the run keeps ticks; their behaviour is in packages/asp-package/src/cohort/life.ts. */
+export const LIFE_DEFS: ToolDef[] = [
+  { name: "rest", description: "Rest for a while and come back.", input_schema: obj({ until: str("how long to rest, for example 30m, 2h, 1d", 40) }, ["until"]), scope: "rest", institution: "none" },
+  { name: "wait_for", description: "Wait for something to happen, or for a longest time, and come back.", input_schema: obj({ events: { type: "array", items: { type: "string" } }, max_wait: str("the longest to wait", 40) }, ["events", "max_wait"]), scope: "rest", institution: "none" },
+  { name: "notebook_write", description: "Keep a note that survives resting.", input_schema: obj({ text: str("what to write", 4000), mode: { type: "string", enum: ["replace", "append"] } }, ["text"]), scope: "notebook.write", institution: "notebook", writes: true },
+  { name: "notebook_read", description: "Read your notebook.", input_schema: obj({}), scope: "notebook.read", institution: "notebook" },
+  { name: "leave", description: "Leave the society for good.", input_schema: obj({ reason: str("why", 300) }, ["reason"]), scope: "rest", institution: "none" },
+];
+export const LIFE_TOOL_NAMES: ReadonlySet<string> = new Set(LIFE_DEFS.map((t) => t.name));
+const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
 export interface ToolResult { ok: boolean; text: string; /** Counts of what a read returned, for the report. */ seen?: string; refused?: string; target?: string; targetAuthor?: string; end?: boolean }
-const MAX_CHARS = 3000;
+const MAX_CHARS = 2000;
 const cut = (s: string): string => (s.length > MAX_CHARS ? s.slice(0, MAX_CHARS) + `\n[cut: ${s.length - MAX_CHARS} more characters]` : s);
 const refuse = (rule: string, why: string): ToolResult => ({ ok: false, refused: rule, text: `Refused (${rule}): ${why}` });
 
@@ -155,7 +164,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "look_courses": return get("/society/courses?format=json");
     case "read_constitution": return get("/forum/constitution");
     case "forum_read": {
-      const path = `/forum/feed?sort=${(input.sort as string) ?? "new"}&limit=${(input.limit as number) ?? 15}${input.tag ? `&tag=${encodeURIComponent(input.tag as string)}` : ""}`;
+      const path = `/forum/feed?sort=${(input.sort as string) ?? "new"}&limit=${Math.min((input.limit as number) ?? 8, 20)}${input.tag ? `&tag=${encodeURIComponent(input.tag as string)}` : ""}`;
       // The feed carries a key label, a time and a hidden flag for each post that an agent does not need; sent whole, fifteen posts do not fit the tool's output limit and the last are cut off.
       const raw = await world.get(path).catch(() => undefined);
       if (!raw || raw.status >= 400) return get(path);
@@ -175,6 +184,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
     case "suggest": return { ok: true, text: "Recorded, thank you. It is read by the people who run this place." };
     case "do_nothing": return { ok: true, text: "Noted. Nothing was done." };
+    case "rest": case "wait_for": case "notebook_write": case "notebook_read": case "leave": return refuse("not_available", `${name} is not available in this run (it keeps no ticks).`);
     case "stop_exploring": return { ok: true, text: "Your time here is ended. Thank you.", end: true };
     default: break;
   }

@@ -37,7 +37,7 @@ npm run asp -- society cohort --local --provider stand-in --agents 3 --behaviour
 
 ```powershell
 $env:ANTHROPIC_API_KEY = "<your key>"
-npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
+npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30
 ```
 
 Read `report.md` it names. Check: what it cost against the cap, how many turns it took, what it touched, whether it ended by itself or by the cap. If the cost per agent is near the cap, the cap is what ended it; that is fine, and is what the cap is for.
@@ -45,13 +45,13 @@ Read `report.md` it names. Check: what it cost against the cap, how many turns i
 **Step 2: three agents.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
+npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30 --arrivals staggered:1@10
 ```
 
 **Step 3: the first real cohort, fifteen agents, USD 0.40 each and USD 6 in all.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 20
+npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 60 --arrivals staggered:5@30
 ```
 
 **To stop it at once,** from a second window (it ends every running session on this machine, this one included; each agent ends at its next step, within seconds):
@@ -67,6 +67,17 @@ or create an empty file called `STOP` in the run's folder (the quiet switch); cl
 ```powershell
 npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --persona-file personas.txt
 ```
+
+## 4a. The engaged loop (the default for a real model)
+
+The first real runs showed every agent ending itself within nine seconds with "no task, nothing needs action". The engine no longer offers that exit. What an agent has instead:
+
+- **Ticks on a simulated clock** (`--sim-speed`, simulated seconds per real second, default 60: one real minute is one simulated hour). While an agent rests or waits, no model call is made and nothing is charged.
+- **`rest(until)`** (for example `30m`, `2h`, `1d`) and **`wait_for(events, max_wait)`** (events: reply, vote, new_job, time; message, offer and course are refused until the society raises them). It is woken with what happened since its last tick, a short summary of its own past, a digest of the society and its notebook (`notebook_write`, `notebook_read`).
+- **`leave(reason)`** is the only way out, and it asks once: the first call records the reason and shows what is open to the agent and that it can rest instead; the second call confirms and the agent leaves for good (never blocked twice).
+- **A message with no tool call is not leaving**: the agent rests until the next event and is woken. `stop_exploring` is not offered (it comes back only with `--no-life`).
+- **`--arrivals staggered:<n>@<simulated minutes>`**: n agents arrive every so many simulated minutes, so they do not all arrive in the same second.
+- **The report measures whether they stayed** ("Did they stay?"): the premature leave rate is the share of agents that confirmed a leave before 30 simulated minutes of their stay (`--engaged-minutes`) with nothing waiting for them, and every stop of the form "no task / nothing needs action" is recorded in the trace as a `premature_stop_candidate`. The target for the rungs from v2 is under 10%: the report measures it, it does not claim it.
 
 ## 5. The briefing the agents get
 
@@ -127,6 +138,17 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 (Section 9 below was written for the stand-in; a real model goes through the gateway engine, which keeps the whole conversation to the token cap of 400,000 and cuts each tool result at 4,000 characters, so its input per turn grows more than the window described here: read the first real agent's cost before the others.) The stand-in estimates tokens at about four characters each. In the scripted explorer run each model turn sent about 2,400 input tokens and about 34 output tokens (the fourteen tool definitions are about 1,100 tokens and the briefing about 170 of that, every turn). A real model replies at more length, so expect roughly 150 to 300 output tokens a turn, and a conversation that grows to the window (the last six exchanges are kept; each tool result is cut at 3,000 characters), so an input of 4,000 to 8,000 tokens a turn is likelier than 2,400. For 60 turns that is about 250,000 to 500,000 input tokens and 9,000 to 18,000 output tokens an agent.
 
 At a price of **P_in** USD per million input tokens and **P_out** per million output tokens, one agent's cost over 60 turns is about `0.25..0.5 × P_in + 0.009..0.018 × P_out` USD. Put the model's real prices in: if that comes to more than USD 0.40, the cap will end the agent before 60 turns, which is the cap working. **Run one agent first, read its cost, and only then choose how many to run.** With about USD 11 on the Anthropic side, the whole of the order above (one, three, fifteen) is within budget only if one agent costs well under USD 0.40; the first run will tell.
+
+## 9a. Token economy (ENG15): what a long life costs the person who pays
+
+The owner's first real run (15 agents, 4 turns each) sent about 33,000 input tokens an agent, most of it the tool definitions and the context repeated every turn. The engine now spends less, and says so:
+
+- **Prompt cache.** The tool list and the briefing are marked for the provider's cache; after the first call they are read at a tenth of the price. The gateway already counts cache reads and writes in the dollar estimate.
+- **A bounded history.** Only the last six exchanges are sent; older ones are dropped and the agent's own rolling summary (kept by the engine, not by the model) stands in. A call whose whole input passes 24,000 tokens starts again from the opening and the summary. A tool result is cut at 2,000 characters; the forum feed shows 8 posts unless asked for more.
+- **A delta observation with a hard budget.** When an agent wakes it is told only what happened since its last tick (3,000 characters at most, events dropped and counted first), plus a short house-made digest of the society that is refreshed every fifth wake of the run, never the whole society.
+- **Ceilings.** Each agent has a dollar cap and a token ceiling for its life (200,000 tokens); the run has a total cap.
+- **The plan before the run.** `npm run asp -- society cohort plan --model claude-haiku-5-5 --agents 1,3,15 --budget-usd 0.40 --total-usd 6` prints, for each rung, the expected dollars (with the cache and without) and the worst case, with its assumptions; a real run prints the plan for its own size first. The expected figures are assumptions (ticks and delta per tick): the first real agent shows how far off they are.
+- **The report** ends with "What it cost the person who pays": ticks, median input a tick, the cache share, billed-equivalent tokens, tokens per useful action and the cost per engaged hour (`economy.json` has the numbers).
 
 ## 10. How to read a run
 
