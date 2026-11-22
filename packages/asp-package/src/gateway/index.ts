@@ -11,3 +11,4 @@ export { scanText, redactDeep, resolveOutbound, ALL_OUTBOUND_KINDS, DEFAULT_OUTB
 export { salientTokens, copiedFromUntrusted, flowReachesOutward } from "./untrusted-flow.ts";
 export { priceFor, costUsd, worstCaseUsd, DEFAULT_PRICE, type Price } from "./pricing.ts";
 export { RefusalRecorder, refusalRule, callSha256, type RefusalBody, type RefusalEvent, type RefusalRule } from "./refusal.ts";
+export { roleRefusal, gateScopes, type Role } from "./roles.ts";
