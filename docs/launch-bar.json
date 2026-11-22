@@ -4285,7 +4285,7 @@
   {
    "id": "DK1231",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,
