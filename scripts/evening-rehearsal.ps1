@@ -21,7 +21,7 @@ $origin = (Get-Location).Path
 $repo = $origin
 if ($Clone) {
   $src = (Resolve-Path "$PSScriptRoot\..").Path
-  $repo = Join-Path ([System.IO.Path]::GetTempPath()) ("asp clone " + [guid]::NewGuid().ToString("N").Substring(0, 8) + "agent social")
+  $repo = Join-Path ([System.IO.Path]::GetTempPath()) ("asp clone " + [guid]::NewGuid().ToString("N").Substring(0, 8) + "\agent social")
   git clone --quiet $src $repo 2>&1 | Out-Null
   Step "fresh clone" ($LASTEXITCODE -eq 0 -and (Test-Path "$repo\package.json")) $repo
 }
