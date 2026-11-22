@@ -64,6 +64,10 @@ test("DK1801: verify fails an over-cap spend, a key in a file, an altered summar
   appendFileSync(join(a, "trace.jsonl"), JSON.stringify({ t: "model", at: "2026-11-22T00:00:00Z", agent: "agent-01", turn: 99, input: 1, output: 1, usd: 5 }) + "\n");
   const va = await verifyCohortRun(a);
   assert.ok(failed(va).includes("each agent within its cap") && failed(va).includes("the whole run within its cap") && failed(va).includes("the report says what the trace says"));
+  // 1b. over the cap but under twice the cap: still a failure
+  const a2 = copyOf(r.dir);
+  appendFileSync(join(a2, "trace.jsonl"), JSON.stringify({ t: "model", at: "2026-11-22T00:00:00Z", agent: "agent-01", turn: 99, input: 1, output: 1, usd: 1.5 }) + "\n");
+  assert.ok(failed(await verifyCohortRun(a2)).includes("each agent within its cap"), "an agent $0.50 over its $1 cap fails");
   // 2. a secret-shaped string, and the value of a named key variable, in a file
   const b = copyOf(r.dir);
   writeFileSync(join(b, "notes.txt"), "oops sk-ant-api03-" + "A1b2C3d4E5".repeat(6) + "\n");
@@ -132,6 +136,8 @@ test("DK1801: the bridge records a refusal once for each distinct call, counts r
   assert.equal(me.findings, 1, "four refusals of one scope inside a minute are a retry finding");
   assert.equal(me.ladder, "warn", "a retry of three or four is a warning, not a hold");
   assert.deepEqual(report.institutionTotals, { forum: 1, map: 1 }, "the refused calls used no scope; the forum act the forum refused used the forum scope");
+  const refusalRules = ((await log.log.recordsOfTypes(["gateway_refusal"])) as unknown as { body: { rule: string } }[]).map((x) => x.body.rule).sort();
+  assert.deepEqual(refusalRules, ["forbidden_means", "outside_mandate"], "a made-up tool is outside the Mandate; a malformed call is forbidden means");
   // the made-up tool's scope is its own sanitised one, never a scope of the Mandate
   const recs = (await log.log.recordsOfTypes(["action"])) as unknown as { body: { blocked_attempts?: { scope: string }[] } }[];
   assert.ok(recs.some((x) => x.body.blocked_attempts?.some((b) => b.scope === "outside.rm__rf")));
