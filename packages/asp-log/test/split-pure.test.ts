@@ -17,6 +17,7 @@ test("the parts of an amount always add up to it, and the rounding goes to the f
   const odd = splitParts(7, split(200, 100, [[A, 350], [B, 350]]));
   assert.equal(sum(odd), 7);
   assert.ok(odd.payees[0].amount >= odd.payees[1].amount, "a leftover credit goes to the first payee");
+  assert.deepEqual([splitParts(10, s).burn, splitParts(10, s).treasury, splitParts(19, s).burn], [0, 1, 0], "the burn and the Treasury are cut down (floor), never rounded up: the provider gets the remainder");
   assert.equal(splitParts(1, s).payees[0].amount, 1, "one credit goes entirely to the first payee, not lost to rounding");
 });
 
