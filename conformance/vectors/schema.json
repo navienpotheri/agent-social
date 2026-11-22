@@ -5706,6 +5706,68 @@
       "valid": false
     },
     {
+      "name": "valid_grader_agreement",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_grader_agreement_skill",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "skill": "foundations"
+      },
+      "valid": true
+    },
+    {
+      "name": "grader_agreement_zero_runs",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 0,
+        "agreed": 0,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_negative_agreed",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": -1,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_short_hash",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "ab"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_a_weight_field",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "weight": 900
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ladder_season",
       "schema": "ladder_season",
       "instance": {

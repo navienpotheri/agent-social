@@ -381,6 +381,7 @@ export class EventLog {
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
     if (type === "eval_scenario") await this.projectEvalScenario(tx, verified);
+    if (type === "grader_agreement") await this.projectGraderAgreement(tx, verified);
     if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
@@ -2992,6 +2993,24 @@ export class EventLog {
     if (!f.finding) throw rule("finding_not_deliberate", f.why);
     if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
     await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
+  /** A judge's agreement with the deterministic check (S1611, DK1223): the totals the grader's weight follows. */
+  private async projectGraderAgreement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { runs: number; agreed: number; run_set_sha256: string };
+    if (r.prev !== null) throw rule("grader_agreement_not_chained", "a grader agreement starts its own chain (prev is null)");
+    if (!(await tx.getPassport(r.issuer))) throw rule("grader_agreement_unknown_grader", `${r.issuer} has no passport in this log`);
+    if (b.agreed > b.runs) throw rule("grader_agreement_exceeds_runs", `${b.agreed} agreements out of ${b.runs} runs`);
+    if (await tx.getMarker(`grader_set:${r.issuer}|${b.run_set_sha256}`)) throw rule("grader_agreement_known", "this grader's agreement on that run set is recorded already");
+    await tx.putMarker(`grader_set:${r.issuer}|${b.run_set_sha256}`, r.id);
+    const t = JSON.parse((await tx.getMarker(`grader_total:${r.issuer}`)) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
+    await tx.putMarker(`grader_total:${r.issuer}`, JSON.stringify({ runs: t.runs + b.runs, agreed: t.agreed + b.agreed }));
+  }
+
+  /** The weight of a grader (S1611, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
+  async graderWeight(grader: string): Promise<{ weight: number; runs: number; agreed: number }> {
+    const t = JSON.parse((await this.store.transaction((tx) => tx.getMarker(`grader_total:${grader}`))) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
+    return { weight: Math.floor((1000 * (t.agreed + 5)) / (t.runs + 10)), runs: t.runs, agreed: t.agreed };
   }
 
   /** An eval scenario (S1610, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */

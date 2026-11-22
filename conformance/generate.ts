@@ -853,6 +853,14 @@ sv("eval_scenario_difficulty_six", "eval_scenario", esBody({ difficulty: 6 }), f
 sv("eval_scenario_short_hash", "eval_scenario", esBody({ task_sha256: "abc" }), false);
 sv("eval_scenario_task_text", "eval_scenario", esBody({ task: "write a function" }), false);
 sv("eval_scenario_bad_skill", "eval_scenario", esBody({ skill: "Found ations" }), false);
+// ---------- the grader agreement (spec-deltas S1611, register row DK1223) ----------
+const gaBody = (over: Record<string, unknown> = {}) => ({ runs: 40, agreed: 37, run_set_sha256: "7".repeat(64), ...over });
+sv("valid_grader_agreement", "grader_agreement", gaBody(), true);
+sv("valid_grader_agreement_skill", "grader_agreement", gaBody({ skill: "foundations" }), true);
+sv("grader_agreement_zero_runs", "grader_agreement", gaBody({ runs: 0, agreed: 0 }), false);
+sv("grader_agreement_negative_agreed", "grader_agreement", gaBody({ agreed: -1 }), false);
+sv("grader_agreement_short_hash", "grader_agreement", gaBody({ run_set_sha256: "ab" }), false);
+sv("grader_agreement_a_weight_field", "grader_agreement", gaBody({ weight: 900 }), false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);
