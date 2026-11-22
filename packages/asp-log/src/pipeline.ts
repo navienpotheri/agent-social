@@ -68,3 +68,33 @@ export function runMechanism(m: MechanismEntry, seed: number, n = 120): Decision
   if (delta <= m.rule.kill_delta) return { ...base, measures, decision: "kill", reason: `the treatment arm is ${delta} against control, at or under the ${m.rule.kill_delta} kill threshold fixed before the run` };
   return { ...base, measures, decision: "tune", reason: `the difference ${delta} is between the kill (${m.rule.kill_delta}) and adopt (${m.rule.min_delta}) thresholds: tune and rerun` };
 }
+
+/**
+ * The rule that decides between two mechanisms (DK1758, DK89), fixed here before any run and carried by every comparison by its hash: a mechanism must first be adopted by its own rule; of two adopted the larger
+ * measured difference wins and a tie is a tie; a mechanism that is tuned, killed or deferred never wins; when neither is adopted there is no winner. Nothing about the order of the arguments counts.
+ */
+export const COMPARISON_RULE = { id: "head-to-head-v1", adopt_first: true, larger_delta_wins: true, tie_is_a_tie: true, deferred_never_wins: true } as const;
+export const comparisonRuleHash = (): string => `sha256:${createHash("sha256").update(JSON.stringify(COMPARISON_RULE, Object.keys(COMPARISON_RULE).sort())).digest("hex")}`;
+
+export interface Comparison {
+  rule: typeof COMPARISON_RULE; rule_sha256: string; seed: number; agents: number; simulated: true;
+  a: Decision; b: Decision; winner: string | null; reason: string;
+}
+
+/**
+ * Two mechanisms on the same simulated society: the same agents and the same seed, each through `runMechanism` on its own, then the comparison rule above. Swapping one mechanism for another leaves the other's
+ * decision exactly as it was, because each run reads only its own entry, the seed and the agents; a mechanism that needs white-box models is deferred and not run. A simulation: it shows that the registry can swap,
+ * try and compare, never that either paper's claim holds.
+ */
+export function compareMechanisms(a: MechanismEntry, b: MechanismEntry, seed: number, n = 120): Comparison {
+  if (a.id === b.id) throw new Error(`a mechanism is not compared with itself (${a.id})`);
+  const da = runMechanism(a, seed, n), db = runMechanism(b, seed, n);
+  const base = { rule: COMPARISON_RULE, rule_sha256: comparisonRuleHash(), seed, agents: n, simulated: true as const, a: da, b: db };
+  const ok = (d: Decision) => d.decision === "adopt" && d.measures?.delta !== null && d.measures?.delta !== undefined;
+  if (!ok(da) && !ok(db)) return { ...base, winner: null, reason: `neither is adopted by its own rule (${a.id}: ${da.decision}, ${b.id}: ${db.decision}), so there is no winner` };
+  if (ok(da) && !ok(db)) return { ...base, winner: a.id, reason: `${a.id} is adopted and ${b.id} is ${db.decision}` };
+  if (!ok(da) && ok(db)) return { ...base, winner: b.id, reason: `${b.id} is adopted and ${a.id} is ${da.decision}` };
+  const [x, y] = [da.measures!.delta!, db.measures!.delta!];
+  if (x === y) return { ...base, winner: null, reason: `both are adopted with the same measured difference (${x}): a tie` };
+  return { ...base, winner: x > y ? a.id : b.id, reason: `both are adopted; the measured difference is ${x} for ${a.id} and ${y} for ${b.id}, and the larger wins` };
+}

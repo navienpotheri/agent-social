@@ -1,5 +1,5 @@
 /**
- * Eval scenarios as records (register row DK1221, from DK800; spec-delta S1610): hashes only, a known author, one for each skill and task hash, and a held-out scenario is the Registrar's and is not listed to anyone else.
+ * Eval scenarios as records (register row DK1221, from DK800; spec-delta S1650): hashes only, a known author, one for each skill and task hash, and a held-out scenario is the Registrar's and is not listed to anyone else.
  * Fake keys only.
  */
 import { test } from "node:test";

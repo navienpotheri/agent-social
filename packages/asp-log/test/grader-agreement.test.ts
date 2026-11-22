@@ -1,5 +1,5 @@
 /**
- * A judge's agreement with the deterministic check as a record (register row DK1223, from DK802; spec-delta S1611): the totals are kept, a run set counts once, agreements cannot exceed runs, and the grader's weight is its pooled
+ * A judge's agreement with the deterministic check as a record (register row DK1223, from DK802; spec-delta S1651): the totals are kept, a run set counts once, agreements cannot exceed runs, and the grader's weight is its pooled
  * agreement in permille with a prior of half. Fake keys only.
  */
 import { test } from "node:test";

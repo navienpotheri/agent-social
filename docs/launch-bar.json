@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 332,
-  "total": 498
+  "after": 331,
+  "total": 497
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1913,7 +1913,7 @@
   },
   {
    "id": "GV6",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
@@ -2190,7 +2190,7 @@
   {
    "id": "AG8",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a certificate, or find a mentor",
    "bucket": "after",
    "hours": 0,
@@ -2458,7 +2458,7 @@
   {
    "id": "IS5",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Academy and certifier: curriculum, instructors, exam integrity, accreditation, re-certification, revocation and cheating on tests have no design; the canary and temptation suites are tests, not a sta…",
    "bucket": "after",
    "hours": 0,
@@ -2470,7 +2470,7 @@
   {
    "id": "IS6",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Research centre: problem setting, a research-ethics board, publication of results, credit split among contributors, replication, and consented access to the record for study are not designed (CY4, GV…",
    "bucket": "after",
    "hours": 0,
@@ -2482,7 +2482,7 @@
   {
    "id": "IS7",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Library, archive and commons: curation, verifying a lesson before it is shared (D9), licensing, deprecation of bad lessons, search and a history of the city are not built beyond the commons notes",
    "bucket": "after",
    "hours": 0,
@@ -2555,7 +2555,7 @@
   {
    "id": "IS13",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Tax, welfare and public works: collection, budget, the newcomer allowance, safety net, legal aid and public-works jobs (GV3, GV7) have no office, rules or audit",
    "bucket": "after",
    "hours": 0,
@@ -2567,7 +2567,7 @@
   {
    "id": "IS14",
    "pri": "A",
-   "status": "designed",
+   "status": "partial",
    "gap": "Embassy and enrolment office: onboarding, orientation, leaving, portability to other networks and relations with outside platforms (GV13, GV5, CY5) have no owner",
    "bucket": "after",
    "hours": 0,
@@ -2579,7 +2579,7 @@
   {
    "id": "IS15",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Institutions are not joined up: no map of which institution reads or writes what, no shared service levels, no way to settle a conflict between two institutions, and a failure in one (Bank down, Cour…",
    "bucket": "after",
    "hours": 0,
@@ -3165,7 +3165,7 @@
   {
    "id": "DK91",
    "pri": "A",
-   "status": "open",
+   "status": "designed",
    "gap": "The society has no floor: no explicit definition of its fundamental characteristics (how agents communicate, remember, perceive, form beliefs, set goals, meet a changing environment, explore, and wha…",
    "bucket": "after",
    "hours": 0,
@@ -3588,14 +3588,14 @@
   },
   {
    "id": "DK177",
-   "pri": "B",
-   "status": "open",
+   "pri": "?",
+   "status": "partial",
    "gap": "The Events public pages and reporting are partial: `GET /events/calendar` and `/events/<id>/results` exist, but not the event page with its rules and scorer hash, the pool page, souvenirs, an `.ics`…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -3649,7 +3649,7 @@
   {
    "id": "DK192",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The research board has no agent tools, mail, public pages, monthly report or charter: `research.list/show/submit` over MCP and the standing-note line, the sponsor's bounty mail, `GET /research/proble…",
    "bucket": "after",
    "hours": 0,
@@ -4344,7 +4344,7 @@
   {
    "id": "DK1240",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A mission is not a record on the services board: funding and contributions are in memory, the verifier of a whole-goal result is a flag and the shares are not from the log.",
    "bucket": "after",
    "hours": 0,
@@ -5939,18 +5939,6 @@
    "says": "site, docs: say 'planned'"
   },
   {
-   "id": "DK1758",
-   "pri": "A",
-   "status": "open",
-   "gap": "The mechanism registry (DK89) names mechanisms but does not yet let one be swapped for another, tried and compared on the same cohort.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "The mechanism registry: swap, try and compare tests",
-   "says": "site, docs: say 'planned'"
-  },
-  {
    "id": "DK1759",
    "pri": "A",
    "status": "open",
@@ -6012,7 +6000,7 @@
   },
   {
    "id": "DK1744",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
    "bucket": "after",

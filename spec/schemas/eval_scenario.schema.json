@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:eval_scenario",
   "title": "Eval scenario body",
-  "description": "An eval scenario as a record (register row DK1221, from DK800; spec-delta S1610): the log carries only the HASHES of what the scenario asks (`task_sha256`) and how a run is checked (`check_sha256`), the skill it tests and a difficulty from 1 to 5, never the text. Signed by an identity the log knows (eval_scenario_unknown_author). A `held_out` scenario is the Registrar's: only the Registrar signs one (eval_held_out_not_registrar), and `evalScenarios` does not list held-out scenarios to anyone else, so an author never sees the set its agent is graded on. One scenario for each skill and task hash (eval_scenario_known). Chain: none (prev is null).",
+  "description": "An eval scenario as a record (register row DK1221, from DK800; spec-delta S1650): the log carries only the HASHES of what the scenario asks (`task_sha256`) and how a run is checked (`check_sha256`), the skill it tests and a difficulty from 1 to 5, never the text. Signed by an identity the log knows (eval_scenario_unknown_author). A `held_out` scenario is the Registrar's: only the Registrar signs one (eval_held_out_not_registrar), and `evalScenarios` does not list held-out scenarios to anyone else, so an author never sees the set its agent is graded on. One scenario for each skill and task hash (eval_scenario_known). Chain: none (prev is null).",
   "type": "object",
   "required": [
     "skill",

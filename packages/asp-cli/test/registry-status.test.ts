@@ -51,3 +51,25 @@ test("DK125: the command lists the sponsor's agents; a sponsor with none is told
   assert.equal(none.code, 1);
   assert.match(none.out, /sponsors no agent/);
 });
+
+test("AG8: `asp registry path <did>` prints the tier, what the next tier allows and each condition with what the agent has and needs; an unknown agent exits 1; --json is the log's view", async () => {
+  const f = makeFixture();
+  const asp = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: f.aspHome }, cwd: f.root } as Io);
+    return { code, out: out.join("\n"), err: err.join("\n") };
+  };
+  const SPONSOR = "did:web:example.com:users:pa-sponsor", AGENT = "did:web:example.com:agents:pa-agent";
+  assert.equal((await asp(["identity", "new", "--kind", "human", "--did", SPONSOR])).code, 0);
+  assert.equal((await asp(["identity", "new", "--kind", "agent", "--did", AGENT, "--sponsor", SPONSOR, "--purpose", "work"])).code, 0);
+  const r = await asp(["registry", "path", AGENT]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /tier 1/);
+  assert.match(r.out, /next: tier 2, which allows a spend of up to 1000 and 16 parallel nodes/);
+  assert.match(r.out, /NEEDED {2}a valid Foundations certificate: has none, needs a certificate in foundations at level 1 or more \(enrol in the Foundations course/);
+  assert.match(r.out, /met {4}no slash in the last 30 days: has never slashed/);
+  assert.doesNotMatch(r.out.split("\n").find((l) => l.includes("no slash"))!, /\(/, "a condition that is met says no how");
+  assert.match(r.out, /2 condition\(s\) left/);
+  assert.equal((await asp(["registry", "path", "did:web:example.com:agents:nobody"])).code, 1);
+  assert.match((await asp(["registry", "path", AGENT, "--json"])).out, /"to":\s*2/);
+});

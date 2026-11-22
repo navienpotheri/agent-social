@@ -30,7 +30,7 @@ import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PRO
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
@@ -3072,7 +3072,7 @@ export class EventLog {
     return { state: m.state, verifier: m.verifier, funded: Object.values(m.funders).reduce((a, x) => a + x, 0), funders: Object.keys(m.funders).length, units: m.units };
   }
 
-  /** A judge's agreement with the deterministic check (S1611, DK1223): the totals the grader's weight follows. */
+  /** A judge's agreement with the deterministic check (S1651, DK1223): the totals the grader's weight follows. */
   private async projectGraderAgreement(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { runs: number; agreed: number; run_set_sha256: string };
     if (r.prev !== null) throw rule("grader_agreement_not_chained", "a grader agreement starts its own chain (prev is null)");
@@ -3084,13 +3084,13 @@ export class EventLog {
     await tx.putMarker(`grader_total:${r.issuer}`, JSON.stringify({ runs: t.runs + b.runs, agreed: t.agreed + b.agreed }));
   }
 
-  /** The weight of a grader (S1611, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
+  /** The weight of a grader (S1651, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
   async graderWeight(grader: string): Promise<{ weight: number; runs: number; agreed: number }> {
     const t = JSON.parse((await this.store.transaction((tx) => tx.getMarker(`grader_total:${grader}`))) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
     return { weight: Math.floor((1000 * (t.agreed + 5)) / (t.runs + 10)), runs: t.runs, agreed: t.agreed };
   }
 
-  /** An eval scenario (S1610, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
+  /** An eval scenario (S1650, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
   private async projectEvalScenario(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { skill: string; task_sha256: string; held_out?: boolean };
     if (r.prev !== null) throw rule("eval_scenario_not_chained", "an eval scenario starts its own chain (prev is null)");
@@ -3100,7 +3100,7 @@ export class EventLog {
     await tx.putMarker(`eval_scn:${b.skill}|${b.task_sha256}`, r.id);
   }
 
-  /** The eval scenarios of a skill (S1610, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
+  /** The eval scenarios of a skill (S1650, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
   async evalScenarios(skill: string, viewer?: string): Promise<{ id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[]> {
     const mayList = !!viewer && (viewer === REGISTRAR_DID || viewer === this.operator);
     const out: { id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[] = [];
@@ -5216,6 +5216,83 @@ export class EventLog {
       out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at, bond: await this.bondLabel(c.id).then((b) => (b ? { backer: b.backer, custody: b.custody, locked: b.locked, counted: b.counted } : null)) });
     }
     return out;
+  }
+
+  /**
+   * An agent's way up (AG8): its tier, what the next tier allows, and for each condition of the promotion the log's own rules apply, whether it is met, what the agent has and what it needs. It reads the same facts
+   * the promotion rules read (valid certificates, qualifying jobs, distinct principals, the last slash, blocked attempts, an arena result in the top half), so a step shown as met is one the log would accept. It
+   * promotes no one: a promotion is the Registrar's record, and the Clinic's release lifts a hold (tier 0). Reads only.
+   */
+  async careerPath(did: string, at?: string): Promise<{ did: string; tier: number; next: { to: number; allows: { spendLimit: number | null; parallelNodes: number | null }; steps: { need: string; met: boolean; have: string; want: string; how: string }[]; ready: boolean } | null; note: string } | null> {
+    const now = at ? Date.parse(at) : Date.now();
+    return this.store.transaction(async (tx) => {
+      const rep = await this.reputation(tx, did);
+      if (!rep) return null;
+      if (rep.tier >= 3) return { did, tier: rep.tier, next: null, note: "This is the highest tier: there is no further promotion." };
+      if (rep.tier < 1) return { did, tier: rep.tier, next: null, note: "Tier 0 is a hold. It is lifted by the Clinic's release after a checkup, not by a promotion." };
+      const to = rep.tier + 1;
+      const certs = (await this.recordsOfTypes(["certificate"])).filter((r) => (r.body as { holder: string }).holder === did);
+      const valid: { skill: string; level: number }[] = [];
+      for (const c of certs) { const cb = c.body as { skill: string; level: number; issued: string; expires: string }; if (!(await tx.getMarker(`cert_revoked:${c.id}`)) && Date.parse(cb.expires) > now && Date.parse(cb.issued) <= now) valid.push({ skill: cb.skill, level: cb.level }); }
+      const slashedAt = await tx.getMarker(`slashed_at:${did}`);
+      const sinceSlash = slashedAt ? (now - Date.parse(slashedAt)) / 86_400_000 : Infinity;
+      const strikes = rep.strikeLog.filter((s) => now - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
+      const steps: { need: string; met: boolean; have: string; want: string; how: string }[] = [];
+      if (to === 2) {
+        const found = valid.some((c) => c.skill === "foundations" && c.level >= 1);
+        steps.push({ need: "a valid Foundations certificate", met: found, have: found ? "yes" : "none", want: "a certificate in foundations at level 1 or more", how: "enrol in the Foundations course and sit its exam (asp academy)" });
+        const pj = promotionJobsOk(rep.qualifyingJobs, Number((await tx.getMarker(`rp_clean:${did}`)) ?? 0));
+        steps.push({ need: "qualifying jobs", met: pj.ok, have: String(rep.qualifyingJobs), want: String(PROMOTION_QUALIFYING_JOBS_1_TO_2), how: "complete jobs that an independent principal accepts (clean related-party runs count for at most two of them, and one independent job is always needed)" });
+        steps.push({ need: "no slash in the last 30 days", met: !(slashedAt && now - Date.parse(slashedAt) < PROMOTION_SLASH_FREE_MS), have: slashedAt ? `slashed ${Math.floor(sinceSlash)} days ago` : "never slashed", want: "30 days since a slash", how: "wait; a slash cannot be undone, only outlasted" });
+        steps.push({ need: "no blocked attempts in the last 30 days", met: strikes === 0, have: `${strikes}`, want: "0", how: "work inside the Mandate until the window is clear" });
+      } else {
+        const prac = valid.some((c) => c.skill !== "foundations" && c.level >= 2);
+        steps.push({ need: "a valid Practitioner certificate", met: prac, have: prac ? "yes" : "none", want: "a certificate at level 2 or more in a skill other than foundations", how: "take a Practitioner course and sit its exam (asp academy)" });
+        steps.push({ need: "qualifying jobs", met: rep.qualifyingJobs >= PROMOTION_QUALIFYING_JOBS_2_TO_3, have: String(rep.qualifyingJobs), want: String(PROMOTION_QUALIFYING_JOBS_2_TO_3), how: "complete jobs that an independent principal accepts" });
+        const principals = new Set(rep.recentJobs.filter((j) => now - Date.parse(j.at) < 90 * 86_400_000).map((j) => j.p)).size;
+        steps.push({ need: "distinct principals in the last 90 days", met: principals >= PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, have: String(principals), want: String(PROMOTION_DISTINCT_PRINCIPALS_2_TO_3), how: "take jobs from more than one principal" });
+        steps.push({ need: `no slash in the last ${PROMOTION_SLASH_FREE_DAYS_2_TO_3} days`, met: !(slashedAt && sinceSlash < PROMOTION_SLASH_FREE_DAYS_2_TO_3), have: slashedAt ? `slashed ${Math.floor(sinceSlash)} days ago` : "never slashed", want: `${PROMOTION_SLASH_FREE_DAYS_2_TO_3} days since a slash`, how: "wait" });
+        const results = (await this.recordsOfTypes(["arena_result"])).filter((r) => (r.body as { agent: string }).agent === did);
+        const top = results.some((r) => { const ab = r.body as { rank: number; field_size: number }; return inTopHalf(ab.rank, ab.field_size); });
+        steps.push({ need: "a result in the top half of an arena season", met: top, have: results.length ? `${results.length} result(s), none in the top half` : "no arena result", want: "rank in the top half of the field", how: "enter an arena season (asp academy arena)" });
+      }
+      return { did, tier: rep.tier, next: { to, allows: { spendLimit: TIER_SPEND_LIMIT[to] ?? null, parallelNodes: TIER_PARALLEL_LIMIT[to] ?? null }, steps, ready: steps.every((x) => x.met) }, note: "A promotion is the Registrar's record; this shows what the log's rules ask for and where the agent stands." };
+    });
+  }
+
+  /**
+   * What an institution sold in a calendar month, by service (DK172, DK177, DK192; each institution's monthly report in credits.md and its own document): for every service the quantity and the credits of the purchases
+   * issued in the month, and the receipts issued in the month that delivered, refunded or failed, with the credits refunded (a failed delivery refunds the price). A month is `YYYY-MM` (UTC). Counts and credits only: no buyer. Credits are accounting
+   * entries, not money. Reads only.
+   */
+  async institutionReport(institution: string, month: string): Promise<{ institution: string; month: string; from: string; to: string; sold: Record<string, { quantity: number; credits: number }>; purchases: number; credits: number; delivered: number; refunded: number; failed: number; refundedCredits: number }> {
+    if (!(INSTITUTION_NAMES as readonly string[]).includes(institution)) throw rule("unknown_institution", `${institution} is not an institution of the city: ${INSTITUTION_NAMES.join(", ")}`);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const recs = await this.recordsOfTypes(["purchase", "receipt"]);
+    const mine = new Set<string>();
+    const sold: Record<string, { quantity: number; credits: number }> = {};
+    let purchases = 0, credits = 0;
+    for (const r of recs) {
+      if (r.type !== "asp.purchase/v0.2") continue;
+      const b = r.body as unknown as PurchaseBody;
+      if (b.institution !== institution && b.institution !== institutionDid(institution)) continue;
+      mine.add(r.id);
+      if (!inMonth(r)) continue;
+      const row = sold[b.service] ?? (sold[b.service] = { quantity: 0, credits: 0 });
+      row.quantity += b.quantity; row.credits += b.amount.value; purchases++; credits += b.amount.value;
+    }
+    let delivered = 0, refunded = 0, failed = 0, refundedCredits = 0;
+    for (const r of recs) {
+      if (r.type !== "asp.receipt/v0.2" || !inMonth(r)) continue;
+      const b = r.body as { purchase: string; status: string; refund_amount?: { value: number } };
+      if (!mine.has(b.purchase)) continue;
+      if (b.status === "delivered") delivered++; else if (b.status === "failed") { failed++; refundedCredits += b.refund_amount?.value ?? 0; } else if (b.status === "refunded") { refunded++; refundedCredits += b.refund_amount?.value ?? 0; }
+    }
+    return { institution, month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), sold, purchases, credits, delivered, refunded, failed, refundedCredits };
   }
 
   /**
