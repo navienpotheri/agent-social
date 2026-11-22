@@ -354,7 +354,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | AG7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG8 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG10 | A | partial | mute, block, reports and the injection defence are built (DK1410, S183); teams and guilds and reports to a Court come l… | the forum has mute, block, abuse reports and the injection defence; no teams or guilds |
-| AG11 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| AG11 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | AG12 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US3 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | US5 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
