@@ -8,7 +8,7 @@ import { examSeed, examVariant } from "../src/index.ts";
 import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRUCK_SHARE_PERMILLE, AUTHOR_WINDOW_DAYS } from "../src/academy.ts";
 import { Kit, SERVICES, hashOf, refused, registrar, courts, type Party } from "./academy-kit.ts";
 
-const withdrawal = (k: Kit, exam: string, over: Record<string, unknown> = {}, by: Party = registrar) => k.mk("exam_withdrawal", by, { exam, reason: "leaked", evidence: "a copy of the pool was posted on a public forum", ...over }, null, { subject: null });
+const withdrawal = (k: Kit, exam: string, over: Record<string, unknown> = {}, by: Party = registrar) => k.mk("exam_retirement", by, { exam, reason: "leaked", evidence: "a copy of the pool was posted on a public forum", ...over }, null, { subject: null });
 
 test("DK117: the Registrar withdraws an exam once; no new sitting of it is scored, its replacement is; results already issued stand", async () => {
   const k = new Kit();
@@ -30,15 +30,15 @@ test("DK117: a withdrawal is the Registrar's, of an exam definition in the log, 
   const k = new Kit();
   const a = await k.defineExam("foundations-wd2-v1", "foundations", 1);
   const b = await k.defineExam("foundations-wd2-v2", "foundations", 1);
-  assert.equal(await refused(k.put(withdrawal(k, a, {}, courts))), "exam_withdrawal_wrong_issuer", "the Courts do not withdraw an exam");
-  assert.equal(await refused(k.put(withdrawal(k, hashOf("a")))), "exam_withdrawal_unknown_exam");
+  assert.equal(await refused(k.put(withdrawal(k, a, {}, courts))), "exam_retirement_wrong_issuer", "the Courts do not withdraw an exam");
+  assert.equal(await refused(k.put(withdrawal(k, hashOf("a")))), "exam_retirement_unknown_exam");
   const person = await k.person("wd2-person");
-  assert.equal(await refused(k.put(withdrawal(k, person.did.length ? (await k.log.recordsOfTypes(["passport"]))[0]!.id : a))), "exam_withdrawal_unknown_exam", "a record that is not an exam is refused");
-  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: a }))), "exam_withdrawal_bad_replacement", "an exam is not its own replacement");
-  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: hashOf("b") }))), "exam_withdrawal_bad_replacement", "the replacement exists");
-  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: (await k.log.recordsOfTypes(["passport"]))[0]!.id }))), "exam_withdrawal_bad_replacement", "and is an exam definition, not any record");
+  assert.equal(await refused(k.put(withdrawal(k, person.did.length ? (await k.log.recordsOfTypes(["passport"]))[0]!.id : a))), "exam_retirement_unknown_exam", "a record that is not an exam is refused");
+  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: a }))), "exam_retirement_bad_replacement", "an exam is not its own replacement");
+  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: hashOf("b") }))), "exam_retirement_bad_replacement", "the replacement exists");
+  assert.equal(await refused(k.put(withdrawal(k, a, { replaced_by: (await k.log.recordsOfTypes(["passport"]))[0]!.id }))), "exam_retirement_bad_replacement", "and is an exam definition, not any record");
   assert.ok(await k.put(withdrawal(k, a, { replaced_by: b })), "naming the replacement is allowed");
-  assert.equal((await k.log.recordsOfTypes(["exam_withdrawal"])).length, 1);
+  assert.equal((await k.log.recordsOfTypes(["exam_retirement"])).length, 1);
 });
 
 /** A sitting scored with no fee: the holder's certificate was revoked for the Academy's own error, and `sitting` is that revocation. */

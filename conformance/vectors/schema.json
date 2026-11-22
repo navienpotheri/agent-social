@@ -4273,8 +4273,8 @@
       "valid": false
     },
     {
-      "name": "valid_exam_withdrawal",
-      "schema": "exam_withdrawal",
+      "name": "valid_exam_retirement",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "reason": "leaked",
@@ -4283,8 +4283,8 @@
       "valid": true
     },
     {
-      "name": "valid_exam_withdrawal_replaced",
-      "schema": "exam_withdrawal",
+      "name": "valid_exam_retirement_replaced",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "reason": "error",
@@ -4294,8 +4294,8 @@
       "valid": true
     },
     {
-      "name": "exam_withdrawal_bad_reason",
-      "schema": "exam_withdrawal",
+      "name": "exam_retirement_bad_reason",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "reason": "boring",
@@ -4304,8 +4304,8 @@
       "valid": false
     },
     {
-      "name": "exam_withdrawal_no_evidence",
-      "schema": "exam_withdrawal",
+      "name": "exam_retirement_no_evidence",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "reason": "leaked",
@@ -4314,8 +4314,8 @@
       "valid": false
     },
     {
-      "name": "exam_withdrawal_no_exam",
-      "schema": "exam_withdrawal",
+      "name": "exam_retirement_no_exam",
+      "schema": "exam_retirement",
       "instance": {
         "reason": "leaked",
         "evidence": "x"
@@ -4323,8 +4323,8 @@
       "valid": false
     },
     {
-      "name": "exam_withdrawal_short_exam_id",
-      "schema": "exam_withdrawal",
+      "name": "exam_retirement_short_exam_id",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "foundations-v1",
         "reason": "leaked",
@@ -4333,8 +4333,8 @@
       "valid": false
     },
     {
-      "name": "exam_withdrawal_extra_field",
-      "schema": "exam_withdrawal",
+      "name": "exam_retirement_extra_field",
+      "schema": "exam_retirement",
       "instance": {
         "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "reason": "leaked",
@@ -4736,6 +4736,172 @@
           }
         ],
         "blame": "split"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_failure",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": "no answer to six messages over two days after the deadline"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_failure_deadline",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "deadline_passed",
+        "evidence": "nothing was delivered by the deadline"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_failure_bad_cause",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "provider_down",
+        "evidence": "no answer to six messages over two days after the deadline"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_no_evidence",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_no_contract",
+      "schema": "contract_failure",
+      "instance": {
+        "cause": "unreachable",
+        "evidence": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_extra_field",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": "no answer to six messages over two days after the deadline",
+        "slash_permille": 1000
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_replaces",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "resumes": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_replaces_only",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_replaces_short_id",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "job-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_resumes_short_id",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "resumes": "cp-1"
       },
       "valid": false
     },

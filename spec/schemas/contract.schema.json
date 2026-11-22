@@ -78,6 +78,14 @@
     "parent_contract": {
       "description": "Set when this job is a subcontract of another.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "replaces": {
+      "description": "Set when this contract takes over a job that failed (S1703, JO4): the failed contract, which carries a contract_failure and whose principal is this contract's principal.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "resumes": {
+      "description": "With replaces: the last checkpoint of the failed contract, from which the new performer resumes (S1703, JO4).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

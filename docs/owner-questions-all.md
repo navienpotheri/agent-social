@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 34** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 11 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 35** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 12 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -51,6 +51,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 32. **DK162, DK1712:** may the hosted service sign the Clinic's routine records by itself (a checkup order, a probe result, a ladder step) so that drift is caught with no one running a command? Today the Clinic's key is yours, so a monitor on the service can only list what it found for you to sign. Default taken: nothing is signed by the service; it lists what it found and the operator signs with one command (`asp clinic drift --issue`); a quarantine is always signed by you. Say yes to give the service its own Clinic key limited by the log to orders, probe results and ladder steps up to "hold", with the circuit breaker of at most 5 automatic holds a day. [society]
 33. **DK91, DK89:** may a floor property (the communication channel, the memory rule, the calendar) be changed for an experiment inside the public beta? Default taken: no; every property is fixed for the public beta, and an experiment runs only in a separate lab world with volunteer cohorts who are told what differs ([floor.md](institutions/floor.md)). Say yes to name a property that may be open, and which. [society]
 34. **DK117:** when is a course author suspended from publishing? Default taken: while at least 5 learners completed its courses in the last 90 days, at least 3 of them had a blocked attempt within 30 days of completing, and the struck are at least 30% of them; enrolment in courses it already published is not affected. Say other numbers, or a different kind of strike, to change it. [society]
+35. **JO4:** when is a job declared failed, and what does the principal get back? Default taken: the principal may declare it once the deadline and a day have passed with nothing delivered (never while the performer waits on the principal's answer); the whole escrow returns, nothing is paid for undelivered work, and a quarter of the locked bond goes to the principal; a failure that is no one's fault is a cancellation by consent. Say other numbers to change it. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

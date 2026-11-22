@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:contract_failure",
+  "title": "Contract failure body",
+  "description": "The principal's declaration that a job failed in the middle because the performer did not deliver (register row JO4; spec-delta S1703): it can be made once the contract's deadline and a day's grace have passed (failure_not_past_deadline), while the Bond is locked and nothing was delivered (failure_too_early, failure_too_late), and not while the performer is waiting for the principal to answer a Checkpoint (failure_waiting_on_principal). Signed by the principal (failure_not_the_principal); once (failure_known); never for a contract already cancelled by consent. The Bank then settles with basis revoked and the settlement must refund the whole escrow, take no job tax and slash the stated share of the Bond to the principal (settlement_mismatches_failure). A job that failed through no one's fault (a provider down) is a cancellation by consent, not this record. Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "cause",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "cause": {
+      "enum": [
+        "unreachable",
+        "deadline_passed"
+      ]
+    },
+    "evidence": {
+      "description": "What the declaration rests on: the principal's attempts to reach the performer, or the deadline and what was delivered by it.",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

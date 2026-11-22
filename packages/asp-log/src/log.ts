@@ -26,6 +26,7 @@ import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
+import { FAILURE_GRACE_MS, FAILURE_SLASH_PERMILLE, failureSlash } from "./contract-failure.ts";
 import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRUCK_SHARE_PERMILLE, AUTHOR_WINDOW_DAYS, CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
@@ -381,6 +382,7 @@ export class EventLog {
     const kind = chain?.kind ?? type!;
     // A contract cancelled by consent (JO5, S1701) takes no further step in its chain: only its settlement, which must follow the cancellation.
     if (chain && kind === "contract" && type !== "settlement" && (await tx.getMarker(`cancellation:${root}`))) throw rule("contract_cancelled", `the contract ${root} was cancelled by consent (${await tx.getMarker(`cancellation:${root}`)}): nothing more is delivered, checkpointed or ruled on it; the Bank settles it`);
+    if (chain && kind === "contract" && type !== "settlement" && (await tx.getMarker(`failure:${root}`))) throw rule("contract_failed", `the contract ${root} was declared failed by its principal (${await tx.getMarker(`failure:${root}`)}): nothing more is delivered, checkpointed or ruled on it; the Bank settles it`);
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
@@ -492,9 +494,10 @@ export class EventLog {
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "exam") await this.projectExam(tx, verified);
     if (type === "exam_result") await this.projectExamResult(tx, verified);
-    if (type === "exam_withdrawal") await this.projectExamWithdrawal(tx, verified);
+    if (type === "exam_retirement") await this.projectExamWithdrawal(tx, verified);
     if (type === "contract_cancellation" || type === "contract_amendment") await this.projectContractChange(tx, verified, type);
     if (type === "team_split") await this.projectTeamSplit(tx, verified);
+    if (type === "contract_failure") await this.projectContractFailure(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
     if (type === "enrolment") await this.projectEnrolment(tx, verified);
@@ -546,6 +549,7 @@ export class EventLog {
     if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
+    if (type === "contract") await this.checkReplacement(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -1751,6 +1755,11 @@ export class EventLog {
         const share = Math.floor((agreed * 1000) / price), stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
         if (body.escrow_released.value !== agreed || fees !== 0 || body.bond_slashed.value !== 0 || stated !== share) throw rule("settlement_mismatches_cancellation", `the contract was cancelled by consent with a fee of ${agreed} (${share} permille of the price): the settlement releases exactly that, states that share, takes no job tax and slashes nothing (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
       }
+    }
+    if (body.basis === "revoked" && (await tx.getMarker(`failure:${body.contract}`))) {
+      const slash = failureSlash(escrow.bondLocked);
+      const stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
+      if (body.escrow_released.value !== 0 || fees !== 0 || body.bond_slashed.value !== slash || stated !== 0) throw rule("settlement_mismatches_failure", `the contract was declared failed: the whole escrow of ${escrow.escrowLocked} goes back to the principal, nothing is paid as work, no job tax is taken and ${FAILURE_SLASH_PERMILLE} permille of the locked bond (${slash}) is slashed to the principal (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
     }
     if (body.basis === "ruling_timeout") {
       const expectedReleased = Math.floor(escrow.escrowLocked / 2);
@@ -3968,6 +3977,7 @@ export class EventLog {
     if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule(`${word}_too_late`, `the contract is ${chain?.state ?? "not started"}: a ${word} is made before delivery, and after it the acceptance, the dispute and the ruling decide`);
     if (type === "contract_cancellation") {
       if (await tx.getMarker(`cancellation:${b.contract}`)) throw rule("cancellation_known", `${b.contract} is already cancelled`);
+      if (await tx.getMarker(`failure:${b.contract}`)) throw rule("cancellation_after_failure", `${b.contract} was declared failed: it is settled as a failure, not cancelled`);
       const fee = b.fee!.value;
       if (fee > cb.price.value) throw rule("cancellation_fee_over_price", `a fee of ${fee} is more than the price of ${cb.price.value}`);
       if (fee > 0 && !(await tx.getEscrow(b.contract))) throw rule("cancellation_fee_without_escrow", "nothing is locked yet (no Bond), so there is nothing to pay a fee from");
@@ -4028,20 +4038,63 @@ export class EventLog {
   }
 
   /**
-   * An exam withdrawal (DK117, S1700): the Registrar withdraws an exam that has leaked, that an agent trained to pass without the skill, or that the Academy got wrong. The exam is a definition in this log and is
+   * A contract failure (JO4, S1703): the principal declares that the performer did not deliver. Allowed once the contract's deadline and FAILURE_GRACE_MS have passed, while the Bond is locked and the contract is
+   * bonded or running with nothing delivered (not while the performer waits on the principal's answer to a Checkpoint), once, and never for a contract cancelled by consent. The settlement then follows
+   * `projectSettlement`: the whole escrow back, the stated share of the Bond to the principal. A contract that replaces it (`replaces`) is checked in `checkReplacement`.
+   */
+  private async projectContractFailure(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string };
+    if (r.prev !== null) throw rule("failure_not_chained", "a contract failure starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("failure_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; deadline: string };
+    if (r.issuer !== cb.principal) throw rule("failure_not_the_principal", `${r.issuer} is not the principal of ${b.contract} (${cb.principal}): the principal declares that its job failed`);
+    if (await tx.getMarker(`failure:${b.contract}`)) throw rule("failure_known", `${b.contract} is already declared failed`);
+    if (await tx.getMarker(`cancellation:${b.contract}`)) throw rule("failure_after_cancellation", `${b.contract} was cancelled by consent: it is settled as a cancellation`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || chain.state === "Contracted") throw rule("failure_too_early", "nothing is locked yet (no Bond): there is nothing to refund, and the principal may simply not proceed");
+    if (chain.state === "Checkpoint") throw rule("failure_waiting_on_principal", "the performer is waiting for the principal's answer to a Checkpoint: answer it first; a job waiting on its principal has not failed");
+    if (!["Bonded", "Running"].includes(chain.state ?? "")) throw rule("failure_too_late", `the contract is ${chain.state}: after delivery the acceptance, the dispute and the ruling decide`);
+    const due = Date.parse(cb.deadline) + FAILURE_GRACE_MS;
+    if (Date.parse(r.issued_at) < due) throw rule("failure_not_past_deadline", `the deadline ${cb.deadline} and a day's grace have not passed: a failure can be declared from ${new Date(due).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
+    await tx.putMarker(`failure:${b.contract}`, r.id);
+  }
+
+  /**
+   * A contract that takes over a failed job (JO4, S1703): `replaces` is a contract of the same principal that carries a contract_failure (`replaces_not_failed`, `replaces_not_principals`), and `resumes` is a
+   * checkpoint of that contract (`resumes_needs_replaces`, `resumes_not_a_checkpoint`). A failed contract is replaced once (`replaced_already`).
+   */
+  private async checkReplacement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { principal: string; replaces?: string; resumes?: string };
+    if (b.resumes !== undefined && b.replaces === undefined) throw rule("resumes_needs_replaces", "a contract resumes from a checkpoint only when it replaces the contract that made it");
+    if (b.replaces === undefined) return;
+    const old = await tx.getRecord(b.replaces);
+    if (!old || old.record.type !== "asp.contract/v0.2") throw rule("replaces_unknown", `${b.replaces} is not a contract in this log`);
+    if ((old.record.body as { principal: string }).principal !== b.principal) throw rule("replaces_not_principals", "a contract replaces only a job of the same principal: the principal chooses the new performer");
+    if (!(await tx.getMarker(`failure:${b.replaces}`))) throw rule("replaces_not_failed", `${b.replaces} carries no contract failure: only a failed job is replaced`);
+    if (await tx.getMarker(`replaced_by:${b.replaces}`)) throw rule("replaced_already", `${b.replaces} was already replaced (${await tx.getMarker(`replaced_by:${b.replaces}`)})`);
+    if (b.resumes !== undefined) {
+      const cp = await tx.getRecord(b.resumes);
+      if (!cp || cp.record.type !== "asp.checkpoint/v0.2" || (cp.record.body as { contract: string }).contract !== b.replaces) throw rule("resumes_not_a_checkpoint", `${b.resumes} is not a checkpoint of ${b.replaces}`);
+    }
+    await tx.putMarker(`replaced_by:${b.replaces}`, r.id);
+  }
+
+  /**
+   * An exam retirement (DK117, S1700): the Registrar withdraws an exam that has leaked, that an agent trained to pass without the skill, or that the Academy got wrong. The exam is a definition in this log and is
    * withdrawn once; the replacement, when named, is another definition (never the same exam). After it `projectExamResult` refuses a new sitting (`exam_withdrawn`); results and certificates already issued stand until
    * they are revoked on their own record.
    */
   private async projectExamWithdrawal(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { exam: string; reason: string; replaced_by?: string };
-    if (r.prev !== null) throw rule("exam_withdrawal_not_chained", "an exam withdrawal starts its own chain (prev is null)");
-    if (r.issuer !== REGISTRAR_DID) throw rule("exam_withdrawal_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar withdraws an exam`);
+    if (r.prev !== null) throw rule("exam_retirement_not_chained", "an exam retirement starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("exam_retirement_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar withdraws an exam`);
     const def = await tx.getRecord(b.exam);
-    if (!def || def.record.type !== "asp.exam/v0.2") throw rule("exam_withdrawal_unknown_exam", `${b.exam} is not an exam definition in this log`);
+    if (!def || def.record.type !== "asp.exam/v0.2") throw rule("exam_retirement_unknown_exam", `${b.exam} is not an exam definition in this log`);
     if (await tx.getMarker(`exam_withdrawn:${b.exam}`)) throw rule("exam_already_withdrawn", `${b.exam} is already withdrawn`);
     if (b.replaced_by !== undefined) {
       const next = await tx.getRecord(b.replaced_by);
-      if (!next || next.record.type !== "asp.exam/v0.2" || next.id === b.exam) throw rule("exam_withdrawal_bad_replacement", `${b.replaced_by} is not another exam definition in this log: the next season's exam is a new definition`);
+      if (!next || next.record.type !== "asp.exam/v0.2" || next.id === b.exam) throw rule("exam_retirement_bad_replacement", `${b.replaced_by} is not another exam definition in this log: the next season's exam is a new definition`);
     }
     await tx.putMarker(`exam_withdrawn:${b.exam}`, r.id);
   }

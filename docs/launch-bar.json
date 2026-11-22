@@ -3,8 +3,8 @@
  "counts": {
   "must": 63,
   "withdraw": 104,
-  "after": 330,
-  "total": 497
+  "after": 329,
+  "total": 496
  },
  "mustWorkerHours": 303.2,
  "entries": [
@@ -2327,18 +2327,6 @@
    "pri": "B",
    "status": "open",
    "gap": "Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment that streams for a long job (T19)",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO4",
-   "pri": "B",
-   "status": "open",
-   "gap": "A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the deadline passes; there is no reassignment, resume from a checkpoint, or fair refund",
    "bucket": "after",
    "hours": 0,
    "size": "",
