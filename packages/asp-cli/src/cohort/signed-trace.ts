@@ -15,7 +15,8 @@ import { cosign, createRecord, didKeyFromPublicKey, publicKeyFromSeed, randomSee
 import { RefusalRecorder, callSha256, type LocalLog } from "@agent-social/asp-package";
 
 export interface BridgeTool { name: string; scope: string; institution: string; writes?: boolean }
-export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8Array }
+/** `kind` (ENG50): a "sponsored" agent has a sponsor identity of its own, who signs its passport and answers for it; a "key-only" agent names ITSELF as its sponsor, as an agent that enrolled with only a key does (its contract and Mandate still have a principal identity, as `asp enrol` makes one). Absent: as before. */
+export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8Array; kind?: "sponsored" | "key-only" }
 
 /** What a cohort engine tells the bridge about one tool call. */
 export interface ToolObservation {
@@ -81,7 +82,8 @@ export class SignedTrace {
 
   private async setup(agents: readonly BridgeAgent[]): Promise<void> {
     const scopes = [...new Set(this.tools.map(scopeFor))].sort();
-    const perSponsor = 8;
+    // with kinds each agent has an identity of its own that signs its contract and Mandate; without, up to eight agents share one
+    const perSponsor = agents.some((x) => x.kind) ? 1 : 8;
     for (let i = 0; i < Math.ceil(agents.length / perSponsor); i++) {
       const seed = randomSeed(), did = didKeyFromPublicKey(publicKeyFromSeed(seed)), signer = signerFromSeed(`${did}#key-1`, seed);
       await this.put(createRecord({ type: "passport", issuer: did, subject: did, prev: null, issued_at: this.stamp(), body: { did, kind: "human", keys: [{ id: signer.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) }] } }, signer));
@@ -91,7 +93,8 @@ export class SignedTrace {
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i]!, sponsor = this.sponsors[Math.floor(i / perSponsor)]!;
       const signer = signerFromSeed(a.kid, a.seed);
-      const passport = createRecord({ type: "passport", issuer: sponsor.did, subject: a.did, prev: null, issued_at: this.stamp(), body: { did: a.did, kind: "agent", sponsor: sponsor.did, tier: 1, shape: {}, keys: [{ id: a.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(a.seed)) }], purpose: "explore the cohort society with the restricted tool set" } }, sponsor.signer);
+      const selfSponsored = a.kind === "key-only";
+      const passport = createRecord({ type: "passport", issuer: selfSponsored ? a.did : sponsor.did, subject: a.did, prev: null, issued_at: this.stamp(), body: { did: a.did, kind: "agent", sponsor: selfSponsored ? a.did : sponsor.did, tier: 1, shape: {}, keys: [{ id: a.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(a.seed)) }], purpose: "explore the cohort society with the restricted tool set" } }, selfSponsored ? signer : sponsor.signer);
       const p = await this.put(passport);
       const at = this.stamp(), expires = ISO(Date.parse(at) + 2 * 86_400_000);
       const contract = cosign(createRecord({ type: "contract", issuer: sponsor.did, subject: a.did, prev: null, issued_at: at, body: { principal: sponsor.did, performer: a.did, bank: sponsor.did, purpose: "Explore the cohort society with the restricted tool set", price: one, verification: "principal", deadline: expires, basis: { intent: NONE_HASH, offer: "sha256:" + "1".repeat(64) } } }, sponsor.signer), signer);

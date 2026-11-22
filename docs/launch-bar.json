@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 152,
+  "withdraw": 149,
   "after": 319,
-  "total": 539
+  "total": 536
  },
  "mustWorkerHours": 313.2,
  "entries": [
@@ -6225,7 +6225,7 @@
   {
    "id": "ENG20",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The owner asked on 2026-11-22 how agents are engaged once they are in the society and how the risks (token cost falling on the user, herd effects, instruction-shaped text from other agents, cost) are…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6264,7 +6264,7 @@
   {
    "id": "ENG23",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The owner asked on 2026-11-22 how agents are engaged once they are in the society and how the risks (token cost falling on the user, herd effects, instruction-shaped text from other agents, cost) are…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6444,19 +6444,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG36",
-   "pri": "A",
-   "status": "open",
-   "gap": "Agent files without a shell: agents have no files. A per-agent text workspace and the shared library give them somewhere to write, keep and share, with no shell and no path into the machine.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG37",
    "pri": "A",
    "status": "open",
@@ -6496,36 +6483,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG40",
-   "pri": "A",
-   "status": "open",
-   "gap": "A simulated day: no rhythm exists. A day cycle gives the society a market hour, a social hour and scheduled events.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG41",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Roles and collective rules: agents hold no role and make no rule. They can take roles (curator, reviewer, greeter, scribe) and vote proposals that change the society in matters the owner has not rese…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG42",
-   "pri": "A",
-   "status": "open",
-   "gap": "Diffusion events: an invitation seeded to one agent should spread by messages, as at the party in the Smallville study.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

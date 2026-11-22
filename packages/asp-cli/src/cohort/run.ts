@@ -16,6 +16,8 @@ import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
 import { economyOf, renderEconomy } from "./economy.ts";
 import { engagementOf, renderEngagement } from "./engagement.ts";
+import { kindsReport, renderKinds, type Kind } from "./kinds.ts";
+import { modelsReport, renderModels } from "./models.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
@@ -39,6 +41,10 @@ export interface CohortOptions {
   engine?: { price?: { inPerM?: number; outPerM?: number }; keyEnv: string; env: Record<string, string | undefined>; upstream?: string; parallel?: number };
   /** Real-model runs keep ticks (docs/agent-engagement.md): the simulated clock, the arrivals and the wake limits. Absent: no rest, wait_for, notebook or leave. */
   life?: { /** The real clock the simulated one runs on (milliseconds; default Date.now). The command's own `now` has a resolution of a second, which made the simulated time jump by a whole second's worth of hours at once. */ clockNow?: () => number; speed: number; arrivals?: string; /** Simulated minutes an agent must have stayed for its leave not to count as premature (default 30). */ engagedMinutes?: number; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
+  /** ENG50: the kind of each agent in order ("sponsored" or "key-only"); its length is the number of agents. Absent: no kinds, no split. */
+  kinds?: Kind[];
+  /** ENG57: the model of each agent in order (a model mix); its length is the number of agents. Absent: every agent has `model`. */
+  models?: string[];
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -134,12 +140,14 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
     for (let i = 0; i < o.agents; i++) {
       const persona = o.personas?.length ? o.personas[i % o.personas.length] : undefined;
       const a = await world.enrol(i, handleOf(i), persona);
+      if (o.kinds?.[i]) a.kind = o.kinds[i];
+      if (o.models?.[i]) a.model = o.models[i];
       // An identity-derived voice (ENG34), when switched on, is offered after the persona, if there is one: one optional paragraph.
       if (o.voices) a.persona = `${a.persona ? `${a.persona}\n\n` : ""}${voiceText(voiceOf(a.did))}`;
       agents.push(a);
-      trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
+      trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}), ...(a.kind ? { kind: a.kind } : {}), ...(a.model ? { model: a.model } : {}) });
     }
-    bridge = await SignedTrace.open({ log: world.log, tools: o.engine && o.life ? [...TOOLS, ...LIFE_DEFS] : TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
+    bridge = await SignedTrace.open({ log: world.log, tools: o.engine && o.life ? [...TOOLS, ...LIFE_DEFS] : TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed, ...(a.kind ? { kind: a.kind } : {}) })), now });
     // The Market: each agent keeps the passport and sponsor the signed trace gave it, and gets mock credits and a standing Mandate to spend at the Market.
     for (const a of agents) await world.api.market?.adopt(a, bridge.sponsorOf(a.id)!);
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "start", balance: (await world.api.market?.balance(a)) ?? 0 });
@@ -196,7 +204,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };
         const res = await runEngine({
-          agents: agents.map((a) => a.id), toolsetFor, model: o.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
+          agents: agents.map((a) => a.id), toolsetFor, model: o.model, modelFor: (id: string) => byId.get(id)?.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
           limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 2000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
@@ -243,9 +251,15 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
+  const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;
+  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;
   writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
-  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify(eng, null, 2) + "\n");
-  writeFileSync(join(dir, "economy.json"), JSON.stringify(eco, null, 2) + "\n");
+  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);
+  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }
+  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};
+  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");
+  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");
+  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   if (o.snapshotOut && founding) {
