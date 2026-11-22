@@ -415,7 +415,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, usageFromLog, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -3097,6 +3097,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (sandbox && !db.startsWith("local:")) throw new UsageError("--sandbox runs on a local log: --db local:<dir> (a new, empty directory)");
   if (db.startsWith("local:")) { try { checkEnvironment(db.slice("local:".length), sandbox ? "sandbox" : "production"); } catch (e) { throw new UsageError((e as Error).message); } }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  // The usage counts are the log's own (O17): raised to what the log holds for each tenant, so a lost usage file, or records written before the service counted, do not give a tenant a quota it has used.
+  if (!noAuth) { const raised = usage.reconcile(await usageFromLog((after, limit) => handle.log.since(after, limit) as never, owners.all())); if (raised) io.out(`  usage counts raised from the log for ${raised} tenant(s)`); }
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);

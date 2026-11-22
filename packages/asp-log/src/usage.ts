@@ -8,6 +8,28 @@ export interface Usage { records: number; bytes: number }
 /** Reads and writes a tenant made in one UTC month (DK1474, S1416): counted by the service request layer, because a read is not in the log. */
 export interface MonthUsage { reads: number; writes: number }
 
+/**
+ * What the log holds for each tenant: every record counted to the tenant that owns its issuer (the owner store lists the identities a tenant wrote as), with its size as the service counts it (the JSON of the
+ * record). Records whose issuer no tenant owns are counted to nobody. Reads the log in pages, so it does not hold it in memory.
+ */
+export async function usageFromLog(since: (after: number, limit: number) => Promise<{ seq: number; record: unknown & { issuer?: string } }[]>, owners: Record<string, string[]>): Promise<Record<string, Usage>> {
+  const tenantOf = new Map<string, string>();
+  for (const [tenant, dids] of Object.entries(owners)) for (const d of dids) if (!tenantOf.has(d)) tenantOf.set(d, tenant);
+  const out: Record<string, Usage> = {};
+  for (let after = 0; ; ) {
+    const page = await since(after, 500);
+    if (!page.length) break;
+    for (const r of page) {
+      after = r.seq;
+      const tenant = tenantOf.get((r.record as { issuer?: string }).issuer ?? "");
+      if (!tenant) continue;
+      const u = (out[tenant] ??= { records: 0, bytes: 0 });
+      u.records++; u.bytes += JSON.stringify(r.record).length;
+    }
+  }
+  return out;
+}
+
 export class UsageStore {
   private data: Record<string, Usage> = {};
   private months: Record<string, Record<string, MonthUsage>> = {};
@@ -47,6 +69,22 @@ export class UsageStore {
     u.records += records; u.bytes += bytes;
     this.data[name] = u;
     this.save();
+  }
+
+  /**
+   * Raises each tenant's counts to what the log itself holds for it (gap O17): the records whose issuer is an identity the tenant wrote as, and their size. The counts never go down: a tenant that wrote records
+   * the log cannot attribute to it (an identity it no longer holds) keeps what the service counted. Returns how many tenants were raised. Called once when the service starts, so a lost or fresh usage file, or
+   * records that were in the log before the service counted, do not give a tenant a quota it has already used.
+   */
+  reconcile(fromLog: Record<string, Usage>): number {
+    let raised = 0;
+    for (const [name, found] of Object.entries(fromLog)) {
+      const u = this.data[name] ?? { records: 0, bytes: 0 };
+      const records = Math.max(u.records, found.records), bytes = Math.max(u.bytes, found.bytes);
+      if (records !== u.records || bytes !== u.bytes) { this.data[name] = { records, bytes }; raised++; }
+    }
+    if (raised) this.flush();
+    return raised;
   }
 
   /** Forgets a tenant's counts (its account closed). */
