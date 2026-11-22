@@ -68,7 +68,7 @@ test("asp run --local: the same governed session with no service and no account,
     // A local session has no ledger (no service, no account), so its summary has no credits line; one with a service shows credits in every summary (run-quota-full.test.ts).
     assert.doesNotMatch(local.out + "\n" + local.err, /credit/i, "a local session has nothing to say about credits");
     // A refusal says what to do next, with the host the command used (a newcomer is stuck without it, UC-137).
-    assert.match(local.out, /to allow {2}this session has no network\. To let it reach a host, name it:\n {12}asp run claude-code --allow-network example\.com --prompt/);
+    assert.match(local.out, /to allow {2}the gateway refuses calls that reach the network for this session\. To let it reach a host, name it:\n {12}asp run claude-code --allow-network example\.com --prompt/);
     assert.ok(!/tool_use:Bash/.test(local.out), "the call never reached the agent");
     const lhome = join(f.aspHome, "local");
     assert.ok(existsSync(join(lhome, "keys")) && existsSync(join(lhome, "local-identities.json")));

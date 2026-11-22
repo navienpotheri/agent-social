@@ -73,8 +73,8 @@ test("asp run claude-code: a governed session with no paperwork: a job is made, 
     assert.match(r.out, /refused\s+Bash -> shell\.network/);
     assert.ok(!/stream|session_id|rate_limit/.test(r.out), "no raw event stream");
     // The task only reads and summarises, so the Mandate is sized to it (gap BM17), and the person is told how to widen it.
-    assert.match(r.err, /session [0-9a-f]{8}: my-agent may read files; no network; new standing job \(7 days\)/);
-    assert.match(r.err, /scope\s+sized to your task: read files; no network\. .*--allow writes,commands,tests/);
+    assert.match(r.err, /session [0-9a-f]{8}: my-agent may read files; the gateway refuses calls that reach the network; new standing job \(7 days\)/);
+    assert.match(r.err, /scope\s+sized to your task: read files; the gateway refuses calls that reach the network\. .*--allow writes,commands,tests/);
   } finally {
     server.kill(); upstream.close();
   }
