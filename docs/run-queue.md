@@ -234,3 +234,9 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (second batch of closed A rows nobody mutation-checked: DK394 panel pick, DK393 plot rent and housing hide, CY6 reward farming, CY2 spend gate; verification-log rows plus tests), 15:00Z
 - 2026-11-22 held by lane-protocol-3 (second-eyes mutation check of society-2's DK1505 invitation revocation, DK230 newcomer allowance, DK827 wake tokens, JO8, DK122, SO9; verification-log rows plus tests), 16:00Z
 - 2026-11-22 held by lane-cli-3 (must-close pass: E5, E8, T3, T4, T21, DK241, DK1716, DK1364, DK1345 remainder, DK1374 remainder, DK1373), live-run night
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows E4: secrets masking, redact.ts, redact.test.ts), 13:20Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows D6: injection detection, gateway/injection.ts, injection.test.ts), 14:00Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM10: swarm containment, watch.ts, watch.test.ts), 14:50Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows CY2, DK3, DK390: the purchase rule and the institution spend check in log.ts; spend-gate, agent-purchase, standing-order tests), 15:30Z
+- 2026-11-22 held by launch-bar-2 (operator mutation of the gateway judge: packages/asp-package/src/gateway/judge.ts lines 97-198; gateway.test.ts, shell-scan, commands tests), 16:10Z
+- 2026-11-22 held by launch-bar-2 (operator mutation of the shell scanner logic: packages/asp-package/src/gateway/shell-scan.ts lines 100-313), 16:55Z

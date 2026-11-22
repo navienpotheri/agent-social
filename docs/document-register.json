@@ -16,7 +16,7 @@
       "path": "docs/launch-bar.md",
       "audience": "internal",
       "status": "working_draft",
-      "ai_read_through": null,
+      "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -65,7 +65,7 @@
     {
       "path": "docs/live-check-kit.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-21",
       "claims_check": null,
       "owner_audience_confirmed": null,
@@ -287,7 +287,7 @@
     {
       "path": "docs/live-run-plan.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/live-run-plan.test.ts",
       "owner_audience_confirmed": null,
@@ -315,7 +315,7 @@
     {
       "path": "docs/security-review-scope.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/security-review-scope.test.ts",
       "owner_audience_confirmed": null,
@@ -325,7 +325,7 @@
     {
       "path": "docs/incident-drill.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/incident-drill.test.ts",
       "owner_audience_confirmed": null,
@@ -354,7 +354,7 @@
     {
       "path": "docs/first-15-minutes.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
