@@ -119,9 +119,11 @@ test("arrivals are staggered on the simulated clock: the second pair of agents s
   const r = await asp(base(p.url, out, 4, ["--arrivals", "staggered:2@60"]));
   assert.equal(r.code, 0, r.err + r.out);
   const { events } = traceOf(out);
-  const firstTool = (id: string) => Date.parse(events.find((e) => e.t === "tool" && e.agent === id).at);
-  const early = Math.max(firstTool("agent-01"), firstTool("agent-02")), late = Math.min(firstTool("agent-03"), firstTool("agent-04"));
-  assert.ok(late - early >= 700, `the second pair came ${late - early} ms after the first`);
+  // by the simulated clock, not by how fast this machine is: the second pair is held until simulated minute 60 (the first pair arrives at 0)
+  const arrival = (id: string) => events.find((e) => e.t === "arrival" && e.agent === id).simMs as number;
+  assert.ok(arrival("agent-03") >= 60 * 60_000 && arrival("agent-04") >= 60 * 60_000, `the second pair arrived at ${arrival("agent-03")} and ${arrival("agent-04")} simulated ms`);
+  const order = events.filter((e) => e.t === "arrival").map((e) => e.agent);
+  assert.ok(order.indexOf("agent-01") < order.indexOf("agent-03") && order.indexOf("agent-02") < order.indexOf("agent-04"), "the first pair arrived first");
   assert.equal(events.filter((e) => e.t === "end" && /^left/.test(e.reason)).length, 4);
 });
 

@@ -13,6 +13,8 @@ export interface CohortOptions {
   agents: string[];
   toolsetFor(agent: string): SocietyToolSet;
   model: string;
+  /** A model mix (ENG57): the model of one agent; absent or undefined, `model`. */
+  modelFor?: (agent: string) => string | undefined;
   /** The NAME of the environment variable that holds the provider key. The key is read from it once and never stored anywhere. */
   keyEnv: string;
   perAgentUsd: number;
@@ -93,7 +95,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
         let out: AgentOutcome;
         try {
           out = await runAgent({
-            agent, toolset, model: o.model, gatewayUrl: entry.url, limits, signal: total.signal, ...(o.economy ? { economy: o.economy } : {}),
+            agent, toolset, model: o.modelFor?.(agent) ?? o.model, gatewayUrl: entry.url, limits, signal: total.signal, ...(o.economy ? { economy: o.economy } : {}),
             ...(o.sleep ? { sleep: o.sleep } : {}),
             ...(o.toolTimeoutMs ? { toolTimeoutMs: o.toolTimeoutMs } : {}),
             observe: () => { const s = g.summary(); return { spendUsd: s.spendUsd, tokens: s.tokens, refused: s.blocked.reduce((n, b) => n + b.count, 0), ...(entry.stopped ? { stopped: entry.stopped } : {}), runLog: runLogPath }; },
