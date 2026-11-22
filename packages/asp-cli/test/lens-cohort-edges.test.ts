@@ -46,4 +46,9 @@ test("checkupRows: a clean agent is ok; an agent whose lift is gone is flagged, 
   // rows are sorted by handle, and agents that did not write back are not re-measured
   const rows = checkupRows(story([agent("b"), agent("a"), agent("c", { written_back: false })]));
   assert.deepEqual(rows.map((x) => x.handle), ["a", "b"]);
+  // the drift is chosen by a hash of the story: of two agents one has its memory emptied and the other a broad rule added. The broad rule regresses tasks (flag "regressed"); with a bigger lift then, it has also lost lift
+  const two = (lift: number) => Object.fromEntries(checkupRows(story([agent("a", { lift, after: base + lift }), agent("b", { lift, after: base + lift })])).map((x) => [x.drift, x]));
+  assert.equal(two(200)["a broad rule added since the course"].flag, "regressed", "regressions above one, lift kept");
+  assert.equal(two(1000)["a broad rule added since the course"].flag, "lift lost and regressed", "both at once");
+  assert.equal(two(200)["memory emptied since the course"].flag, "lift lost");
 });
