@@ -4,7 +4,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { examSeed, examVariant, institutionDid, prizeFor } from "../src/index.ts";
-import { Kit, SERVICES, bankP, clinic, courts, credit, hashOf, operator, refused, registrar, type Party } from "./academy-kit.ts";
+import { Kit, SERVICES, bankP, clinic, courts, credit, hashOf, operator, refused, registrar, treasury, type Party } from "./academy-kit.ts";
 
 /** Sittings of one exam by one holder, keeping the variants used so each is the one the seed gives. */
 class Sittings {
@@ -308,6 +308,19 @@ describe("the School: courses, tuition, enrolment, completion (DK24, AC-3 to AC-
     const course = (over: Record<string, unknown> = {}, cosigners: Party[] = [registrar], by: Party = author) => k.mk("course", by, body(over), null, { subject: null, cosigners });
     return { k, author, r1, r2, course };
   }
+
+  test("a course is priced by a service of the Academy, not by any item of the published list", async () => {
+    const { k, course } = await school();
+    const registry = institutionDid("registry");
+    const sp = (t: number, b: number, a: number, to: string) => ({ treasury_permille: t, burn_permille: b, payees: [{ account: to, permille: a }] });
+    const at = k.tick();
+    const first = await k.log.get(await k.priceList());
+    const items = (first!.record.body as { items: unknown[] }).items;
+    const second = k.mk("price_list", treasury, { version: 2, effective_from: new Date(Date.parse(at) + 73 * 3_600_000).toISOString().replace(/\.\d{3}Z$/, "Z"), bounds_version: 1, job_tax_permille: 50, items: [...items, { service: "registry.name.claim", institution: registry, price: 10, split: sp(150, 50, 800, registry), class: "standard" }] }, first!.id, { at });
+    await k.put(second);
+    k.addDays(4); // the 72 hours of notice pass, and the new list is in force
+    assert.equal(await refused(k.log.append(course({ price_service: "registry.name.claim" }))), "course_not_priced", "a Registry service is not a course price");
+  });
 
   test("a course needs the Registrar's countersignature, a price from the published list, and reviews from two sponsors other than the author's", async () => {
     const { k, author, r1, r2, course } = await school();

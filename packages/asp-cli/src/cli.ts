@@ -368,6 +368,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { contestCmd, ContestUsage } from "./contest-cmd.ts";
 import { MessageUsage, messageCmd } from "./message-cmd.ts";
+import { SocietyUsage, evalScenarioCmd, graderCmd, inspectCmd, missionCmd } from "./society-records-cmd.ts";
 import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
@@ -623,6 +624,10 @@ const OPTIONS = {
   "escalation-ladder": { type: "boolean" },
   unprompted: { type: "boolean" },
   "allow-unprompted": { type: "boolean" },
+  mission: { type: "string" }, goal: { type: "string" }, contributor: { type: "string" }, verified: { type: "string" }, check: { type: "string" }, difficulty: { type: "string" }, "held-out": { type: "boolean" },
+  runs: { type: "string" }, agreed: { type: "string" }, "run-set": { type: "string" }, data: { type: "string" }, scope: { type: "string" }, "granted-by": { type: "string" }, "produced-by": { type: "string" },
+  request: { type: "string" }, "requested-by": { type: "string" }, "notified-at": { type: "string" }, "delayed-notice": { type: "string" }, decoy: { type: "string" }, what: { type: "string" }, "real-secret": { type: "boolean" },
+  forbidden: { type: "string" }, "audit-permille": { type: "string" }, touches: { type: "string" }, "fleet-role": { type: "string" }, workflow: { type: "string" },
   "unprompted-cap": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
@@ -1371,6 +1376,14 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "sponsor" && sub === "statement") return await sponsorStatementCommand(home, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "mission" || cmd === "grader" || cmd === "inspect" || (cmd === "eval" && (sub === "write" || sub === "list"))) {
+      // The society records (DK1240, DK1223, DK1744, DK1221): each signs one record with the key of --by, and the log's own rules refuse what they refuse, by name.
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      const flags = { by: v.by, mission: v.mission, goal: v.goal, verifier: v.verifier, closes: v.closes, amount: v.amount, contributor: v.contributor, units: v.units, verified: v.verified, skill: v.skill, task: Array.isArray(v.task) ? v.task.join(" ") : v.task, check: v.check, difficulty: v.difficulty, "held-out": v["held-out"], as: v.as, runs: v.runs, agreed: v.agreed, "run-set": v["run-set"], did: v.did, subject: v.subject, sponsor: v.sponsor, data: v.data, grounds: v.grounds, scope: v.scope, "granted-by": v["granted-by"], panel: v.panel, expires: v.expires, "produced-by": v["produced-by"], "requested-by": v["requested-by"], request: v.request, "notified-at": v["notified-at"], "delayed-notice": v["delayed-notice"], decoy: v.decoy, text: v.text, "real-secret": v["real-secret"], forbidden: v.forbidden, "audit-permille": v["audit-permille"], case: v.case, what: v.what, evidence: v.evidence, finding: v.finding, agent: v.agent, touches: v.touches, summary: v.summary, json: v.json };
+      try { return await (cmd === "mission" ? missionCmd : cmd === "grader" ? graderCmd : cmd === "inspect" ? inspectCmd : evalScenarioCmd)(sub, { log: local, io, now, signerFor, flags } as never); }
+      catch (e) { if (e instanceof SocietyUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "message") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
@@ -6408,6 +6421,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
       // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
       ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
+      // A role in a fleet (DK1231, S1608) and a workflow clause (DK1209, S1607): --fleet-role router|worker|watchdog, --workflow <a JSON file of { states, start, transitions, terminal }>.
+      ...((() => { const r = v["fleet-role"]; if (r === undefined) return {}; if (r !== "router" && r !== "worker" && r !== "watchdog") throw new UsageError("--fleet-role is router, worker or watchdog"); return { role: r }; })()),
+      ...((() => { const wf = v.workflow; if (wf === undefined) return {}; let clause: unknown; try { clause = JSON.parse(readFileSync(resolve(io.cwd, wf), "utf8")); } catch (e) { throw new UsageError(`--workflow ${wf} is not a readable JSON file: ${(e as Error).message}`); } const c = clause as { states?: unknown; start?: unknown; transitions?: unknown }; if (!Array.isArray(c.states) || typeof c.start !== "string" || !Array.isArray(c.transitions)) throw new UsageError("--workflow is a JSON object with states, start and transitions (and optionally terminal)"); return { workflow: clause }; })()),
       // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
       ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
       // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.

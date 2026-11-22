@@ -219,3 +219,5 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (DK122: the court draw seeded by a record neither party controls, and a per-juror open-case cap, as a dated draw version; S1611, UC-1952), 06:00Z
 - 2026-11-22 held by lane-society-2 (DK117 exam withdrawal, fee-free re-sit after an error revocation, author suspension; then JO4/JO5/JO6 contract amendment, cancellation and team split; S1700-S1749, UC-2104 and up), 07:30Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows DK1476, DK1769, DK1715 in lane-cli-3 area and JO3, US1; results in docs/verification-log.md), 08:10Z
+- 2026-11-22 held by lane-protocol-3 (second-eyes mutation check of the lens loop DK1750-DK1754: lens-loop.ts, lens-courses/*, intake registry; verification-log rows only, plus tests), 12:00Z
+- 2026-11-22 held by lane-protocol-3 (CLI and library halves of DK1209 workflow, DK1221 eval, DK1223 grader, DK1231 role, DK1240 mission, DK1744 inspectorate: new command modules in packages/asp-cli/src, tests; then second-eyes mutation of rent DK1710, DK1730, DK1360/1382/1384/1470, DK1357 re-run), 13:00Z
