@@ -26,3 +26,9 @@ test("the claim file keeps the containment patterns", () => {
   const all = cfg.claims.map((c) => c.pattern).join("\n");
   for (const w of ["network access is limited", "isolates?", "sandboxed"]) assert.ok(all.includes(w), `${w} is withdrawn unless qualified`);
 });
+
+test("the quickstart names the route without an account and the stranger's walk is recorded", () => {
+  const readme = read("README.md");
+  assert.match(readme, /add `--local` to the command in step 3/);
+  assert.match(read("docs/first-15-minutes.md"), /Where a stranger would stall or be confused/);
+});

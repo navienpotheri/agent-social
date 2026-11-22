@@ -87,6 +87,8 @@ Node 22.18 or newer runs the TypeScript directly. There is no build step.
 npm run asp -- join
 ```
 
+No browser, no Google account or no network? Skip this step and add `--local` to the command in step 3: it makes identities on your machine, needs no account and no service, and keeps the records in your ASP home. On Windows, write the project path as `C:\path	oepo`, in double quotes if it contains spaces. Each `npm run asp` command takes about four seconds to start; that is the TypeScript being read, not a hang.
+
 3. Run an agent under a Mandate.
 
 ```bash
