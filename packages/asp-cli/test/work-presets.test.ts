@@ -50,15 +50,15 @@ test("US7: asp run --permissions research|writing|coding says in plain words wha
     const saved = () => JSON.parse(readFileSync(join(f.aspHome, "local", "project-permissions.json"), "utf8"));
     const research = await run(["--permissions", "research"]);
     assert.match(research.err, /preset\s+research: the agent may read the files in the project; it may not change a file, run a command or reach the network/, research.err);
-    assert.match(research.err, /may read files; no network/);
+    assert.match(research.err, /may read files; the gateway refuses calls that reach the network/);
     assert.deepEqual(Object.values(saved()), ["review"]);
     const writing = await run(["--permissions", "writing"]);
     assert.match(writing.err, /preset\s+writing: the agent may read and write the files in the project; it may not run a command/);
-    assert.match(writing.err, /may read and write files; no network/, writing.err);
+    assert.match(writing.err, /may read and write files; the gateway refuses calls that reach the network/, writing.err);
     assert.deepEqual(Object.values(saved()), ["write"]);
     const coding = await run(["--permissions", "coding"]);
     assert.match(coding.err, /preset\s+coding: the agent may read and write the files in the project and run its tests/);
-    assert.match(coding.err, /may read and write files, run tests; no network/);
+    assert.match(coding.err, /may read and write files, run tests; the gateway refuses calls that reach the network/);
     assert.deepEqual(Object.values(saved()), ["develop"]);
     const tr = await run(["--permissions", "translation"]);
     assert.match(tr.err, /preset\s+translation: the agent may read the files in the project and write the translated files; it may not run a command/);

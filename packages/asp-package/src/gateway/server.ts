@@ -35,6 +35,7 @@ import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
+import { ladderAtCall, ladderStep } from "../circumvention.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -61,6 +62,8 @@ export interface GatewayOptions {
   untrustedByType?: boolean;
   /** Untrusted flow (DK1713 follow-up 2): an outward call that carries a host, address, email, command or opaque string copied from a tool result, and found neither in the principal's own messages nor among the Mandate's hosts, is held for the principal. Narrower than holding every outward call after a read. */
   untrustedFlow?: boolean;
+  /** The escalation ladder at the next call (DK211; OFF by default, so a run is unchanged without it): once this run's own refusals show an agent retrying a refused scope (5 refused attempts of one scope in ten minutes: tighten; 8: quarantine), a call that reaches outside the project is held for approval (or refused when this run cannot ask) and under quarantine everything but reading is refused. The same retry reading `ladderStep` makes from the log, made in-run. */
+  escalationLadder?: boolean;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
@@ -369,6 +372,15 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** Judges one call; records it. Returns the refusal reason when it is refused. */
   const sessionRecord = new SessionRecord();
   const attempts = new Attempts();
+  /** Refusals by scope with their times, for the escalation ladder (opt-in). */
+  const refusalStamps = new Map<string, number[]>();
+  const ladderNow = (): { step: ReturnType<typeof ladderStep>["step"]; why: string } => {
+    const now = Date.now();
+    let retry = 0, scope = "";
+    for (const [k, ts] of refusalStamps) { const n = ts.filter((t) => now - t < 600_000).length; if (n > retry) { retry = n; scope = k; } }
+    if (!retry) return { step: "none", why: "no refused action was retried" };
+    return ladderStep([{ kind: "retry", issuer: "this run", scope, attempts: retry, firstAt: "", lastAt: "", contracts: [] }], 0);
+  };
   let circumventions = 0;
   const breaker = opts.loop && (opts.loop.equivalentCalls !== undefined || opts.loop.depth !== undefined || opts.loop.dailyTokens !== undefined) ? new GatewayBreaker(opts.loop) : undefined;
   let loopTold = false;
@@ -454,6 +466,17 @@ export function createGateway(opts: GatewayOptions): Gateway {
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
     }
+    // The escalation ladder (DK211), only when asked for: what this run's own refusals call for decides the next call.
+    if (opts.escalationLadder && allow && j.scope) {
+      const { step, why: stepWhy } = ladderNow();
+      const l = ladderAtCall(step, gated && gateScope ? gateScope : j.scope);
+      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}); tell your principal what you need and why`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
+      else if (l.action === "hold") {
+        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, gated && gateScope ? gateScope : j.scope) : { approved: false as boolean, reason: "this run cannot ask for approval" };
+        rec?.event("ladder", { step, action: a.approved ? "held_then_approved" : "held_then_refused", scope: j.scope });
+        if (!a.approved) { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}) and the approval was not given${a.reason ? `: ${a.reason}` : ""}`; }
+      }
+    }
     // Brute force and scanning (gap H1): a command that reads as guessing credentials or probing ports is refused, and it is a strike: a network scope does not allow it.
     if (allow && j.scope === "shell.network") {
       const bad = commandAbuse(commandOf(call.args) ?? "");
@@ -473,6 +496,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     // the same kind of thing in ten minutes is called what it is.
     if (!allow) {
       const attempt = attempts.refused(j.scope || call.name);
+      if (opts.escalationLadder) { const k = j.scope || call.name; const ts = refusalStamps.get(k) ?? []; ts.push(Date.now()); refusalStamps.set(k, ts.slice(-50)); }
       reason = `${(reason ?? "outside the Mandate").replace(/\.$/, "")}. ${explainRefusal(reason ?? "", j.scope, attempt)}`;
       // The third refused attempt at one kind of thing in ten minutes is recorded as what it is: repeated circumvention is itself a violation (Article 8), in the run log the Action commits to.
       if (attempt >= 3) { circumventions++; rec?.event("circumvention", { scope: j.scope || call.name, attempts: attempt, article: 8 }); }

@@ -213,7 +213,7 @@ export function printReport(r: Report, out: (l: string) => void): void {
   out(`  runtime     ${r.runtime}; started ${r.started}${r.ended ? `, ended ${r.ended}` : ""}`);
   out(`  task        ${r.task}`);
   out(`  identities  sponsor ${r.identities.sponsor}; agent ${r.identities.agent}; bank ${r.identities.bank}`);
-  out(`  mandate     ${r.mandate.scopes.join(", ") || "none"}${r.mandate.hosts.length ? `; network to ${r.mandate.hosts.join(", ")}` : "; no network"}`);
+  out(`  mandate     ${r.mandate.scopes.join(", ") || "none"}${r.mandate.hosts.length ? `; network to ${r.mandate.hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}`);
   out(`  calls       ${r.calls.judged} judged: ${r.calls.allowed} allowed, ${r.calls.refused} refused`);
   for (const f of r.calls.refusals.slice(0, 12)) out(`    refused   ${f.tool ? `${f.tool} -> ${f.scope || "no scope"}: ` : ""}${f.reason}`);
   if (r.calls.refusals.length > 12) out(`    ... ${r.calls.refusals.length - 12} more in the run log`);
