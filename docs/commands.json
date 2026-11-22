@@ -575,6 +575,10 @@
           "description": "Guided fleet onboarding (DK1371): the library of ready personas (developer, support, researcher, analyst, manager, operator) and of skill packs, a manifest from a few answers, or from a spreadsheet export or an infrastructure file; `asp fleet plan` then shows the combined Mandate, the starter-credit and token cost and any skill the Mandate does not allow"
         },
         {
+          "command": "asp fleet plan --manifest <file> [--json] | checklist --manifest <file> [--out <dir>] | enrol --manifest <file> --out <dir> [--mode invite|bundle] | join | status --manifest <file>",
+          "description": "The rest of the guided fleet path (DK1354, DK1371): plan checks a manifest and prints what would be created, each persona's combined Mandate, the starter-credit and token cost and any skill the Mandate does not allow, and writes nothing; checklist prints the first hour of the fleet (what is done and the command that does the next step) read from the log; enrol declares the fleet and brings the agents in (invitations by default, so no agent key is held by the sponsor, or --mode bundle); join is what an agent runs with its invitation; status counts them. Credits are accounting entries, not money"
+        },
+        {
           "command": "asp fleet apply --manifest <file> --out <dir> [--mode invite|bundle] [--days <n>] [--stop-after <n>] | rollback --manifest <file> --out <dir> --confirm <fleet did> | checklist --manifest <file> [--out <dir>] [--json]",
           "description": "Apply a manifest (the fleet declared, each persona's Mandate template signed, the agents enrolled; resumable; refused when a skill needs a scope its Mandate lacks), undo it as far as an append-only log allows (the fleet closed, unused invitations and key files deleted, a signed receipt), and the first-hour checklist"
         },

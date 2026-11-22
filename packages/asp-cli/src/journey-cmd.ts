@@ -32,6 +32,7 @@ export function renderJourneyText(j: Journey): string[] {
     if (c.usd) out.push(`  estimated cost: $${c.usd.estimate.toFixed(4)} over ${c.usd.actionsPriced} Action(s)${c.usd.actionsAssumed ? `, ${c.usd.actionsAssumed} of them at an assumed (high) price because the model is not in the table` : ""}; an estimate from tokens and a price table, never a bill`);
     if (c.cap) out.push(`  cap: ${c.cap.state}${c.cap.monthlyTokens !== null ? `; month ${c.tokens.month} of ${c.cap.monthlyTokens} tokens${c.cap.monthPercent !== null ? ` (${c.cap.monthPercent}%)` : ""}` : ""}${c.cap.dailyTokens !== null ? `; today ${c.tokens.today} of ${c.cap.dailyTokens}${c.cap.dayPercent !== null ? ` (${c.cap.dayPercent}%)` : ""}` : ""}; a run past a cap is refused by the gateway`);
   }
+  if (j.fleet_first_hour) { const h = j.fleet_first_hour; out.push(`  first hour of your fleet: ${h.done} of ${h.of} done${h.items.some((x) => !x.done) ? `; next: ${h.items.find((x) => !x.done)!.next}` : ""}`); }
   for (const st of j.steps) {
     out.push(`  ${st.at.slice(0, 16).replace("T", " ")}  [${st.institution}]  ${st.text}${st.tokens ? `  [${st.tokens.in + st.tokens.out} tokens]` : ""}${st.with.length ? `  (with ${st.with.join(", ")})` : ""}`);
     if (st.detail) for (const line of st.detail.split("\n")) out.push(`      | ${line}`);

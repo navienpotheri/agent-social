@@ -14,6 +14,7 @@
  */
 import { reasonsFor, type AdverseAct } from "./reasons.ts";
 import { fleetDirectory, fleetOfAgent } from "./fleets.ts";
+import { fleetDashboard, type FleetDashboard } from "./fleet-dashboard.ts";
 import type { AspRecord } from "@agent-social/asp-core";
 import { controlMapOf } from "./farming.ts";
 import { relatedKind, type PartyFacts, type RelatedKind } from "./qualifying.ts";
@@ -123,6 +124,8 @@ export interface Journey {
   cost?: JourneyCost;
   /** What the agent was asked, thought and planned (DK1345, from the gateway's cognition tap): present in the sponsor view only. */
   cognition?: JourneyCognition;
+  /** The first-hour checklist of the fleet this agent belongs to (DK1371): present in the sponsor view only, and only for an agent of a declared fleet. */
+  fleet_first_hour?: FleetDashboard["firstHour"];
 }
 
 /** What the sponsor's own machine knows about the agent's cap (the standing budget of `asp budget`, DK1347): a cap in tokens a day and a month, and the warning level in percent. */
@@ -444,7 +447,7 @@ export function journeyOf(inp: JourneyInput, nameOrDid: string, view: "public" |
   const bal = inp.balances?.get(did);
   const fleetMark = fleetOfAgent(fleetDirectory(inp.stored), did);
   return {
-    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(view === "sponsor" && inp.cognition ? { cognition: cognitionOf(inp.cognition) } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET, reasons: reasonsFor(inp.stored.map((s) => s.record as never), did, view),
+    name: agent.name, label: labelOf(did), did, view, house: agent.house, level: agent.kind, joined: agent.joined, steps, summary: sum, ...(fleetMark ? { fleet: fleetMark } : {}), ...(cost ? { cost } : {}), ...(view === "sponsor" && fleetMark ? (() => { try { const d = fleetDashboard(inp.stored, fleetMark.id, { month: inp.now.slice(0, 7), now: inp.now, pageSize: 1 }); return d ? { fleet_first_hour: d.firstHour } : {}; } catch { return {}; } })() : {}), ...(view === "sponsor" && inp.cognition ? { cognition: cognitionOf(inp.cognition) } : {}), ...(bal !== undefined ? { balance: bal } : {}), not_recorded: NOT_RECORDED, not_yet: NOT_YET, reasons: reasonsFor(inp.stored.map((s) => s.record as never), did, view),
     note: view === "sponsor" ? "sponsor view: includes the text the agent's records and forum posts carry; credits are accounting entries, not money" : "public view: names, institutions, kinds of act and amounts only, no free text; credits are accounting entries, not money",
   };
 }
