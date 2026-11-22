@@ -5706,6 +5706,167 @@
       "valid": false
     },
     {
+      "name": "valid_grader_agreement",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_grader_agreement_skill",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "skill": "foundations"
+      },
+      "valid": true
+    },
+    {
+      "name": "grader_agreement_zero_runs",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 0,
+        "agreed": 0,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_negative_agreed",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": -1,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_short_hash",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "ab"
+      },
+      "valid": false
+    },
+    {
+      "name": "grader_agreement_a_weight_field",
+      "schema": "grader_agreement",
+      "instance": {
+        "runs": 40,
+        "agreed": 37,
+        "run_set_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+        "weight": 900
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mission",
+      "schema": "mission",
+      "instance": {
+        "mission": "find-the-bug",
+        "goal_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "verifier": "did:web:example.com:users:alice",
+        "closes_at": "2026-12-01T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "mission_bad_id",
+      "schema": "mission",
+      "instance": {
+        "mission": "Find The Bug",
+        "goal_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "verifier": "did:web:example.com:users:alice",
+        "closes_at": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "mission_no_verifier",
+      "schema": "mission",
+      "instance": {
+        "mission": "m",
+        "goal_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "closes_at": "2026-12-01T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mission_fund",
+      "schema": "mission_fund",
+      "instance": {
+        "mission": "find-the-bug",
+        "amount": {
+          "value": 50,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mission_fund_no_amount",
+      "schema": "mission_fund",
+      "instance": {
+        "mission": "find-the-bug"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mission_contribution",
+      "schema": "mission_contribution",
+      "instance": {
+        "mission": "find-the-bug",
+        "contributor": "did:web:example.com:agents:coder-7",
+        "units": 3
+      },
+      "valid": true
+    },
+    {
+      "name": "mission_contribution_zero_units",
+      "schema": "mission_contribution",
+      "instance": {
+        "mission": "find-the-bug",
+        "contributor": "did:web:example.com:agents:coder-7",
+        "units": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mission_settle",
+      "schema": "mission_settle",
+      "instance": {
+        "mission": "find-the-bug",
+        "verified": true
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_mission_settle_unverified",
+      "schema": "mission_settle",
+      "instance": {
+        "mission": "find-the-bug",
+        "verified": false
+      },
+      "valid": true
+    },
+    {
+      "name": "mission_settle_not_boolean",
+      "schema": "mission_settle",
+      "instance": {
+        "mission": "find-the-bug",
+        "verified": "yes"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ladder_season",
       "schema": "ladder_season",
       "instance": {

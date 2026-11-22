@@ -24,7 +24,7 @@ export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type Hando
 export { starterSpendOf, type StarterSpendReport, RAISE_RUNOUT_SHARE, MATURE_DAYS, STOPPED_DAYS, MIN_COHORT } from "./starter-spend.ts";
 export { computeGuardReport, type GuardMeasure, type GuardReport, type GuardUnavailable } from "./guard-monitor.ts";
 export { PostgresStore, migrate } from "./postgres.ts";
-export { DEFAULT_PANEL_SIZE, drawPanel, findRejection, noteFunder, noteJurorService, JUROR_STAKE_PER_CASE, JUROR_CASE_WINDOW_DAYS, PANEL_DRAW_V2_FROM, panelDrawIsV2, type PanelSource } from "./panel.ts";
+export { DEFAULT_PANEL_SIZE, disputeSeedV3, SEED_CONTROLLERS, JUROR_CASELOAD_CAP, JUROR_CASELOAD_WINDOW_DAYS, PANEL_DRAW_V3_FROM, panelDrawIsV3, drawPanel, findRejection, noteFunder, noteJurorService, JUROR_STAKE_PER_CASE, JUROR_CASE_WINDOW_DAYS, PANEL_DRAW_V2_FROM, panelDrawIsV2, type PanelSource } from "./panel.ts";
 export {
   GENESIS_LOG_HASH,
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,

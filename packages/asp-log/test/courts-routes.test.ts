@@ -17,8 +17,8 @@ const TEXT_HASH = createHash("sha256").update(charterText).digest("hex");
 const defined = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 const iso = (ms: number) => new Date(ms).toISOString().replace(".000Z", "Z");
 
-async function world(o: { jurors?: number } = {}) {
-  const k = await kit();
+async function world(o: { jurors?: number; v3?: boolean } = {}) {
+  const k = await kit(o.v3 ? { panelV2From: "2020-01-01T00:00:00Z", panelV3From: "2020-01-01T00:00:00Z" } : {});
   await k.withPrices();
   const jurors: Party[] = [];
   for (let i = 0; i < (o.jurors ?? 9); i++) {
@@ -270,6 +270,41 @@ describe("appeals (CT-10 to CT-12, DK13)", () => {
     assert.equal(await refusedBy(w.log.append(sign(panel.slice(0, 3), body({ reasons: ["again"] })))), "appeal_decided");
     assert.equal(d.price, 80);
     assert.equal((await w.log.precedentIndex())[0].appeal?.outcome, "reversed", "the precedent store shows that the ruling was reversed on appeal");
+  });
+
+  test("v3 (DK122): the appeal panel is not drawn until three other controllers have recorded after the appeal, and the appellant's wording does not seed it", async () => {
+    const w = await world({ v3: true });
+    const others = async (n: number, tag: string) => { for (let i = 0; i < n; i++) await w.person(`${tag}-${i}`, 10); };
+    const d = await w.dispute(80);
+    await others(2, "pre");
+    const { record: ruling } = await w.rule(d, "for_principal", {}, 2);
+    await w.log.append(ruling);
+    const signers1 = [ruling.sig.kid, ...(ruling.cosigs ?? []).map((c) => c.kid)].map((k) => k.split("#")[0]);
+    const appeal = await appealRec(w, w.performer, ruling.id);
+    await w.log.append(appeal);
+    const { drawPanel, disputeSeedV3 } = await import("../src/index.ts");
+    const seedNow = () => (w.log.store as never as { transaction<T>(f: (tx: never) => Promise<T>): Promise<T> }).transaction((tx) => disputeSeedV3(tx, d.contract, appeal.id, [w.principal.did, w.performer.did, w.performer.did]));
+    const [first, ...rest] = w.jurors.filter((j) => !signers1.includes(j.did)).slice(0, 3);
+    const body = { act: "appeal_ruling", appeal: appeal.id, outcome: "affirmed", reasons: ["decided on the record"], code: CODE };
+    // before three others have recorded: not drawn, and the ruling is refused for that reason
+    const early = () => { let r = mk("court_act", first, body, null); for (const x of rest) r = cosign(r, x as Signer); return r; };
+    assert.equal(await seedNow(), undefined, "no one else has recorded since the appeal");
+    assert.equal(await refusedBy(w.log.append(early())), "panel_not_drawn");
+    // records of the parties and of the performer's sponsor are not third controllers
+    await w.agent("v3-extra", w.sponsor, { funds: 0 });
+    await w.log.append(mk("juror", w.principal, { did: w.principal.did, stake: credit(30) }, null));
+    assert.equal(await seedNow(), undefined, "the claimant, the sponsor's new agent and the operator's grant are not three others");
+    await others(2, "post");
+    const seed = await seedNow();
+    assert.ok(seed, "three controllers have recorded since the appeal (the new people and the operator's grants)");
+    const panel = await (w.log.store as never as { transaction<T>(f: (tx: never) => Promise<T>): Promise<T> }).transaction((tx) => drawPanel(tx, { principal: w.principal.did, performer: w.performer.did, seed: seed!, size: DEFAULT_ROUTES.appeal_panel, exclude: signers1, at: new Date().toISOString(), v2: true, v3: true }));
+    assert.equal(panel.length, 5);
+    assert.ok(panel.every((p) => !signers1.includes(p)));
+    const [f2, ...r2] = panel.slice(0, 3).map((x) => w.byDid.get(x)!);
+    let ok = mk("court_act", f2, body, null);
+    for (const x of r2) ok = cosign(ok, x as Signer);
+    await w.log.append(ok);
+    assert.ok(await w.log.get(ok.id), "the panel drawn from the other controllers' records hears it");
   });
 
   test("the fee is returned when the appeal reverses or varies the ruling, and not when it is affirmed", async () => {
