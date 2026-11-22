@@ -32,6 +32,15 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   const path = url.pathname.replace(/\/+$/, "");
   const notFound = (what: string): PublicReply => ({ status: 404, json: { ok: false, error: { code: "NOT_FOUND", message: `${what} is not in the register` } } });
   let m: RegExpExecArray | null;
+  if ((m = /^\/registry\/agents\/(.+)\/path$/.exec(path))) {
+    const id = decodeURIComponent(m[1]);
+    const at = url.searchParams.get("at");
+    if (at !== null && Number.isNaN(Date.parse(at))) return { status: 400, json: { ok: false, error: "at is a time, like 2026-11-21T12:00:00Z" } };
+    const page = await log.registryPage(id);
+    const way = page ? await log.careerPath(page.did, at ?? undefined) : null;
+    if (!way) return notFound(id);
+    return { status: 200, json: { ok: true, result: way } };
+  }
   if ((m = /^\/registry\/agents\/(.+)\/record$/.exec(path))) {
     const id = decodeURIComponent(m[1]);
     const rec = await log.agentRecord(id, url.searchParams.get("at") ?? undefined);

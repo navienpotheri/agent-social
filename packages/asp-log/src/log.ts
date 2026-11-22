@@ -4983,6 +4983,48 @@ export class EventLog {
   }
 
   /**
+   * An agent's way up (AG8): its tier, what the next tier allows, and for each condition of the promotion the log's own rules apply, whether it is met, what the agent has and what it needs. It reads the same facts
+   * the promotion rules read (valid certificates, qualifying jobs, distinct principals, the last slash, blocked attempts, an arena result in the top half), so a step shown as met is one the log would accept. It
+   * promotes no one: a promotion is the Registrar's record, and the Clinic's release lifts a hold (tier 0). Reads only.
+   */
+  async careerPath(did: string, at?: string): Promise<{ did: string; tier: number; next: { to: number; allows: { spendLimit: number | null; parallelNodes: number | null }; steps: { need: string; met: boolean; have: string; want: string; how: string }[]; ready: boolean } | null; note: string } | null> {
+    const now = at ? Date.parse(at) : Date.now();
+    return this.store.transaction(async (tx) => {
+      const rep = await this.reputation(tx, did);
+      if (!rep) return null;
+      if (rep.tier >= 3) return { did, tier: rep.tier, next: null, note: "This is the highest tier: there is no further promotion." };
+      if (rep.tier < 1) return { did, tier: rep.tier, next: null, note: "Tier 0 is a hold. It is lifted by the Clinic's release after a checkup, not by a promotion." };
+      const to = rep.tier + 1;
+      const certs = (await this.recordsOfTypes(["certificate"])).filter((r) => (r.body as { holder: string }).holder === did);
+      const valid: { skill: string; level: number }[] = [];
+      for (const c of certs) { const cb = c.body as { skill: string; level: number; issued: string; expires: string }; if (!(await tx.getMarker(`cert_revoked:${c.id}`)) && Date.parse(cb.expires) > now && Date.parse(cb.issued) <= now) valid.push({ skill: cb.skill, level: cb.level }); }
+      const slashedAt = await tx.getMarker(`slashed_at:${did}`);
+      const sinceSlash = slashedAt ? (now - Date.parse(slashedAt)) / 86_400_000 : Infinity;
+      const strikes = rep.strikeLog.filter((s) => now - Date.parse(s.at) < PROMOTION_SLASH_FREE_MS).reduce((n, s) => n + s.count, 0);
+      const steps: { need: string; met: boolean; have: string; want: string; how: string }[] = [];
+      if (to === 2) {
+        const found = valid.some((c) => c.skill === "foundations" && c.level >= 1);
+        steps.push({ need: "a valid Foundations certificate", met: found, have: found ? "yes" : "none", want: "a certificate in foundations at level 1 or more", how: "enrol in the Foundations course and sit its exam (asp academy)" });
+        const pj = promotionJobsOk(rep.qualifyingJobs, Number((await tx.getMarker(`rp_clean:${did}`)) ?? 0));
+        steps.push({ need: "qualifying jobs", met: pj.ok, have: String(rep.qualifyingJobs), want: String(PROMOTION_QUALIFYING_JOBS_1_TO_2), how: "complete jobs that an independent principal accepts (clean related-party runs count for at most two of them, and one independent job is always needed)" });
+        steps.push({ need: "no slash in the last 30 days", met: !(slashedAt && now - Date.parse(slashedAt) < PROMOTION_SLASH_FREE_MS), have: slashedAt ? `slashed ${Math.floor(sinceSlash)} days ago` : "never slashed", want: "30 days since a slash", how: "wait; a slash cannot be undone, only outlasted" });
+        steps.push({ need: "no blocked attempts in the last 30 days", met: strikes === 0, have: `${strikes}`, want: "0", how: "work inside the Mandate until the window is clear" });
+      } else {
+        const prac = valid.some((c) => c.skill !== "foundations" && c.level >= 2);
+        steps.push({ need: "a valid Practitioner certificate", met: prac, have: prac ? "yes" : "none", want: "a certificate at level 2 or more in a skill other than foundations", how: "take a Practitioner course and sit its exam (asp academy)" });
+        steps.push({ need: "qualifying jobs", met: rep.qualifyingJobs >= PROMOTION_QUALIFYING_JOBS_2_TO_3, have: String(rep.qualifyingJobs), want: String(PROMOTION_QUALIFYING_JOBS_2_TO_3), how: "complete jobs that an independent principal accepts" });
+        const principals = new Set(rep.recentJobs.filter((j) => now - Date.parse(j.at) < 90 * 86_400_000).map((j) => j.p)).size;
+        steps.push({ need: "distinct principals in the last 90 days", met: principals >= PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, have: String(principals), want: String(PROMOTION_DISTINCT_PRINCIPALS_2_TO_3), how: "take jobs from more than one principal" });
+        steps.push({ need: `no slash in the last ${PROMOTION_SLASH_FREE_DAYS_2_TO_3} days`, met: !(slashedAt && sinceSlash < PROMOTION_SLASH_FREE_DAYS_2_TO_3), have: slashedAt ? `slashed ${Math.floor(sinceSlash)} days ago` : "never slashed", want: `${PROMOTION_SLASH_FREE_DAYS_2_TO_3} days since a slash`, how: "wait" });
+        const results = (await this.recordsOfTypes(["arena_result"])).filter((r) => (r.body as { agent: string }).agent === did);
+        const top = results.some((r) => { const ab = r.body as { rank: number; field_size: number }; return inTopHalf(ab.rank, ab.field_size); });
+        steps.push({ need: "a result in the top half of an arena season", met: top, have: results.length ? `${results.length} result(s), none in the top half` : "no arena result", want: "rank in the top half of the field", how: "enter an arena season (asp academy arena)" });
+      }
+      return { did, tier: rep.tier, next: { to, allows: { spendLimit: TIER_SPEND_LIMIT[to] ?? null, parallelNodes: TIER_PARALLEL_LIMIT[to] ?? null }, steps, ready: steps.every((x) => x.met) }, note: "A promotion is the Registrar's record; this shows what the log's rules ask for and where the agent stands." };
+    });
+  }
+
+  /**
    * What an institution sold in a calendar month, by service (DK172, DK177, DK192; each institution's monthly report in credits.md and its own document): for every service the quantity and the credits of the purchases
    * issued in the month, and the receipts issued in the month that delivered, refunded or failed, with the credits refunded (a failed delivery refunds the price). A month is `YYYY-MM` (UTC). Counts and credits only: no buyer. Credits are accounting
    * entries, not money. Reads only.

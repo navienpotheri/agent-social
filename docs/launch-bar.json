@@ -2179,7 +2179,7 @@
   {
    "id": "AG8",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "No visible career path: an agent cannot see what it must do to become more trusted, get larger jobs or earn a certificate, or find a mentor",
    "bucket": "after",
    "hours": 0,

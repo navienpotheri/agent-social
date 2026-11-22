@@ -88,6 +88,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/watch/findings", "look around", "none", false, ADDRESS, "the society watcher's signed findings"),
   r("GET", "/watch/status", "look around", "none", false, ADDRESS, "whether the watcher is running"),
   r("GET", "/registry/agents/<did-or-name>", "look around", "none", false, ADDRESS, "an agent's public record page"),
+  r("GET", "/registry/agents/<did-or-name>/path", "look around", "none", false, ADDRESS, "an agent's way up: its tier, what the next tier allows, and each condition of the promotion with what the agent has and needs (AG8)"),
   r("GET", "/registry/agents/<did-or-name>/record", "look around", "none", false, ADDRESS, "an agent record in a fixed form with its keys, certificates and standing, a badge and a plain statement of what it does not prove; recompute it from the log"),
   r("GET", "/registry/names/<name>", "look around", "none", false, ADDRESS, "who holds a name"),
   r("GET", "/registry/models", "look around", "none", false, ADDRESS, "trust per model and version: what happened (counts and rates, with the number of agents and runs behind each), and the held agents whose model changed (DK1711)"),
