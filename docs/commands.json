@@ -34,6 +34,10 @@
           "description": "List your recent sessions: what ran, how many calls, how many were refused; --html-file writes them as one self-contained page you can keep or print (what was asked, how it ended, each refusal and its reason; no script, no external file)"
         },
         {
+          "command": "asp cohort run --toolset <module> [--agents 15] [--model claude-haiku-5-5] [--key-env ANTHROPIC_API_KEY] [--per-agent-usd 0.40] [--total-usd 6] [--max-turns n] [--minutes n] [--parallel n] [--run-dir <dir>] [--yes]",
+          "description": "Runs the model-backed society cohort (DK1801; docs/society-models-run.md): one agent loop for each agent against the Anthropic Messages API through its own gateway, so the per-agent dollar cap, the loop breaker, the refusals and a run log apply. --toolset names the society worker's tool set (a module exporting toolsetFor(agent)). The provider key is read from the environment variable named by --key-env and from nowhere else; it is never printed or written. Without --yes it prints the plan and the most it could cost and calls nothing. The run is a session: asp runs lists it, asp stop --all ends it. Costs are estimates from the tokens each reply reports, never the provider's bill"
+        },
+        {
           "command": "asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]",
           "description": "Tie a piece of work to where it came from (T11): writes a statement, signed by the agent's own key, with the SHA-256 of each file (relative to the folder the statement is written in), the contract, its Mandate and the head of the run log that recorded the run, when this machine has them. A platform feature, not a protocol record"
         },
