@@ -117,6 +117,8 @@ cat /etc/asp/deployed-commit
 
 *Settles:* DK95 (signed adoption of the unsigned mints) and DK9 (the ledger invariant against the live service).
 
+**Which DIDs.** `asp status` does not print an operator or an owner. On your own machine, in the window you use for the sign kit, run `npm run asp -- status`: the `person` line is your DID (for you `did:web:log.thedeeptransformation.com:u:navien-agentrun`). For a one-person service that one DID is both the operator and the owner: use it for `THE-OPERATOR-DID` and `THE-OWNER-DID` below, and in the same window set `$env:ASP_OPERATOR_DID` and `$env:ASP_OWNER_DID` to it (or write `{"operator":"<did>","owner":"<did>"}` to `operator.json` in your ASP home) so that `asp credits grant --by`, `asp credits adopt --by ... --cosign-by ...`, `asp credits ratify --by` and `asp house create` find it. Its key is the one already in the `keys` folder of your ASP home; the server never holds it. The log resolves a signer's key from that identity's passport in the log, which your tenant's person already has. A separate operator identity is optional and later: `npm run asp -- identity new --kind human --did <a did in your namespace>`, then `npm run asp -- identity register <did>` (not exercised against the hosted namespace).
+
 **Do.** On the server, name the two DIDs of decision 7 in the environment file (the DIDs, not the keys), then restart:
 
 ```bash
