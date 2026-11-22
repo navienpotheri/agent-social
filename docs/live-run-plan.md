@@ -4,6 +4,8 @@ Written 2026-11-22 for the owner, who runs it alone on the evening of 2026-11-23
 
 ## 1. Before the evening (15 minutes, once)
 
+**First step of the evening: the rehearsal.** From the repository folder run `.\scripts\evening-rehearsal.ps1` (add `-Clone` to run it in a fresh clone). It needs no key and no provider: it uses a throwaway home, a placeholder key that no provider sees, and a stand-in model server on a free local port, and it runs the real `claude` program against that stand-in when Claude Code is installed. It runs the same path as this runbook: the preflight with `--local`, one governed run with one allowed call and one refused call, `asp live report`, `asp runs`, `asp pause` and `asp resume`, and `asp stop --all`. **Green looks like** a line starting PASS for every step (15 steps on a fresh clone), no line starting FAIL, and exit code 0 (`echo $LASTEXITCODE`). Any FAIL: do not start the live run; paste the FAIL lines to the worker. A pass shows that the path works on this machine; it shows nothing about a real provider, and the live run itself is still the evidence for the rows in section 2.
+
 ```powershell
 node --version                                   # 22.18 or newer
 npm install
