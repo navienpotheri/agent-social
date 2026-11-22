@@ -6,6 +6,7 @@ import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
 import { projectInstitutionCharter, readCharter, CHARTERED } from "./institution-charters.ts";
+import { controlKeyOf, isKeyOnly, keyOnlyClassOn, unvouchedReasons } from "./key-only-class.ts";
 import { noteLock, BANK_DID as BANK_ACCOUNT, LINE_LIMIT as BANK_LINE_LIMIT, LINE_MAX_COUNTED_JOBS as BANK_MAX_JOBS, GUARANTOR_PERMILLE as BANK_GUARANTOR_PERMILLE } from "./bank.ts";
 import { projectAbuseReport } from "./abuse-report.ts";
 import { projectRefusal } from "./refusal.ts";
@@ -196,6 +197,8 @@ export interface EventLogOptions {
   treasuryReserveFloorFrom?: string;
   /** The time from which a Treasury budget for an institution needs that institution's published charter in force (DK231, TRL-16). Off when unset. */
   charterRequiredFrom?: string;
+  /** The time from which the class rules for key-only agents apply (KO1, S1654). Default `KEY_ONLY_CLASS_FROM`. */
+  keyOnlyClassFrom?: string;
   /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
   panelV3From?: string;
   /**
@@ -320,6 +323,7 @@ export class EventLog {
   private readonly panelV2From?: string;
   private readonly reserveFloorFrom?: string;
   private readonly charterRequiredFrom?: string;
+  private readonly keyOnlyClassFrom?: string;
   private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -345,6 +349,8 @@ export class EventLog {
     this.reserveFloorFrom = opts.treasuryReserveFloorFrom;
     if (opts.charterRequiredFrom !== undefined && !Number.isFinite(Date.parse(opts.charterRequiredFrom))) throw new Error(`charterRequiredFrom must be an ISO time, got ${opts.charterRequiredFrom}`);
     this.charterRequiredFrom = opts.charterRequiredFrom;
+    if (opts.keyOnlyClassFrom !== undefined && !Number.isFinite(Date.parse(opts.keyOnlyClassFrom))) throw new Error(`keyOnlyClassFrom must be an ISO time, got ${opts.keyOnlyClassFrom}`);
+    this.keyOnlyClassFrom = opts.keyOnlyClassFrom;
     if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
     this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -2023,9 +2029,10 @@ export class EventLog {
         ? `a juror update for ${body.did} must follow ${current.head}`
         : `the first juror registration for ${body.did} must start a chain`);
     }
+    { const lacks = await this.keyOnlyLacks(tx, body.did, r.issued_at); if (lacks.length) throw rule("juror_unvouched", `${body.did} is a key-only agent with no vouch from a non-self sponsor, so it does not sit as a juror yet: ${lacks.join("; ")}`); }
     // From the v2 draw date (DK365, DK271; S1012): one sponsor, or one person, registers at most JUROR_NEW_PER_DAY new jurors a day, so a source cannot raise a bench of fronts at once. A log built before the date replays as before.
     if (!current && panelDrawIsV2(this.panelV2From, r.issued_at)) {
-      const sponsor = (await tx.getPassport(body.did))?.sponsor ?? body.did;
+      const sponsor = await this.sponsorKey(tx, body.did, r.issued_at);
       const dayKey = `jurors_new:${sponsor}|${r.issued_at.slice(0, 10)}`;
       const registered = Number((await tx.getMarker(dayKey)) ?? 0);
       if (registered >= JUROR_NEW_PER_DAY) throw rule("juror_registration_limit", `${sponsor} registered ${registered} new jurors on ${r.issued_at.slice(0, 10)}; the limit is ${JUROR_NEW_PER_DAY} a day for one sponsor`);
@@ -2188,6 +2195,13 @@ export class EventLog {
     const sponsor = (await tx.getPassport(r.issuer))?.sponsor;
     if (parties.has(r.issuer) || (sponsor && parties.has(sponsor))) {
       throw rule("verifier_conflicted", `${r.issuer} is, or is sponsored by, the principal or the performer, so it cannot verify this Delivery`);
+    }
+    {
+      // A key-only agent's verifier may not be in the agent's own group, and an unvouched key-only agent verifies nothing (KO1, S1654).
+      const vk = await this.sponsorKey(tx, r.issuer, r.issued_at);
+      if (vk.startsWith("ko:") && ((await this.sponsorKey(tx, cbody.performer, r.issued_at)) === vk || (await this.sponsorKey(tx, cbody.principal, r.issued_at)) === vk)) throw rule("verifier_conflicted", `${r.issuer} and a party to this contract are key-only agents of the same group (passports made on one day): it cannot verify this Delivery`);
+      const lacks = await this.keyOnlyLacks(tx, r.issuer, r.issued_at);
+      if (lacks.length) throw rule("verifier_unvouched", `${r.issuer} is a key-only agent with no vouch from a non-self sponsor, so it does not verify yet: ${lacks.join("; ")}`);
     }
     const chain = await tx.getChain(contract.chain);
     if (chain?.state !== "Delivered") throw rule("verification_not_delivered", `contract ${dbody.contract} is not awaiting acceptance (state: ${chain?.state ?? "unknown"})`);
@@ -2419,7 +2433,7 @@ export class EventLog {
     if (item.split.payees.some((p) => p.account === buyer)) throw rule("self_dealing", "a buyer cannot be a payee of its own purchase");
     if (item.gives_standing) {
       // R9: an item that gives standing may not pay the buyer, the buyer's sponsor, or any account the buyer's sponsor controls (its other agents): a buyer cannot farm the author's share while buying standing from itself.
-      const controller = async (did: string) => (await tx.getPassport(did))?.sponsor ?? did;
+      const controller = async (did: string) => this.sponsorKey(tx, did, r.issued_at);
       const mine = await controller(buyer);
       for (const p of item.split.payees) {
         if (p.account === mine || (await controller(p.account)) === mine) throw rule("self_dealing", `${b.service} gives standing, and its payee ${p.account} is the buyer's sponsor or controlled by it: a buyer cannot pay itself for standing`);
@@ -4123,7 +4137,7 @@ export class EventLog {
     if (!passport) throw rule("allowance_no_passport", `${who} has no passport in this log: an identity is registered before it claims`);
     if (b.amount.value !== ALLOWANCE_AMOUNT) throw rule("allowance_amount", `the newcomer allowance is ${ALLOWANCE_AMOUNT} credits, not ${b.amount.value}`);
     if (await tx.getMarker(`allowance:${who}`)) throw rule("allowance_already_paid", `${who} already received the newcomer allowance: once per identity`);
-    const group = passport.sponsor ?? who;
+    const group = await this.sponsorKey(tx, who, r.issued_at);
     if (await tx.getMarker(`allowance_group:${group}`)) throw rule("allowance_already_paid", `an identity of ${group} already received the newcomer allowance: the first identity of a sponsor only`);
     const born = await tx.getMarker(`passport_born:${who}`);
     if (!born || Date.parse(r.issued_at) - Date.parse(born) > ALLOWANCE_MAX_AGE_DAYS * 86_400_000) throw rule("allowance_not_newcomer", `the allowance is for an identity under ${ALLOWANCE_MAX_AGE_DAYS} days old (this one was registered ${born ?? "at an unknown time"})`);
@@ -4218,8 +4232,16 @@ export class EventLog {
     return undefined;
   }
 
-  /** The sponsor key of an agent: its sponsor, or itself when it has none. */
-  private async sponsorKey(tx: LogTx, did: string): Promise<string> { return (await tx.getPassport(did))?.sponsor ?? did; }
+  /** The control behind an identity for every count of distinct sponsors: its sponsor, or itself when it has none; for a key-only agent, from the cutover, the group of its passport's day (KO1). */
+  private async sponsorKey(tx: LogTx, did: string, at: string): Promise<string> { return controlKeyOf(tx, did, keyOnlyClassOn(this.keyOnlyClassFrom, at)); }
+
+  /** What an unvouched key-only agent still lacks before it may sit as a juror, review a course or verify a delivery (empty for anyone else, and before the cutover) (KO1). */
+  private async keyOnlyLacks(tx: LogTx, did: string, at: string): Promise<string[]> {
+    if (!keyOnlyClassOn(this.keyOnlyClassFrom, at) || !(await isKeyOnly(tx, did))) return [];
+    const born = await tx.getMarker(`passport_born:${did}`);
+    const rep = await this.reputation(tx, did);
+    return unvouchedReasons({ ageDays: born ? (Date.parse(at) - Date.parse(born)) / 86_400_000 : 0, jobs: rep?.acceptedJobs ?? 0, bonded: !!(await tx.getMarker(`bonded:${did}`)) });
+  }
 
   /**
    * A certificate (academy.md 3, DK25): only the Registrar issues one, to an agent with a passport, and only on a passed exam result of the holder for this skill and level (the pass mark was set before
@@ -4591,12 +4613,14 @@ export class EventLog {
     if (suspension) throw rule("author_suspended", `${r.issuer} is suspended from publishing a course: ${suspension}`);
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
-    const author = await this.sponsorKey(tx, r.issuer);
+    const author = await this.sponsorKey(tx, r.issuer, r.issued_at);
     const sponsors = new Set<string>();
     for (const rv of b.reviewers) {
       if (rv === r.issuer) throw rule("course_self_review", "the instructor cannot review its own course");
       if (!(await tx.getPassport(rv))) throw rule("course_reviewer_unknown", `${rv} has no passport in this log`);
-      const s = await this.sponsorKey(tx, rv);
+      const lacks = await this.keyOnlyLacks(tx, rv, r.issued_at);
+      if (lacks.length) throw rule("course_reviewer_unvouched", `${rv} is a key-only agent with no vouch from a non-self sponsor: ${lacks.join("; ")}`);
+      const s = await this.sponsorKey(tx, rv, r.issued_at);
       if (s === author) throw rule("course_review_same_sponsor", `${rv} has the same sponsor as the instructor: reviews come from other sponsors`);
       sponsors.add(s);
     }
@@ -4713,7 +4737,7 @@ export class EventLog {
     const rep = await this.gatedReputation(tx, r.issuer);
     if (!rep) throw rule("arena_not_an_agent", `${r.issuer} is not an agent with a passport in this log`);
     if (rep.tier < def.min_tier) throw rule("arena_tier_too_low", `${b.arena} needs tier ${def.min_tier}; ${r.issuer} is tier ${rep.tier}. The way up is a certificate and qualifying jobs (asp academy tier shows the next step)`);
-    const sponsor = await this.sponsorKey(tx, r.issuer);
+    const sponsor = await this.sponsorKey(tx, r.issuer, r.issued_at);
     if (sponsor === REGISTRAR_DID || isReservedAccount(sponsor)) throw rule("arena_registrar_agent", "the Registrar's own agents may not enter the Arena for prizes");
     if (await tx.getMarker(`arena_entry:${key}|${r.issuer}`)) throw rule("arena_already_entered", `${r.issuer} already entered ${b.arena} ${b.season}`);
     const fee = await this.usePurchase(tx, b.fee_purchase, r.issuer, def.entry_service, "an arena entry");
@@ -4973,7 +4997,7 @@ export class EventLog {
     for (const m of b.members) {
       const p = await tx.getPassport(m);
       if (!p) throw rule("quarantine_not_an_agent", `${m} has no passport in this log`);
-      sponsors.add(p.sponsor ?? m);
+      sponsors.add(await this.sponsorKey(tx, m, r.issued_at));
     }
     if (b.members.length >= 2) {
       if (!b.report) throw rule("quarantine_cohort_needs_report", "a cohort quarantine needs an upheld report");

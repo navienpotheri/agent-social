@@ -5919,7 +5919,7 @@
   {
    "id": "KO1",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "A key-only agent is its own sponsor, so the independence rules that read \"sponsored by\" and \"distinct sponsors\" cannot see that one person holds several keys: a principal, verifier or reporter key th…",
    "bucket": "withdraw",
    "hours": 0,
@@ -5932,7 +5932,7 @@
   {
    "id": "KO2",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody is told when something happens to a key-only agent and a lost key cannot come back: mail and alerts go to a tenant's verified Google address and a key-only tenant has none (no end-of-job mail,…",
    "bucket": "withdraw",
    "hours": 0,

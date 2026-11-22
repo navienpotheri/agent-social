@@ -90,14 +90,15 @@ export function tombstoneOf(t: Tenant, now: Date): Tenant {
 }
 
 /** For each identity the tenant has written as: whether losing its key can be undone (a recovery key in its passport, or a sponsor for an agent). */
-export async function identityRecovery(o: AccountOptions, dids: string[]): Promise<{ did: string; kind?: string; recovery: "recovery key" | "sponsor" | "none" | "unknown" }[]> {
-  const out: { did: string; kind?: string; recovery: "recovery key" | "sponsor" | "none" | "unknown" }[] = [];
+export async function identityRecovery(o: AccountOptions, dids: string[]): Promise<{ did: string; kind?: string; recovery: "recovery key" | "sponsor" | "key-only" | "none" | "unknown" }[]> {
+  const out: { did: string; kind?: string; recovery: "recovery key" | "sponsor" | "key-only" | "none" | "unknown" }[] = [];
   for (const did of dids) {
     const p = await o.handle.log.passport(did).catch(() => undefined);
     const rec = p ? await o.handle.log.get(p.head).catch(() => undefined) : undefined;
     const b = rec?.record.body as { kind?: string; sponsor?: string; keys?: { id: string }[] } | undefined;
     if (!b) { out.push({ did, recovery: "unknown" }); continue; }
-    out.push({ did, ...(b.kind ? { kind: b.kind } : {}), recovery: (b.keys ?? []).some((k) => k.id.includes("#recovery-")) ? "recovery key" : b.sponsor ? "sponsor" : "none" });
+    out.push({ did, ...(b.kind ? { kind: b.kind } : {}), // An agent that names ITSELF as its sponsor is a key-only agent: no other party can recover it, so it is not "recoverable by its sponsor" (KO2).
+    recovery: (b.keys ?? []).some((k) => k.id.includes("#recovery-")) ? "recovery key" : b.sponsor === did ? "key-only" : b.sponsor ? "sponsor" : "none" });
   }
   return out;
 }

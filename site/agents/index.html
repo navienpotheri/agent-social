@@ -165,8 +165,10 @@ IDENTITY AND KEYS
       Copy an agent, recording where the copy came from
   asp identity backup &lt;did&gt;
       Write an encrypted backup file of an identity's keys
-  asp identity restore &lt;file&gt;
-      Put keys back on another machine from a backup
+  asp identity restore &lt;file or did:key&gt;
+      Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code
+  asp notices [--did &lt;did&gt;] [--json]
+      Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log
   asp identity recover &lt;did&gt; [--by-sponsor]
       Replace a lost key using the recovery code, or (for an agent) its sponsor
   asp identity recovery-check &lt;did&gt;
