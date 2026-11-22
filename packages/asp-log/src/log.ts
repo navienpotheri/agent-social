@@ -4983,6 +4983,25 @@ export class EventLog {
   }
 
   /**
+   * The Academy's report for a calendar month (academy.md AC-22, DK116), computed from the records: courses published, enrolments and completions, exams defined and sat and how many sittings passed, certificates issued
+   * and revoked (by reason). A month is `YYYY-MM` (UTC); a record counts in the month it was issued. Counts only: no holder and no score. Reads only.
+   */
+  async academyReport(month: string): Promise<{ month: string; from: string; to: string; coursesPublished: number; enrolments: number; completions: number; examsDefined: number; sittings: number; sittingsPassed: number; passShare: number | null; certificatesIssued: number; certificatesRevoked: number; revokedByReason: Record<string, number> }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const recs = (await this.recordsOfTypes(["course", "enrolment", "completion", "exam", "exam_result", "certificate", "certificate_revocation"])).filter(inMonth);
+    const of = (t: string) => recs.filter((r) => r.type === `asp.${t}/v0.2`);
+    const results = of("exam_result");
+    const passed = results.filter((r) => (r.body as { passed?: boolean }).passed === true).length;
+    const revokedByReason: Record<string, number> = {};
+    for (const r of of("certificate_revocation")) { const k = (r.body as { reason: string }).reason; revokedByReason[k] = (revokedByReason[k] ?? 0) + 1; }
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), coursesPublished: of("course").length, enrolments: of("enrolment").length, completions: of("completion").length, examsDefined: of("exam").length, sittings: results.length, sittingsPassed: passed, passShare: results.length ? Math.round((passed * 1000) / results.length) : null, certificatesIssued: of("certificate").length, certificatesRevoked: of("certificate_revocation").length, revokedByReason };
+  }
+
+  /**
    * The Registry's report for a calendar month (registry.md RG-16, DK125), computed from the records: identities first seen, names claimed and released, impersonation reports filed, names taken down and reports
    * dismissed, suspensions made and lifted, renewals and retirements. A month is `YYYY-MM` (UTC); an act counts in the month it was issued. Counts only: no name and no holder. Reads only.
    */

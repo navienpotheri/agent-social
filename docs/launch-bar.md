@@ -406,7 +406,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK125 | A | partial | registry sponsor view | none |
 | DK126 | A | partial | market agent tools | market commands exist |
 | DK114 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK116 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK116 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK117 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK118 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK119 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
