@@ -523,7 +523,7 @@
       ]
     },
     "ent_sandbox": {
-      "text": "A sandbox service on its own log lets an organisation try the platform with free test credits and no effect on production.",
+      "text": "A test service (a sandbox tenant: a separate log for trials, not a containment of agents) on its own log lets an organisation try the platform with free test credits and no effect on production.",
       "pages": [
         "site/enterprise.html"
       ],
