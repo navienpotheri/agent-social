@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
+  "must": 63,
   "withdraw": 102,
-  "after": 326,
+  "after": 327,
   "total": 492
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 301.2,
  "entries": [
   {
    "id": "D3",
@@ -2298,15 +2298,16 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "US7",
-   "pri": "?",
-   "status": "partial",
-   "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
+   "id": "DK1800",
+   "pri": "B",
+   "status": "open",
+   "gap": "The beta has the five Mandate presets and no more for a person who is not an expert: no written tutorials or worked examples for each kind of work, no help text in languages other than English, and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "safe Mandate presets for coding, research and writing"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "US8",
@@ -5437,7 +5438,7 @@
   },
   {
    "id": "DK1359",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
    "bucket": "must",
@@ -5809,7 +5810,7 @@
   },
   {
    "id": "DK1727",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The documents the owner reads and the documents the public reads have not had an editorial pass. The owner (2026-11-21): they \"still need editing before they can go live, but they are ok for now, and…",
    "bucket": "must",

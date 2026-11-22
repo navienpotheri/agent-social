@@ -68,3 +68,29 @@ test("DK1364: docs/personal-agents.md has a way in, an assurance level, a first 
     }
   }
 });
+
+test("DK1369: the state of every enterprise row in the audit is the state that the register gives it today", () => {
+  const stale: string[] = [];
+  for (let n = 1353; n <= 1387; n++) {
+    const line = register.split("\n").find((l) => l.startsWith(`| DK${n} |`)) ?? "";
+    const regState = line.trimEnd().replace(/\|$/, "").split("|").pop()!.trim();
+    const auditLine = audit.split(String.fromCharCode(10)).find((l) => l.startsWith(`| DK${n} |`));
+    const auditState = auditLine?.split("|")[2]?.trim();
+    if (auditState !== regState) stale.push(`DK${n}: audit says ${auditState}, register says ${regState}`);
+  }
+  assert.deepEqual(stale, []);
+});
+
+test("DK1369: an item the audit calls built cites only closed rows, and an item it calls planned cites a row that is not closed", () => {
+  const stateOf = (id: string) => {
+    const line = register.split(String.fromCharCode(10)).find((l) => l.startsWith(`| ${id} |`)) ?? "";
+    return line.trimEnd().replace(/\|$/, "").split("|").pop()!.trim();
+  };
+  const problems: string[] = [];
+  for (const r of audit.matchAll(/^\| (\d+|A\d+) \| (.+?) \| (built|partial|planned|not offered) \| (.*?) \|/gm)) {
+    const cited = r[4]!.split(",").map((x) => x.trim()).filter((x) => x && x !== "none");
+    if (r[3] === "built") for (const id of cited) { if (stateOf(id) !== "closed") problems.push(`${r[1]} ${r[2]}: built, but ${id} is ${stateOf(id)}`); }
+    if (r[3] === "planned" && cited.length && cited.every((id) => stateOf(id) === "closed")) problems.push(`${r[1]} ${r[2]}: planned, but every row it cites is closed`);
+  }
+  assert.deepEqual(problems, []);
+});
