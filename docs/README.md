@@ -81,6 +81,9 @@ For contributors, reviewers and anyone judging how far along it is.
 | [live-run-checklist.md](live-run-checklist.md) | What was and was not tried live, what was faked, and the bugs the live runs found |
 | [live-check-kit.md](live-check-kit.md) | The owner's and operator's live checks, step by step: mint adoption, the GitHub Action, the forum go-live, the operator routes, encryption at rest, T2 and U16, and who to try them with |
 | [owner-sign-kit.md](owner-sign-kit.md) | The owner's signing and naming kit: the exact commands for DK1, the Code 1.0, the succession plan and the legal-review acceptance |
+| [implementers-guide.md](implementers-guide.md) | The implementer's guide: what an implementation consists of, the order of work, the shared vectors, a log of one's own, adding a runtime (T5, partial) |
+| [tutorials/README.md](tutorials/README.md) | Four tutorials in English, one for each kind of work that has a preset: coding, writing, translation, learning (DK1800, the written half) |
+| [deployment-plan.md](deployment-plan.md) | The owner's ordered plan to deploy the hosted service after the live run, with checks, rollbacks and the owner-only rows each step settles |
 | [../MOCKS.md](../MOCKS.md) | Every mock or placeholder |
 | [scope.md](scope.md) | Everything left to do, from every perspective, in four gates; a box is ticked only when its gaps are closed |
 | [benchmark-explained.md](benchmark-explained.md) | The containment benchmark from the start, in plain words: the two numbers, held-out cases, each suite and who wrote its questions, what it depends on, how to vet it before publishing, and a 30-second interview answer |
