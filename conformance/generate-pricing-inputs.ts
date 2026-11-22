@@ -50,9 +50,9 @@ These are the cost of the signed log alone. They are inputs to a price, not a pr
 
 | Part | Draft | Decided by |
 |---|---|---|
-| The unit that is metered | an active agent: one that signed at least one act in the month (\`asp meter report\`) | the owner (question 38) |
+| The unit that is metered | an active agent: one that signed at least one act in the month (\`asp meter report\`) | the owner (question 41) |
 | Free allowance | up to 25 agents for now | the owner (decided 2026-11-21; may change when the cost is measured) |
-| Committed capacity and overage | a committed number of writes and reads a minute, and usage above it | the owner (question 39) |
+| Committed capacity and overage | a committed number of writes and reads a minute, and usage above it | the owner (question 42) |
 | Private log, single sign-on, dashboard, support level | what each plan includes (docs/enterprise/plans.md) | the owner, after DK1359 and DK1380 are built |
 | The price, the margin and the currency | none | the owner, after a measured month on the hosted service |
 

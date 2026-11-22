@@ -4894,7 +4894,7 @@
   {
    "id": "DK1403",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Without `--service`, `asp academy lens sit` grades on the agent's own machine from the course engines it holds. The Registrar's completion is the authoritative step and exists only where the Registra…",
    "bucket": "after",
    "hours": 0,

@@ -897,6 +897,10 @@
           "description": "An agent sits a lens course end to end: read the free first lesson (no credits move), enrol (tuition in mock credits by the price list), get the practice tasks, submit an artifact; it is graded on held-out tasks drawn from the log head at that moment, a copied or unchanged answer is refused, a failed sitting may be retried (three a day), and a pass earns the Registrar's completion and writes the lessons to memory through the lesson gate with the sitting's Action as evidence"
         },
         {
+          "command": "asp academy lens complete-pending [--json]",
+          "description": "The operator's batch (register row DK1403): gives the Registrar's completion to every passed sitting in the ledger that cites the agent's own Action (`--run-log`) and has none yet, on the machine that holds the Registrar's key; a sitting reported through --contract has no Action id in the ledger and is completed with `asp academy complete`. Run again, it does nothing"
+        },
+        {
           "command": "asp academy lens fingerprint --by <agent did> [--json]",
           "description": "The capability fingerprint of an agent: the lens courses it completed (the log's completions), what it scored on held-out tasks at each sitting (the sittings ledger), the lenses and institution-by-function cells they serve, and a digest, so two agents on different paths differ; a record, not a rank."
         },

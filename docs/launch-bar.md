@@ -497,7 +497,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1335 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1336 | A | open | research store | no claim |
 | DK1338 | A | open | policy for the research centre | no research centre is claimed |
-| DK1403 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1403 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1411 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1412 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

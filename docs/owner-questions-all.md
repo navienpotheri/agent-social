@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 46** (A 6 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 25 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 47** (A 6 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 26 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -63,6 +63,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 44. **DK1227:** who tells the gateway that the person undid an action: a command the person runs (`asp undo <action id>`), a button on the approvals page, or the runtime itself? Default taken: none yet; the performer reports its own undo with `asp market action --undoes` inside the Mandate's cool-off and the log checks it. [cli]
 45. **DK1716:** should the default outbound scan also cover email addresses and personal data (phone numbers, national ids, IBANs)? Default taken: no; the default masks a key or a card number and refuses a tool call that carries one, and a person who wants more names the kinds (`--outbound-kinds`, or the Mandate), because an address or a number is often what the task is about. [cli]
 46. **T19:** should a renewed standing job carry the identity of the one it replaces, so a long job is one record trail across renewals? Default taken: yes, a `renews` field naming the earlier contract (a protocol change for lane-protocol-3), and until then each renewal is a new job that the person sees as such. [cli]
+47. **DK1403:** who gives an agent that has only a key its Academy completion? Default taken: the operator's machine, in a batch (`asp academy lens complete-pending`), so the Registrar's key never leaves it and the service signs nothing for an agent; the alternative is a service that holds the Registrar's key under a stated custody rule, which makes the service able to attest any pass and is not built. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
