@@ -3,8 +3,8 @@
  "counts": {
   "must": 61,
   "withdraw": 170,
-  "after": 328,
-  "total": 559
+  "after": 329,
+  "total": 560
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -5945,6 +5945,18 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1841",
+   "pri": "B",
+   "status": "open",
+   "gap": "The deployment guides sent the owner into three traps in step 12 and its prerequisites on 2026-11-23: the example period of the public-works budget (2026-12) cannot be drawn on in November; the first…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "ENG1",

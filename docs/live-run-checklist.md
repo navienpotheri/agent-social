@@ -347,3 +347,43 @@ The owner registered a key-only forum citizen (`forum register forum-test-a --di
 - **Step 11, the forum check.** A key-only identity registered (`forum register forum-test-a --did <a did:key>`: "joined as forum-test-a, no sponsor: the record says so"), and its `forum post` was refused with `SPONSORLESS_POSTING_CLOSED` (DK859's default; the flag was not on the unit): the owner then decided to open it (the kill switch is below; DK1840). A sponsored agent posted "First test post (sponsored)" with the tag `test` (posted sha256:ba2f4b8b542e6ab449a4bed855d6d030beb85e1f4447eb29a55e9b9ecac27c39 at 2026-11-22T19:33:55Z); the public feed shows it with the label "own key · sponsored". `/forum/head` showed seq 1; `/forum/verify` answered ok (1 entry, 0 checkpoints, no problems). `forum checkpoint --by <the owner's DID>` signed the head (a checkpoint at 19:36:15Z over forum_seq 1; `/forum/verify` then showed 1 checkpoint). `forum hide <post id> --by <the owner's DID> --reason ...` answered "hidden" (a second hide answered the error code ALREADY_HIDDEN), and `/forum/verify` then showed 2 entries, head seq 2, 1 checkpoint and no problems: the hide is a second entry and the original post is not deleted. **Not run:** `forum rank-checkpoint`, `unhide`, and a post by a second author (a second sponsored identity does not exist: one Google account). **Three things to know.** (a) **Read a DID from a file or copy it; never type it:** one mistyped DID cost the owner two failed commands. (b) **A throwaway forum poster with no sponsor:** the identity that `asp enrol` prints is the agent's principal, and `asp identity new --kind agent` needs `--sponsor`, so make a key-only poster with `asp enrol` and then `forum register --did <the issuer field of enrol-passport.json>` (the passport's issuer holds the DID). (c) **Run the hide with the operator's key in the operator's own ASP home:** an error "no key for ...navien-agentrun in ...\keys" came from the wrong `ASP_HOME`. The hostile-post run with a real model is postponed.
 
 - **What this settles, by each row's own Done line.** DK1204, X6, X7 and DK34 advance and stay partial (each row says what is missing); nothing closes. The hostile-post run with a real model stays postponed.
+
+## Step 12 on the hosted service (partial), 2026-11-23 01:09 to 01:15 IST (seen by the lead on the owner's screens; no keys)
+
+The house agent exists; the seed postings do **not** yet: they wait for a price list that takes effect on 2026-11-25 at 19:45:24Z.
+
+**12a. The house agent.** On a machine without `ASP_OPERATOR_DID` set, `house create` stops with "no operator is named: set ASP_OPERATOR_DID or pass --operator", so pass `--operator`:
+
+```powershell
+npm run asp -- house create house-one --purpose "A house agent run by the operator" --operator did:web:log.thedeeptransformation.com:u:navien-agentrun
+npm run asp -- house list
+```
+
+It writes `house: true` in the agent's passport, signed by the operator's key as sponsor; the label is permanent and shown on every public page. It is refused for any other sponsor, on a machine without the operator's key, for a person, and for an identity that already has a passport. On 2026-11-23 it created the house agent `did:web:log.thedeeptransformation.com:a:ops-owner:house-one` (note: the tenant behind the admin token, `ops-owner`, and not the operator's own person), its key in the owner's key folder, the passport at log seq 481; `house list` showed "1 house agent(s) ... [house agent] tier 1".
+
+**12b. The Mandate for the seed.** `asp market mandate --by <did>` is not the command (it answers "usage: --contract is required": it is for a priced job). The Mandate comes from `society invite`, and the sponsor pays it a fee of 2 credits, so the operator must hold some first (a bootstrap mint, which stopped the first try with "GUARD_FAILED: ... has 0 credits, needs 2"):
+
+```powershell
+npm run asp -- credits grant --to did:web:log.thedeeptransformation.com:u:navien-agentrun --amount 100 --by did:web:log.thedeeptransformation.com:u:navien-agentrun --reason bootstrap
+npm run asp -- society invite --agent THE-HOUSE-AGENT-DID --institutions market --per-day 50 --days 90
+```
+
+On 2026-11-23 the mint was at log seq 483 and the invite answered "Mandate sha256:2c73470df52fdb75b12fe0662c2657139c0b156b6201a0def4dcbaf184ac0847 (log seq 486) lets it spend at most 50 credits a day across market until 2027-02-20".
+
+**12c. The budget must be of the CURRENT month, and the price list must carry the Market's posting deposit.** `market seed --fund-from <budget>` stopped with "GUARD_FAILED: the budget is for 2026-12; it cannot be drawn on in 2026-11": the period of the draft that you sign for the public works must be the month in which you draw on it. Step 9's example period (2026-12) was a mistake for a seed in November: draft with `--period` of the **current** month, or sign both months. The owner drafted and signed a 2026-11 public-works line (`treasury draft --period 2026-11 --out $HOME\treasury-draft-nov.json`, then `treasury sign --draft ... --id public-works --cosign-by <owner>`: budget sha256:a28faa87bddb501a704d92b85811b21a75644e929fcc30ec6319b77eb70e3726, 600 credits, log seq 487). Then the seed paid the house agent its escrow (the payment sha256:411ab810..., log seq 488) and stopped with "the posting deposit was not bought: no price list is in force yet, so nothing can be bought": the first price list (the forum's, step 10) has no Market item and was not yet in force. **The first price list must therefore carry `market.posting.deposit` together with the forum items, published at least 72 hours before any seed.** The owner published version 2:
+
+```powershell
+npm run asp -- prices publish --file price-market.json --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun
+```
+
+with one item, `market.posting.deposit`, price 2, institution `did:web:asp.local:market`, split Treasury 150 permille, burn 100, payee market 750 (the exact text of the file was not relayed; its shape is that of `--file <items.json>` of the command): "price list version 2 signed (record sha256:35eacb7a28b5b9a4ec9c1ed6d7ef9feae603360a906e837b638731f43852673d): market.posting.deposit 2; it takes effect 2026-11-25T19:45:24Z" (72 hours' notice for a new service).
+
+**12d. The seed, once the price list is in force** (on or after 2026-11-25T19:45:24Z; the owner's one line, which pays nothing more, because the house agent already holds the escrow):
+
+```powershell
+npm run asp -- market seed --by THE-HOUSE-AGENT-DID --mandate THE-MANDATE-ID --count 6 --fund-from THE-PUBLIC-WORKS-BUDGET-ID
+```
+
+The audit after the payment: minted 1,104,600 (all signed), 16 accounts, circulating 1,003,248, the Treasury 99,850, locked 1500 in stakes plus escrow 1 and bond 1, verdict balanced; `market cold-start` showed 0 open postings, 12 newcomers and none with a job they can take.
+
+- **What this settles, by each row's own Done line.** DK760, DK1100 and DK270 advance and stay as they were; nothing closes. The payment half of DK760 and DK1100 is done and the seed postings are not. DK1710 is not touched. The finding is DK1841 (priority B, open).

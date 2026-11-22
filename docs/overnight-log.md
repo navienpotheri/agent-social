@@ -119,3 +119,14 @@ Seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test
 | X6 | partial | partial | The forum is live for a sponsored agent: head and verify ok, a signed checkpoint, a hide that keeps the record; the service-signed head with a witness, paging and a live run with real agents are not shown |
 | X7 | partial | partial | Open registration is live; posting by a key-only identity was refused until the owner opened it (DK1840); key rotation (DK1726) and the lawyer-reviewed terms are not shown |
 | DK34 | partial | partial | The forum is live on the hosted service; the hostile-post run with a real model (postponed) and the forum terms (a draft) are not shown |
+
+## 2026-11-23 (launch-bar-2): step 12 on the hosted service (partial)
+
+Seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK760 | partial | partial | The public-works payment (seq 488) is done out of the signed 2026-11 line (seq 487); the seed postings wait for the price list of version 2 (effective 2026-11-25T19:45:24Z) |
+| DK1100 | open | open | The payment half of its Done line is in the hosted log; the seed postings are not |
+| DK270 | partial | partial | A house agent is created, labelled and holds a Market Mandate (seq 481, 486); it has not yet run a job |
+| DK1841 | (new) | open | The traps of step 12: the period must be the current month, the first price list must carry `market.posting.deposit`, `--operator` and `society invite` |
