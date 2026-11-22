@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,5 +99,12 @@ test("a running service counts each tenant's reads and writes alone and shows ea
     assert.match(inv.out, /INVOICE .* for did:web:example.com:users:usage-a .* plan e2e-test-plan/);
     assert.match(inv.out, /GST \(18.00 %\)/);
     assert.match(inv.out, /the log now counts differently: writes/);
+    const htmlFile = join(dir, "statement.html");
+    const page = await asp(ops, ["meter", "invoice", statementId, "--html-file", htmlFile], envOps);
+    assert.equal(page.code, 0, page.err + page.out);
+    const html = readFileSync(htmlFile, "utf8");
+    assert.match(html, /Statement of use/);
+    assert.ok(html.includes("GST (18.00 %)"));
+    assert.match(html, /The log now counts differently: .*writes/);
   } finally { server.kill(); }
 });

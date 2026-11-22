@@ -269,7 +269,7 @@ export function createLogServer(opts: ServerOptions): Server {
           if (q.get("declaration") !== "adult_or_guardian") return page(400, form({ error: "Please confirm that you are an adult, or a parent or guardian signing up for a young person.", name, ...(c ? { c } : {}) }));
           if (!/^[a-z][a-z0-9-]{2,31}$/.test(name)) return page(400, form({ error: "The name is 3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.", name, ...(c ? { c } : {}) }));
           if ((opts.tenantSource?.() ?? opts.tenants ?? []).some((t) => t.name === name)) return page(409, form({ error: "That name is not available.", name, ...(c ? { c } : {}) }));
-          const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(c ? { c } : {}) });
+          const started = opts.google.begin({ name, accept_terms: true, terms_version: info.termsVersion, declaration: "adult_or_guardian", ...(q.get("minor") === "yes" ? { minor: true } : {}), ...(c ? { c } : {}) });
           opts.funnel?.personStep("join_submitted", req);
           return page(303, "", { location: started.location, "set-cookie": `asp_join=${started.nonce}; Max-Age=600; Path=/auth; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}` });
         }

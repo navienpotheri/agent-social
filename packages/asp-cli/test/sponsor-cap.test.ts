@@ -82,3 +82,34 @@ test("without a sponsor cap nothing is refused, and a cap on another sponsor doe
   await ok(f, ["budget", "set", "--agent", "sponsor:did:web:example.com:users:someone-else", "--monthly-tokens", "5"]);
   for (let i = 0; i < 4; i++) { const r = await gw(f, c1, upstream, CODER); assert.equal(r.code, 0, r.err); }
 });
+
+// Mutation review (2026-11-22): the tokens a sponsor's cap or an agent's daily cap has LEFT are the run's own ceiling. An agent that asks five times (10 tokens each) against 25 left gets three answers and is refused the rest.
+const FIVE = `
+const out = [];
+for (let i = 0; i < 5; i++) { const r = await fetch(process.env.OPENAI_BASE_URL + "/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer x" }, body: JSON.stringify({ model: "m", messages: [{ role: "user", content: "go" }] }) }); out.push(r.status); await r.text(); }
+(await import("node:fs")).writeFileSync(process.env.STATUS_FILE, "STATUSES " + out.join(","));
+`;
+const gwFive = (f: Fixture, contract: string, upstream: string, extra: string[] = []) =>
+  asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, ...extra, "--", process.execPath, "--input-type=module", "-e", FIVE], { STATUS_FILE: join(f.root, "statuses.txt") }).then((r) => ({ ...r, out: r.out + (existsSync(join(f.root, "statuses.txt")) ? readFileSync(join(f.root, "statuses.txt"), "utf8") : "") }));
+
+test("the tokens left of the sponsor's monthly cap are the run's ceiling: 25 left, ten a call, three answers then refusals", async () => {
+  const f = makeFixture();
+  const c1 = await runningContract(f, CODER, true);
+  const upstream = await provider();
+  await ok(f, ["budget", "set", "--agent", `sponsor:${ALICE}`, "--monthly-tokens", "25"]);
+  const r = await gwFive(f, c1, upstream);
+  assert.match(r.out, /STATUSES 200,200,200,4[0-9][0-9],4[0-9][0-9]/, r.out + r.err);
+});
+
+test("the tokens left of the agent's daily ceiling are the run's ceiling, and the lower of that and the sponsor's remainder wins", async () => {
+  const f = makeFixture();
+  const c1 = await runningContract(f, CODER, true);
+  const upstream = await provider();
+  const daily = await gwFive(f, c1, upstream, ["--daily-tokens", "25"]);
+  assert.match(daily.out, /STATUSES 200,200,200,4[0-9][0-9],4[0-9][0-9]/, daily.out + daily.err);
+  const g = makeFixture();
+  const c2 = await runningContract(g, CODER, true);
+  await ok(g, ["budget", "set", "--agent", `sponsor:${ALICE}`, "--monthly-tokens", "15"]);
+  const both = await gwFive(g, c2, upstream, ["--daily-tokens", "40"]);
+  assert.match(both.out, /STATUSES 200,200,4[0-9][0-9],4[0-9][0-9],4[0-9][0-9]/, "the sponsor's 15 is lower than the agent's 40: two answers");
+});

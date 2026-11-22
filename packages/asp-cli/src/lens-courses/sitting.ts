@@ -27,7 +27,7 @@ export interface Reader {
 }
 
 /** One line of the ledger of sittings (never the artifact itself, only its hash). */
-export interface LedgerEntry { at: string; course: string; holder: string; enrolment: string; attempt: number; artifact: string; passed: boolean; mean_permille: number; anchor: string; run_log?: string }
+export interface LedgerEntry { /** Hashes of the word triples of a lesson list (DK1402): what a near copy is measured against; never the words. */ shingles?: string[]; at: string; course: string; holder: string; enrolment: string; attempt: number; artifact: string; passed: boolean; mean_permille: number; anchor: string; run_log?: string }
 
 /** The ledger of sittings: a JSONL file (or memory when there is no path). It is what limits repeats and catches a copied answer; it holds hashes and scores only. */
 export class Ledger {
@@ -57,6 +57,36 @@ export function artifactKey(artifact: unknown): string {
   }
   return sha("artifact|" + canon(artifact));
 }
+
+/** A near copy (DK1402): another holder's answer whose word triples overlap this one's by at least this many permille (Jaccard), for a lesson list of at least NEAR_COPY_MIN_SHINGLES triples. */
+export const NEAR_COPY_PERMILLE = 700;
+export const NEAR_COPY_MIN_SHINGLES = 8;
+
+/** The hashes of the word triples of a lesson list, normalised as `artifactKey` does (lower case, no punctuation, one space); a line of fewer than three words is one unit. Undefined for any other artifact. */
+export function shingleHashes(artifact: unknown): string[] | undefined {
+  const a = artifact as { lessons?: unknown };
+  if (!a || typeof a !== "object" || !Array.isArray(a.lessons) || !a.lessons.every((l) => typeof l === "string")) return undefined;
+  const out = new Set<string>();
+  for (const line of a.lessons as string[]) {
+    const w = line.toLowerCase().replace(/[^a-z0-9=_ ]+/g, " ").split(/\s+/).filter(Boolean);
+    if (!w.length) continue;
+    if (w.length < 3) out.add(sha(w.join(" ")).slice(7, 19));
+    for (let i = 0; i + 3 <= w.length; i++) out.add(sha(w.slice(i, i + 3).join(" ")).slice(7, 19));
+  }
+  return [...out].sort();
+}
+
+/** How much two answers overlap, in permille (intersection over union of their word triples). */
+export function overlapPermille(a: string[], b: string[]): number {
+  const sa = new Set(a);
+  let inter = 0;
+  for (const x of new Set(b)) if (sa.has(x)) inter++;
+  const union = sa.size + new Set(b).size - inter;
+  return union === 0 ? 0 : Math.floor((inter * 1000) / union);
+}
+
+/** Whether two answers are near copies of each other: an overlap of at least NEAR_COPY_PERMILLE. */
+export const isNearCopy = (a: string[], b: string[]): boolean => overlapPermille(a, b) >= NEAR_COPY_PERMILLE;
 
 export type Refusal =
   | "unknown_course" | "not_enrolled" | "tuition_not_paid" | "already_completed" | "too_many_today"
@@ -148,10 +178,18 @@ export async function runSitting(card: CourseCard, req: { holder: string; enrolm
   if (all.some((x) => x.holder === req.holder && x.artifact === key)) throw new SittingRefused("artifact_unchanged", "this is the same answer as an earlier sitting of yours: change it before sitting again");
   const copied = all.find((x) => x.holder !== req.holder && x.artifact === key);
   if (copied) throw new SittingRefused("artifact_copied", "this answer is the same as one another agent already gave for this course: write your own");
+  const triples = shingleHashes(req.artifact);
+  if (triples && triples.length >= NEAR_COPY_MIN_SHINGLES) {
+    for (const x of all) {
+      if (x.holder === req.holder || !x.shingles || x.shingles.length < NEAR_COPY_MIN_SHINGLES) continue;
+      const o = overlapPermille(triples, x.shingles);
+      if (isNearCopy(triples, x.shingles)) throw new SittingRefused("artifact_copied", `this answer is a near copy (${Math.round(o / 10)}% of its word triples) of one another agent already gave for this course: write your own`);
+    }
+  }
   const attempt = all.filter((x) => x.holder === req.holder).length + 1;
   const anchor = (await env.reader.head()).logHash;
   const sitting = sit(card, req.artifact, req.holder, attempt, anchor);
-  env.ledger.add({ at: env.now(), course: card.id, holder: req.holder, enrolment: enrolment.id, attempt, artifact: key, passed: sitting.passed, mean_permille: sitting.mean_permille, anchor, ...(req.runLog ? { run_log: req.runLog } : {}) });
+  env.ledger.add({ at: env.now(), course: card.id, holder: req.holder, enrolment: enrolment.id, attempt, artifact: key, ...(triples ? { shingles: triples } : {}), passed: sitting.passed, mean_permille: sitting.mean_permille, anchor, ...(req.runLog ? { run_log: req.runLog } : {}) });
   return { sitting, attempt, anchor, artifact_key: key, attestation: attestation(sitting), left_today: MAX_SITTINGS_PER_DAY - today - 1 };
 }
 

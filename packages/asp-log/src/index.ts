@@ -8,7 +8,7 @@ export { basketRatio, dormancyShare, claimsInDay, BASKET_MIN_EARNERS, BASKET_WIN
 export { sizeBondSplit, modelPremium, MEASURED_THROUGH, type SplitInput, type SplitSuggestion } from "./bond-sizing.ts";
 export { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 export { sizeBond, sizeBondDecayed, DEFAULT_HALF_LIFE_DAYS, type DatedRun, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
-export { EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { OBSERVER_CASES, QUALITY_PANEL_MAX, QUALITY_PANEL_MIN, QUALITY_CONTESTED_SPREAD, type QualityReport, EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { RENT_SERVICE, rentAt } from "./housing.ts";
@@ -17,7 +17,7 @@ export { moveCommit, stableJson } from "./game-moves.ts";
 export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
 export { cognitionOf, type CognitionInput, type CognitionStep, type JourneyCognition } from "./journey.ts";
-export { journeyOf, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
+export { journeyOf, withUsdEstimate, type Pricer, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";
 export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type HandoutParams, type HandoutAgent } from "./handout-plan.ts";
@@ -41,7 +41,7 @@ export { STARTER_LAUNCH_TENANTS, starterPoolFor, STARTER_MAX_DIDS, STARTER_PER_D
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
-  ALLOWANCE_AMOUNT, WATCHER_DID, HANDOUT_MAX, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  ALLOWANCE_AMOUNT, WATCHER_DID, HANDOUT_MAX, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, ALLOWANCE_MAX_AGE_DAYS, ALLOWANCE_SLASH_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";

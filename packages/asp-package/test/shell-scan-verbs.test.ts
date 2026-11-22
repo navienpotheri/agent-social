@@ -7,7 +7,8 @@ import { classify } from "../src/gateway/judge.ts";
 
 const scope = (command: string) => classify({ name: "Bash", args: { command } }).scope;
 
-const NETWORK_VERBS = ["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "iwr", "invoke-restmethod", "irm", "gsutil", "gcloud", "az", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks", "pscp", "plink", "wsl"];
+// wsl is not a network verb: it runs the command that follows it, which the scanner reads (lane-cli-3, 2026-11-22; `wsl ls` was wrongly refused as network).
+const NETWORK_VERBS = ["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "iwr", "invoke-restmethod", "irm", "gsutil", "gcloud", "az", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks", "pscp", "plink"];
 
 test("each network verb in the scanner's list reaches the network when it names a host", () => {
   const wrong = NETWORK_VERBS.filter((v) => scope(`${v} example.org`) !== "shell.network");

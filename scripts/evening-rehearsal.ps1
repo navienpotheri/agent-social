@@ -17,6 +17,8 @@ $results = New-Object System.Collections.Generic.List[object]
 $ladderFlag = @(); if ($Ladder) { $ladderFlag = @("--escalation-ladder") }
 function Step([string]$name, [bool]$ok, [string]$detail) { $results.Add([pscustomobject]@{ Step = $name; Result = $(if ($ok) { "PASS" } else { "FAIL" }); Detail = $detail }); Write-Host ("{0,-4} {1}: {2}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name, $detail) }
 
+function Explain([string]$what, [string]$text) { Write-Host ("     what the step saw (first lines of $what):"); (($text -split "`n") | Select-Object -First 25 | ForEach-Object { "       " + $_.TrimEnd() }) | Write-Host }
+
 $origin = (Get-Location).Path
 $repo = $origin
 if ($Clone) {
@@ -75,10 +77,12 @@ Step "the key is not printed" (-not ($pre -match [regex]::Escape($env:ANTHROPIC_
 
 $run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $ladderFlag 2>$null) -join "`n"
 Step "governed run: one call refused" ($run -match "1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
+if (-not ($run -match "1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
 Step "governed run: the run ended" ($run -match "finished|Session summary") "session summary printed"
 
 $rep = (npm run asp -- live report 2>$null) -join "`n"
 Step "asp live report" ($rep -match "1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
+if (-not ($rep -match "1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
 $runs = (npm run asp -- runs 2>$null) -join "`n"
 Step "asp runs" ($runs -match "1 refused") "the session is listed"
 

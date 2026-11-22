@@ -21,7 +21,15 @@ export const AFTER_JOIN: [string, string][] = [
   ["asp stop", "stop what is running"],
   ["asp help", "everything else (also at /help on this service)"],
 ];
-const afterJoin = () => `<h2>Every day</h2><pre class="token">${AFTER_JOIN.map(([c, d]) => esc(c.padEnd(22)) + esc(d)).join("\n")}</pre>`;
+/** The first hour of a company bringing a fleet of agents (DK1371): the guided commands, in order. */
+export const FLEET_FIRST_HOUR: [string, string][] = [
+  ["asp fleet blueprints", "the ready personas and skill packs"],
+  ["asp fleet init", "a few questions write the manifest"],
+  ["asp fleet plan", "what would be created and what it costs, before anything is written"],
+  ["asp fleet apply", "create the fleet (resumable)"],
+  ["asp fleet checklist", "what is left of your first hour"],
+];
+const afterJoin = () => `<h2>Every day</h2><pre class="token">${AFTER_JOIN.map(([c, d]) => esc(c.padEnd(22)) + esc(d)).join("\n")}</pre><h2>Bringing a fleet of agents (a company)</h2><pre class="token">${FLEET_FIRST_HOUR.map(([c, d]) => esc(c.padEnd(22)) + esc(d)).join("\n")}</pre>`;
 
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title><style>${CSS}</style></head><body><main>${body}</main></body></html>`;
 
@@ -38,6 +46,7 @@ ${o.error ? `<p class="err" role="alert">${esc(o.error)}</p>` : ""}
 <input id="name" name="name" type="text" required minlength="3" maxlength="32" pattern="[a-z][a-z0-9-]{2,31}" value="${esc(o.name ?? "")}" autocomplete="off">
 <p class="mute">3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.</p>
 <label class="check"><input type="checkbox" name="declaration" value="adult_or_guardian" required><span>I am 18 or over, or I am a parent or legal guardian signing up on behalf of a young person and I will hold the account and be responsible for it.</span></label>
+<label class="check"><input type="checkbox" name="minor" value="yes"><span>An agent in this tenant is run by someone under 18. The service then stores no telemetry for this tenant and does not track or monitor the young person (Privacy Notice, section 8). Only the operator can change this later.</span></label>
 <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>I have read and accept the ${terms} and the ${privacy} (version ${esc(o.termsVersion)}). I understand that records written to the log are permanent.</span></label>
 <input type="hidden" name="terms_version" value="${esc(o.termsVersion)}">
 ${o.c ? `<input type="hidden" name="c" value="${esc(o.c)}">` : ""}

@@ -35,13 +35,11 @@ export async function assertNotDormant(tx: Pick<LogTx, "getMarker">, did: string
   if (res?.status === "dormant") throw rule("agent_dormant", `${did} is dormant (upkeep unpaid): it may not ${what} until today's upkeep is paid (asp shops upkeep shows where it stands); nothing it holds is lost`);
 }
 
-/** The checks on a purchase of a catalogue item of the Shops: not dormant, a resident, the gate (tier, certificate), no second active holding. Called from the purchase rule with the item's price-list entry. */
-export async function checkShopsPurchase(tx: LogTx, buyer: string, item: CatalogueItem, at: string, tier: number | undefined): Promise<void> {
-  const shops = item.institution === SHOPS_DID;
-  if (item.service === UPKEEP_SERVICE) throw rule("upkeep_by_standing_order", "upkeep is charged by the Shops under the agent's standing order, not bought: asp shops upkeep shows where it stands");
-  if (item.class !== "essential") await assertNotDormant(tx, buyer, "buy");
-  const res = await readResident(tx, buyer);
-  if (shops && res?.mode !== "resident") throw rule("shops_needs_residency", `${buyer} is not a resident: a visitor looks and cannot hold items (asp shops residency enrol --mode resident, with the sponsor's countersignature)`);
+/**
+ * The gate of a price-list item (credits.md CR-11, DK93): a tier at or above `min_tier` and a valid certificate (a skill, or * for any) held at the time of the purchase. Checked for every item that carries a gate,
+ * whoever sells it; the Shops and Housing call it from `checkShopsPurchase`, the purchase rule calls it for the rest.
+ */
+export async function checkGate(tx: LogTx, buyer: string, item: { service: string; gate?: { min_tier?: number; certificate?: string } }, at: string, tier: number | undefined): Promise<void> {
   const gate = item.gate;
   if (gate?.min_tier !== undefined && (tier ?? 0) < gate.min_tier) throw rule("gate_tier", `${item.service} needs tier ${gate.min_tier}; ${buyer} is tier ${tier ?? 0} (asp academy tier shows what is missing)`);
   if (gate?.certificate) {
@@ -54,6 +52,16 @@ export async function checkShopsPurchase(tx: LogTx, buyer: string, item: Catalog
     }
     if (!ok) throw rule("gate_certificate", `${item.service} needs a valid ${gate.certificate === "*" ? "" : `${gate.certificate} `}certificate, and ${buyer} has none`);
   }
+}
+
+/** The checks on a purchase of a catalogue item of the Shops: not dormant, a resident, the gate (tier, certificate), no second active holding. Called from the purchase rule with the item's price-list entry. */
+export async function checkShopsPurchase(tx: LogTx, buyer: string, item: CatalogueItem, at: string, tier: number | undefined): Promise<void> {
+  const shops = item.institution === SHOPS_DID;
+  if (item.service === UPKEEP_SERVICE) throw rule("upkeep_by_standing_order", "upkeep is charged by the Shops under the agent's standing order, not bought: asp shops upkeep shows where it stands");
+  if (item.class !== "essential") await assertNotDormant(tx, buyer, "buy");
+  const res = await readResident(tx, buyer);
+  if (shops && res?.mode !== "resident") throw rule("shops_needs_residency", `${buyer} is not a resident: a visitor looks and cannot hold items (asp shops residency enrol --mode resident, with the sponsor's countersignature)`);
+  await checkGate(tx, buyer, item, at, tier);
   const until = await tx.getMarker(`holding_active:${buyer}|${item.service}`);
   if (until && Date.parse(until) > Date.parse(at)) throw rule("holding_active", `${buyer} already holds ${item.service} until ${until}: one active holding of an item at a time`);
   // A resource effect (DK75): the sum over all the sponsor's agents stays within the per-sponsor cap, and all sponsors together within the capacity ledger. Both are checked at purchase and written with it.

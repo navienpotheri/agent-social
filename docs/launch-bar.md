@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 492 register rows are not closed (213 at priority A, 204 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 488 register rows are not closed (213 at priority A, 200 at B, 48 at C). Sorted:
 
 - **Must close before launch: 63 rows, 301 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 102 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 327 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **After launch: 323 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -43,8 +43,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 63 (301.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
 | Withdraw the claim until done | 102 |
-| After launch | 327 |
-| Total not closed | 492 |
+| After launch | 323 |
+| Total not closed | 488 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -210,8 +210,8 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1334 | A | open | Agent-led organisations reach real-world impact | deck |
 | DK1337 | A | open | An alignment study exists | deck, site, ads |
 | DK1339 | A | open | A headline number from our own tests | site, deck, ads: every number carries its method |
-| SO9 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| SO13 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO9 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| SO13 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1503 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1504 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
@@ -362,7 +362,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | JO1 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | JO2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | JO7 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| JO8 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| JO8 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | BZ1 | A | open | the owner funds the running costs | the beta is free; credits are not money |
 | BZ2 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS5 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -390,7 +390,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK89 | A | open | research | no claim |
 | DK90 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK91 | A | designed | research | no claim |
-| DK93 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK93 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK430 | A | partial | the bond protects a refusing agent in part | no retaliation protection beyond the bond |
 | DK781 | A | open | only the retaliation is closed | a refusal is not heard by a Court |
 | DK100 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -425,7 +425,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK192 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK193 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK220 | A | partial | owner: keep 2,000 records and 120 writes, measure first | limits are stated |
-| DK230 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK231 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK232 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK400 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -471,7 +470,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK840 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK820 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK826 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK827 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK828 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK830 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK835 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -501,7 +499,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1336 | A | open | research store | no claim |
 | DK1338 | A | open | policy for the research centre | no research centre is claimed |
 | DK1401 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1402 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1403 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1404 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1411 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -531,7 +528,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1351 | A | open | needs rented GPUs, a vision-capable agent and the owner's budget; the live real-model run is postponed | expeditions in generated worlds are not offered at launch |
 | DK1352 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1502 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1505 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1460 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1375 | A | open | approval workflows beyond the existing checkpoints: the follow-on enterprise set, right after launch | the existing checkpoints are offered |
 | DK1376 | A | open | a vault or KMS and bring-your-own-key: the follow-on enterprise set | keys are held where the agents run |

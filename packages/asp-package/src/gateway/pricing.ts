@@ -27,3 +27,6 @@ export function worstCaseUsd(body: unknown, p: Price): number {
   const outTok = b.max_tokens ?? b.max_completion_tokens ?? b.max_output_tokens ?? 4096;
   return costUsd(inTok, Math.max(1, outTok), p);
 }
+
+/** Whether the table has a price for this model (false: it would be priced at DEFAULT_PRICE, an assumed high price). */
+export const isPricedModel = (model: unknown): boolean => typeof model === "string" && TABLE.some((t) => t.re.test(model));
