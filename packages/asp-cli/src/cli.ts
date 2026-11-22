@@ -202,7 +202,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
- *   asp journey <agent> [--sponsor-view] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
+ *   asp journey <agent> [--sponsor-view [--usd]] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
  *   asp society tail [--follow] [--since <seq>] [--interval <s>] [--max-polls <n>] [--json]   what is happening in the society now: the latest records as steps of the agents they concern (no free text)
  *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
@@ -390,6 +390,7 @@ import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
+import { renderInvoiceHtml } from "./invoice-html.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -429,7 +430,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, priceFor, isPricedModel, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -635,6 +636,7 @@ const OPTIONS = {
   follow: { type: "boolean" },
   "html-file": { type: "string" },
   "sponsor-view": { type: "boolean" },
+  usd: { type: "boolean" },
   "max-polls": { type: "string" },
   "task-text": { type: "string" },
   "http-enrol": { type: "boolean" },
@@ -1332,7 +1334,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did)); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
@@ -5772,12 +5774,13 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   }
   if (sub === "invoice") {
     const id = rest[0];
-    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json | --html-file <file>]");
     const r = await local.log.get(id);
     if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
     const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
     const c = await local.log.checkStatement(id);
     if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    if (v["html-file"]) { writeFileSync(resolve(io.cwd, v["html-file"]), renderInvoiceHtml({ id, issued: r.record.issued_at, body: b, matchesLog: c.ok, differences: c.ok ? [] : c.differences })); io.out(`wrote ${v["html-file"]} (a statement of use that prints well; not a tax invoice or an e-invoice)`); return 0; }
     io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
     for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
     io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);

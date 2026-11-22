@@ -51,6 +51,7 @@ test("the role table, and the irreversible gate taking the Mandate's action_clas
   assert.equal(roleRefusal(undefined, "repo.write"), undefined);
   assert.deepEqual(gateScopes({ policy: "forbid", scopes: ["a"] }, { irreversible: ["b", "a"] }).sort(), ["a", "b"]);
   assert.deepEqual(gateScopes({ policy: "checkpoint" }, { irreversible: ["b"] }), ["b"]);
+  assert.deepEqual(gateScopes({ policy: "forbid", scopes: ["a"] }, { irreversible: ["b"] }).sort(), ["a", "b"], "the policy's own scopes stay gated when the Mandate also classes others");
   assert.deepEqual(gateScopes({ policy: "allow", scopes: ["a"] }, { irreversible: ["b"] }), []);
   assert.deepEqual(gateScopes(undefined, { irreversible: ["b"] }), [], "action_classes alone gate nothing: the policy decides what happens to them");
 });
