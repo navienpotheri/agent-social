@@ -54,6 +54,12 @@ test("DK1229: with a halt the same crowd is queued, the reserve is kept, and on 
   const paid = await Promise.all(w.holders.map((h) => w.kit.log.balance(h.did)));
   assert.deepEqual(paid, Array(10).fill(400 + 55), "each holder received the same share, 55 of the 100 asked");
   assert.equal(await w.kit.log.balance(BANK_DID), 0, "the whole free reserve was shared out");
+  // After the halt is settled, the queue is served in the order asked again: a new inflow of 100 pays the first two holders their 45 and the third 10, not a second proportional round.
+  const late = await w.kit.person("ch-late"); await w.kit.mint(late.did, 100);
+  await w.kit.put(w.bank(late, { act: "deposit", holder: late.did, amount: credit(100) }));
+  const after = await Promise.all(w.holders.map((h) => w.kit.log.balance(h.did)));
+  assert.deepEqual(after.slice(0, 3), [500, 500, 465], "paid in the order asked once the halt is settled");
+  assert.equal(after[9], 455, "the last in the queue is still waiting");
   const hist = await w.kit.log.creditHaltHistory();
   assert.deepEqual(hist.map((h) => [h.act, h.institution]), [["halt", "bank"], ["lift", "bank"]], "the halt and its lift are public records");
   await w.audit("halt then lift");
@@ -81,11 +87,18 @@ test("DK1229: only the Treasury halts, a halt has a sunset of at most seven days
   assert.equal(await refused(w.kit.put(bad)), "credit_halt_wrong_issuer");
   assert.equal(await refused(w.kit.put(w.halt({ act: "halt", institution: "bank", reason: "x", until: iso(t0 - DAY) }))), "credit_halt_until_past");
   assert.equal(await refused(w.kit.put(w.halt({ act: "halt", institution: "bank", reason: "x", until: iso(t0 + 8 * DAY) }))), "credit_halt_too_long");
-  await w.kit.put(w.halt({ act: "halt", institution: "bank", reason: "x", until: iso(t0 + 7 * DAY - 3_600_000) }));
-  assert.equal(await refused(w.kit.put(w.halt({ act: "halt", institution: "bank", reason: "again", until: iso(t0 + DAY) }))), "credit_halt_already_live");
-  assert.equal(await refused(w.kit.put(w.halt({ act: "lift", institution: "bank", reason: "x", halt: "sha256:" + "1".repeat(64) }))), "credit_halt_not_live");
+  const exactly = w.kit.mk("credit_halt" as never, treasury, { act: "halt", institution: "bank", reason: "x", until: iso(t0 + 7 * DAY + 600_000) }, null, { subject: null, at: iso(t0 + 600_000) });
+  await w.kit.put(exactly); // exactly seven days from its own time is allowed
+  const lifted = w.kit.mk("credit_halt" as never, treasury, { act: "lift", institution: "bank", reason: "x", halt: exactly.id }, null, { subject: null, at: iso(t0 + 700_000) });
+  await w.kit.put(lifted);
+  const over = w.kit.mk("credit_halt" as never, treasury, { act: "halt", institution: "bank", reason: "x", until: iso(t0 + 800_000 + 7 * DAY + 1000) }, null, { subject: null, at: iso(t0 + 800_000) });
+  assert.equal(await refused(w.kit.put(over)), "credit_halt_too_long", "a second more than seven days");
+  const live = w.kit.mk("credit_halt" as never, treasury, { act: "halt", institution: "bank", reason: "x", until: iso(t0 + 900_000 + DAY) }, null, { subject: null, at: iso(t0 + 900_000) });
+  await w.kit.put(live);
+  assert.equal(await refused(w.kit.put(w.kit.mk("credit_halt" as never, treasury, { act: "halt", institution: "bank", reason: "again", until: iso(t0 + 1_000_000 + DAY) }, null, { subject: null, at: iso(t0 + 1_000_000) }))), "credit_halt_already_live");
+  assert.equal(await refused(w.kit.put(w.kit.mk("credit_halt" as never, treasury, { act: "lift", institution: "bank", reason: "x", halt: "sha256:" + "1".repeat(64) }, null, { subject: null, at: iso(t0 + 1_100_000) }))), "credit_halt_not_live");
   // A halt on the Insurer is its own: it does not stop the Bank's queue, and the Bank's is still live.
-  await w.kit.put(w.halt({ act: "halt", institution: "insurer", reason: "claims above the reserve", until: iso(t0 + DAY) }));
+  await w.kit.put(w.kit.mk("credit_halt" as never, treasury, { act: "halt", institution: "insurer", reason: "claims above the reserve", until: iso(t0 + 1_200_000 + DAY) }, null, { subject: null, at: iso(t0 + 1_200_000) }));
 });
 
 
