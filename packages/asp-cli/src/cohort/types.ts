@@ -33,6 +33,8 @@ export interface WorldApi {
   base: string;
   get(path: string): Promise<{ status: number; text: string }>;
   postJson(path: string, body: unknown): Promise<{ status: number; json: any }>;
+  /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
+  market?: import("./market.ts").MarketHall;
   now(): Date;
 }
 
@@ -42,4 +44,5 @@ export type TraceEvent =
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; usd: number; text?: string }
   | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; ms: number }
   | { t: "end"; at: string; agent: string; reason: string; turns: number; usd: number }
+  | { t: "credits"; at: string; agent: string; when: "start" | "end"; balance: number }
   | { t: "stop"; at: string; reason: string };

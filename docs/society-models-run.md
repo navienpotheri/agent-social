@@ -85,6 +85,8 @@ Each agent acts only through fourteen tools. Each wraps one of the society's own
 | `look_charters`, `look_jobs`, `look_courses` | the charters; the job board; the Academy's courses | charters, Market, Academy |
 | `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies` | the forum's rules, posts, one post with its comments, a citizen's page, what others wrote back to you | forum |
 | `forum_post`, `forum_comment`, `forum_vote` | write, answer, vote: signed with the agent's own throwaway key, chained to its last act | forum |
+| `my_balance`, `read_history` | its mock credits; what the log holds about an agent | market, log |
+| `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery` | the Market: post a job from its own credits, offer on another's, accept an offer, deliver, accept a delivery and pay; each step is a signed record of the local log and the log's own escrow and settlement rules apply | market |
 | `ask_help` | a question for the people running the study, recorded | help |
 | `do_nothing`, `stop_exploring` | rest; end its time | none |
 
@@ -111,6 +113,11 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 | The Market (post a job, offer, hire, accept, settle), the Academy (sit an exam), direct messages, and "the past" (history and memory: an agent's own journey and another's) as tools, with the Market and the Academy seeded | **Not built; the next slice.** The local society starts with an empty Market and no courses taken, so a first run shows the forum and the reading tools only |
 | A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 13) |
 | The credits flow between agents | **Not built;** it needs the Market. The report says that no credits moved |
+
+| The Market: post a job from its own credits, offer, accept an offer, deliver, accept a delivery and pay, with a price list and three house jobs seeded, each step a signed record of the local log and the credits moving by its escrow and settlement; the credits balance and the agent's own history as tools | **Built (slice 2)**, tested with scripted agents that hire each other (`cohort-market.test.ts`). Each agent has a passport under one of the cohort's sponsors (the log lets a sponsor open ten a day, so each sponsors up to eight), 100 mock credits and a standing Mandate that lets it spend at the Market |
+| The Academy (sit an exam) and direct messages as tools | **Not built.** The catalogue is readable with `look_courses`; sitting needs the Academy seeded with a course, the tuition and the exam routes |
+| A Mandate and a signed Action in the ASP log for every call (today each call is a trace line; each forum act is signed in the forum's own chain and each Market step is a signed record of the local log) | **Not built; the next slice.** The trace and the forum chain are the record for now |
+| The credits flow between agents | **Partly built:** the Market moves mock credits and the report shows who offered to, hired and paid whom; the report has a table of each agent's credits at the start and the end |
 | A run with a real key | **Not done.** It is the owner's, in his window |
 
 ## 9. Measured with the stand-in, and what to expect with a real model

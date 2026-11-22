@@ -60,6 +60,46 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     ];
     return (script[turn] ?? (() => [use("stop_exploring")]))();
   },
+  // A poster: posts a job, waits for an offer, accepts it, waits for the delivery, accepts it. It gives up after 30 turns.
+  hirer: (turn, last, _agent, st) => {
+    if (turn > 30) return [use("stop_exploring", { why: "no one came" })];
+    const ph = st.ph ?? "post";
+    if (ph === "post") { st.ph = "offers"; return [use("post_job", { purpose: "Summarise the charters in two sentences", budget: 20, criterion: "two sentences that name each institution" })]; }
+    if (ph === "offers") {
+      const m = /(sha256:[0-9a-f]{20,})\s+from[^\n]*open/.exec(last);
+      if (m) { st.ph = "jobs"; return [use("accept_offer", { offer: m[1] })]; }
+      return [use("my_job_offers")];
+    }
+    if (ph === "jobs") { st.ph = "wait"; return [use("my_jobs")]; }
+    if (ph === "wait") {
+      const c = /(sha256:[0-9a-f]{20,})\s+you are the poster[^\n]*delivered/.exec(last);
+      if (c) { st.ph = "done"; return [use("accept_delivery", { contract: c[1] })]; }
+      return [use("my_jobs")];
+    }
+    if (ph === "done" && !st.end) { st.end = "1"; return [use("my_balance")]; }
+    return [use("stop_exploring", { why: "the job is done" })];
+  },
+  // A worker: looks for a job that an agent (not the house) posted, offers on it, waits for the contract, delivers.
+  worker: (turn, last, _agent, st) => {
+    if (turn > 30) return [use("stop_exploring", { why: "no job came" })];
+    const ph = st.ph ?? "look";
+    if (ph === "look") {
+      try {
+        const posts = (JSON.parse(last) as { result?: Array<{ intent: string; poster: string; budget: number }> }).result ?? [];
+        const job = posts.find((x) => !x.poster.includes("cohort.local:users:house"));
+        if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.intent, price: job.budget, plan: "I will read them and write it" })]; }
+      } catch { /* the first turn has no result yet */ }
+      return [use("look_jobs")];
+    }
+    if (ph === "offered") { st.ph = "wait"; return [use("my_jobs")]; }
+    if (ph === "wait") {
+      const c = /(sha256:[0-9a-f]{20,})\s+you are the worker[^\n]*running/.exec(last);
+      if (c) { st.ph = "delivered"; return [use("deliver_job", { contract: c[1], summary: "Each charter says what its institution is for." })]; }
+      return [use("my_jobs")];
+    }
+    if (ph === "delivered") { st.ph = "end"; return [use("my_balance")]; }
+    return [use("stop_exploring", { why: "I did the job" })];
+  },
   "limit-tester": (turn) => [
     [use("bash", { command: "ls -la" })], [use("read_file", { path: "C:\\Users\\owner\\secrets.txt" })], [use("forum_post", { title: "x", text: "y", tags: [] })], [use("look_map")], [use("stop_exploring", { why: "done" })],
   ][turn] ?? [use("stop_exploring")],
@@ -72,13 +112,14 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
 };
 
 /** A scripted, offline provider. `behaviourOf(i)` names the behaviour of agent i; tokens are estimated from text length (about four characters a token) so cost and tokens-per-hour can be measured offline. */
-export function standInProvider(behaviourOf: (agentIndex: number) => string): Provider & { complete(req: ProviderRequest): Promise<ModelReply> } {
+export function standInProvider(behaviourOf: (agentIndex: number) => string, opts: { latencyMs?: number } = {}): Provider & { complete(req: ProviderRequest): Promise<ModelReply> } {
   const turns = new Map<number, number>();
   const states = new Map<number, Record<string, string>>();
   const size = (s: string) => Math.ceil(s.length / 4);
   return {
     name: "stand-in",
     async complete(req: ProviderRequest) {
+      if (opts.latencyMs) await new Promise((r) => setTimeout(r, opts.latencyMs));
       const i = req.agentIndex ?? 0;
       const turn = turns.get(i) ?? 0;
       turns.set(i, turn + 1);
