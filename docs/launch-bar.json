@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 63,
+  "must": 65,
   "withdraw": 104,
   "after": 319,
-  "total": 486
+  "total": 488
  },
- "mustWorkerHours": 301.2,
+ "mustWorkerHours": 307.2,
  "entries": [
   {
    "id": "D3",
@@ -930,7 +930,7 @@
   },
   {
    "id": "T3",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open Checkpoint at a time; it is untested",
    "bucket": "must",
@@ -941,7 +941,7 @@
   },
   {
    "id": "T4",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "When the service is down or there is no network, there was no defined behaviour and no local-only mode, which matters at a venue with poor wifi",
    "bucket": "must",
@@ -5596,7 +5596,7 @@
   },
   {
    "id": "DK1603",
-   "pri": "A",
+   "pri": "?",
    "status": "open",
    "gap": "A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger.",
    "bucket": "withdraw",
@@ -5858,7 +5858,7 @@
   },
   {
    "id": "DK1744",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
    "bucket": "after",
@@ -5880,6 +5880,28 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1802",
+   "pri": "A",
+   "status": "open",
+   "gap": "The hosted service runs older code than the client. On 2026-11-22 the owner's real run against https://log.thedeeptransformation.com found: the preflight READY (the service answered 200, identities g…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "the hosted service runs older code than the client: key-only enrolment is refused and a sponsored asp run fails with SCHEMA_INVALID; the deployment update is the fix"
+  },
+  {
+   "id": "DK1803",
+   "pri": "A",
+   "status": "open",
+   "gap": "The client does not know the server's build and does not say so when they differ: `asp live preflight` does not show the service's version against the client's, and a SCHEMA_INVALID on a field that t…",
+   "bucket": "must",
+   "hours": 4,
+   "size": "M",
+   "flags": "",
+   "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
   }
  ]
 }

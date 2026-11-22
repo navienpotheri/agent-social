@@ -96,7 +96,9 @@ sudo bash /opt/asp/docs/deploy/restore-drill.sh /root/asp-YYYYMMDD-HHMM.sql.gz
 
 ## 5. Update the code and open the service (20 minutes)
 
-*Settles:* nothing on its own (the forum opens here, because the setup script passes `--forum-open`; its check is step 11).
+*Settles:* DK1802 (the hosted service runs older code than your client). The update itself is what unblocks items 2 and 3 of the live run, E9 (step 7), X6 (step 11), DK650 and your key-only decision (decision 10, default ON). The forum opens here, because the setup script passes `--forum-open`; its check is step 11.
+
+**Why this step comes first for the live run.** On 2026-11-22 your real run showed that the code on the server is older than the client on your machine: a sponsored `asp run` through the service failed with `SCHEMA_INVALID: contract must NOT have additional` (the service's contract schema does not know the `data` field of JO3), and `asp enrol` was refused because key-only sign-up is off. Until this step has run, nothing that goes through the hosted service can work with the current client; `--local` runs are not affected (DK1802, DK1803).
 
 **Read this first; each point is a trap.** (1) `DOMAIN` must be exactly the name that the service answers on today: the script rewrites the Caddy site and the Google redirect address from it, and its default, `log.thedeeptransformation.com`, may not be the name that you use (read the current one with `sudo head -3 /etc/caddy/Caddyfile`). (2) The script's default sign-up cap is 100 a day (`SIGNUP_DAILY_CAP`), but your decision is no daily cap; the flag takes a whole number and `0` closes sign-up, so give a number that no day will reach, such as 1000000 (`serve signup-cap` can change it later). (3) The script refuses to start the service without Google sign-up (`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `/etc/asp/asp.env`, which the running server already has; on a new file, do the Google part of step 7 first, or the script stops with an ERROR). (4) The mail variables are `MAIL_FROM` and `MAIL_OPERATOR`; the operator's default is not your address unless you say so (decision 6). (5) The unit file that the script writes is the authority for the service's flags; the example line in [hosting-setup.md](hosting-setup.md) is older.
 
@@ -108,7 +110,7 @@ sudo systemctl is-active asp-log asp-monitor postgresql caddy
 cat /etc/asp/deployed-commit
 ```
 
-**Right.** The script ends by printing `active` four times; `deployed-commit` shows the new hash; `curl.exe -s "$SITE/health"` answers `{"ok":true}`. Decision 10: `curl.exe -s "$SITE/society/llms.txt"` does not say "Enrolling with only a key is closed on this service right now"; if it does, the unit still carries `--no-key-only-signup` (`systemctl cat asp-log`) or the host setting is off, and DK650 stays partial until it is on. On 2026-11-22 the hosted service refused `asp enrol` with "does not take an agent with only a key right now; a person signs up with asp join"; the cause was not looked into (it may be the older code that runs today), and the check above is how to tell.
+**Right.** The script ends by printing `active` four times (and, once DK1802's Done line is met, `asp enrol --service https://$DOMAIN --name <a new name> --accept-terms` succeeds from your machine); `deployed-commit` shows the new hash; `curl.exe -s "$SITE/health"` answers `{"ok":true}`. Decision 10: `curl.exe -s "$SITE/society/llms.txt"` does not say "Enrolling with only a key is closed on this service right now"; if it does, the unit still carries `--no-key-only-signup` (`systemctl cat asp-log`) or the host setting is off, and DK650 stays partial until it is on. On 2026-11-22 the hosted service refused `asp enrol` with "does not take an agent with only a key right now; a person signs up with asp join"; the cause was not looked into (it may be the older code that runs today), and the check above is how to tell.
 
 **If not.** `journalctl -u asp-log -n 100` says why the service did not start.
 
@@ -160,7 +162,7 @@ npm run asp -- account close --confirm YOUR-TENANT
 
 ## 8. The smoke check and the operator routes (20 minutes; O18)
 
-*Settles:* nothing in the 19 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
+*Settles:* nothing in the 20 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
 
 **Do.**
 
@@ -178,7 +180,7 @@ and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a te
 
 ## 9. The first records of the city (30 minutes)
 
-*Settles:* nothing in the 19 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
+*Settles:* nothing in the 20 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
 
 **Do.** On your machine, with the operator and owner keys:
 
@@ -256,7 +258,7 @@ The public-works budget is the Treasury budget that you signed in step 9 for the
 
 ## 13. The remaining owner-only rows
 
-These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 19 rows are accounted for.
+These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 20 rows are accounted for.
 
 | Row | What | Where |
 |---|---|---|
@@ -267,7 +269,7 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | T2 and U16 | A laptop sleeping in a session, a multi-gigabyte repository, and a newcomer's first minutes | [live-check-kit.md](live-check-kit.md) section 6 |
 | O11, O12, O13 | Revoke the OpenRouter key; set branch protection on `main`; the repository description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
 
-## 14. The 19 owner-only rows and the step that settles each
+## 14. The 20 owner-only rows and the step that settles each
 
 | Row | Step | Row | Step |
 |---|---|---|---|
@@ -280,7 +282,7 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | O12 | 13 | DK1204 | 10 |
 | O13 | 13 | DK1100 | 12 |
 | O11 | 13 | E9 | 7 |
-| X6 | 11 | | |
+| X6 | 11 | DK1802 | 5 |
 
 A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
 
