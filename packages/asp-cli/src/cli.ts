@@ -624,6 +624,10 @@ const OPTIONS = {
   "untrusted-flow": { type: "boolean" },
   "escalation-ladder": { type: "boolean" },
   unprompted: { type: "boolean" },
+  "workflow-step": { type: "string" },
+  "irreversible-scopes": { type: "string" },
+  "cool-off-seconds": { type: "string" },
+  undoes: { type: "string" },
   "allow-unprompted": { type: "boolean" },
   mission: { type: "string" }, goal: { type: "string" }, contributor: { type: "string" }, verified: { type: "string" }, check: { type: "string" }, difficulty: { type: "string" }, "held-out": { type: "boolean" },
   runs: { type: "string" }, agreed: { type: "string" }, "run-set": { type: "string" }, data: { type: "string" }, scope: { type: "string" }, "granted-by": { type: "string" }, "produced-by": { type: "string" },
@@ -3715,6 +3719,25 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     if (!leave) throw new UsageError("this run was not started by a person's prompt (a schedule or a hook said so), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
     io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
   } else if (wakeRun) io.err("  unprompted  this is a wake and the Mandate does not name unprompted work: its Actions are not marked (asp market mandate --allow-unprompted marks them and bounds them)");
+  // The Mandate's workflow clause (DK1209, S1607), only when the Mandate carries one: a run that is a step (--workflow-step <from>:<to> or ASP_WORKFLOW_STEP) is checked against the clause and the job's state before it
+  // starts, its Action reports the step, and a job whose workflow has reached a terminal state runs nothing more. Nothing tells the gateway which step a run is except the caller, so it is the caller's word.
+  const wfClause = (mandateRecord?.record.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[]; terminal?: string[] } } | undefined)?.workflow;
+  const wfRaw = v["workflow-step"] ?? io.env.ASP_WORKFLOW_STEP;
+  let wfStep: { from: string; to: string } | undefined;
+  if (wfClause) {
+    const st = await local.log.workflowState(contract).catch(() => null);
+    const now_ = st?.state ?? wfClause.start;
+    if (st?.terminal) throw new UsageError("this job's workflow is in a terminal state (" + st.state + "): nothing more is run under this Mandate (workflow clause)");
+    if (wfRaw !== undefined) {
+      const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(wfRaw);
+      if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -");
+      if (m[1] !== now_) throw new UsageError("this run is a step from " + m[1] + ", and the job is in the state " + now_ + " (the log would refuse it: workflow_wrong_state)");
+      if (!wfClause.transitions.some((t) => t.from === m[1] && t.to === m[2])) throw new UsageError("the Mandate's workflow does not allow the step " + m[1] + " to " + m[2] + " (the log would refuse it: workflow_bad_transition); allowed from " + m[1] + ": " + (wfClause.transitions.filter((t) => t.from === m[1]).map((t) => t.to).join(", ") || "none"));
+      wfStep = { from: m[1], to: m[2] };
+      io.err("  workflow    this run is the step " + m[1] + " to " + m[2] + ": its Action reports it");
+    }
+  } else if (v["workflow-step"] !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  else if (wfRaw !== undefined) io.err("  workflow    ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause: it is ignored and the Action carries no step");
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
@@ -4052,6 +4075,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(unpromptedRun ? ["--unprompted"] : []),
+      ...(wfStep ? ["--workflow-step", wfStep.from + ":" + wfStep.to] : []),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
@@ -6426,6 +6450,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
       ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
       // A role in a fleet (DK1231, S1608) and a workflow clause (DK1209, S1607): --fleet-role router|worker|watchdog, --workflow <a JSON file of { states, start, transitions, terminal }>.
+      // Reversible and irreversible actions (DK1227, S1609): the scopes whose Actions cannot be undone, and how long after an Action the performer may undo a reversible one; absent means no undo.
+      ...((() => { const il = v["irreversible-scopes"], co = v["cool-off-seconds"]; if (il === undefined && co === undefined) return {}; const list = il === undefined ? undefined : il.split(",").map((x) => x.trim()).filter(Boolean); const secs = co === undefined ? undefined : Math.trunc(Number(co)); if (secs !== undefined && !(secs >= 1 && secs <= 604800)) throw new UsageError("--cool-off-seconds is a whole number of seconds, 1 to 604800 (a week)"); return { action_classes: { ...(list ? { irreversible: list } : {}), ...(secs !== undefined ? { cool_off_seconds: secs } : {}) } }; })()),
       ...((() => { const r = v["fleet-role"]; if (r === undefined) return {}; if (r !== "router" && r !== "worker" && r !== "watchdog") throw new UsageError("--fleet-role is router, worker or watchdog"); return { role: r }; })()),
       ...((() => { const wf = v.workflow; if (wf === undefined) return {}; let clause: unknown; try { clause = JSON.parse(readFileSync(resolve(io.cwd, wf), "utf8")); } catch (e) { throw new UsageError(`--workflow ${wf} is not a readable JSON file: ${(e as Error).message}`); } const c = clause as { states?: unknown; start?: unknown; transitions?: unknown }; if (!Array.isArray(c.states) || typeof c.start !== "string" || !Array.isArray(c.transitions)) throw new UsageError("--workflow is a JSON object with states, start and transitions (and optionally terminal)"); return { workflow: clause }; })()),
       // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
@@ -6729,6 +6755,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       });
     }
     if (v.unprompted) body.unprompted = true;
+    // The workflow step this Action reports (DK1209, S1607) and the Action it undoes (DK1227, S1609): the log checks both against the Mandate; the flags only say them.
+    if (v["workflow-step"] !== undefined) { const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(v["workflow-step"]); if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -"); body.workflow_step = { from: m[1], to: m[2] }; }
+    if (v.undoes !== undefined) { if (!/^sha256:[0-9a-f]{64}$/.test(v.undoes)) throw new UsageError("--undoes is the record id (sha256:...) of the earlier Action this one undoes"); body.undoes = v.undoes; }
     const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);

@@ -25,3 +25,17 @@ A test that compares the code with its own constants cannot tell `>=` from `>`. 
 | Private memory: 256 KiB a scope, 16 scopes, the new-scope test | private-memory-run.ts | 3 | none survived |
 | Ladder file: missing is none, unreadable or unknown is tighten, the five steps | ladder-file.ts | 5 | 1 survived: the `typeof step === "string"` guard is equivalent (`includes` is false for a non-string) |
 | Roles and the irreversible gate scopes | gateway/roles.ts | 8 | 1 survived (policy scopes dropped when action_classes is present); killed in `roles.test.ts` |
+
+## Third pass (same day)
+
+| Limit | File | Mutants | Result |
+|---|---|---|---|
+| Workflow step checks, terminal state, the step reaching the Action, the cool-off bounds 1 to 604800 | cli.ts | 8 | 2 survived (the cool-off bounds were tested with a contract that did not exist); killed by `workflow-gateway.test.ts` with an exact 0, 1, 604800, 604801 |
+| Standing budget warnings: level 80, the cap at equality, the percentage rounded down, day and month apart | budget.ts | 8 | none survived the new `budget-boundary.test.ts` except one equivalent: a cap of 0 cannot be set (a cap is a whole number of at least 1) |
+| Run-log retention: the notice when logs are deleted, none when nothing was | cli.ts | 5 (2 skipped: the pattern occurs twice) | 1 survived (the notice only needed to say exactly "deleted 1 run log"); killed. One equivalent: `if (!days) return 0` (without a period the cutoff is NaN and nothing is deleted anyway) |
+| The price table (each family, mini against big, case, unknown model priced high), overrides, cache costing at 0.1 and 1.25, the worst case (ceil of one token a three characters, 4096 default, never under 1) | gateway/pricing.ts | 21 | 4 survived (case flags of two families, the mini lookahead); killed by `pricing-boundary.test.ts`; one equivalent (the lookahead after gpt-4o: the mini family is matched first) and one (a type check that a non-string never matches anyway) |
+| The refusal-rule classifier (every phrase of every class, the order of the classes, case) | gateway/refusal.ts | 25 | none survived the new case in `refusal-recorder.test.ts` |
+| The loop breaker: equivalent calls, depth and what resets it, near repeats and their window (24 by default), the daily token cap at equality, the lower of the Mandate's and the fleet's limit, a kept halt | agent-guards.ts | 12 | 2 survived (the default window and the window edge); one killed by exact 21-and-22 and 3-call tests, one equivalent (the shift edge: the count reads only the last w-1 calls) |
+| The approval pile: 2 unanswered, 6 refusals, the one notice, the one stop, the environment's positive number rounded down, the unanswered phrase | approval-pile.ts | 11 | 1 survived (the word boundary of the unanswered phrase); killed by `approval-pile-boundary.test.ts` |
+
+Not mutation-checked, with the reason: the key vault (`account.ts`, `home.ts`) hands the seed to an external program and its tests stand on that program's answers, so a mutant there is judged by a real vault, which needs the owner's machine.
