@@ -3060,7 +3060,7 @@ export class EventLog {
     return { state: m.state, verifier: m.verifier, funded: Object.values(m.funders).reduce((a, x) => a + x, 0), funders: Object.keys(m.funders).length, units: m.units };
   }
 
-  /** A judge's agreement with the deterministic check (S1611, DK1223): the totals the grader's weight follows. */
+  /** A judge's agreement with the deterministic check (S1651, DK1223): the totals the grader's weight follows. */
   private async projectGraderAgreement(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { runs: number; agreed: number; run_set_sha256: string };
     if (r.prev !== null) throw rule("grader_agreement_not_chained", "a grader agreement starts its own chain (prev is null)");
@@ -3072,13 +3072,13 @@ export class EventLog {
     await tx.putMarker(`grader_total:${r.issuer}`, JSON.stringify({ runs: t.runs + b.runs, agreed: t.agreed + b.agreed }));
   }
 
-  /** The weight of a grader (S1611, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
+  /** The weight of a grader (S1651, DK1223): its pooled agreement with the deterministic check in permille, with a prior of 5 agreements in 10 runs (a grader with no record weighs 500). Reads only. */
   async graderWeight(grader: string): Promise<{ weight: number; runs: number; agreed: number }> {
     const t = JSON.parse((await this.store.transaction((tx) => tx.getMarker(`grader_total:${grader}`))) ?? '{"runs":0,"agreed":0}') as { runs: number; agreed: number };
     return { weight: Math.floor((1000 * (t.agreed + 5)) / (t.runs + 10)), runs: t.runs, agreed: t.agreed };
   }
 
-  /** An eval scenario (S1610, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
+  /** An eval scenario (S1650, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
   private async projectEvalScenario(tx: LogTx, r: AspRecord): Promise<void> {
     const b = r.body as { skill: string; task_sha256: string; held_out?: boolean };
     if (r.prev !== null) throw rule("eval_scenario_not_chained", "an eval scenario starts its own chain (prev is null)");
@@ -3088,7 +3088,7 @@ export class EventLog {
     await tx.putMarker(`eval_scn:${b.skill}|${b.task_sha256}`, r.id);
   }
 
-  /** The eval scenarios of a skill (S1610, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
+  /** The eval scenarios of a skill (S1650, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
   async evalScenarios(skill: string, viewer?: string): Promise<{ id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[]> {
     const mayList = !!viewer && (viewer === REGISTRAR_DID || viewer === this.operator);
     const out: { id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[] = [];

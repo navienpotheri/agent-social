@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:asp:v0.2:grader_agreement",
   "title": "Grader agreement body",
-  "description": "A judge's measured agreement with the deterministic check (register row DK1223, from DK802; spec-delta S1611): the grader (the issuer, a model agent the log knows: grader_agreement_unknown_grader) graded `runs` runs that a deterministic check also graded, and agreed with it on `agreed` of them; `run_set_sha256` is the hash of the list of runs, so a set is counted once (grader_agreement_known). The log keeps the totals; the grader's WEIGHT is its pooled agreement in permille with a prior of 5 agreements in 10 runs (`graderWeight`), so a grader with no record weighs a half and a long record weighs what it earned. `agreed` cannot exceed `runs` (grader_agreement_exceeds_runs). Chain: none (prev is null).",
+  "description": "A judge's measured agreement with the deterministic check (register row DK1223, from DK802; spec-delta S1651): the grader (the issuer, a model agent the log knows: grader_agreement_unknown_grader) graded `runs` runs that a deterministic check also graded, and agreed with it on `agreed` of them; `run_set_sha256` is the hash of the list of runs, so a set is counted once (grader_agreement_known). The log keeps the totals; the grader's WEIGHT is its pooled agreement in permille with a prior of 5 agreements in 10 runs (`graderWeight`), so a grader with no record weighs a half and a long record weighs what it earned. `agreed` cannot exceed `runs` (grader_agreement_exceeds_runs). Chain: none (prev is null).",
   "type": "object",
   "required": [
     "runs",

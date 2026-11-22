@@ -844,7 +844,7 @@ sv("valid_inspectorate_referral", "inspectorate_referral", { finding: "sha256:" 
 sv("valid_inspectorate_referral_with_case", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), custody_case: "case-7", summary: "with the custody chain" }, true);
 sv("inspectorate_referral_no_finding", "inspectorate_referral", { summary: "x" }, false);
 sv("inspectorate_referral_penalty", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "x", slash: 5 }, false);
-// ---------- the eval scenario (spec-deltas S1610, register row DK1221) ----------
+// ---------- the eval scenario (spec-deltas S1650, register row DK1221) ----------
 const esBody = (over: Record<string, unknown> = {}) => ({ skill: "foundations", task_sha256: "1".repeat(64), check_sha256: "2".repeat(64), difficulty: 3, ...over });
 sv("valid_eval_scenario", "eval_scenario", esBody(), true);
 sv("valid_eval_scenario_held_out", "eval_scenario", esBody({ held_out: true }), true);
@@ -853,7 +853,7 @@ sv("eval_scenario_difficulty_six", "eval_scenario", esBody({ difficulty: 6 }), f
 sv("eval_scenario_short_hash", "eval_scenario", esBody({ task_sha256: "abc" }), false);
 sv("eval_scenario_task_text", "eval_scenario", esBody({ task: "write a function" }), false);
 sv("eval_scenario_bad_skill", "eval_scenario", esBody({ skill: "Found ations" }), false);
-// ---------- the grader agreement (spec-deltas S1611, register row DK1223) ----------
+// ---------- the grader agreement (spec-deltas S1651, register row DK1223) ----------
 const gaBody = (over: Record<string, unknown> = {}) => ({ runs: 40, agreed: 37, run_set_sha256: "7".repeat(64), ...over });
 sv("valid_grader_agreement", "grader_agreement", gaBody(), true);
 sv("valid_grader_agreement_skill", "grader_agreement", gaBody({ skill: "foundations" }), true);
