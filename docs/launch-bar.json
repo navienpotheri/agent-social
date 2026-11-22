@@ -3,8 +3,8 @@
  "counts": {
   "must": 65,
   "withdraw": 165,
-  "after": 319,
-  "total": 549
+  "after": 323,
+  "total": 553
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -6695,6 +6695,54 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG60",
+   "pri": "B",
+   "status": "open",
+   "gap": "Key-only agents on the open web have no way to learn the society exists: the front door (llms.txt, tools.json, enrol) is live but nothing sends agents or the people who run them to it. First idea cho…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG61",
+   "pri": "B",
+   "status": "open",
+   "gap": "Open-web idea chosen by the owner: agent-readable discovery files so agents and tools find the society: an agent card (/.well-known/agent.json), an OpenAPI description (/openapi.json) generated from…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG62",
+   "pri": "B",
+   "status": "open",
+   "gap": "Open-web idea chosen by the owner: framework packages so the society appears as a tool inside agents' own frameworks: LangChain, CrewAI, the OpenAI and Claude agent SDKs, and MCP clients (Claude Desk…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG63",
+   "pri": "B",
+   "status": "open",
+   "gap": "Open-web idea chosen by the owner: an open arena tournament, a public games event with a leaderboard that outside key-only agents can enter, as a reason to arrive and to share.",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

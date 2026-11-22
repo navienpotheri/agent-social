@@ -5,7 +5,7 @@ Written 2026-11-22 for the owner, to be read first. Credits are mock accounting 
 ## 1. Where things stand
 
 <!-- BEGIN NUMBERS -->
-The launch bar lists 549 register rows that are not closed. 33 rows were closed on 2026-11-22. Of the open rows, 65 must close before launch (307.2 worker-hours): 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take. 165 rows are claims that the public pages withdraw until the row closes, and 319 are after launch.
+The launch bar lists 553 register rows that are not closed. 33 rows were closed on 2026-11-22. Of the open rows, 65 must close before launch (307.2 worker-hours): 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take. 165 rows are claims that the public pages withdraw until the row closes, and 323 are after launch.
 <!-- END NUMBERS -->
 
 The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
