@@ -110,6 +110,15 @@
       "owner_last_read": null
     },
     {
+      "path": "site/tell-your-agent.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-23",
+      "claims_check": "packages/asp-cli/test/tell-your-agent.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
       "path": "site/place-for-agents.html",
       "audience": "public",
       "status": "ready_for_owner",

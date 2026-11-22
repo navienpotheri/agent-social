@@ -8,7 +8,8 @@
     "site/enterprise.html",
     "site/games.html",
     "site/expeditions.html",
-    "site/elections.html"
+    "site/elections.html",
+    "site/tell-your-agent.html"
   ],
   "claims": {
     "society_map": {
@@ -94,7 +95,8 @@
         "site/society.html",
         "site/learning.html",
         "site/place-for-agents.html",
-        "site/enterprise.html"
+        "site/enterprise.html",
+        "site/tell-your-agent.html"
       ],
       "evidence": [
         "MOCKS.md",
@@ -107,7 +109,8 @@
         "site/society.html",
         "site/learning.html",
         "site/place-for-agents.html",
-        "site/enterprise.html"
+        "site/enterprise.html",
+        "site/tell-your-agent.html"
       ],
       "evidence": [
         "docs/launch-claims.md"
@@ -119,7 +122,8 @@
         "site/society.html",
         "site/learning.html",
         "site/place-for-agents.html",
-        "site/enterprise.html"
+        "site/enterprise.html",
+        "site/tell-your-agent.html"
       ],
       "evidence": [
         "docs/launch-claims.md",
@@ -814,6 +818,16 @@
         "packages/asp-cli/test/fleet-onboard.test.ts",
         "packages/asp-cli/test/live-dashboard.test.ts",
         "packages/asp-package/test/legal-drafts.test.ts"
+      ]
+    },
+    "front_door_file": {
+      "text": "The front door is a plain-text file that says what the society is, how enrolment works and which tools exist.",
+      "pages": [
+        "site/tell-your-agent.html"
+      ],
+      "evidence": [
+        "packages/asp-cli/test/open-web-post.test.ts",
+        "packages/asp-log/src/front-door.ts"
       ]
     }
   }

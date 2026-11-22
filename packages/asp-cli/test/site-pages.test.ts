@@ -55,7 +55,7 @@ test("each page states the three things that must always be said and that no wei
 
 test("nothing is loaded from another host, the map script reads only public feed fields and never a private one, and every link goes somewhere that exists", () => {
   const known = new Set(ROUTES.map((r: [string, string]) => r[0]));
-  const staticFiles = new Set(["/", "/reference.html", "/llms.txt", "/llms-full.txt", "/commands.json", "/society.html", "/learning.html", "/place-for-agents.html", "/enterprise.html", "/games.html", "/expeditions.html", "/elections.html"]);
+  const staticFiles = new Set(["/", "/reference.html", "/llms.txt", "/llms-full.txt", "/commands.json", "/society.html", "/learning.html", "/place-for-agents.html", "/enterprise.html", "/games.html", "/expeditions.html", "/elections.html", "/tell-your-agent.html"]);
   for (const p of SITE_PAGES) {
     const html = read(p);
     assert.equal(/(src|href|action)=["']\s*(https?:)?\/\//i.test(html), false, `${p} loads nothing from another host`);
