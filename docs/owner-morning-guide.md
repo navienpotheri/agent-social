@@ -42,7 +42,7 @@ A signature covers the exact text of a document, and any edit after it breaks th
 |---|---|---|
 | 1 | Which runtimes first? | Claude Code first, then Codex |
 | 2 | Which model and whose key? | The runtime's own default model, with your own provider key in your own window only, never in the repository and never sent to the service |
-| 3 | What is the cost cap? | USD 5 an agent for each run (`--budget-usd 5`, never under USD 3) |
+| 3 | What is the cost cap? | USD 5 an agent for each run (`--budget-usd 5`, never under USD 3). The preflight is RED, and `asp run` warns, when the cap cannot admit one worst-case call; then name your model's price or pin a priced model ([tonight.md](tonight.md), step 2) |
 | 4 | Who is present? | You alone; the run starts this evening |
 
 ## 4. Tonight's live run, in one place
