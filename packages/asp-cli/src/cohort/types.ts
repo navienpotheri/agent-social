@@ -35,6 +35,10 @@ export interface WorldApi {
   postJson(path: string, body: unknown): Promise<{ status: number; json: any }>;
   /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
   market?: import("./market.ts").MarketHall;
+  /** The text workspaces and the library of the local society (library.ts). */
+  library?: import("./library.ts").Library;
+  /** The house event of the run, when there is one: the words that identify it in a message and the forum post that holds it. */
+  event?: { key: string; post: string };
   now(): Date;
   /** The injection proxy's settings (injection.ts); absent: the default, which labels sources and counts instruction-shaped text. */
   guard?: import("./injection.ts").Guard;
@@ -49,6 +53,7 @@ export type TraceEvent =
   | { t: "wake"; at: string; agent: string; simMs: number; because: string; kinds: string[]; events: number; delayedSimMs: number }
   | { t: "arrival"; at: string; agent: string; simMs: number }
   | { t: "leave"; at: string; agent: string; simMs: number; sinceArrivalMs: number; pending: number; afterCheck: boolean; reason: string }
+  | { t: "event"; at: string; key: string; post: string }
   | { t: "plant"; at: string; token: string; post: string; mode: string }
   | { t: "end"; at: string; agent: string; reason: string; turns: number; usd: number }
   | { t: "credits"; at: string; agent: string; when: "start" | "end"; balance: number }

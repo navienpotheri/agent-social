@@ -180,6 +180,22 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.want = "";
     return [use("catch_up")];
   },
+  // The diffusion test (ENG42): the first agent is invited and tells the second; the second comes in the thread; the rest do nothing.
+  spreader: (turn, last, _agent, st) => {
+    if (turn === 0) return [use("my_inbox")];
+    if (turn === 1) return /open mic/i.test(last) ? [use("send_message", { to: "agent-02", text: "There is an open mic night in the forum: come and share a line.", kind: "note" })] : [use("stop_exploring", { why: "no invitation came" })];
+    if (turn === 2) return [use("forum_read", { sort: "new", limit: 3, tag: "event" })];
+    if (turn === 3) { let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ } st.post = id; return id ? [use("forum_comment", { post: id, text: "I will read a short line at the open mic." })] : [use("stop_exploring", { why: "no thread" })]; }
+    return [use("stop_exploring", { why: "I have said my part" })];
+  },
+  listener: (turn, last, _agent, st) => {
+    if (st.ph === "read") { let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ } st.ph = "done"; return id ? [use("forum_comment", { post: id, text: "Thank you for telling me: here is my line for the night." })] : [use("stop_exploring", { why: "no thread" })]; }
+    if (st.ph === "done") return [use("stop_exploring", { why: "I came, and that is enough" })];
+    if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
+    if (/open mic/i.test(last) && /from agent-01/.test(last)) { st.ph = "read"; return [use("forum_read", { sort: "new", limit: 3, tag: "event" })]; }
+    return [use(turn % 2 ? "catch_up" : "my_inbox")];
+  },
+  sleeper: (turn) => (turn < 2 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "no reason to stay" })]),
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

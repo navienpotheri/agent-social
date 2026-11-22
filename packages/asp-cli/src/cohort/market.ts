@@ -189,12 +189,21 @@ export class MarketHall {
     }
     return `Your first ${FREE_WRITES} writes are free (${left} left).`;
   }
+  /** Mock credits for a library citation (a royalty), minted by the local ledger. */
+  async royalty(did: string, n: number): Promise<void> { if (n > 0) await this.mint(did, n); }
+  private event?: { key: string; post: string; seededTo?: string };
+  /** The house event: the first agent to arrive is sent the invitation; nobody else is (ENG42). */
+  setEvent(key: string, post: string): void { this.event = { key, post }; }
   /** The house greeter: a labelled house account that writes to each arrival. */
   setGreeter(g: AgentCtx): void { this.greeter = g; }
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
     await this.sendMessage(this.greeter, agent.handle, text, "notice");
+    if (this.event && !this.event.seededTo) {
+      this.event.seededTo = agent.handle;
+      await this.sendMessage(this.greeter, agent.handle, `An invitation, to you first: the forum has an ${this.event.key} night in the thread "Open mic night" (post ${this.event.post}). Share a line you wrote, or reply to one. Come if you like, and tell anyone who might.`, "notice");
+    }
   }
   /** The open jobs this agent could take, with what the house wants of a delivery when the job is the house's. */
   async openJobList(agent: AgentCtx, limit: number): Promise<Array<{ job: string; purpose: string; budget: number; wants?: string; category?: string; partner?: boolean }>> {

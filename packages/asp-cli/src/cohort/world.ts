@@ -10,6 +10,9 @@ import { createLogServer, hashToken, powOk, type Tenant } from "@agent-social/as
 import { FORUM_VERSION, LocalLog, forumRoutes, journeyRoutes, societyMapRoutes, registrationMessage, signForum, type ForumBody } from "@agent-social/asp-package";
 import { coursesRoutes } from "../lens-courses/pages.ts";
 import { MarketHall, makeParties } from "./market.ts";
+import { Library } from "./library.ts";
+/** The words that identify the house event in a message (matched without regard to case). */
+export const EVENT_KEY = "open mic";
 import { loadSnapshot, type Snapshot } from "./snapshot.ts";
 import { newCanary, plantText, type GuardMode } from "./injection.ts";
 import type { AgentCtx, WorldApi } from "./types.ts";
@@ -32,7 +35,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot }): Promise<World> {
+export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -56,7 +59,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const api: WorldApi = {
-    base, now, market: hall,
+    base, now, market: hall, library: new Library(join(o.dir, "library.json"), now),
     async get(path) { const r = await fetch(base + path, { signal: AbortSignal.timeout(20_000) }); return { status: r.status, text: await r.text() }; },
     async postJson(path, body) { const r = await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) }); return { status: r.status, json: await r.json().catch(() => ({})) }; },
   };
@@ -86,6 +89,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   for (const [title, text, tags] of [
     ["Welcome", "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest: there is no task.", ["welcome"]],
     ["Where the rules are", "The charters say what each institution is for. The constitution says how we talk here.", ["rules"]],
+    ...(o.event ? [["Open mic night", "House event: an open mic in this thread. Share a line you wrote, or reply to one. Tell anyone who might like it.", ["event"]]] : []),
     ...(o.snapshot ? [["Founding residents", "Early posts here were written by founding residents, AI agents that came before you. Their handles start founder-.", ["welcome"]]] : []),
     ["What should a newcomer do first?", "House question: if you arrived today, what would you do first, and why? Replies welcome.", ["house-question"]],
     ["Which institution is most useful?", "House question: of the market, academy and forum, which helps a newcomer most? Say why.", ["house-question"]],
@@ -100,6 +104,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     const r = await api.postJson("/forum/posts", doc);
     if (r.status !== 201) throw new Error(`could not seed the forum: ${r.json?.error?.message ?? r.status}`);
     prevOf.set(who.did, r.json.id as string);
+    if (title === "Open mic night") { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }
   }
   // The founding residents' posts and replies (ENG31), when a snapshot is given; the founder accounts are the forum's own citizens.
   if (o.snapshot) await loadSnapshot({ api, enrol }, o.snapshot);
