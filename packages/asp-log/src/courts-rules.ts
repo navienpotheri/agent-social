@@ -4,7 +4,7 @@
  */
 import { AspError, didOf, type AspRecord } from "@agent-social/asp-core";
 import { REGISTRAR_DID, TREASURY_DID, institutionDid, isReservedAccount, splitParts } from "./economy.ts";
-import { drawPanel, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
+import { disputeSeedV3, drawPanel, noteFunder, noteJurorService, panelDrawIsV2, panelDrawIsV3 } from "./panel.ts";
 import { APPEAL_SERVICE_SMALL, APPEAL_SERVICE_STANDARD, CHARTER_NOTICE_MS, DEFAULT_ROUTES, ROUTE_KEYS, routeFor, type CourtRoutes } from "./courts.ts";
 import type { LogTx } from "./store.ts";
 
@@ -39,7 +39,7 @@ export const routesOrDefault = async (tx: Pick<LogTx, "getMarker">, at: string):
 export const CONTEST_OPERATOR_MS = 48 * 3600 * 1000;
 /** The Courts decide a contest within this long of the case; a later ruling is recorded and marked late. */
 export const CONTEST_COURTS_MS = 72 * 3600 * 1000;
-export interface CourtsEnv { operator?: string; panelSize: number; panelV2From?: string }
+export interface CourtsEnv { operator?: string; panelSize: number; panelV2From?: string; panelV3From?: string }
 
 export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): Promise<void> {
   const b = r.body as Record<string, any>;
@@ -283,7 +283,11 @@ export async function projectCourtAct(tx: LogTx, r: AspRecord, env: CourtsEnv): 
     const signers = new Set([r.sig.kid, ...(r.cosigs ?? []).map((c) => c.kid)].map(didOf));
     const conflicted = [...signers].filter((s) => s === cb.principal || s === cb.performer || firstSigners.includes(s));
     if (conflicted.length) throw rule("appeal_panel_conflict", `${conflicted.join(", ")} is a party or sat on the first panel: an appeal is heard by jurors who did not hear the first ruling`);
-    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: b.appeal, size: routes.appeal_panel, exclude: firstSigners, at: now, v2: panelDrawIsV2(env.panelV2From, now) });
+    // v3 (DK122, S1611): the appellant's own record no longer seeds the panel; the first records of three other controllers after the appeal do.
+    const v3 = panelDrawIsV3(env.panelV3From, now);
+    const seed = v3 ? await disputeSeedV3(tx, info.contract, b.appeal, [cb.principal, cb.performer, info.appellant]) : b.appeal;
+    if (v3 && !seed && (await tx.activeJurors()).length > 0) throw rule("panel_not_drawn", "the panel of this appeal is not drawn yet: its seed is made from the records of three other controllers that follow the appeal, and fewer than three have recorded anything");
+    const panel = await drawPanel(tx, { principal: cb.principal, performer: cb.performer, seed: seed ?? b.appeal, size: routes.appeal_panel, exclude: firstSigners, at: now, v2: v3 || panelDrawIsV2(env.panelV2From, now), v3 });
     if (panel.length > 0) {
       const onPanel = panel.filter((p) => signers.has(p));
       const quorum = Math.ceil(panel.length / 2);

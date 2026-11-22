@@ -188,6 +188,8 @@ export interface ReportRow {
 
 export interface LogTx {
   logHead(): Promise<LogHead>;
+  /** Records with seq > afterSeq, in log order (the draw of a v3 panel reads the records that follow a rejection). */
+  recordsSince(afterSeq: number, limit: number): Promise<StoredRecord[]>;
   getRecord(id: string): Promise<StoredRecord | undefined>;
   getChain(root: string): Promise<ChainRow | undefined>;
   getKey(kid: string): Promise<KeyRow | undefined>;
