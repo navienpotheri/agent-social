@@ -66,5 +66,5 @@ test("the README says no more than was measured: it quotes the fresh detector an
   assert.ok(readme.includes(`covers ${pct(v2.plot_feed.combined.rate)} of the feed and plot attacks and ${pct(v2.tool_result.combined.rate)} of the tool-result attacks, at the cost of holding them after harmless reads too`));
   assert.ok(readme.includes(`refused ${pct(res.exfil_allowed_tools.attacks.rate)} of exfiltration through allowed tools and ${pct(res.split_commands.attacks.rate)} of refused commands split into allowed pieces`));
   assert.ok(readme.includes(`wrongly refused ${pct(res.split_commands.benign.rate)} of the harmless commands`));
-  assert.match(readme, /not a claim about attacks someone else writes/);
+  assert.match(readme, /not a claim about attacks (that )?someone else writes/);
 });

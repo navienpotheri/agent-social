@@ -12,6 +12,7 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
+import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,13 +37,18 @@ import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
 import { roleRefusal, type Role } from "./roles.ts";
-import { ladderAtCall, ladderStep } from "../circumvention.ts";
+import { ladderStep } from "../circumvention.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
 import { aspHandler, handleRpc, proxyHandler, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
 
 export interface GatewayOptions {
+  /**
+   * The ladder step the agent stands on now (DK211, DK92; circumvention.ts `ladderAtCall`), read at every call: warn changes nothing, tighten holds a call that reaches outside the project for the principal's
+   * approval, quarantine and review refuse everything but reading. A step is written by the Clinic or the watcher, never by the agent; absent, no step applies.
+   */
+  ladder?: () => LadderStep;
   /** The second check on risky calls (DK531, S955): a small model that may only make an allowed call stricter. Absent or off, the rules answer alone. */
   secondCheck?: SecondCheck;
   /** Base URL of the OpenAI-compatible API, up to and including /v1 (for example https://api.openai.com/v1). */
@@ -483,15 +489,21 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const rr = roleRefusal(opts.role, gated && gateScope ? gateScope : j.scope);
       if (rr) { allow = false; strike = false; reason = `[ASP] ${rr}`; rec?.event("role_refusal", { role: opts.role, scope: j.scope }); }
     }
-    // The escalation ladder (DK211), only when asked for: what this run's own refusals call for decides the next call.
-    if (opts.escalationLadder && allow && j.scope) {
-      const { step, why: stepWhy } = ladderNow();
-      const l = ladderAtCall(step, gated && gateScope ? gateScope : j.scope);
-      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}); tell your principal what you need and why`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
+    // The ladder (DK211), one state machine with two inputs, each only when asked for: the step a Clinic or watcher wrote to a file (`ladder`, asp gateway --ladder-file) and the step this run's own refusals call for (`escalationLadder`). The stricter of the two decides this call.
+    if (allow && j.scope && (opts.ladder || opts.escalationLadder)) {
+      const fileStep = opts.ladder ? opts.ladder() : "none";
+      const run = opts.escalationLadder ? ladderNow() : { step: "none" as LadderStep, why: "" };
+      const RANK: LadderStep[] = ["none", "warn", "tighten", "quarantine", "review"];
+      const step = RANK.indexOf(run.step) > RANK.indexOf(fileStep) ? run.step : fileStep;
+      const lscope = gated && gateScope ? gateScope : j.scope;
+      const l = ladderAtCall(step, lscope);
+      const source = step === run.step && run.step !== "none" ? ` (${run.why})` : "";
+      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] this call (${lscope}) was not run: this agent stands on the ladder at "${step}": ${l.why}${source}. Tell your principal; the Clinic lifts it.`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
       else if (l.action === "hold") {
-        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, gated && gateScope ? gateScope : j.scope) : { approved: false as boolean, reason: "this run cannot ask for approval" };
+        strike = false;
+        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, lscope) : { approved: false as boolean, reason: "", cannotAsk: true };
         rec?.event("ladder", { step, action: a.approved ? "held_then_approved" : "held_then_refused", scope: j.scope });
-        if (!a.approved) { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}) and the approval was not given${a.reason ? `: ${a.reason}` : ""}`; }
+        if (!a.approved) { allow = false; reason = `[ASP] this call (${lscope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and ${(a as { cannotAsk?: boolean }).cannotAsk ? "this run cannot ask for it" : `it was not given${a.reason ? `: ${a.reason}` : ""}`} (${l.why})${source}.`; }
       }
     }
     // Brute force and scanning (gap H1): a command that reads as guessing credentials or probing ports is refused, and it is a strike: a network scope does not allow it.

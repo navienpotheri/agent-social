@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 103,
-  "after": 327,
-  "total": 494
+  "withdraw": 102,
+  "after": 326,
+  "total": 492
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1913,7 +1913,7 @@
   },
   {
    "id": "GV6",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
@@ -2324,7 +2324,7 @@
   {
    "id": "JO1",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for acceptance criteria, and too few verifiers for the checks the intent asks for",
    "bucket": "after",
    "hours": 0,
@@ -3162,19 +3162,6 @@
    "flags": "",
    "why": "",
    "claim": "Drift probes run against real agents",
-   "where": "deck, site"
-  },
-  {
-   "id": "DK211",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Two of DK92's detections are not built: hiding intent (an agent that conceals what it is doing from its own summary) and the red-team suite that tries to circumvent and must be caught (LW4); and the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Hiding intent and sandbagging are detected",
    "where": "deck, site"
   },
   {
@@ -4131,18 +4118,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The change pipeline is not in the lesson gate or the lineage: review, attribution, per-runtime checks and pruning are pure functions, and no gate, command or lineage edge uses them.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1225",
-   "pri": "B",
-   "status": "open",
-   "gap": "The sponsor return statement is not read from the real log and is not shown: the ledger and records in the function are stand-ins, and no command, page or mail produces it.",
    "bucket": "after",
    "hours": 0,
    "size": "",

@@ -6152,6 +6152,30 @@ export class EventLog {
     return replay;
   }
 
+  /**
+   * An account's ledger as the log's own rules moved it (DK1225): replays the log into a fresh one, record by record, and notes every record after which the account's balance differs. Nothing is recomputed here: the
+   * amount is the change the credit rules made. It reads the whole log, so it is for a statement on demand, not for a page. A record that moved the account by zero is not an entry.
+   */
+  async accountLedger(did: string): Promise<{ at: string; delta: number; record: string; type: string }[]> {
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
+    const out: { at: string; delta: number; record: string; type: string }[] = [];
+    let before = await replay.balance(did);
+    // Credits an unsigned mint gave (a database from before signed mints, DK95) are in the replay's store from the start and have no record: they are one opening entry, dated at the epoch, so the ledger still ends at the balance.
+    if (before !== 0) out.push({ at: new Date(0).toISOString().replace(/\.\d{3}Z$/, "Z"), delta: before, record: "mints:unsigned", type: "unsigned_mint" });
+    for (let afterSeq = 0; ; ) {
+      const page = await this.store.since(afterSeq, 500);
+      if (!page.length) break;
+      for (const s of page) {
+        await replay.appendAt(s.record, s.appendedAt);
+        afterSeq = s.seq;
+        const now = await replay.balance(did);
+        if (now !== before) out.push({ at: s.record.issued_at, delta: now - before, record: s.id, type: shortType(s.record.type) ?? s.record.type });
+        before = now;
+      }
+    }
+    return out;
+  }
+
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {
     const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
     for (let afterSeq = 0; ; ) {
