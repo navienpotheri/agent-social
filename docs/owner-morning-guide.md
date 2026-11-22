@@ -4,7 +4,7 @@ Written 2026-11-22 for the owner, to be read first. Credits are mock accounting 
 
 ## 1. Where things stand
 
-The launch bar lists 503 register rows that are not closed. 20 rows were closed on 2026-11-22. Of the open rows, 64 must close before launch (305.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 104 rows are claims that the public pages withdraw until the row closes, and 335 are after launch. The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
+The launch bar lists 500 register rows that are not closed. 23 rows were closed on 2026-11-22. Of the open rows, 64 must close before launch (305.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 104 rows are claims that the public pages withdraw until the row closes, and 335 are after launch. The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
 
 Since yesterday the workers built, among other things: the evening runbook with its rehearsal script, the job-data term end to end, the statement of containment on each public page (the gateway reads calls; there is no sandbox on Windows), the owner's signing kit with what each signature accepts, Code draft 0.5, and a line-by-line pass over the four documents that you sign.
 
