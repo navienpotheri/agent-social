@@ -34,7 +34,8 @@ test("DK1240: contributors split the pool by their recorded units, a free-rider 
   await w.audit();
   assert.equal(await refusedBy(k.log.append(w.contrib(w.c1, 3, w.f1))), "mission_contribution_wrong_issuer", "only the verifier records contributions");
   assert.equal(await refusedBy(k.log.append(w.settle(true))), "mission_no_contribution", "no one to pay");
-  await k.log.append(w.contrib(w.c1, 3));
+  await k.log.append(w.contrib(w.c1, 2));
+  await k.log.append(w.contrib(w.c1, 1)); // recorded again: the units add up to 3
   await k.log.append(w.contrib(w.c2, 1));
   assert.equal(await refusedBy(k.log.append(w.settle(true, w.f1))), "mission_settle_wrong_issuer");
   await k.log.append(w.settle(true));
