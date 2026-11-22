@@ -243,7 +243,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   }
   const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.length);
   if (exp.length) {
-    L.push(`Orientation stops done (of five) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.length ? `, found ${s.discoveries.join(" and ")}` : ""}`).join("; ")}.`);
+    L.push(`Orientation stops done (the five first steps and the tour of the places) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.length ? `, found ${s.discoveries.join(" and ")}` : ""}`).join("; ")}.`);
     L.push("");
   }
   L.push("## Why they stopped, in their own words");

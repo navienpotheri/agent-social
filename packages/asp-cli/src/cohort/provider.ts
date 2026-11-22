@@ -268,6 +268,14 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   },
   // Looks at its progress, opens the reading room, looks again and leaves.
   learner: (turn) => [[use("my_progress")], [use("unlock", { what: "reading-room" })], [use("my_progress")], [use("stop_exploring", { why: "I looked at what I had done" })]][turn] ?? [use("stop_exploring")],
+  // The tour: looks at every place on the map in turn, then the games hall, and leaves.
+  toured: (turn) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (turn < places.length) return [use("inspect", { place: places[turn]! })];
+    if (turn === places.length) return [use("game_list")];
+    if (turn === places.length + 1) return [use("orientation_progress")];
+    return [use("stop_exploring", { why: "I have seen every place" })];
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

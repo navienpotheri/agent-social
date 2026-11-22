@@ -111,7 +111,8 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     };
   }
   if (o.expedition) {
-    const x = new Expedition();
+    const x = new Expedition({ games: !!o.games });
+    hall.tourOn = true; hall.gamesHallOn = !!o.games;
     api.expedition = x;
     const guides = new Map<number, AgentCtx>();
     hall.arrivalHook = async (agent) => {

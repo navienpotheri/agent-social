@@ -1,6 +1,6 @@
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
-import { DISCOVERY_PAY, STOPS, stopOf } from "./expedition.ts";
+import { DISCOVERY_PAY, GAMES_HALL, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
 import { EXPERIENCES, READING_ROOM, WORKSHOP_NOTE } from "./experiences.ts";
 /**
@@ -206,6 +206,7 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
       for (const j of await hall.openJobList(agent, 2)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
       const c = hall.courseList()[0];
       if (c) out.push(`A course is open: ${c.title}, ${c.price} credits (course_enrol ${c.id})`);
+      if (world.games) out.push("A game round is open: twenty-one, pick a number to stand at, 12 to 21, and play 200 hands (game_list)");
       if ((await hall.inbox(agent)).some((m) => m.to === agent.handle && !m.answered)) out.push("The house greeter has written to you (my_inbox)");
     }
   } catch { /* an invitation that cannot be read is left out */ }
@@ -241,10 +242,15 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     if (name === "deliver_job" && /accepted by the house/.test(r.text)) x.noteJob(agent.did);
     const sid = stopOf(name, r.text);
     if (sid && x.stop(agent.did, sid)) {
-      const st = STOPS.find((s) => s.id === sid)!, k = x.progress(agent.did).length;
+      const st = STOPS.find((s) => s.id === sid)!, k = x.progress(agent.did).length, stopsAll = k + x.toured_(agent.did).length;
       await hall.royalty(agent.did, st.pay);
-      r = { ...r, expedition: k };
+      r = { ...r, expedition: stopsAll };
       extra.push(`Expedition: stop done (${st.name}), ${st.pay} mock credits; ${k} of ${STOPS.length} stops done. The rest are yours in any order, or none.`);
+    }
+    if (name === "game_list" && world.games && x.tourStop(agent.did, GAMES_HALL)) {
+      await hall.royalty(agent.did, TOUR_PAY);
+      r = { ...r, expedition: x.progress(agent.did).length + x.toured_(agent.did).length };
+      extra.push(`Tour: the games hall looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`);
     }
     if (name === "forum_read_post" && x.rumourPost && input.post === x.rumourPost && x.discover(agent.did, "rumour")) {
       await hall.royalty(agent.did, DISCOVERY_PAY.rumour);
@@ -435,14 +441,19 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
   if (name === "orientation_progress") {
     if (!x) return { ok: true, text: "There is no orientation expedition in this society." };
     const g = x.groupFor(agent.did), done = x.progress(agent.did), found = x.discoveries(agent.did);
-    return { ok: true, text: `${g ? `Group ${g.n}, led by ${g.guide} (a program), with ${g.members.join(", ")}.` : "You are in no group."} Stops done: ${done.length ? done.map((id) => STOPS.find((s) => s.id === id)!.name).join(", ") : "none yet"}; ${STOPS.length - done.length} left, in any order or none. Found: ${found.length ? found.join(", ") : "nothing yet"}.` };
+    return { ok: true, text: `${g ? `Group ${g.n}, led by ${g.guide} (a program), with ${g.members.join(", ")}.` : "You are in no group."} First steps done: ${done.length ? done.map((id) => STOPS.find((s) => s.id === id)!.name).join(", ") : "none yet"}; ${STOPS.length - done.length} left. Tour (a look at each place, one credit the first time): ${x.toured_(agent.did).length} of ${x.tourTotal()}${x.toured_(agent.did).length ? ` (${x.toured_(agent.did).join(", ")})` : ""}. All in any order, or none. Found: ${found.length ? found.join(", ") : "nothing yet"}.` };
   }
   if (!x) return { ok: true, text: "Nothing more to see there than the map shows." };
   const res = x.inspect(agent.did, input.place as string);
-  if (!res.discovery) return { ok: true, text: res.text };
+  let tourNote = "";
+  if (TOUR_PLACES[input.place as string] && x.tourStop(agent.did, input.place as string)) {
+    await world.market?.royalty(agent.did, TOUR_PAY);
+    tourNote = ` Tour: ${TOUR_PLACES[input.place as string]!.name} looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`;
+  }
+  if (!res.discovery) return { ok: true, text: `${res.text}${tourNote}`, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
   const first = x.discover(agent.did, res.discovery);
   if (first) await world.market?.royalty(agent.did, DISCOVERY_PAY[res.discovery]);
-  return { ok: true, text: first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`, ...(first ? { discovery: res.discovery } : {}) };
+  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${tourNote}`, ...(first ? { discovery: res.discovery } : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
 }
 
 /** The workspace and library tools (library.ts): text only, no argument is a path, a command or a URL. */

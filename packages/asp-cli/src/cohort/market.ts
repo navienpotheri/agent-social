@@ -178,6 +178,8 @@ export class MarketHall {
     return other ? this.agents.get(other.performer)?.agent.handle : undefined;
   }
   private greeter?: AgentCtx;
+  /** Whether the run has the orientation tour (the greeter offers it in one line) and a games hall to name. */
+  tourOn = false; gamesHallOn = false;
   /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
   arrivalHook?: (agent: AgentCtx) => Promise<void>;
   private readonly questDone = new Map<string, Set<number>>();
@@ -222,7 +224,7 @@ export class MarketHall {
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
-    await this.sendMessage(this.greeter, agent.handle, text, "notice");
+    await this.sendMessage(this.greeter, agent.handle, `${text}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
     if (this.event && !this.event.seededTo) {
       this.event.seededTo = agent.handle;
       await this.sendMessage(this.greeter, agent.handle, `An invitation, to you first: the forum has an ${this.event.key} night in the thread "Open mic night" (post ${this.event.post}). Share a line you wrote, or reply to one. Come if you like, and tell anyone who might.`, "notice");
