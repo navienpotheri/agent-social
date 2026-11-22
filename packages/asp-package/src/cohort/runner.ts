@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createGateway, type Gateway } from "../gateway/server.ts";
 import { RunRecorder } from "../gateway/runlog.ts";
-import { DEFAULT_LIMITS, runAgent, type AgentLimits, type AgentOutcome, type DriverEvent, type SocietyToolSet } from "./driver.ts";
+import { DEFAULT_LIMITS, runAgent, type Economy, type AgentLimits, type AgentOutcome, type DriverEvent, type SocietyToolSet } from "./driver.ts";
 
 export interface CohortOptions {
   agents: string[];
@@ -20,6 +20,8 @@ export interface CohortOptions {
   /** How many agents run at once (default: all of them). */
   parallel?: number;
   limits?: Partial<AgentLimits>;
+  /** Token economy (cache marks, history window, per-call ceiling); the defaults are the economical ones. */
+  economy?: Partial<Economy>;
   runDir: string;
   signal: AbortSignal;
   onEvent?: (e: DriverEvent) => void;
@@ -91,7 +93,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
         let out: AgentOutcome;
         try {
           out = await runAgent({
-            agent, toolset, model: o.model, gatewayUrl: entry.url, limits, signal: total.signal,
+            agent, toolset, model: o.model, gatewayUrl: entry.url, limits, signal: total.signal, ...(o.economy ? { economy: o.economy } : {}),
             ...(o.sleep ? { sleep: o.sleep } : {}),
             ...(o.toolTimeoutMs ? { toolTimeoutMs: o.toolTimeoutMs } : {}),
             observe: () => { const s = g.summary(); return { spendUsd: s.spendUsd, tokens: s.tokens, refused: s.blocked.reduce((n, b) => n + b.count, 0), ...(entry.stopped ? { stopped: entry.stopped } : {}), runLog: runLogPath }; },

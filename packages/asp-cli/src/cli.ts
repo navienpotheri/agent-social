@@ -349,6 +349,7 @@ import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
 import { verifyCmd } from "./cohort/verify.ts";
+import { planCmd } from "./cohort/plan.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -751,6 +752,8 @@ const OPTIONS = {
   "quota-mb": { type: "string" },
   "token-env": { type: "string" },
   "sim-speed": { type: "string" },
+  ticks: { type: "string" },
+  "engaged-minutes": { type: "string" },
   arrivals: { type: "string" },
   "no-life": { type: "boolean" },
   name: { type: "string" },
@@ -1370,8 +1373,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "cohort") {
+      if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {

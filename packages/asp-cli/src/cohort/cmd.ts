@@ -5,6 +5,7 @@
 import { join } from "node:path";
 import { isPricedModel, parseArrivals } from "@agent-social/asp-package";
 import { BEHAVIOURS, standInProvider } from "./provider.ts";
+import { plan, renderPlan } from "./plan.ts";
 import { readPersonas, runCohort } from "./run.ts";
 import type { Provider } from "./types.ts";
 
@@ -15,10 +16,10 @@ export const usd = (n: number): string => (Math.round(n * 100) / 100).toFixed(2)
 
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
-  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean;
+  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string;
 }
 
-const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
+const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--engaged-minutes <n, default 30>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
 const num = (name: string, v: string | undefined, dflt?: number): number => {
   if (v === undefined) { if (dflt === undefined) throw new CohortUsage(`${name} is needed: ${USAGE}`); return dflt; }
   const n = Number(v);
@@ -54,13 +55,14 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   const maxTokens = 600;
   if (f.arrivals) { try { parseArrivals(f.arrivals); } catch (e) { throw new CohortUsage((e as Error).message); } }
   if (kind === "stand-in" && (f.arrivals || f["sim-speed"])) throw new CohortUsage("--arrivals and --sim-speed belong to a real-model run (the stand-in dry run has no simulated clock)");
-  const life = kind === "anthropic" && !f["no-life"] ? { speed: num("--sim-speed", f["sim-speed"], 60), ...(f.arrivals ? { arrivals: f.arrivals } : {}) } : undefined;
+  const life = kind === "anthropic" && !f["no-life"] ? { speed: num("--sim-speed", f["sim-speed"], 60), engagedMinutes: num("--engaged-minutes", f["engaged-minutes"], 30), ...(f.arrivals ? { arrivals: f.arrivals } : {}) } : undefined;
   if (f.arrivals && !life) throw new CohortUsage("--arrivals needs the engagement ticks: drop --no-life");
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
   o.io.out(`cohort: ${agents} agent${agents === 1 ? "" : "s"} of ${model} through ${kind}, on a local society only; no goal is given and ${personas ? `${personas.length} persona(s) from ${f["persona-file"]} are used in rotation` : "no persona is used"}.`);
   o.io.out(`  caps: $${usd(budget)} per agent, $${usd(total)} in all, ${minutes} minutes; each model call is refused before it is made if its worst case would pass a cap (estimates from the prices you gave, not the provider's bill).`);
   o.io.out(`  tools: restricted to reading the society and writing in its forum${life ? ", plus resting, waiting for events, a notebook and leaving" : ""}; no shell, no files, no network of their own.`);
   if (life) o.io.out(`  ticks: each agent lives on a simulated clock (${life.speed} simulated seconds per real second${f.arrivals ? `, arrivals ${f.arrivals}` : ", all arrive at once"}); while it rests or waits no model call is made.`);
+  if (kind === "anthropic") for (const l of renderPlan(plan({ model, rungs: [agents], capPerAgent: budget, totalCap: total, ...(priceIn !== undefined || priceOut !== undefined ? { price: { ...(priceIn !== undefined ? { inPerM: priceIn } : {}), ...(priceOut !== undefined ? { outPerM: priceOut } : {}) } } : {}) }), { capPerAgent: budget, totalCap: total })) o.io.out(l);
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
     out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), ...(life ? { life } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,

@@ -28,7 +28,7 @@ async function provider(script: (r: Req) => unknown[], usage = { input_tokens: 7
       const msgs = body.messages ?? [];
       const lastMsg = msgs[msgs.length - 1];
       const last = typeof lastMsg?.content === "string" ? lastMsg.content : JSON.stringify(lastMsg?.content ?? "");
-      const r: Req = { system: String(body.system ?? ""), last, messages: msgs, calls: 0 };
+      const r: Req = { system: Array.isArray(body.system) ? body.system.map((b: { text?: string }) => b.text ?? "").join("") : String(body.system ?? ""), last, messages: msgs, calls: 0 };
       seen.push(r);
       const content = script(r);
       res.writeHead(200, { "content-type": "application/json" });
@@ -59,7 +59,7 @@ test("a waiting agent is woken by a reply with no model call while it waited, ke
       if (/You are here now/.test(r.last)) return use("forum_post", { title: "Hello from A", text: "I am A and I wonder who is here." });
       if (/Your post is in the forum/.test(r.last)) return use("wait_for", { events: ["reply"], max_wait: "12h" });
       if (/You waited/.test(r.last)) return use("notebook_write", { text: "B answered me; thank B" });
-      if (/Noted/.test(r.last)) return use("leave", { reason: "I got my answer" });
+      if (/Noted/.test(r.last) || /Exit check/.test(r.last)) return use("leave", { reason: "I got my answer" });
     } else {
       if (/You are here now/.test(r.last)) return use("rest", { until: "30m" });
       if (/You waited/.test(r.last)) return use("forum_read", { sort: "new" });
@@ -67,7 +67,7 @@ test("a waiting agent is woken by a reply with no model call while it waited, ke
         const id = /"id":"([^"]+)"[^{}]*?"title":"Hello from A"|"title":"Hello from A"[^{}]*?"id":"([^"]+)"/.exec(r.last.replace(/\\"/g, '"'));
         return use("forum_comment", { post: id?.[1] ?? id?.[2] ?? "missing", text: "Welcome, A. I am B." });
       }
-      if (/Your comment is in the forum/.test(r.last)) return use("leave", { reason: "said hello" });
+      if (/Your comment is in the forum/.test(r.last) || /Exit check/.test(r.last)) return use("leave", { reason: "said hello" });
     }
     return use("do_nothing");
   });
@@ -76,10 +76,10 @@ test("a waiting agent is woken by a reply with no model call while it waited, ke
   assert.equal(r.code, 0, r.err + r.out);
   const { dir, events } = traceOf(out);
   const toolsOf = (id: string) => events.filter((e) => e.t === "tool" && e.agent === id).map((e) => e.tool);
-  assert.deepEqual(toolsOf("agent-01"), ["forum_post", "wait_for", "notebook_write", "leave"]);
+  assert.deepEqual(toolsOf("agent-01"), ["forum_post", "wait_for", "notebook_write", "leave", "leave"]);
   assert.deepEqual(toolsOf("agent-02").slice(0, 2), ["rest", "forum_read"]);
   assert.ok(toolsOf("agent-02").includes("forum_comment"), `B commented: ${toolsOf("agent-02")}`);
-  assert.equal(log.A!.length, 4, `A made exactly 4 model calls (none while it waited): ${log.A}`);
+  assert.equal(log.A!.length, 5, `A made exactly 5 model calls (none while it waited): ${log.A}`);
   const woke = p.seen.find((q) => q.system.includes("PERSON-A") && /You waited/.test(q.last))!;
   assert.match(woke.last, /woke because something you were waiting for happened \(reply\)/);
   assert.match(woke.last, /answered you: Welcome, A/);
@@ -99,7 +99,7 @@ test("a wake storm (a wait shorter than the minimum) and a wait for an event thi
     if (/You are here now/.test(r.last)) return use("rest", { until: "20s" });
     if (/wake_storm/.test(r.last)) return use("wait_for", { events: ["offer"], max_wait: "1h" });
     if (/not_available/.test(r.last)) return use("notebook_write", { text: "x".repeat(5000) });
-    if (/notebook_full/.test(r.last)) return use("leave", { reason: "enough" });
+    if (/notebook_full/.test(r.last) || /Exit check/.test(r.last)) return use("leave", { reason: "enough" });
     return use("do_nothing");
   });
   const out = mkdtempSync(join(tmpdir(), "asp-life-out-"));

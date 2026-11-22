@@ -16,7 +16,7 @@ const instant = () => Promise.resolve();
 type Req = { body: any; headers: IncomingMessage["headers"]; n: number };
 async function provider(handler: (r: Req, res: ServerResponse) => void | Promise<void>) {
   let n = 0; const seen: Req[] = [];
-  const s = createServer((req, res) => { const chunks: Buffer[] = []; req.on("data", (c) => chunks.push(c)); req.on("end", async () => { const r: Req = { body: JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"), headers: req.headers, n: ++n }; seen.push(r); await handler(r, res); }); });
+  const s = createServer((req, res) => { const chunks: Buffer[] = []; req.on("data", (c) => chunks.push(c)); req.on("end", async () => { const r: Req = { body: ((b: any) => { if (Array.isArray(b.system)) b.system = b.system.map((x: { text?: string }) => x.text ?? "").join(""); return b; })(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")), headers: req.headers, n: ++n }; seen.push(r); await handler(r, res); }); });
   await new Promise<void>((r) => s.listen(0, "127.0.0.1", r)); servers.push(s);
   return { url: `http://127.0.0.1:${(s.address() as { port: number }).port}`, seen };
 }

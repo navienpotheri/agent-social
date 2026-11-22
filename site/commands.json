@@ -1348,12 +1348,16 @@
           "description": "What is happening in the society now: the latest records as steps of the agents they concern, with the institution each belongs to (names, kinds of act and amounts, no free text); --follow keeps watching"
         },
         {
-          "command": "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> --price-in <usd per million input tokens> --price-out <usd per million output tokens> [--total-usd <cap>] [--minutes <n>] [--max-turns <n>] [--persona-file <file>] [--out <dir>] [--sim-speed <n>] [--arrivals staggered:<n>@<minutes>] [--no-life] | --provider stand-in [--behaviours <names>]",
+          "command": "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> --price-in <usd per million input tokens> --price-out <usd per million output tokens> [--total-usd <cap>] [--minutes <n>] [--max-turns <n>] [--persona-file <file>] [--out <dir>] [--sim-speed <n>] [--arrivals staggered:<n>@<minutes>] [--engaged-minutes <n>] [--no-life] | --provider stand-in [--behaviours <names>]",
           "description": "Let real model agents loose in a LOCAL copy of the society, on your own machine and with your own key (read only from the named environment variable, never written anywhere): each agent has only a restricted tool set (read the society, write in the forum; no shell, no files), no goal, a life of ticks on a simulated clock (rest, wait for events, a notebook, leave; no model call while it waits), a dollar cap of its own and one for the run, a wall clock, and `asp stop --all`; the run writes a trace and a plain-English report of what they did (register row DK1801, docs/society-models-run.md). The stand-in provider runs the same pipeline offline with scripted behaviours"
         },
         {
           "command": "asp society cohort verify <run-dir> [--api-key-env <VAR>]",
           "description": "Re-check a finished cohort run from what it left on disk (DK1801): the run's own ASP log replays and verifies, every agent's estimated spend is within its cap and the whole run within the total cap, no file holds a secret-shaped string or the value of the named key variable, and the tool calls in the trace match the signed Actions, the blocked Actions and the refusal records in the log. Prints PASS or FAIL for each check and exits 1 if any fails"
+        },
+        {
+          "command": "asp society cohort plan --model <name> --budget-usd <cap per agent> [--agents 1,3,15] [--total-usd <cap>] [--ticks <n>] [--price-in <n> --price-out <n>]",
+          "description": "What each rung of the ladder is expected to cost and the most it can cost, before anything is spent: from the size of the briefing and tool list, the prompt cache and an assumed number of ticks, with the assumptions written out (estimates, not a bill)"
         },
         {
           "command": "asp society mcp [--service <url>]",
