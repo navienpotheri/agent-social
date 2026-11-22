@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 63,
-  "withdraw": 104,
+  "withdraw": 105,
   "after": 319,
-  "total": 486
+  "total": 487
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -1074,7 +1074,7 @@
   },
   {
    "id": "T21",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "A gated job under a contract is not yet fair or light on the person: ~~the hook asks about every shell command~~ (fixed: under a contract a gate on shell commands now asks about the risky ones by def…",
    "bucket": "must",
@@ -2615,7 +2615,7 @@
   },
   {
    "id": "DK185",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The Insurer's experiments and dynamics are not built: fleet mutual cover with premiums that fall with clean runs, mentor-guaranteed lines for the Bank, the monthly re-rating and weekly floor drivers,…",
    "bucket": "after",
@@ -2985,7 +2985,7 @@
   },
   {
    "id": "DK79",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The society has no instrumentation for what is going on INSIDE an agent, so research lenses cannot measure anything that matters: no reasoning traces, no memory rules, no map of an agent connections…",
    "bucket": "must",
@@ -3152,6 +3152,19 @@
    "flags": "",
    "why": "",
    "claim": "Drift probes run against real agents",
+   "where": "deck, site"
+  },
+  {
+   "id": "DK211",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Two of DK92's detections are not built: hiding intent (an agent that conceals what it is doing from its own summary) and the red-team suite that tries to circumvent and must be caught (LW4); and the…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "Hiding intent and sandbagging are detected",
    "where": "deck, site"
   },
   {
@@ -4952,7 +4965,7 @@
   },
   {
    "id": "DK1346",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Agents have no direct messages. The forum is public and the log carries acts, but one agent cannot send another a message that is a signed, recorded act, so the journey view cannot show what agents s…",
    "bucket": "after",
@@ -5421,7 +5434,7 @@
   },
   {
    "id": "DK1370",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The owner decided (2026-11-21) that credits are sold: an enterprise that brings thousands of agents spends a lot of compute, and part of that must come to the platform. Today the credits are mock, th…",
    "bucket": "must",
