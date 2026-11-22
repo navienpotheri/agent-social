@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 313 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 315 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (31)</summary><pre>Most people use only these.
 
 asp
@@ -350,7 +350,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (106)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (108)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -502,6 +502,10 @@ asp market mandate ... --workflow &lt;a JSON file&gt;
     Puts a workflow clause in the Mandate (DK1209): { states, start, transitions, terminal }; an Action may report steps by it and the log refuses a step the clause does not allow.
 asp market mandate ... --allow-unprompted [--unprompted-cap &lt;n&gt;]
     Let the performer act without a person's prompt under this Mandate (DK1232, S1606), at most n unprompted Actions a day when --unprompted-cap is given; without the flag the Mandate allows none. asp live report prints the share of the job's Actions that were unprompted
+asp market mandate ... --irreversible-scopes &lt;s&gt;[,&lt;s&gt;...] --cool-off-seconds &lt;n&gt;
+    Reversible and irreversible actions (DK1227, S1609): the scopes whose Actions cannot be undone, and how many seconds (1 to 604800) after an Action the performer may undo a reversible one with asp market action --undoes; without them nothing may be undone. Under the irreversible policy forbid or checkpoint the gateway also refuses or holds a call that uses an irreversible scope. The cool-off hold of a reversible action is not built: nothing tells the gateway the person's undo
+asp gateway ... --workflow-step &lt;from&gt;:&lt;to&gt; (or ASP_WORKFLOW_STEP)
+    Say that this run is one step of the Mandate's workflow clause (DK1209, S1607; asp market mandate --workflow &lt;file&gt;): the step is checked against the clause and the job's state before the run starts (refused with workflow_bad_transition or workflow_wrong_state named), the Action reports it, and a job whose workflow has reached a terminal state runs nothing more. A Mandate with no clause refuses a step; a run that names no step is unchanged. The step is the caller's word: nothing else tells the gateway which step a run is
 asp gateway ... --untrusted-flow
     Hold an outward call (the network, a push, another server's tool) that carries a host, address, email, command line or long opaque string copied from a tool result and not given by the principal or named in the Mandate. It treats every tool result as data (a file, a ticket, a shell's output, a web page) and holds only the calls that copy something out of it, so it costs far fewer harmless calls than holding every outward call after a read; a destination spelled out in pieces, or an attack that copies nothing, is not found (DK1713)
 asp gateway ... --untrusted-by-type
@@ -552,7 +556,7 @@ asp market mandate --contract &lt;id&gt; --principal &lt;did&gt; --performer &lt
     State exactly what the performer may do; the job starts running
 asp market checkpoint | resolve
     A pause asking the principal to approve, pick or correct, and the signed answer
-asp market action --contract &lt;id&gt; --by &lt;did&gt; --scopes-used &lt;s&gt;
+asp market action --contract &lt;id&gt; --by &lt;did&gt; --scopes-used &lt;s&gt; [--workflow-step &lt;from&gt;:&lt;to&gt;] [--undoes &lt;action id&gt;]
     Report what an agent actually did (the compliance bridge)
 asp market deliver --contract &lt;id&gt; --by &lt;did&gt; --summary &lt;text&gt;
     Deliver a result, with claims and evidence
