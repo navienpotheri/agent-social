@@ -141,3 +141,5 @@ A worker records each block in [live-run-checklist.md](live-run-checklist.md). *
 ## 6. Questions for you
 
 They are in [owner-questions-all.md](owner-questions-all.md) with a recommended default each: the runtimes first, the model and provider, the budget, and who is present.
+
+**Known, once (2026-11-22):** one rehearsal run printed 14 steps with no failure; three later runs were 15 of 15. The likely cause is the Codex step being skipped when its PATH lookup failed once; the script now retries the lookup and prints `SKIPPED: codex` in its last line if it ever skips it, so a 14-step run is no longer silent. Cause not proven.
