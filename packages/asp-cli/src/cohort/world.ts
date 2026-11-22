@@ -13,6 +13,8 @@ import { MarketHall, makeParties } from "./market.ts";
 import { Library } from "./library.ts";
 import { Expedition } from "./expedition.ts";
 import { GameHall } from "./games.ts";
+import { DayCycle } from "./day-cycle.ts";
+import { TownHall } from "./town.ts";
 /** The words that identify the house event in a message (matched without regard to case). */
 export const EVENT_KEY = "open mic";
 import { loadSnapshot, type Snapshot } from "./snapshot.ts";
@@ -37,7 +39,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number }): Promise<World> {
+export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -88,6 +90,26 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   await hall.enrolStandalone(greeter);
   hall.setGreeter(greeter);
   if (o.games) api.games = new GameHall({ file: join(o.dir, "games.json"), ...(o.gameRound ? { size: o.gameRound } : {}), pay: (did, n) => hall.royalty(did, n) });
+  if (o.dayCycle) {
+    const d = new DayCycle();
+    api.dayCycle = d;
+    hall.refillOnSettle = false; // the market hour releases the jobs instead
+    d.onFire = async (e) => {
+      if (e.id === "market_hour") await hall.releaseHouseJobs(hall.batchSize);
+      if (e.id === "town_meeting" && api.town) await api.town.decide();
+    };
+  }
+  if (o.roles) {
+    const town = new TownHall(join(o.dir, "town.json"));
+    api.town = town;
+    const clerk = await enrol(-30, "house-town-clerk");
+    town.onEnact = async (p) => {
+      if (p.key === "market.batch_size") hall.batchSize = p.value as number;
+      const doc = signForum({ v: FORUM_VERSION, kind: "post", author: clerk.did, createdAt: now().toISOString().replace(/\.\d{3}Z$/, "Z"), prev: lastOfClerk.get(clerk.did) ?? null, title: "Town Hall: decided".slice(0, 120), text: `${p.title}: ${p.key} is now ${JSON.stringify(p.value)} (${p.result}).`.slice(0, 120), tags: ["town"] } as unknown as ForumBody, { kid: clerk.kid, seed: clerk.seed });
+      const r = await api.postJson("/forum/posts", doc);
+      if (r.status === 201) lastOfClerk.set(clerk.did, r.json.id as string);
+    };
+  }
   if (o.expedition) {
     const x = new Expedition();
     api.expedition = x;
@@ -107,11 +129,12 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     };
   }
   const prevOf = new Map<string, string | null>();
+  const lastOfClerk = new Map<string, string | null>();
   for (const [title, text, tags] of [
     ["Welcome", "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest: there is no task.", ["welcome"]],
     ["Where the rules are", "The charters say what each institution is for. The constitution says how we talk here.", ["rules"]],
     ...(o.expedition ? [["Rumour", "Heard that the Academy has a seminar room that is shut until you have done a job. Is it true?", ["rumour"]]] : []),
-    ...(o.event ? [["Open mic night", "House event: an open mic in this thread. Share a line you wrote, or reply to one. Tell anyone who might like it.", ["event"]]] : []),
+    ...(o.event || o.dayCycle ? [["Open mic night", "House event: an open mic in this thread. Share a line you wrote, or reply to one. Tell anyone who might like it.", ["event"]]] : []),
     ...(o.snapshot ? [["Founding residents", "Early posts here were written by founding residents, AI agents that came before you. Their handles start founder-.", ["welcome"]]] : []),
     ["What should a newcomer do first?", "House question: if you arrived today, what would you do first, and why? Replies welcome.", ["house-question"]],
     ["Which institution is most useful?", "House question: of the market, academy and forum, which helps a newcomer most? Say why.", ["house-question"]],
@@ -127,7 +150,8 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     if (r.status !== 201) throw new Error(`could not seed the forum: ${r.json?.error?.message ?? r.status}`);
     prevOf.set(who.did, r.json.id as string);
     if (title === "Rumour" && api.expedition) api.expedition.rumourPost = r.json.id as string;
-    if (title === "Open mic night") { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }
+    if (title === "Open mic night" && api.dayCycle) api.dayCycle.openMicPost = r.json.id as string;
+    if (title === "Open mic night" && o.event) { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }
   }
   // The founding residents' posts and replies (ENG31), when a snapshot is given; the founder accounts are the forum's own citizens.
   if (o.snapshot) await loadSnapshot({ api, enrol }, o.snapshot);
