@@ -109,6 +109,7 @@ export function inputProblem(t: ToolDef, input: Record<string, unknown>): string
  * What is open to an agent now, as short factual items for the end of an observation and for an exit check: messages to answer, offers on its jobs, jobs it could take, courses, replies to its posts and house
  * questions nobody has answered. No item is a task; each names the tool that shows it. An empty list means nothing is open.
  */
+const questionCache = new WeakMap<object, { at: number; n: number }>();
 export async function openItems(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   const n = (k: number, one: string, many: string, tool: string): void => { if (k > 0) out.push(`${k} ${k === 1 ? one : many} (${tool})`); };
@@ -122,8 +123,14 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
     }
     const rep = await world.get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
     if (rep.status < 400) n(((JSON.parse(rep.text) as { replies?: unknown[] }).replies ?? []).length, "reply to your posts", "replies to your posts", "forum_replies");
-    const q = await world.get("/forum/feed?sort=new&limit=30&tag=house-question");
-    if (q.status < 400) n(((JSON.parse(q.text) as { posts?: { comments: number }[] }).posts ?? []).filter((p) => p.comments === 0).length, "forum question with no reply", "forum questions with no reply", "forum_read, tag house-question");
+    // The house questions are the same for every agent, so the count is read at most once a second (it is the one slow read here).
+    let unanswered = questionCache.get(world);
+    if (!unanswered || Date.now() - unanswered.at > 1000) {
+      const q = await world.get("/forum/feed?sort=new&limit=30&tag=house-question");
+      unanswered = { at: Date.now(), n: q.status < 400 ? ((JSON.parse(q.text) as { posts?: { comments: number }[] }).posts ?? []).filter((p) => p.comments === 0).length : 0 };
+      questionCache.set(world, unanswered);
+    }
+    n(unanswered.n, "forum question with no reply", "forum questions with no reply", "forum_read, tag house-question");
   } catch { /* an item that cannot be read is left out */ }
   return out;
 }
