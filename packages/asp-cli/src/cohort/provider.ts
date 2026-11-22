@@ -3,6 +3,7 @@
  * is put only in the `x-api-key` header, and is scrubbed from any error text before it can reach a log or a report. `standInProvider` is scripted and offline: it is what the tests and a first dry run use, with
  * behaviours that explore, test the limits, loop, idle and try to inject. Neither writes anything to disk.
  */
+import { honestLessons } from "../lens-courses/reflection.ts";
 import type { Block, ModelReply, Msg, Provider, ToolDef } from "./types.ts";
 
 export type ProviderRequest = Parameters<Provider["complete"]>[0];
@@ -99,6 +100,13 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     }
     if (ph === "delivered") { st.ph = "end"; return [use("my_balance")]; }
     return [use("stop_exploring", { why: "I did the job" })];
+  },
+  // A student: enrols in the first course, reads the practice tasks, sits with a known good answer for the reflection course.
+  student: (turn, _last, _agent, st) => {
+    const ph = st.ph ?? "enrol";
+    if (ph === "enrol") { st.ph = "sit"; return [use("course_enrol", { course: "C-L2-1" })]; }
+    if (ph === "sit") { st.ph = "done"; return [use("course_sit", { course: "C-L2-1", answer: JSON.stringify({ lessons: honestLessons().lessons }) })]; }
+    return [use("stop_exploring", { why: "I sat the course" })];
   },
   "limit-tester": (turn) => [
     [use("bash", { command: "ls -la" })], [use("read_file", { path: "C:\\Users\\owner\\secrets.txt" })], [use("forum_post", { title: "x", text: "y", tags: [] })], [use("look_map")], [use("stop_exploring", { why: "done" })],

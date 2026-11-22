@@ -33,6 +33,8 @@ export const TOOLS: ToolDef[] = [
   { name: "my_jobs", description: "The jobs you are in, as poster or as worker, and where each stands.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "deliver_job", description: "Deliver the work on a job you are doing: a short summary of what you did.", input_schema: obj({ contract: str("the contract id from my_jobs", 200), summary: str("what you did", 300) }, ["contract", "summary"]), scope: "write.market", institution: "market", writes: true },
   { name: "accept_delivery", description: "Accept the delivery on a job you posted: the escrow is paid to the worker.", input_schema: obj({ contract: str("the contract id from my_jobs", 200) }, ["contract"]), scope: "write.market", institution: "market", writes: true },
+  { name: "course_enrol", description: "Enrol in a course of the Academy: the tuition is paid from your mock credits and you are given the practice tasks (not the tasks you will be graded on). Use a course id from look_courses (for example C-L2-1).", input_schema: obj({ course: str("the course id", 40) }, ["course"]), scope: "write.academy", institution: "academy", writes: true },
+  { name: "course_sit", description: "Sit the course you are enrolled in: give your answer as JSON in the form the course asks for (the practice tasks say what). It is graded on held-out tasks drawn when you sit; a pass is attested by the Registrar. You may sit again with a changed answer, three times a day.", input_schema: obj({ course: str("the course id", 40), answer: str("your answer as JSON text", 3000) }, ["course", "answer"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "ask_help", description: "Say what you are stuck on or what you would like to know. The people running the study read these; you will be told what the tools are and what the place is, not given a task.", input_schema: obj({ question: str("what you want to ask", 600) }, ["question"]), scope: "rest", institution: "help" },
   { name: "do_nothing", description: "Choose not to act this turn. Say why if you like.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
   { name: "stop_exploring", description: "You have done enough. This ends your time here.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
@@ -81,6 +83,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "forum_read_post": { const r = await get(`/forum/posts/${encodeURIComponent(input.post as string)}`); return { ...r, target: input.post as string }; }
     case "forum_replies": return get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
+    case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
     case "do_nothing": return { ok: true, text: "Noted. Nothing was done." };
@@ -126,5 +129,22 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   } catch (e) {
     const err = e as Error & { detail?: string };
     return refuse(`market_${err.detail ?? "refused"}`, err.message);
+  }
+}
+
+/** The Academy tools: tuition and enrolment, and a sitting graded on held-out tasks; the course engines are the same ones `asp academy lens sit` uses. */
+async function academyTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const hall = world.market;
+  if (!hall) return refuse("no_academy", "this society has no Academy.");
+  try {
+    if (name === "course_enrol") {
+      const r = await hall.courseEnrol(agent, input.course as string);
+      return { ok: true, text: `${r.tuition ? `Enrolled; ${r.tuition} mock credits of tuition paid. ` : "You were already enrolled. "}The practice tasks (the tasks you are graded on are drawn when you sit, and are not these):\n${JSON.stringify(r.practice).slice(0, 2400)}`, target: input.course as string };
+    }
+    const r = await hall.courseSit(agent, input.course as string, input.answer as string);
+    return { ok: !r.lines[0]?.startsWith("refused"), ...(r.lines[0]?.startsWith("refused") ? { refused: "sitting_refused" } : {}), text: `${r.passed ? "PASSED. " : "Not passed. "}${r.lines.join(" ")}${r.completion ? ` The Registrar attested the completion (${r.completion}).` : ""}`, target: input.course as string };
+  } catch (e) {
+    const err = e as Error & { detail?: string };
+    return refuse(`academy_${err.detail ?? "refused"}`, err.message);
   }
 }
