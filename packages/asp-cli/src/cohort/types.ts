@@ -26,7 +26,7 @@ export interface Provider {
 }
 
 /** The agent as the tools see it: a did:key the runner holds the throwaway key for (the key lives in this process only), its handle in the forum and the persona it was given, if any. */
-export interface AgentCtx { n: number; id: string; did: string; kid: string; seed: Uint8Array; handle: string; persona?: string }
+export interface AgentCtx { n: number; id: string; did: string; kid: string; seed: Uint8Array; handle: string; persona?: string; /** ENG50: "sponsored" (a sponsor identity of its own) or "key-only" (names itself as its sponsor). Absent: no kinds in this run. */ kind?: "sponsored" | "key-only"; /** ENG57: the model of this agent when the run mixes models. */ model?: string }
 
 /** The local society as the tools see it: reads by path, signed forum acts. */
 export interface WorldApi {
@@ -61,11 +61,11 @@ export interface WorldApi {
 }
 
 export type TraceEvent =
-  | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; /** Whether identity-derived voices were offered to the agents (voice.ts). */ voices?: boolean; /** The tool groups on in this run and the size of the tool list in characters with them, with the core only and with every group (ENG66). */ toolGroups?: string[]; toolChars?: number; toolCharsCore?: number; toolCharsAll?: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string; /** The names of the tools the agents were offered. */ tools?: string[]; /** The SHA-256 of the briefing (the system prompt) every agent got. */ briefingSha256?: string }
-  | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string }
+  | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; /** Whether identity-derived voices were offered to the agents (voice.ts). */ voices?: boolean; /** The tool groups on in this run and the size of the tool list in characters with them, with the core only and with every group (ENG66). */ toolGroups?: string[]; toolChars?: number; toolCharsCore?: number; toolCharsAll?: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string; /** The names of the tools the agents were offered. */ tools?: string[]; /** The SHA-256 of the briefing (the system prompt) every agent got. */ briefingSha256?: string }  | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string; kind?: "sponsored" | "key-only"; model?: string; arm?: "writeback" | "control" }  | { t: "writeback"; at: string; agent: string; tool: string; rule: string; action: "added" | "updated" | "skipped" }  | { t: "writeback_total"; at: string; agent: string; notes: number; shownChars: number }
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; cacheRead?: number; cacheWrite?: number; usd: number; text?: string }
   | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; /** A short account of what a read returned (counts only), so the report can say what the agent saw. */ seen?: string; /** Invitations in the first observation of the agent. */ invitations?: number; /** Steps of the first quest done after this call. */ quest?: number; /** Expedition stops the agent has done, set when a stop is newly done. */ expedition?: number; /** A thing found by looking closely or reading a rumour. */ discovery?: string; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }
   | { t: "premature_stop_candidate"; at: string; agent: string; via: "leave" | "text" | "stop_exploring"; text: string; simMs?: number }
+  | { t: "thinking_dropped"; at: string; agent: string; turn: number; blocks: number; why: "compaction" | "provider_400" }
   | { t: "wake"; at: string; agent: string; simMs: number; because: string; kinds: string[]; events: number; delayedSimMs: number }
   | { t: "arrival"; at: string; agent: string; simMs: number }
   | { t: "leave"; at: string; agent: string; simMs: number; sinceArrivalMs: number; pending: number; afterCheck: boolean; reason: string }

@@ -60,6 +60,7 @@ export { FORUM_CONSTITUTION, FORUM_COSTS, FORUM_FORM, forumDoorLines, labelText,
 export { claimStarter, releaseStarter, starterStatus, starterClaims, STARTER_BATCH_MAX } from "./account.ts";
 export { FileTransport, MemoryTransport, ResendTransport, RetryableMailError, newMailSecret, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport, type OutMail } from "./mail-send.ts";
 export { ServiceMailer, mailPublicRoutes, type MailerOptions } from "./service-mailer.ts";
+export { buildRunEndMail, collectRunEndFacts, findRunEnds, runEndOf, type RunEnd, type RunEndFacts } from "./mail-run.ts";
 export { societyHealthRoutes, mailHealthAlarms } from "./health-routes.ts";
 export { societyMapRoutes, buildFeed, type SocietyMapSource } from "./society-map-routes.ts";
 export { economySupplyRoutes, type SupplyAudit, type SupplyGuard } from "./economy-supply.ts";
@@ -123,6 +124,7 @@ export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type Gate
 
 export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
 export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";
-export { DEFAULT_ECONOMY, LEGACY_ECONOMY, type Economy, runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolResult, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
+export { DEFAULT_ECONOMY, LEGACY_ECONOMY, dropThinkingBlocks, THINKING_BINDING_RE, type Economy, runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolResult, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
 export { runCohort, type CohortOptions } from "./cohort/runner.ts";
+export { adviceFor, applyRefusalLine, assignArms, cleanReason, refusalLine, societyChars, MAX_SOCIETY_LINES, SOCIETY_TAG } from "./cohort/writeback.ts";
 export { Life, AgentLife, SimClock, WakeGovernor, DEFAULT_LIFE_LIMITS, LIFE_EVENT_KINDS, parseSimDuration, parseArrivals, arrivalAt, fmtSim, NO_TASK_RE, type LifeNote, type EventSource, type LifeEvent, type LifeEventKind, type LifeLimits, type LifeOptions, type WakeInfo } from "./cohort/life.ts";

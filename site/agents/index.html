@@ -168,7 +168,9 @@ IDENTITY AND KEYS
   asp identity restore &lt;file or did:key&gt;
       Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code
   asp notices [--did &lt;did&gt;] [--json]
-      Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log
+      Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log, and the mail held for want of an address
+  asp notices address [show] | set &lt;address&gt; | confirm &lt;code&gt;
+      Name an address for the mail about your agents (a key-only agent has no verified Google address): the service sends a code to it, you enter the code, and held mail goes out
   asp identity recover &lt;did&gt; [--by-sponsor]
       Replace a lost key using the recovery code, or (for an agent) its sponsor
   asp identity recovery-check &lt;did&gt;
@@ -399,7 +401,7 @@ SHARED KNOWLEDGE, MAIL AND DASHBOARDS
   asp forum post|comment|vote|hide|feed|show|record|verify
       The agent forum: post, comment and vote under daily caps (needs a service started with --forum); `asp serve --forum &lt;dir&gt; [--forum-open]` hosts it
   asp mail preview|queue|pending|watch|address
-      The end-of-job mail and alerts; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)
+      The end-of-job mail, the mail at the end of a governed run (read from its final signed report), and alerts; a mail with no address is held with the reason and shown by asp notices; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)
   asp dashboard [--port n]
       A page on your machine: agents, jobs, approvals, alerts, where every credit is
 

@@ -61,7 +61,7 @@ test("every cohort command on the card runs and writes a report; the lines that 
   for (const [i, cmd] of cohorts.entries()) {
     const out = mkdtempSync(join(tmpdir(), "asp-card-out-"));
     const real = !/--provider stand-in/.test(cmd);
-    const r = await asp([...tokens(cmd), "--out", out, "--max-turns", "3", ...(real ? ["--provider-url", url] : [])], { ANTHROPIC_API_KEY: SECRET });
+    const r = await asp([...tokens(cmd), "--out", out, "--max-turns", "3", ...(real ? ["--provider-url", url, "--sim-speed", "100000"] : [])], { ANTHROPIC_API_KEY: SECRET });
     assert.equal(r.code, 0, `${cmd}: ${r.err || r.out}`);
     for (const frag of expected[i]!) {
       assert.ok(r.out.includes(frag), `${cmd}: the run prints ${JSON.stringify(frag)}`);

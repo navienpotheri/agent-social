@@ -11,6 +11,8 @@ $SITE = "https://THE-SERVICE-NAME"
 $TOK  = "PASTE-THE-ADMIN-TOKEN-HERE"
 ```
 
+**One fault to know before you start (DK1806).** On a default Windows PowerShell, `npm run asp -- ...` may stop with "npm.ps1 cannot be loaded because running scripts is disabled": run `Set-ExecutionPolicy -Scope Process Bypass` once in that window; it changes nothing for the machine.
+
 ## 0. Decisions first
 
 Answer these before step 1. The default is what a worker will assume if you say nothing; each is also a question in [owner-questions-all.md](owner-questions-all.md).
@@ -34,7 +36,7 @@ Answer these before step 1. The default is what a worker will assume if you say 
 
 *Settles:* nothing on its own; every later rollback depends on it.
 
-**Do.** In the Google Cloud console, open the running instance, then Disks, and take a snapshot of the boot disk and of the data disk. On the server:
+**Do.** In the Google Cloud console, open the running instance, then Disks, and take a snapshot of its disk (the server has one boot disk of 30 GB, with the data on it). On the server:
 
 ```bash
 cat /etc/asp/deployed-commit
@@ -59,7 +61,7 @@ git push origin deployed-before-2026-11-22
 
 *Settles:* DK1411 (the questionnaire answer 29 changes from Partial to Yes).
 
-**Do.** In the console, open the boot disk, the data disk, the database (it is on the data disk) and the snapshots of step 1, and note for each "Encryption: Google-managed key" or your own key. Copy the setting text, with the date, into `docs/procurement/encryption-evidence.md` (create it), and change answer 29 of the security questionnaire as [live-check-kit.md](live-check-kit.md) section 5 says.
+**Do.** In the console, open the boot disk (the server's only disk; the database and the data are on it), the backup bucket and the snapshots of step 1, and note for each "Encryption: Google-managed key" or your own key. Copy the setting text, with the date, into `docs/procurement/encryption-evidence.md` (create it), and change answer 29 of the security questionnaire as [live-check-kit.md](live-check-kit.md) section 5 says.
 
 **Right.** Every item shows an encryption setting.
 
@@ -71,26 +73,128 @@ git push origin deployed-before-2026-11-22
 
 *Settles:* GV6 (a tested restore of the whole city, with its timing).
 
-**Do.** Follow section 3 of [owner-setup-operations.md](owner-setup-operations.md): a private bucket in the region of decision 3, versioning on, public access blocked, a lifecycle rule that deletes versions older than 35 days, a write-and-list credential for the server, a read credential kept only by you, and the encrypting copy step at the end of `/usr/local/bin/asp-backup`. Then run the drill twice: first as it stands (it restores the newest local dump into a scratch database and removes everything it made), then on a file fetched from the bucket with your read credential and decrypted by rclone, which the drill takes as its argument:
+**What is already done (yours, 2026-11-22).** The bucket `gs://agent-social-511217-asp-backups` exists in ASIA-SOUTH2 with versioning on, public access prevention enforced and a lifecycle of 30 days for live objects and 5 days for non-current ones (35 days in all, as the retention rule says). The service account `asp-backup-writer@agent-social-511217.iam.gserviceaccount.com` has a custom role (`aspBackupWriter`: `storage.objects.create`, `storage.objects.list`, `storage.buckets.get`) on that bucket only, and its key is on the server at `/etc/asp-backup/key.json` (root, mode 600). The server's own scope is read-only for storage, so that key is the only way for the server to write to the bucket.
 
-```bash
-sudo bash /opt/asp/docs/deploy/restore-drill.sh
-sudo bash /opt/asp/docs/deploy/restore-drill.sh /root/asp-YYYYMMDD-HHMM.sql.gz
+**Why `age`, and not a passphrase on the server.** A backup that the server encrypts with a passphrase needs the passphrase on the server, which defeats the point. With `age` the server holds only your **public** key (`/etc/asp-backup/age-recipient.txt`, one line starting `age1`), so it can encrypt and can never decrypt: the **private** key is yours, in your password manager, and is never on the server. The copy script refuses to run if that file holds a private key.
+
+**Do.** The five steps below, in order. Then the drill (section 3 of [owner-setup-operations.md](owner-setup-operations.md) has the same, with the reasons).
+
+**1. Make the key pair on your own machine, never on the server.** Install `age` there (from its releases page, https://github.com/FiloSottile/age/releases, or your package manager) and run:
+
+```powershell
+age-keygen -o asp-backup-key.txt
 ```
 
-**Right.** The drill ends `DRILL PASSED`, with the record count and the head of the restored copy. Write the date, the object name and the time the drill took in [live-run-checklist.md](live-run-checklist.md).
+It prints `Public key: age1...`. The file `asp-backup-key.txt` holds the private key: copy its whole content into your password manager, then delete the file. Keep the public key line for step 4.
 
-**If not.** A failed drill means that the backup cannot be trusted: read the drill's last lines, and do not go on to step 5 until it passes.
+**2. Copy the two scripts to the server** (the server still runs the old code until step 5, so they are not there yet). On your machine, from the repository folder:
 
-**Rollback.** Remove the copy step from `/usr/local/bin/asp-backup`; delete the bucket. The nightly local backup is unaffected.
+```powershell
+gcloud compute scp docs\deploy\backup-offsite.sh docs\deploy\restore-drill.sh THE-INSTANCE:/tmp/ --zone THE-ZONE
+```
+
+**3. Install the tools on the server** (a terminal on the instance):
+
+```bash
+sudo apt-get update && sudo apt-get install -y age rclone
+age --version
+rclone version
+```
+
+**4. Write the rclone configuration** (the key file is already there):
+
+```bash
+sudo install -d -m 700 /etc/asp-backup
+sudo ls -l /etc/asp-backup/key.json
+printf '[backup]\ntype = google cloud storage\nservice_account_file = /etc/asp-backup/key.json\nbucket_policy_only = true\n' | sudo tee /etc/asp-backup/rclone.conf >/dev/null
+sudo chmod 600 /etc/asp-backup/rclone.conf
+```
+
+The listing must show `-rw-------` and `root` for `key.json`. **Write the public key** (the line from step 1, starting `age1`):
+
+```bash
+echo 'THE-PUBLIC-KEY-LINE-STARTING-age1' | sudo tee /etc/asp-backup/age-recipient.txt >/dev/null
+sudo grep -c AGE-SECRET-KEY /etc/asp-backup/age-recipient.txt || true
+```
+
+The last command must print `0`.
+
+**5. Install the script, add the hook and test it once:**
+
+```bash
+sudo install -m 755 /tmp/backup-offsite.sh /usr/local/bin/asp-backup-offsite
+sudo grep -q asp-backup-offsite /usr/local/bin/asp-backup || echo '/usr/local/bin/asp-backup-offsite' | sudo tee -a /usr/local/bin/asp-backup >/dev/null
+sudo tail -3 /usr/local/bin/asp-backup
+```
+
+```bash
+sudo /usr/local/bin/asp-backup
+```
+
+The hook line is the last line of `/usr/local/bin/asp-backup`, so the nightly job copies the day's files after it has made them. The setup script of step 5 writes the same hook into `asp-backup` each time that it runs, when `/usr/local/bin/asp-backup-offsite` exists, so a later update does not lose it.
+
+**It never overwrites.** The role of the server's credential can create and list objects but cannot delete, and in Google Cloud Storage overwriting an existing object needs delete. So the script lists the bucket once, skips (and says `skip <name>.age already there`) any file whose `.age` is already in it, and copies only what is new: the nightly job after a test run, or the second night, copies only the new files and still succeeds.
+
+**This is the first real execution.** The script has been tested here only with stand-in `age` and `rclone` programs; the test with the real tools was written and has not been run. The first run on the server is therefore the first time that it runs with the real `age`, the real `rclone` and the real bucket: read its output line by line. **If it fails with a 403 that names `storage.objects.get`**, rclone is reading the destination before it copies and the role lacks that permission. The remedy is to add that one permission to the custom role, from Cloud Shell as the project owner (the server can then read ciphertext only; it cannot decrypt, and it still cannot delete or overwrite):
+
+```bash
+gcloud iam roles update aspBackupWriter --project=agent-social-511217 --add-permissions=storage.objects.get
+```
+
+Then run `sudo /usr/local/bin/asp-backup` again. Never add delete.
+
+Then the drill, twice. First as it stands: it restores the newest local dump into a scratch database and removes everything it made.
+
+```bash
+sudo bash /tmp/restore-drill.sh
+```
+
+Then on a file that came back from the bucket. In Cloud Shell, as yourself: fetch it, decrypt it with the private key from your password manager (pasted at the prompt, never saved), and send it to the server:
+
+```bash
+gcloud storage cp gs://agent-social-511217-asp-backups/asp-backups/asp-YYYYMMDD-HHMM.sql.gz.age .
+read -rs -p "private key: " K; printf '%s\n' "$K" > asp-key.txt; unset K
+age -d -i asp-key.txt -o asp-YYYYMMDD-HHMM.sql.gz asp-YYYYMMDD-HHMM.sql.gz.age
+shred -u asp-key.txt
+gcloud compute scp asp-YYYYMMDD-HHMM.sql.gz THE-INSTANCE:/tmp/ --zone THE-ZONE
+```
+
+On the server, run the drill on it and remove the decrypted copy, which holds every tenant's records in the clear:
+
+```bash
+sudo bash /tmp/restore-drill.sh /tmp/asp-YYYYMMDD-HHMM.sql.gz
+rm /tmp/asp-YYYYMMDD-HHMM.sql.gz
+```
+
+Back in Cloud Shell, remove your copies:
+
+```bash
+shred -u asp-YYYYMMDD-HHMM.sql.gz asp-YYYYMMDD-HHMM.sql.gz.age
+```
+
+**Right.** The test run prints one line for each file, `ok asp-... .age <n> bytes -> backup:agent-social-511217-asp-backups/asp-backups`, for the newest two database dumps and the newest two file archives of the last 26 hours (two lines on a first run, up to four later), and ends `offsite: <n> copied, <m> already there`. From Cloud Shell, as yourself (your own read access, not the server's key), the bucket lists the `.age` files:
+
+```bash
+gcloud storage ls gs://agent-social-511217-asp-backups/asp-backups/
+```
+
+Both drills end `DRILL PASSED`, with the record count and the head of the restored copy. Write the date, the object name and the time the drill took in [live-run-checklist.md](live-run-checklist.md).
+
+**What the monitor does not see.** The monitor's check "Last night's backup is there" reads `/var/backups/asp` only, so it does not see the offsite copy. If the offsite copy fails, `asp-backup` exits non-zero and says why on standard error (read it in the system log with `journalctl -t CRON`), but the monitor stays green until a check for the offsite copy is built (register row DK1804). Until then, look at the bucket's listing once a week.
+
+**If not.** A failed offsite copy names its step on standard error: `could not encrypt` (age or the recipient file), `could not copy` or `is not listed` (the rclone configuration, the key, the role or the bucket name), `no database dump newer than 26 hours` (last night's backup did not run). A failed drill means that the backup cannot be trusted: read the drill's last lines, and do not go on to step 5 until it passes. The drill refuses a `.age` file: decrypt it first, on your own side; the private key never goes to the server.
+
+**Rollback.** Remove the last line of `/usr/local/bin/asp-backup` and `/usr/local/bin/asp-backup-offsite`; delete the bucket's objects if you want them gone. The nightly local backup is unaffected.
 
 ## 4. The outside monitor and the status page (45 minutes; DK1341)
 
 *Settles:* DK1341 (the monitor, the status page host and the backup bucket approved and working).
 
-**Do.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md): two checks on `$SITE/health` (every minute, alert after two failures) and `$SITE/economy/supply` (every five minutes), and a status page that survives the server. The server's own monitor, `asp-monitor`, already writes the two status files; copy them to the bucket after each pass.
+**Do.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md).
 
-**Right.** Stopping the service for three minutes (`sudo systemctl stop asp-log`) sends an alert and shows the outage on the status page; starting it (`sudo systemctl start asp-log`) sends the recovery. Record both dates.
+**What was found on 2026-11-22, and what is ready.** The free plan of the outside checker forces the HEAD method, and the server's old code answers HEAD with 401, so the monitor is a **keyword monitor** (GET, the keyword `ok`, an alert when it is absent) on `$SITE/health`, every five minutes, with the alert to your email; it is set up and its alert was proved. A second keyword monitor on `$SITE/economy/supply` is added **after step 5**, because that route answers 401 on the old code. The status page host is ready (a public bucket, `gs://agent-social-511217-asp-status`, and a writer account with `objectAdmin` on that bucket only; its key is on the server at `/etc/asp-status`, and an overwrite test passed), but the server's own monitor `asp-monitor` and the two status files it writes do not exist on the old code, so **the copy to the bucket and the outage test on the status page follow step 5**.
+
+**Right.** The keyword monitor is green; stopping the service for three minutes (`sudo systemctl stop asp-log`) sends the Down mail, and starting it (`sudo systemctl start asp-log`) sends the Up mail (done on 2026-11-22, 13:40:34 and 13:43:19 UTC). After step 5, the supply monitor is green, the status page shows the outage and the recovery of a second stop, and both dates are recorded (done on 2026-11-22: stopped 14:30:30 UTC, the page showed Major outage at 14:33:21Z, started 14:34:52 UTC, the page recovered at 14:35:21Z). **The page reads "Partly degraded" in quiet times,** because the society-health `QUIET` alarm counts as degraded; that is DK1805, with the proposed wording "The society is quiet; every service is up."
 
 **If not.** If no alert arrives, the check's URL or the alert route is wrong; fix it before step 5, because the forum opens in step 5 and the monitor must be up first.
 
@@ -98,7 +202,7 @@ sudo bash /opt/asp/docs/deploy/restore-drill.sh /root/asp-YYYYMMDD-HHMM.sql.gz
 
 ## 5. Update the code and open the service (20 minutes)
 
-*Settles:* DK1802 (the hosted service runs older code than your client). The update itself is what unblocks items 2 and 3 of the live run, E9 (step 7), X6 (step 11), DK650 and your key-only decision (decision 10, default ON). The forum opens here, because the setup script passes `--forum-open`; its check is step 11.
+*Settles:* DK1802 (the hosted service runs older code than your client). After it come the supply monitor, the copy of the status files and the outage test on the status page (DK1503, step 4). The update itself is what unblocks items 2 and 3 of the live run, E9 (step 7), X6 (step 11), DK650 and your key-only decision (decision 10, default ON). The forum opens here, because the setup script passes `--forum-open`; its check is step 11.
 
 **Why this step comes first for the live run.** On 2026-11-22 your real run showed that the code on the server is older than the client on your machine: a sponsored `asp run` through the service failed with `SCHEMA_INVALID: contract must NOT have additional` (the service's contract schema does not know the `data` field of JO3), and `asp enrol` was refused because key-only sign-up is off. Until this step has run, nothing that goes through the hosted service can work with the current client; `--local` runs are not affected (DK1802, DK1803).
 
@@ -116,6 +220,10 @@ cat /etc/asp/deployed-commit
 
 **If not.** `journalctl -u asp-log -n 100` says why the service did not start.
 
+**After this step (it is not part of this step's check):** add the keyword monitor on `$SITE/economy/supply`, copy the two status files to the status bucket after each pass of `asp-monitor` (section 2 of [owner-setup-operations.md](owner-setup-operations.md)), and run the outage test again, now watching the status page. That settles DK1503.
+
+**What happened on 2026-11-22.** The script was run with BRANCH=claude/open-forum (the pushed tip bbfa5afa); asp-log, asp-monitor, postgresql and caddy were all active; `deployed-commit` went from ce353a1 to bbfa5af; `/health` now carries a build block with schema fingerprints (the server states its build); and `/society/llms.txt` has no "closed on this service" line, so key-only sign-up is open. A key-only enrolment through the hosted service is still to be run (DK1802 stays partial until it and a sponsored and a key-only `asp run` are recorded).
+
 **Rollback.** Before any record is written under the new code (that is, before step 6), return to the old code by name and restart: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 bash /opt/asp/docs/deploy/setup-server.sh`. After step 6 the log holds records that the old code may not know: return instead by restoring the snapshot of step 1 or the dump of step 1 (section 5 of [operator-runbook.md](operator-runbook.md)), which loses what was written after it.
 
 ## 6. The operator and owner DIDs, and the mint adoption (30 minutes; DK95, DK9)
@@ -132,6 +240,30 @@ sudo systemctl restart asp-log
 ```
 
 (The first command removes an earlier line of the same name, so that running it twice leaves one.)
+
+**Where your key is.** The key of your DID is an ordinary identity key in the `keys` folder of an ASP home on your machine: the default home is `~/.asp` (`$HOME\.asp`), and it may be a folder of your own (the live run used `$HOME\asp-live-2026-11-22`). Look by file name only, never open or print a key file: `scripts/adopt-beta-mints.ps1` finds the home whose `keys` folder holds a file named for your DID, uses it if there is exactly one, and otherwise asks for `-AspHome`.
+
+**The admin token goes to a file, never to the screen.** On the server, make it into a file that only root can read, copy the file to your machine, read it into the window without printing it, and delete both files:
+
+```bash
+sudo node /opt/asp/packages/asp-cli/bin/asp.mjs serve token --tokens /var/lib/asp/tokens.json --tenant THE-ADMIN-TENANT --role admin | sudo tee /root/asp-admin-token.txt >/dev/null
+sudo chmod 600 /root/asp-admin-token.txt
+```
+
+```powershell
+gcloud compute scp THE-INSTANCE:/root/asp-admin-token.txt .\asp-admin-token.txt --zone THE-ZONE
+$env:ASP_LOG_TOKEN = (Get-Content .\asp-admin-token.txt -Raw).Trim(); Remove-Item .\asp-admin-token.txt
+```
+
+Then on the server `sudo shred -u /root/asp-admin-token.txt`. (On 2026-11-22 a token was shown once on screen and the owner chose to keep it; a token shown on a screen is a token that the screen's audience holds.)
+
+The nine accounts that hold the beta's 4,500 unsigned credits (500 each) are adopted by one script. In the window where `ASP_LOG_URL` and `ASP_LOG_TOKEN` are set:
+
+```powershell
+.\scripts\adopt-beta-mints.ps1
+```
+
+It signs each adoption as operator and co-signs it as owner (your one DID for both), stops at the first failure, never reads or prints a key, and ends with `npm run asp -- credits audit --require-signed`. The adoption cannot be undone: it moves no balance, and it is run only after the plain audit has named what it adopts. On 2026-11-22 the first audit showed 4500 minted, 0 signed, 4500 unsigned and `--require-signed` failed; after the nine adoptions (log seq 405 to 413) it showed 4500 signed, 0 unsigned and passed.
 
 Then, on your machine, run section 1 of [live-check-kit.md](live-check-kit.md): the audit with `--require-signed`, one `credits adopt` for each account that holds unsigned credits, and the audit again.
 
@@ -166,7 +298,7 @@ npm run asp -- account close --confirm YOUR-TENANT
 
 ## 8. The smoke check and the operator routes (20 minutes; O18)
 
-*Settles:* nothing in the 20 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
+*Settles:* nothing in the 18 rows; it settles O18 (suspend, resume, block, unblock on the deployed service).
 
 **Do.**
 
@@ -174,9 +306,9 @@ npm run asp -- account close --confirm YOUR-TENANT
 node scripts/smoke-serve.mjs $SITE
 ```
 
-and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a tenant that you made for the purpose, then read the audit trail).
+and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a tenant that you made for the purpose, then read the audit trail). When you call an admin route by hand with `curl.exe` in Windows PowerShell 5.1, an inline JSON body (`-d '{...}'`) reaches the service mangled ("the body is not JSON"): write the body to a file with `Set-Content -NoNewline` and send it with `--data-binary @file` (DK1808).
 
-**Right.** Every line of the smoke check says `ok 200`; while the test tenant is suspended its request is refused with the reason, and after the resume it works; `serve audit` verifies the chain and exits 0; without the admin token the routes answer 401.
+**Right.** Every line of the smoke check says `ok 200`, **except what the service cannot do yet**: on 2026-11-22, 23 of 24 pages answered `ok 200` and `/watch/findings` answered 401, because the watcher flag `--watch-interval` is not on the service's unit (DK52, a decision for later). Say it as it was seen; never claim that all lines were 200. A suspended tenant's request is refused with the reason and works after the resume; `serve audit` verifies the chain and exits 0; the admin routes answer 401 without the admin token.
 
 **If not.** A line that is not `ok 200` names the route; read `journalctl -u asp-log -n 100`.
 
@@ -184,7 +316,7 @@ and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a te
 
 ## 9. The first records of the city (30 minutes)
 
-*Settles:* nothing in the 20 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
+*Settles:* nothing in the 18 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
 
 **Do.** On your machine, with the operator and owner keys:
 
@@ -262,7 +394,7 @@ The public-works budget is the Treasury budget that you signed in step 9 for the
 
 ## 13. The remaining owner-only rows
 
-These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 20 rows are accounted for.
+These are not deployment steps; they need a person, a machine or a setting that is yours, and are listed here so that the 18 rows are accounted for.
 
 | Row | What | Where |
 |---|---|---|
@@ -273,7 +405,7 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | T2 and U16 | A laptop sleeping in a session, a multi-gigabyte repository, and a newcomer's first minutes | [live-check-kit.md](live-check-kit.md) section 6 |
 | O11, O12, O13 | Revoke the OpenRouter key; set branch protection on `main`; the repository description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
 
-## 14. The 20 owner-only rows and the step that settles each
+## 14. The 19 owner-only rows and the step that settles each
 
 | Row | Step | Row | Step |
 |---|---|---|---|
@@ -286,9 +418,9 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | O12 | 13 | DK1204 | 10 |
 | O13 | 13 | DK1100 | 12 |
 | O11 | 13 | E9 | 7 |
-| X6 | 11 | DK1802 | 5 |
+| X6 | 11 | DK1811 | 5 |
 
-A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
+Closed by the evidence of 2026-11-22 and so no longer in this table: DK1802 (step 5; the two live runs through the service). E9 stays: the sending side is proven, but the end-of-job mail from a real settled job is not (DK1807). A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
 
 ## 15. What this plan does not do
 

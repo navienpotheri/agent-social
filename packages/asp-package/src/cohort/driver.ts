@@ -34,7 +34,7 @@ export interface SocietyToolResult {
 export interface Economy {
   /** Mark the static prefix (the tool list and the briefing) for the provider's prompt cache, so each turn reads it at a tenth of the price. Default true. */
   cache: boolean;
-  /** Exchanges (a reply and its tool results) of the conversation kept; older ones are dropped and the agent's rolling summary stands in for them. Default 6. */
+  /** Exchanges (a reply and its tool results) of the conversation kept; older ones are dropped and the agent's rolling summary stands in for them. Default 6. The history is cut back to this only when it has grown by half as many again (at least two): every cut drops the thinking blocks (a thinking block is valid only after the exact prefix it was made after), so cutting every turn would throw reasoning away every turn. */
   historyTurns: number;
   /** If one request's whole input (uncached, cache read and cache write) passes this many tokens, the history is dropped to the opening and the summary before the next call. Default 24000. */
   maxInputPerCall: number;
@@ -68,6 +68,7 @@ export interface AgentOutcome {
 }
 export type DriverEvent =
   | { kind: "compact"; agent: string; turn: number; why: "history" | "ceiling" }
+  | { kind: "thinking_dropped"; agent: string; turn: number; blocks: number; why: "compaction" | "provider_400" }
   | { kind: "turn"; agent: string; turn: number; usd: number; tokens: number; cacheRead?: number; cacheWrite?: number; /** This reply's own token counts. */ input?: number; output?: number }
   | { kind: "tool"; agent: string; turn: number; tool: string; ok: boolean; refused: boolean }
   | { kind: "text"; agent: string; turn: number; text: string }
@@ -124,6 +125,26 @@ export function gatewayStopReason(message: string): StopReason | undefined {
   return "gateway_stopped";
 }
 
+/**
+ * A thinking block is valid only in the conversation that produced it: the provider checks it against the whole prefix it was generated after (the tools, the briefing and every message before it). So a history that is
+ * trimmed or rewritten must not keep the thinking blocks of the turns that follow the change: they are all dropped together (every assistant turn keeps its text and its tool calls, and loses only its thinking blocks),
+ * never edited and never kept in part. Returns how many blocks were dropped.
+ */
+export function dropThinkingBlocks(messages: { role: "user" | "assistant"; content: unknown }[]): number {
+  let n = 0;
+  for (const m of messages) {
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    const kept = (m.content as { type?: string }[]).filter((b) => !(b?.type === "thinking" || b?.type === "redacted_thinking"));
+    const dropped = (m.content as unknown[]).length - kept.length;
+    if (!dropped) continue;
+    n += dropped;
+    m.content = kept.length ? kept : [{ type: "text", text: "(no text)" }];
+  }
+  return n;
+}
+/** The provider's refusal of a thinking block that does not belong to the conversation it is sent in. */
+export const THINKING_BINDING_RE = /signature.{0,40}thinking block|thinking.{0,80}bound to a different conversation|block_binding/i;
+
 interface Block { type: string; id?: string; name?: string; input?: Record<string, unknown>; text?: string }
 
 export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
@@ -164,6 +185,7 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       turns++;
       // The request, with a bounded retry of the provider's own rate limit and overload.
       let reply: { content?: Block[]; stop_reason?: string } | undefined;
+      let droppedForThisCall = false;
       for (let attempt = 0; ; attempt++) {
         let res: Response | undefined, networkError = false;
         try {
@@ -181,6 +203,12 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
         let message = ""; try { const j = JSON.parse(text) as { error?: { message?: string } }; message = j.error?.message ?? ""; } catch { message = text.slice(0, 200); }
         const why = gatewayStopReason(message);
         if (why) return finish(why, message.slice(0, 200));
+        // A thinking block that the provider says belongs to another conversation: drop the thinking blocks of the history once and ask again; the agent is never ended for it.
+        if (status === 400 && !droppedForThisCall && THINKING_BINDING_RE.test(message)) {
+          droppedForThisCall = true;
+          const n = dropThinkingBlocks(messages);
+          if (n > 0) { o.onEvent?.({ kind: "thinking_dropped", agent: o.agent, turn: turns, blocks: n, why: "provider_400" }); continue; }
+        }
         if (!(networkError || RETRY_STATUSES.has(status)) || attempt >= MAX_RETRIES) return finish("provider_error", networkError ? "the provider could not be reached" : `HTTP ${status}${message ? `: ${message.slice(0, 160)}` : ""}`);
         const waitMs = retryWaitMs(attempt + 1, res?.headers.get("retry-after") ?? null);
         o.onEvent?.({ kind: "retry", agent: o.agent, status, waitMs, attempt: attempt + 1 });
@@ -242,7 +270,7 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       messages.push({ role: "user", content: results });
       // The history is bounded: a call whose whole input passed the ceiling starts again from the opening and the summary; otherwise the oldest exchanges go and the summary stands in for them.
       if (contextTokens > eco.maxInputPerCall && messages.length > 3) { messages.length = 1; messages[0] = { role: "user", content: reopen() }; o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "ceiling" }); }
-      else if (messages.length > 1 + 2 * eco.historyTurns) { while (messages.length > 1 + 2 * eco.historyTurns) messages.splice(1, 2); messages[0] = { role: "user", content: reopen() }; o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "history" }); }
+      else if (messages.length > 1 + 2 * (eco.historyTurns + Math.max(2, Math.floor(eco.historyTurns / 2)))) { while (messages.length > 1 + 2 * eco.historyTurns) messages.splice(1, 2); messages[0] = { role: "user", content: reopen() }; { const dropped = dropThinkingBlocks(messages); if (dropped) o.onEvent?.({ kind: "thinking_dropped", agent: o.agent, turn: turns, blocks: dropped, why: "compaction" }); } o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "history" }); }
       if (leftFor !== undefined) return finish("left", leftFor);
       if (endedByAgent) return finish("finished", "the agent chose to stop");
       if (resetText !== undefined && !o.signal.aborted) { messages.length = 0; messages.push({ role: "user", content: resetText }); continue; }

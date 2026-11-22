@@ -12,6 +12,7 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SocietyTool } from "./driver.ts";
+import { applyRefusalLine, refusalLine, societyChars } from "./writeback.ts";
 
 export const LIFE_EVENT_KINDS = ["reply", "vote", "new_job", "message", "offer", "course", "event", "time"] as const;
 export type LifeEventKind = (typeof LIFE_EVENT_KINDS)[number];
@@ -149,6 +150,9 @@ export class AgentLife {
   private idles = 0;
   private arrivedAt: number | undefined;
   private pendingLeave: string | undefined;
+  private wbMet = new Map<string, number>();
+  private wbShown = 0;
+  private wbNotes = 0;
   private notebook = "";
   readonly path: string;
   readonly id: string;
@@ -195,6 +199,7 @@ export class AgentLife {
     while (body.length > L.observationChars && k > 0) { k--; body = section(k).join("\n\n"); }
     if (body.length > L.observationChars) body = body.slice(0, L.observationChars - 20) + "\n[cut to the budget]";
     this.buffer = []; this.lastTickAt = now;
+    this.wbShown += societyChars(this.notebook);
     return `${body}\n\n${this.notebook ? `Your notebook (${this.notebook.length} of ${L.notebookChars} characters):\n${this.notebook}` : "Your notebook is empty (notebook_write keeps notes that survive resting)."}`;
   }
   private primed = false;
@@ -286,7 +291,7 @@ export class AgentLife {
           return ok(`Noted (${next.length} of ${L.notebookChars} characters).`);
         } },
       { name: "notebook_read", description: "Read your notebook.", input_schema: { type: "object", properties: {}, additionalProperties: false },
-        run: async () => ok(this.notebook || "(empty)") },
+        run: async () => { this.wbShown += societyChars(this.notebook); return ok(this.notebook || "(empty)"); } },
       { name: "leave", description: "Leave the society for good: you will not be woken or asked for anything again in this run. This is not resting (rest comes back). The first call records your reason and tells you what is open to you and that you can rest instead; call it again to confirm and you leave.",
         input_schema: { type: "object", properties: { reason: str("why you are leaving", 300) }, required: ["reason"], additionalProperties: false },
         run: async (args) => {
@@ -304,6 +309,24 @@ export class AgentLife {
         } },
     ];
   }
+  /**
+   * A refusal written back (ENG78): one labelled line in the notebook, one for each rule, with the count of times the agent has met it; no model call. Returns what happened: "added", "updated" (a repeat: the line and its
+   * count are updated), or "skipped" (the notebook could not hold it).
+   */
+  writeback(n: { tool: string; rule: string; reason: string }): "added" | "updated" | "skipped" {
+    const count = (this.wbMet.get(n.rule) ?? 0) + 1;
+    this.wbMet.set(n.rule, count);
+    const line = refusalLine({ tool: n.tool, rule: n.rule, reason: n.reason, count });
+    const had = this.notebook.split("\n").some((l) => l.includes(`was refused (${n.rule})`));
+    const next = applyRefusalLine(this.notebook, n.rule, line, this.limits.notebookChars);
+    if (next === undefined) return "skipped";
+    this.notebook = next;
+    this.wbNotes++;
+    try { writeFileSync(this.path, next); } catch { /* kept in memory */ }
+    return had ? "updated" : "added";
+  }
+  /** What the writeback added to what this agent was shown: the characters of the society's lines in each observation, and how many writes. */
+  writebackStats(): { notes: number; shownChars: number; rules: Record<string, number> } { return { notes: this.wbNotes, shownChars: this.wbShown, rules: Object.fromEntries(this.wbMet) }; }
   /** The notebook as it is now (for the report and the tests). */
   notebookText(): string { return this.notebook; }
   wakeCount(): number { return this.wakes; }
