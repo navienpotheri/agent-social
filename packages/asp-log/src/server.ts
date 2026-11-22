@@ -222,6 +222,7 @@ export function createLogServer(opts: ServerOptions): Server {
       const address = clientAddress(req, !!opts.trustProxy);
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
+      if (limits && req.method === "GET" && /^\/registry\/(agents|names)\/|^\/registry\/search/.test((req.url ?? "").split("?")[0]!)) { const v = limits.checkLookup(address); if (!v.ok) return tooMany(res, v); }
       if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
       if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
