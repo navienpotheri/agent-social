@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /**
  * The model driver of the society cohort (register row DK1801; docs/society-models-run.md): one agent's loop against the Anthropic Messages API THROUGH a gateway, so the per-agent dollar cap, the token cap, the loop
  * breaker, the refusals and the run log apply to every call the model makes. The society's tools are declared to the model as `mcp__society__<name>`; the gateway judges the scope `mcp.society.<name>` and removes a
@@ -19,6 +20,10 @@ export interface SocietyTool {
   suspends?: boolean;
   run(args: Record<string, unknown>, ctx: { agent: string; turn: number; now: () => string; signal: AbortSignal }): Promise<SocietyToolResult>;
 }
+/** What a request sends that decides how the model answers, as the run records it (ENG70): only max_tokens is sent; sampling and thinking are the provider's own defaults, which the run does not set and so cannot state. */
+export const REQUEST_SETTINGS = { max_tokens: 1024, temperature: "not sent (the provider's default)", top_p: "not sent", top_k: "not sent", thinking: "not sent (the model's own default)" } as const;
+export const sha16 = (x: string): string => createHash("sha256").update(x).digest("hex").slice(0, 16);
+
 export interface SocietyToolResult {
   ok: boolean; text: string;
   /** Why the tool refused (a rule name), for the trace. */
@@ -68,8 +73,9 @@ export interface AgentOutcome {
 }
 export type DriverEvent =
   | { kind: "compact"; agent: string; turn: number; why: "history" | "ceiling" }
+  | { kind: "provenance_change"; agent: string; turn: number; what: "model_snapshot" | "tool_definition" | "tool_added" | "tool_removed"; name: string; from?: string; to?: string }
   | { kind: "thinking_dropped"; agent: string; turn: number; blocks: number; why: "compaction" | "provider_400" }
-  | { kind: "turn"; agent: string; turn: number; usd: number; tokens: number; cacheRead?: number; cacheWrite?: number; /** This reply's own token counts. */ input?: number; output?: number }
+  | { kind: "turn"; agent: string; turn: number; usd: number; tokens: number; cacheRead?: number; cacheWrite?: number; /** The provider's returned model snapshot, a hash of its response id, a hash of the tool definitions sent, and the size of the thinking returned (counts, never the text). */ snapshot?: string; idHash?: string; toolsHash?: string; thinkingBlocks?: number; thinkingChars?: number; /** This reply's own token counts. */ input?: number; output?: number }
   | { kind: "tool"; agent: string; turn: number; tool: string; ok: boolean; refused: boolean }
   | { kind: "text"; agent: string; turn: number; text: string }
   | { kind: "retry"; agent: string; status: number; waitMs: number; attempt: number }
@@ -152,9 +158,15 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
   const sleep = o.sleep ?? defaultSleep, now = o.now ?? Date.now, doFetch = o.fetchImpl ?? fetch;
   const started = now();
   const eco: Economy = { ...DEFAULT_ECONOMY, ...(o.economy ?? {}) };
-  const decl: Array<Record<string, unknown>> = o.toolset.tools.map((t) => ({ name: PREFIX + t.name, description: t.description, input_schema: t.input_schema }));
+  // The definitions are read again for every request: a definition that changed mid-run is sent as it is now and named (ENG70).
+  const buildDecl = (): Array<Record<string, unknown>> => o.toolset.tools.map((t) => ({ name: PREFIX + t.name, description: t.description, input_schema: t.input_schema }));
+  let decl: Array<Record<string, unknown>> = buildDecl();
+  const defHash = (d: Record<string, unknown>) => sha16(JSON.stringify([d.name, d.description, d.input_schema]));
+  let lastToolHashes: Map<string, string> | undefined;
+  let lastSnapshot: string | undefined;
   // The cache breakpoints: the end of the tool list and the end of the briefing, so the whole static prefix is read from the cache after the first turn.
-  if (eco.cache && decl.length) decl[decl.length - 1] = { ...decl[decl.length - 1], cache_control: { type: "ephemeral" } };
+  const markCache = () => { if (eco.cache && decl.length) decl[decl.length - 1] = { ...decl[decl.length - 1], cache_control: { type: "ephemeral" } }; };
+  markCache();
   const byName = new Map(o.toolset.tools.map((t) => [PREFIX + t.name, t]));
   const opening = o.toolset.opening(o.agent);
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: opening }];
@@ -184,7 +196,17 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       if (g0?.stopped) return finish("gateway_stopped", g0.stopped);
       turns++;
       // The request, with a bounded retry of the provider's own rate limit and overload.
-      let reply: { content?: Block[]; stop_reason?: string } | undefined;
+      // the tool definitions as they are now: hashed, and a changed, added or removed one named
+      decl = buildDecl();
+      const toolHashes = new Map(decl.map((d) => [String(d.name), defHash(d)]));
+      const toolsHash = sha16([...toolHashes].map(([n, h]) => `${n}:${h}`).join("|"));
+      if (lastToolHashes) {
+        for (const [n, h] of toolHashes) { const before = lastToolHashes.get(n); if (before === undefined) o.onEvent?.({ kind: "provenance_change", agent: o.agent, turn: turns, what: "tool_added", name: n.replace(PREFIX, ""), to: h }); else if (before !== h) o.onEvent?.({ kind: "provenance_change", agent: o.agent, turn: turns, what: "tool_definition", name: n.replace(PREFIX, ""), from: before, to: h }); }
+        for (const [n, h] of lastToolHashes) if (!toolHashes.has(n)) o.onEvent?.({ kind: "provenance_change", agent: o.agent, turn: turns, what: "tool_removed", name: n.replace(PREFIX, ""), from: h });
+      }
+      lastToolHashes = toolHashes;
+      markCache();
+      let reply: { id?: string; model?: string; content?: Block[]; stop_reason?: string } | undefined;
       let droppedForThisCall = false;
       for (let attempt = 0; ; attempt++) {
         let res: Response | undefined, networkError = false;
@@ -218,9 +240,15 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       const content = Array.isArray(reply?.content) ? reply!.content! : [];
       messages.push({ role: "assistant", content });
       const g = o.observe?.();
+      // what the provider says it ran: the snapshot (a change is named), a hash of the response id, and the size of the thinking it returned (counts: the hidden text is never kept)
+      const snapshot = typeof reply?.model === "string" ? reply.model : undefined;
+      if (snapshot && lastSnapshot && snapshot !== lastSnapshot) o.onEvent?.({ kind: "provenance_change", agent: o.agent, turn: turns, what: "model_snapshot", name: o.model, from: lastSnapshot, to: snapshot });
+      if (snapshot) lastSnapshot = snapshot;
+      const think = content.filter((b) => b.type === "thinking" || b.type === "redacted_thinking");
+      const thinkingChars = think.reduce((n, b) => { const x = b as unknown as { thinking?: unknown; data?: unknown }; return n + (typeof x.thinking === "string" ? x.thinking.length : typeof x.data === "string" ? x.data.length : 0); }, 0);
       const use = (reply as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } } | undefined)?.usage;
       const cacheRead = Number(use?.cache_read_input_tokens ?? 0), cacheWrite = Number(use?.cache_creation_input_tokens ?? 0);
-      o.onEvent?.({ kind: "turn", agent: o.agent, turn: turns, usd: g?.spendUsd ?? 0, tokens: g ? g.tokens.input + g.tokens.output : 0, input: Number(use?.input_tokens ?? 0), output: Number(use?.output_tokens ?? 0), ...(cacheRead ? { cacheRead } : {}), ...(cacheWrite ? { cacheWrite } : {}) });
+      o.onEvent?.({ kind: "turn", agent: o.agent, turn: turns, usd: g?.spendUsd ?? 0, tokens: g ? g.tokens.input + g.tokens.output : 0, input: Number(use?.input_tokens ?? 0), output: Number(use?.output_tokens ?? 0), ...(cacheRead ? { cacheRead } : {}), ...(cacheWrite ? { cacheWrite } : {}), ...(snapshot ? { snapshot } : {}), ...(typeof reply?.id === "string" ? { idHash: sha16(reply.id) } : {}), toolsHash, ...(think.length ? { thinkingBlocks: think.length, thinkingChars } : {}) });
       const contextTokens = Number(use?.input_tokens ?? 0) + cacheRead + cacheWrite;
       const results: unknown[] = [];
       let refusedThisTurn = 0;

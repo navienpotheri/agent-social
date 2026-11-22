@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 184,
+  "withdraw": 183,
   "after": 328,
-  "total": 576
+  "total": 575
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6889,19 +6889,6 @@
    "pri": "A",
    "status": "open",
    "gap": "Owner idea: tell agents, once, a couple of true lines that the society can be a learning experience and that there is more here than the first look shows, without promising a reward for exploring (a…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG70",
-   "pri": "A",
-   "status": "open",
-   "gap": "Run provenance is thin: the report records the model alias, not the provider's snapshot or response ids, and it is not confirmed that sampling settings, the thinking budget, the hash of the tool defi…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
