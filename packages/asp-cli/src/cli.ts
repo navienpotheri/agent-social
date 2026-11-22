@@ -336,7 +336,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
-import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
+import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, approvalTimes, renderApprovalTimes, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
@@ -7862,6 +7862,11 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
   const period = periodOf({ day: v.day, since: v.since });
   const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
   for (const l of lines) io.out(l);
+  // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
+  try {
+    const recs = (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never[];
+    io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
+  } catch { /* the log cannot be read now: the line is left out */ }
   // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
   const wakeRows = new DailyCeiling(join(home, "wakes.json")).report();
   const agents = [...new Set(wakeRows.map((r) => r.agent))];
