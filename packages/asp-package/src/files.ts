@@ -47,8 +47,20 @@ export function writeJson(path: string, value: unknown): void {
   writeFileSync(path, JSON.stringify(value, null, 2) + "\n");
 }
 
+/**
+ * A text file a person may have written in Windows PowerShell 5.1, whose `>` and `Out-File` write UTF-16 with a byte-order mark and whose `-Encoding UTF8` writes UTF-8 with one: the mark is read and
+ * removed, and UTF-16 is decoded, so a settings file, a TOML or YAML file or a manifest made that way is read, not refused as "unexpected token".
+ */
+export function decodeText(buf: Buffer): string {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) return buf.subarray(2).toString("utf16le");
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) { const b = Buffer.from(buf.subarray(2)); b.swap16(); return b.toString("utf16le"); }
+  const t = buf.toString("utf8");
+  return t.charCodeAt(0) === 0xfeff ? t.slice(1) : t;
+}
+export const readTextFile = (path: string): string => decodeText(readFileSync(path));
+
 export function readJson<T = any>(path: string): T {
-  return JSON.parse(readFileSync(path, "utf8"));
+  return JSON.parse(readTextFile(path));
 }
 
 export function readJsonIfExists<T = any>(path: string): T | undefined {

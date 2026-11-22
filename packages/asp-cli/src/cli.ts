@@ -427,7 +427,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -1162,6 +1162,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
+    if (cmd === "keys" && sub === "memory") return await keysMemoryCmd(home, rest[0], rest[1], v, io);
     if (cmd === "keys") return keysCmd(home, sub, io);
     if (cmd === "law") return lawCmd(home, sub, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
@@ -1253,11 +1254,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "pause" || cmd === "resume") {
       // US1: hold every running session instead of ending it. The gateways poll this file; asp resume removes it.
       const file = join(home, "paused");
-      if (cmd === "resume") { const was = existsSync(file); rmSync(file, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
+      // A --local run keeps everything under <ASP_HOME>/local, and its gateway polls that folder: pause and resume cover both, so a person is never told "paused" while a local session runs on.
+      const localFile = join(home, "local", "paused");
+      const hasLocal = existsSync(join(home, "local", "runs.ndjson"));
+      if (cmd === "resume") { const was = existsSync(file) || (hasLocal && existsSync(localFile)); rmSync(file, { force: true }); if (hasLocal) rmSync(localFile, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
       if (sub === "status") { io.out(existsSync(file) ? `paused since ${readFileSync(file, "utf8").trim()}: every running session holds its next call (asp resume continues them)` : "not paused"); return 0; }
       mkdirSync(home, { recursive: true });
       writeFileSync(file, `${now()}
 `);
+      if (hasLocal) writeFileSync(localFile, `${now()}\n`);
       io.out("paused: every running session on this machine holds its next call and continues on asp resume; asp stop --all ends them instead");
       return 0;
     }
@@ -1405,7 +1410,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
-    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
+    if (process.env.ASP_DEBUG_STACK) io.err(String((e as Error).stack)); io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
     return e instanceof UsageError ? 2 : 1;
   }
 }
@@ -2297,6 +2302,41 @@ function codeCitation(articles: string | undefined, version: string | undefined,
   const pin = info.pin && info.pin.version === v ? info.pin : v === info.version ? undefined : undefined;
   const sha256 = v === info.version ? info.sha256 : pin?.sha256;
   return { code: { version: v, ...(sha256 ? { sha256 } : {}), articles: list } };
+}
+
+/**
+ * asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did> (rows D12 and DK272; spec-delta S1604): an identity publishes the PUBLIC half of its X25519 memory key in the log, signed with its own
+ * signing key, so a pair can seal a private scope from a second machine. A principal publishes its own key (kept in <home>/keys); an agent publishes the key of its package (--package, sealed to --principal's key).
+ * Only the raw 32-byte public key goes in the log, never private material. A changed key is a rotation: the record names the live one it replaces.
+ */
+async function keysMemoryCmd(home: string, what: string | undefined, arg: string | undefined, v: Values, io: Io): Promise<number> {
+  const handle = await openLog(home, logEnv);
+  const lg = handle.log;
+  if (what === "show") {
+    const did = arg ?? v.by;
+    if (!did) throw new UsageError("asp keys memory show <did>");
+    const k = await lg.memoryKey(did);
+    io.out(k ? `${did}: live memory key ${k.name} (${k.public_key}), record ${k.record}` : `${did}: no memory key is published`);
+    return 0;
+  }
+  if (what !== "publish") throw new UsageError("asp keys memory publish --by <did> [--package <dir> --principal <did>]  |  asp keys memory show <did>");
+  const did = v.by;
+  if (!did) throw new UsageError("--by <did>: the identity that publishes its key");
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new UsageError(`no signing key for ${did} in ${join(home, "keys")}: only the identity itself publishes its memory key`);
+  let spki: string;
+  if (v.package) {
+    if (!v.principal) throw new UsageError("an agent's key is sealed to its principal: --principal <did>");
+    const pk = principalMemoryKey(home, v.principal, passphraseFrom(io.env));
+    spki = ensureAgentMemoryKey(resolve(io.cwd, v.package), pk.publicKey).publicKey;
+  } else spki = principalMemoryKey(home, did, passphraseFrom(io.env)).publicKey;
+  const raw = rawPublicKeyOf(spki);
+  const live = await lg.memoryKey(did);
+  if (live && live.public_key === raw) { io.out(`${did}: this memory key is already published (${live.name}, record ${live.record})`); return 0; }
+  const n = live ? Number(/(\d+)$/.exec(live.name)?.[1] ?? 0) + 1 : 1;
+  const res = await handle.append(createRecord({ type: "memory_key" as never, issuer: did, subject: null, prev: null, body: { did, name: `memory-${n}`, public_key: raw, at: now(), ...(live ? { revokes: live.record } : {}) }, issued_at: now() }, signer));
+  io.out(`${did}: published memory key memory-${n} (${raw})${live ? `, replacing ${live.name}` : ""}; record ${res.id}. Only the public half is in the log.`);
+  return 0;
 }
 
 /** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */
@@ -3632,6 +3672,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
@@ -3803,6 +3844,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
       const scopes = wanted;
       const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
+      // The key published in the log is the one other machines seal to: if it is not this machine's, a scope sealed elsewhere cannot be opened here. Said once; the run goes on.
+      void local.log.memoryKey(principal).then((live) => { if (live && live.public_key !== rawPublicKeyOf(pk.publicKey)) io.err(`  warning  the memory key published in the log for ${principal} (${live.name}) is not the one on this machine: a private scope sealed on another machine cannot be opened here (asp keys memory publish --by ${principal} replaces the published key with this one)`); }, () => undefined);
       ensureAgentMemoryKey(pkgDir, pk.publicKey);
       const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
       return { privateMemory: new PrivateMemoryRun({ dir: join(pkgDir, "memory", "private"), pair: { principal, agent: by }, agentKey, principalPublic: pk.publicKey, allowed: scopes, onEvent: (e) => runLog?.event("private_memory", { ...e }) }) };
@@ -4532,6 +4575,30 @@ async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Valu
 }
 
 /**
+ * Run-log retention applied without a command (E6): `asp run-log retention --days <n>` keeps a period in <home>/run-log-retention.json (ASP_RUN_LOG_DAYS overrides it; `off` clears it), and every `asp run` and
+ * `asp gateway` deletes the run logs on this machine older than that period when it starts, saying so in one line. The Actions that committed to a deleted log keep its hash. A sealed copy kept on the service is not touched.
+ */
+function runLogRetentionDays(home: string, env: Record<string, string | undefined>): number | undefined {
+  const fromEnv = env.ASP_RUN_LOG_DAYS;
+  if (fromEnv !== undefined && fromEnv !== "") { const n = Number(fromEnv); return n >= 1 ? Math.trunc(n) : undefined; }
+  for (const h of [home, join(home, "..")]) { if (h !== home && !home.replace(/[\/]+$/, "").endsWith("local")) break; try { const n = Number((JSON.parse(readFileSync(join(h, "run-log-retention.json"), "utf8")) as { days?: number }).days); if (n >= 1) return Math.trunc(n); } catch { /* none here */ } }
+  return undefined;
+}
+function applyRunLogRetention(home: string, env: Record<string, string | undefined>, say: (l: string) => void): number {
+  const days = runLogRetentionDays(home, env);
+  if (!days) return 0;
+  const runs = join(home, "runs");
+  const cutoff = Date.now() - days * 86_400_000;
+  let gone = 0;
+  for (const d of existsSync(runs) ? readdirSync(runs) : []) {
+    const f = join(runs, d, "run-log.ndjson");
+    try { if (existsSync(f) && statSync(f).mtimeMs < cutoff) { rmSync(f); gone++; } } catch { /* in use or not allowed: it stays */ }
+  }
+  if (gone) say(`  retention  deleted ${gone} run log${gone === 1 ? "" : "s"} older than ${days} day${days === 1 ? "" : "s"} (asp run-log retention changes this)`);
+  return gone;
+}
+
+/**
  * asp run-log show|verify [<run-log file or gateway run folder>] [--contract <id>] [--json]: the redacted run log a gateway run kept (gap E2).
  * show prints it as a timeline; verify checks every line's hash chain and, with --contract, that each Action's run-log artifact matches the log.
  */
@@ -4539,6 +4606,17 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   if (sub === "keep" || sub === "kept" || sub === "fetch" || sub === "drop" || sub === "disclose" || sub === "open") return await runLogVaultCmd(home, sub, rest, v, io);
   // Retention (E6): the run logs on this machine older than --days days. Without --yes it lists what would go and changes nothing; with it the log file is deleted (the folder's other files stay). A sealed copy
   // kept on the service (asp run-log keep) is not touched, and the Actions that committed to a deleted log still name its hash: they can no longer be checked against it here.
+  if (sub === "retention") {
+    const file = join(home, "run-log-retention.json");
+    if (v.days === undefined) { const d = runLogRetentionDays(home, io.env); io.out(d ? `run logs on this machine are deleted after ${d} day${d === 1 ? "" : "s"}${io.env.ASP_RUN_LOG_DAYS ? " (set by ASP_RUN_LOG_DAYS)" : ""}; asp run-log retention --days <n>|off changes it` : "no retention period is set: run logs stay until asp run-log prune; asp run-log retention --days <n> sets one"); return 0; }
+    if (v.days === "off") { rmSync(file, { force: true }); io.out("retention is off: run logs stay until asp run-log prune"); return 0; }
+    const days = Number(v.days);
+    if (!(days >= 1) || !Number.isInteger(days)) throw new UsageError("usage: asp run-log retention --days <whole number, at least 1>|off");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(file, JSON.stringify({ days }, null, 2) + "\n");
+    io.out(`run logs on this machine will be deleted ${days} day${days === 1 ? "" : "s"} after they were last written, each time asp run or asp gateway starts (a sealed copy kept on the service is not touched)`);
+    return 0;
+  }
   if (sub === "prune") {
     const days = Number(v.days);
     if (!(days >= 0) || v.days === undefined) throw new UsageError("usage: asp run-log prune --days <n> [--yes]   (run logs on this machine older than n days)");
@@ -6948,6 +7026,7 @@ const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs
  * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io, localIds?: { me: string; agent: string; bank: string }): Promise<number> {
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
   const prof = SESSION_RUNTIMES[runtime];
   // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
   // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
@@ -7406,7 +7485,7 @@ function withAspYaml(home: string, pkg: string | undefined, v: Values, io: Io): 
   if (v.headless || (pkg && !SESSION_RUNTIMES[pkg])) return { pkg, v };
   const file = findAspYaml(io.cwd);
   if (!file) return { pkg, v };
-  const text = readFileSync(file, "utf8");
+  const text = readTextFile(file);
   const { values, errors } = parseAspYaml(text);
   if (errors.length) throw new UsageError(`${file}: ${errors.join("; ")}`);
   const runtime = pkg ?? (values.runtime as string | undefined);
@@ -7670,6 +7749,8 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
 
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
+  // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
+  if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
@@ -7718,13 +7799,14 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string; agent?: string; bank?: string }; service?: string }; } catch { return undefined; } })();
     return await livePreflight({
       home, env: io.env, out: (l) => io.out(l),
-      flags: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
+      flags: { ...(v.local ? { local: true } : {}), ...(v.port ? { port: v.port } : {}), ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
       stopAll: async (h) => await stopCmd(h, undefined, { all: true } as Values, { ...io, out: () => undefined, err: () => undefined }),
       mandateOf: async (contract) => { const chain = (await (await openLog(home, logEnv)).log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2"); const b = chain.at(-1)?.record.body as { scopes?: string[] } | undefined; return b ? { scopes: b.scopes ?? [] } : undefined; },
       identities: () => cfg?.identities,
     });
   }
   if (sub === "report") {
+    if (!sessionsOf(home).length && existsSync(join(home, "local", "runs.ndjson"))) return await liveCommand(join(home, "local"), sub, v, io);
     const all = sessionsOf(home);
     const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
     if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
@@ -7747,7 +7829,9 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
 async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  const running = sessionsOf(home).filter((s) => !s.end);
+  let running = sessionsOf(home).filter((s) => !s.end);
+  // `asp run --local` keeps its sessions under <ASP_HOME>/local: when none run here, stop those (the stop file goes where that gateway looks).
+  if (!running.length && !home.replace(/[\\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) { const local = sessionsOf(join(home, "local")).filter((s) => !s.end); if (local.length) return await stopCmd(join(home, "local"), id, v, io); }
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
   // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.

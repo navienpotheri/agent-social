@@ -378,6 +378,7 @@ export class EventLog {
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
+    if (type === "memory_key") await this.projectMemoryKey(tx, verified);
     if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
@@ -2867,6 +2868,27 @@ export class EventLog {
     if (!f.finding) throw rule("finding_not_deliberate", f.why);
     if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
     await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
+  /** An identity publishes the public half of its X25519 memory key (S1604, D12/DK272): only itself, raw 32 bytes, one live key, a rotation names the entry it replaces. */
+  private async projectMemoryKey(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { did: string; name: string; public_key: string; revokes?: string };
+    if (r.prev !== null) throw rule("memory_key_not_chained", "a memory key starts its own chain (prev is null)");
+    if (r.issuer !== b.did) throw rule("memory_key_wrong_issuer", `${r.issuer} is not ${b.did}: an identity publishes its own memory key`);
+    if (!(await tx.getPassport(b.did))) throw rule("memory_key_unknown_identity", `${b.did} has no passport in this log`);
+    if (!/^[A-Za-z0-9_-]{43}$/.test(b.public_key) || b.public_key.includes("PRIVATE") || b64urlDecode(b.public_key).length !== 32) throw rule("memory_key_private_material", "a memory key is the RAW 32-byte public key in base64url without padding (43 characters): nothing longer, and never a private key");
+    const live = JSON.parse((await tx.getMarker(`memory_key:${b.did}`)) ?? "null") as { id: string; name: string; public_key: string } | null;
+    if (b.revokes !== undefined && b.revokes !== live?.id) throw rule("memory_key_revokes_unknown", `${b.revokes} is not the live memory key of ${b.did}`);
+    if (live && b.revokes === undefined) throw rule("memory_key_live", `${b.did} has a live memory key (${live.name}): a rotation names it in revokes`);
+    await tx.putMarker(`memory_key:${b.did}`, JSON.stringify({ id: r.id, name: b.name, public_key: b.public_key }));
+  }
+
+  /** The live memory key of an identity (S1604): its public X25519 half, the record and the entry name, or undefined. Reads only. */
+  async memoryKey(did: string): Promise<{ public_key: string; record: string; name: string } | undefined> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`memory_key:${did}`));
+    if (!raw) return undefined;
+    const j = JSON.parse(raw) as { id: string; name: string; public_key: string };
+    return { public_key: j.public_key, record: j.id, name: j.name };
   }
 
   /** A refusal by the agent's local gateway, signed with the agent's key (S1601, DK1607): so the agent can contest it. Costs no credits; moves nothing. */

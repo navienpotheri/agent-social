@@ -4273,6 +4273,74 @@
       "valid": false
     },
     {
+      "name": "valid_memory_key",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "memory-1",
+        "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_memory_key_rotation",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "memory-2",
+        "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "at": "2026-11-22T10:00:00Z",
+        "revokes": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+      },
+      "valid": true
+    },
+    {
+      "name": "memory_key_no_key",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "memory-1",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "memory_key_empty_name",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "",
+        "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "at": "2026-11-22T10:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "memory_key_extra_field",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "memory-1",
+        "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "at": "2026-11-22T10:00:00Z",
+        "private_key": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "memory_key_revokes_not_an_id",
+      "schema": "memory_key",
+      "instance": {
+        "did": "did:web:example.com:agents:coder-7",
+        "name": "memory-1",
+        "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "at": "2026-11-22T10:00:00Z",
+        "revokes": "memory-1"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ladder_season",
       "schema": "ladder_season",
       "instance": {

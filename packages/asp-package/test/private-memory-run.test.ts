@@ -106,7 +106,7 @@ test("a scope the Mandate does not name is refused and counted; the size, the nu
 
 test("the principal's key is sealed with the passphrase when one is set, and without a run the agent has no private tools", async () => {
   const w = world(["notes"], "correct horse battery staple");
-  const file = readFileSync(join(w.home, "keys", `${PRINCIPAL.replace(/[^A-Za-z0-9._-]+/g, "_")}.memory.json`), "utf8");
+  const file = readFileSync(join(w.home, "memory-keys", `${PRINCIPAL.replace(/[^A-Za-z0-9._-]+/g, "_")}.json`), "utf8");
   assert.ok(!file.includes(w.pk.privateKey), "not in the clear");
   assert.throws(() => principalMemoryKey(w.home, PRINCIPAL), /protected with a passphrase/);
   assert.equal(principalMemoryKey(w.home, PRINCIPAL, "correct horse battery staple").publicKey, w.pk.publicKey);

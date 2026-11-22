@@ -58,8 +58,8 @@
           "description": "What the next runs will likely use, from the sessions that finished: tokens and time per agent (median, a bad one), a day, the next 7 days; with --contract <id>, for one job on the market: the credits at stake (escrow and bond) and what a session of its performer has used"
         },
         {
-          "command": "asp live preflight [--runtime <name>] [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--price-in <n> --price-out <n>] [--contract <id>] [--json]",
-          "description": "Check this machine before a live run with a real model and print a green/amber/red table; exit 1 when anything is red. Checks Node and git, that the ASP home is writable, that the runtime is installed (--runtime), that a local port opens, that the key is set in its environment variable (it prints only that it is set and how long it is, never the key), that a gateway starts and answers, that the log service answers, that your identities and the Mandate are loaded, that a hard dollar cap is set and how the model is priced, and that asp stop --all stops a running session (on a throwaway home). Nothing is sent to a model provider"
+          "command": "asp live preflight [--local] [--port <n>] [--runtime <name>] [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--price-in <n> --price-out <n>] [--contract <id>] [--json]",
+          "description": "Check this machine before a live run with a real model and print a green/amber/red table; exit 1 when anything is red. Checks Node and git, that the ASP home is writable, that the runtime is installed (--runtime), that a local port opens (and that --port, if given, is free), that the machine will not sleep or act on the lid during the run (a read-only powercfg query on Windows; nothing is changed), that the key is set in its environment variable (it prints only that it is set and how long it is, never the key), that a gateway starts and answers, that the log service answers, that your identities and the Mandate are loaded, that a hard dollar cap is set and how the model is priced, and that asp stop --all stops a running session (on a throwaway home). Nothing is sent to a model provider"
         },
         {
           "command": "asp live report [--session <id>] [--json]",
@@ -321,6 +321,14 @@
         {
           "command": "asp run-log verify [<log>] [--contract <id>]",
           "description": "Check a run log's hash chain and what the Actions committed to"
+        },
+        {
+          "command": "asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did>",
+          "description": "Publish the PUBLIC half of an identity's memory key in the log (signed with its own signing key; only the raw 32-byte public key is recorded, never private material), so a principal-agent pair can seal a private memory scope to each other from a second machine; a changed key is a rotation that names the live one it replaces. show prints the live key (D12, DK272)"
+        },
+        {
+          "command": "asp run-log retention [--days <n>|off]",
+          "description": "Keep a retention period for the run logs on this machine: every asp run and asp gateway then deletes the logs older than n days when it starts and says so in one line; with no argument it shows the period (ASP_RUN_LOG_DAYS overrides it). A sealed copy kept on the service is not touched, and an Action that committed to a deleted log keeps its hash"
         },
         {
           "command": "asp run-log prune --days <n> [--yes]",
