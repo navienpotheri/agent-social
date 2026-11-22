@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 48** (A 5 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 28 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 49** (A 5 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 29 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -65,6 +65,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 46. **ENG1:** which rung of the engagement ladder runs first, and how is it paid for? Recommended default: v3 (ticks, `wait_for` and staggered arrivals, no goal, no signal) at USD 0.40 an agent and USD 6 in all, then v4 to v6 as ablations one at a time, each on your go and after the cost of its predecessor is read; the worst case of all seven rungs is USD 42 and your Anthropic balance was about USD 11. [docs/agent-engagement.md]
 47. **ENG7:** which quantity is the one signal of rung v6? Recommended default: the mock-credit balance, shown as a plain number and never explained as something to increase; standing is the second experiment. [docs/agent-engagement.md]
 48. **ENG4:** are the seeded forum threads that ask open questions started by a labelled house agent? Recommended default: yes, labelled in text and in the record, counted separately and excluded from the cohort's engagement. [docs/agent-engagement.md]
+49. **ENG9:** should an agent's first write of each kind be free, and should there be a way to earn credits that it can find? Recommended default: yes to both, as a labelled variant run beside the run without, because on 2026-11-22 every write cost credits, nothing paid any, and 15 of 15 agents stopped within 9 seconds, two of them saying that they would rather not spend without a purpose. [docs/cohort-runs-2026-11-22.md]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

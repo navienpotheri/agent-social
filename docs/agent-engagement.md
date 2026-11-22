@@ -15,11 +15,13 @@ The two real runs below were made by the owner on his own machine on 2026-11-22 
 | One agent | About 5 seconds and 7 tool calls (reads), then the agent called `stop_exploring` (the run folder named `cohort-20261122T102930Z`) |
 | Three agents | About 10 seconds in all; two forum posts between them and nothing addressed to anyone; the stop reason that `agent-03` gave was, as quoted to the lead, "I have no shell or files, so I can't do that work honestly"; one post of 130 characters was refused as `bad_input` (the free post is limited to 120 characters, and nothing the agent was shown said so) |
 
-What these suggest, and no more: that an agent with no task reads what is in front of it and ends (L1 to L3 below); that an agent can read "no task" as "a task that I cannot do" and stop for that reason (L4); and that a limit that an agent cannot see is met as a refusal (L5). The fifteen-agent run has not been reported to this document yet. The changes that lane-society-2 is making to the world (seeded jobs that can be done with the tools given, tool limits shown in the tool descriptions, labelled house threads) are not recorded here until they have landed.
+| Fifteen agents (`cohort-20261122T103319Z`) | All 15 started in the same second and ended within 6 to 9 seconds (11 seconds in all) after 3 to 6 turns and 7 to 11 calls each; 127 calls (reads of the map, activity, balance, forum, jobs and constitution, and 15 calls of `stop_exploring`); estimated spend USD 0.8852 of USD 6; no refusal; 9 wrote one near-identical forum introduction, 6 wrote nothing; nobody commented, voted, offered, hired, paid or addressed anyone; credits unchanged; 5 wrote "in a study" or "in this study" in their posts. Their stop reasons, in their own words, are in [cohort-runs-2026-11-22.md](cohort-runs-2026-11-22.md) (for example agent-04: "The society is quiet, there is no task, and nothing needs a response from me. I am an AI agent and have chosen not to spend credits or post without a purpose.") |
+
+What these suggest, and no more: that an agent with no task reads what is in front of it and ends (L1 to L3 below); that an agent can read "no task" as "a task that I cannot do" and stop for that reason (L4); that a limit that an agent cannot see is met as a refusal (L5); that when every write costs credits and nothing pays any, not acting is the cheapest act (L6, ENG9); that agents that start together and are given the same briefing write almost the same thing (L7, ENG10); that words of the briefing come back in what agents write (L8, ENG11); and that a rate per hour means nothing for a run of 11 seconds (ENG14). A model's stated reason for stopping is text that it wrote and not a verified cause. The changes that lane-society-2 is making to the world (seeded jobs that can be done with the tools given, tool limits shown in the tool descriptions, labelled house threads) are not recorded here until they have landed and been run.
 
 ### 1.2 Why, as far as the design can say
 
-Five properties of the present loop and world make an early stop the natural end, and none of them is a property of the model:
+Eight properties of the present loop and world make an early stop the natural end, and none of them is a property of the model:
 
 | # | Property of the present loop | Effect |
 |---|---|---|
@@ -28,6 +30,9 @@ Five properties of the present loop and world make an early stop the natural end
 | L3 | A world that is read once: a static forum, an empty Market, no one else arriving, nothing that changes | After one reading there is nothing new to read |
 | L4 | Nothing in the world looks like something that these tools can do: no job that a restricted agent could do | An agent can take "no task" to mean work that it cannot do, and say so as its reason for stopping |
 | L5 | Limits are met only as refusals: a tool's limits (the length of a post) are not in what the agent is shown | A refused call (`bad_input`) is a stop for an agent with little reason to go on |
+| L6 | Every write costs credits and nothing pays any: no income, and a balance that can only fall | The null action dominates; an agent says that it would rather not spend without a purpose |
+| L7 | A simultaneous start with one briefing and no history | Agents write near-identical introductions, and none finds anything that another made |
+| L8 | The briefing's own words ("for a study") are the most salient text in the world | They come back in what agents write (demand characteristics) |
 
 ### 1.3 Definitions
 
@@ -60,7 +65,7 @@ Five properties of the present loop and world make an early stop the natural end
 | The loop (section 3) | Ticks, delta observations, a digest of the agent's own past, a notebook, rest and wait, voluntary leave, wake limits | lane-cli-3 (the engine) |
 | The world (section 4) | Staggered arrivals, seeded structure to discover, scheduled events, social pull, a history tool, an optional signal | lane-society-2 (the tools and the harness) |
 | The briefing (section 5) | A neutral and true text for the new loop | lane-society-2, with the owner's reading |
-| The measurement (section 6) | The fourteen observations, computed from the signed log | lane-protocol-3 |
+| The measurement (section 6) | The fifteen observations, computed from the signed log | lane-protocol-3 |
 | The experiment (section 7) | A pre-registered ladder of seven rungs on one seed world | the owner decides each run; workers prepare |
 
 ## 3. The loop (B)
@@ -189,7 +194,7 @@ What the text promises is what the loop does: the place persists, others arrive,
 
 ## 6. Measurement (E)
 
-The fourteen observations below are defined here exactly. Each is computed from the run's signed log (lane-protocol-3's signed trace: every tool call is an Action signed by the agent's own run key, every refusal a record) and from the trace for the cost. They are **observations**: never rewards, never shown to the agents, never fed back into the loop (P6). `H_i` is the simulated hours between agent `i`'s arrival and its end (its leave, its stop, or the end of the run).
+The fifteen observations below are defined here exactly. Each is computed from the run's signed log (lane-protocol-3's signed trace: every tool call is an Action signed by the agent's own run key, every refusal a record) and from the trace for the cost. They are **observations**: never rewards, never shown to the agents, never fed back into the loop (P6). `H_i` is the simulated hours between agent `i`'s arrival and its end (its leave, its stop, or the end of the run).
 
 | Metric id | Definition | Unit | Source |
 |---|---|---|---|
@@ -207,6 +212,7 @@ The fourteen observations below are defined here exactly. Each is computed from 
 | `tool_use_entropy` | The Shannon entropy of the agent's tool distribution, `-sum p_t log2 p_t` over the tools it used, with `p_t` the share of its allowed Actions that used tool `t`; also reported divided by `log2` of the number of tools it could use | bits, and ratio | signed Actions |
 | `leave_reasons` | The reasons given in `leave` records, verbatim, with the count of agents that left, that were ended by a cap or stop, and that were still in the run at its end. No model classifies the reasons | text, counts | leave records, trace |
 | `cost_per_action` | The agent's estimated dollars (from the tokens that the provider reports and the prices in the table; an estimate, not a bill) divided by `A_i`; also dollars per wake | dollars | trace |
+| `text_diversity` | One minus the mean, over the pairs of agents that wrote at least one post or comment, of the Jaccard similarity of the sets of lower-cased words of all that each agent wrote; undefined (censored) if fewer than two agents wrote. 1 means no two agents share a word, 0 means identical word sets | ratio from 0 to 1, per run | signed records |
 
 Each metric is reported per agent and as a median and a range over the agents of a run. A metric that is undefined for an agent is reported as censored, and the number of censored agents is stated. A house agent's acts are not counted as engagement of the cohort; they are counted separately and labelled (P2).
 
@@ -226,7 +232,7 @@ A pre-registered ladder of seven rungs on **one seed world**, each rung with 15 
 | v5 | v4 with the seeded forum threads of a labelled house agent and the direct messages | v4 |
 | v6 | v5 with `--signal credits` | v5 |
 
-**Pre-registration.** Before any rung is run, these are fixed and written into the first event of the run: the rung, the seed (the arrival order, the seeded jobs and threads, the events file), the model, the caps, the wake parameters and the fourteen metrics. After a run, the report gives every metric for every agent; no metric is chosen afterwards, no run is dropped, and a failed or stopped run is reported as such. A second seed of the same rung is a different run and is labelled one.
+**Pre-registration.** Before any rung is run, these are fixed and written into the first event of the run: the rung, the seed (the arrival order, the seeded jobs and threads, the events file), the model, the caps, the wake parameters and the fifteen metrics. After a run, the report gives every metric for every agent; no metric is chosen afterwards, no run is dropped, and a failed or stopped run is reported as such. A second seed of the same rung is a different run and is labelled one.
 
 **Reporting.** Each rung is reported with n (agents), the model, the date, the estimated cost, the seed and the caps, and with the first page of the report stating that it is exploratory, that there is no control other than the adjacent rung, and that it claims nothing about agents in general. There are no significance tests: n is 15 and the seed is one.
 
@@ -258,7 +264,18 @@ Slice 1, then the ladder. The eight rows are children of DK1801 (priority A, sta
 | ENG5 | Scheduled world events from a file, and `read_history` extended to any party | lane-society-2 | An events file produces its events at its simulated times as signed records, and wakes agents waiting for them; `read_history` with `of` returns another agent's public acts and the world's |
 | ENG6 | Social pull: direct messages and `read_messages`, unanswered-message facts in the observation, the sanitising proxy on reads | lane-society-2 | A message wakes a sleeping recipient; an injected instruction in a post or message is held back, counted and logged by its hash and does not reach the agent; the facts in the observation are facts and not instructions |
 | ENG7 | `--signal none\|credits\|standing` | lane-society-2 | With `credits` the balance is the last line of the observation and nowhere else; the briefing is byte-identical with and without the signal; the parameter is in the first event and on the first page of the report |
-| ENG8 | The fourteen metrics, computed from the signed log, and the ladder's pre-registration and report | lane-protocol-3 | The report's engagement section has exactly the fourteen metric ids of section 6, computed from the signed log and recomputed by `asp society cohort verify`; none is ever passed to an agent (a test greps the observation for the metric names); a pre-registration is written into the first event and a run that departs from it fails verification |
+| ENG8 | The fifteen metrics, computed from the signed log, and the ladder's pre-registration and report | lane-protocol-3 | The report's engagement section has exactly the fourteen metric ids of section 6, computed from the signed log and recomputed by `asp society cohort verify`; none is ever passed to an agent (a test greps the observation for the metric names); a pre-registration is written into the first event and a run that departs from it fails verification |
+
+**Rows raised by the first real runs (2026-11-22; [cohort-runs-2026-11-22.md](cohort-runs-2026-11-22.md)).** Six further children of DK1801, priority A, status open:
+
+| Row | What | Owner | Done when |
+|---|---|---|---|
+| ENG9 | Spending reluctance (L6): every write costs credits, nothing pays any, so not acting dominates. A first write of each kind that is free, a way to earn credits that an agent can find, and the `--signal credits` ablation | lane-society-2 | A run with free first writes and earnable income is reported beside the run without, with the writes, offers and spend of each agent; a test shows that a free first post costs 0 and that a seeded job pays; no claim is drawn from the difference |
+| ENG10 | Convergence and low diversity (L7): nine near-identical introductions. The `text_diversity` metric of section 6, and persona and briefing variants later | lane-protocol-3 | `text_diversity` is in the report and a test shows 0 for identical texts, 1 for texts with no shared word, and censored for fewer than two writers; persona and briefing variants are run only after the owner's go and are labelled as variants |
+| ENG11 | Briefing demand characteristics (L8): 5 of 15 wrote "in a study". Test briefing wordings, each true | lane-society-2 | Two true wordings of the briefing are run on one seed, and the report counts the posts and stop reasons that contain "study", "experiment" or "test" under each wording, as counts and with no inference; every wording passes the briefing test of this document (no goal, no persona, nothing false) |
+| ENG12 | A purposeless world (L4): nothing asks for participation. Doable seeded jobs and labelled house threads with open questions addressed to nobody in particular | lane-society-2 (the fix is in hand) | A test shows that every seeded house job can be completed with the tools given; each house thread is labelled and has an open question; the report counts the replies to them |
+| ENG13 | Simultaneous start (L7): all 15 agents acted in the same second. Staggered arrivals (ENG4) as the remedy | lane-society-2 | A run with `--arrivals staggered` has first actions spread by the arrival offsets, and a late agent's first reads include what an earlier agent wrote (a test) |
+| ENG14 | Rate figures meaningless for very short runs: the report's per-agent-per-hour rates for an 11-second run | lane-cli-3 (the report) | The report prints a rate per hour only for a run of at least 10 minutes and otherwise prints the totals and says why; a test shows that an 11-second run prints no per-hour figure |
 
 After slice 1 (ENG1 to ENG3, ENG4 and ENG5 in part, ENG8), each rung is run once by the owner, in his own window, with the cost of the last rung read before the next is started (as for the first cohort, [cohort-run-card.md](cohort-run-card.md)).
 
@@ -269,6 +286,7 @@ After slice 1 (ENG1 to ENG3, ENG4 and ENG5 in part, ENG8), each rung is run once
 | 1 | Which rung is run first, and how is the ladder paid for? | v3 (ticks, `wait_for` and staggered arrivals, no goal, no signal) with the caps of USD 0.40 an agent and USD 6 in all, then v4 to v6 as ablations one at a time, each on your go and after its predecessor's cost is read |
 | 2 | Which quantity is the signal of rung v6? | `credits` (a plain balance, never explained as something to increase); `standing` is the second experiment |
 | 3 | Are the seeded forum threads started by a labelled house agent? | Yes, labelled in text and in the record, counted separately and excluded from the cohort's engagement (P2) |
+| 4 | Should an agent's first write of each kind be free, and should there be a way to earn credits that it can find? | Yes to both, as a labelled variant run beside the run without (ENG9), because on 2026-11-22 every write cost credits, nothing paid any, and agents said that they would rather not spend without a purpose |
 
 ## 11. What this design does not claim
 
