@@ -87,6 +87,20 @@ Step "asp pause / resume" ($p -match "paused" -and $r -match "resumed") "$($p.Tr
 $st = (npm run asp -- stop --all 2>$null) -join "`n"
 Step "asp stop --all" ($st -match "nothing is running|stopping") "no session is left running"
 
+# Codex, when it is installed: the same governed run on the OpenAI wire (Responses API), against a stand-in that needs no key
+$codex = Get-Command codex -ErrorAction SilentlyContinue
+if ($codex) {
+  $l2 = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0); $l2.Start(); $port2 = $l2.LocalEndpoint.Port; $l2.Stop()
+  $stand2 = Start-Process -FilePath "node" -ArgumentList @("scripts\standin-openai.mjs", "$port2") -PassThru -WindowStyle Hidden -RedirectStandardOutput "$work\standin2.log" -RedirectStandardError "$work\standin2.err"
+  for ($i = 0; $i -lt 50 -and -not ((Test-Path "$work\standin2.log") -and ((Get-Content "$work\standin2.log" -Raw) -match "listening")); $i++) { Start-Sleep -Milliseconds 200 }
+  $env:ASP_RUN_OPENAI_UPSTREAM = "http://127.0.0.1:$port2/v1"
+  $env:OPENAI_API_KEY = "sk-rehearsal-placeholder-not-a-key-000000"
+  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 2>$null) -join "`n"
+  Step "codex: governed run, one call refused" ($cx -match "1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
+  if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
+  Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue
+} else { Write-Host "SKIP codex: not installed here" }
+
 # clean up the throwaway pieces
 if ($stand -and -not $stand.HasExited) { Stop-Process -Id $stand.Id -Force -ErrorAction SilentlyContinue }
 Remove-Item Env:ANTHROPIC_API_KEY, Env:ASP_RUN_ANTHROPIC_UPSTREAM, Env:ASP_HOME, Env:ASP_CLAUDE_BIN, Env:ASP_CLAUDE_SCRIPT, Env:REHEARSAL_N -ErrorAction SilentlyContinue
