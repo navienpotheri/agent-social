@@ -313,6 +313,7 @@ describe("the School: courses, tuition, enrolment, completion (DK24, AC-3 to AC-
     const { k, author, r1, r2, course } = await school();
     assert.equal(await refused(k.log.append(course({}, []))), "course_needs_registrar");
     assert.equal(await refused(k.log.append(course({ price_service: "academy.nonsense" }))), "course_not_priced");
+    assert.equal(await refused(k.log.append(course({ price_service: "registry.name.claim" }))), "course_not_priced", "a service of another institution is not a course price");
     assert.equal(await refused(k.log.append(course({ reviewers: [r1.did, author.did] }))), "course_self_review");
     const twin = await k.agent("twin", undefined, 1);
     void twin;
