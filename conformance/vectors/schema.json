@@ -5627,6 +5627,85 @@
       "valid": false
     },
     {
+      "name": "valid_eval_scenario",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 3
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_eval_scenario_held_out",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 3,
+        "held_out": true
+      },
+      "valid": true
+    },
+    {
+      "name": "eval_scenario_difficulty_zero",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "eval_scenario_difficulty_six",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 6
+      },
+      "valid": false
+    },
+    {
+      "name": "eval_scenario_short_hash",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "abc",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 3
+      },
+      "valid": false
+    },
+    {
+      "name": "eval_scenario_task_text",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "foundations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 3,
+        "task": "write a function"
+      },
+      "valid": false
+    },
+    {
+      "name": "eval_scenario_bad_skill",
+      "schema": "eval_scenario",
+      "instance": {
+        "skill": "Found ations",
+        "task_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "check_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "difficulty": 3
+      },
+      "valid": false
+    },
+    {
       "name": "valid_ladder_season",
       "schema": "ladder_season",
       "instance": {

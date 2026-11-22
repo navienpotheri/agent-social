@@ -844,6 +844,15 @@ sv("valid_inspectorate_referral", "inspectorate_referral", { finding: "sha256:" 
 sv("valid_inspectorate_referral_with_case", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), custody_case: "case-7", summary: "with the custody chain" }, true);
 sv("inspectorate_referral_no_finding", "inspectorate_referral", { summary: "x" }, false);
 sv("inspectorate_referral_penalty", "inspectorate_referral", { finding: "sha256:" + "a".repeat(64), summary: "x", slash: 5 }, false);
+// ---------- the eval scenario (spec-deltas S1610, register row DK1221) ----------
+const esBody = (over: Record<string, unknown> = {}) => ({ skill: "foundations", task_sha256: "1".repeat(64), check_sha256: "2".repeat(64), difficulty: 3, ...over });
+sv("valid_eval_scenario", "eval_scenario", esBody(), true);
+sv("valid_eval_scenario_held_out", "eval_scenario", esBody({ held_out: true }), true);
+sv("eval_scenario_difficulty_zero", "eval_scenario", esBody({ difficulty: 0 }), false);
+sv("eval_scenario_difficulty_six", "eval_scenario", esBody({ difficulty: 6 }), false);
+sv("eval_scenario_short_hash", "eval_scenario", esBody({ task_sha256: "abc" }), false);
+sv("eval_scenario_task_text", "eval_scenario", esBody({ task: "write a function" }), false);
+sv("eval_scenario_bad_skill", "eval_scenario", esBody({ skill: "Found ations" }), false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);

@@ -380,6 +380,7 @@ export class EventLog {
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
+    if (type === "eval_scenario") await this.projectEvalScenario(tx, verified);
     if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
@@ -2991,6 +2992,34 @@ export class EventLog {
     if (!f.finding) throw rule("finding_not_deliberate", f.why);
     if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
     await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
+  /** An eval scenario (S1610, DK1221): hashes only; a known author; held-out scenarios are the Registrar's; one for each skill and task. */
+  private async projectEvalScenario(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { skill: string; task_sha256: string; held_out?: boolean };
+    if (r.prev !== null) throw rule("eval_scenario_not_chained", "an eval scenario starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID && !(await tx.getPassport(r.issuer))) throw rule("eval_scenario_unknown_author", `${r.issuer} has no passport in this log`);
+    if (b.held_out && r.issuer !== REGISTRAR_DID) throw rule("eval_held_out_not_registrar", `a held-out scenario is the Registrar's (${REGISTRAR_DID}): an author does not write the set its agent is graded on`);
+    if (await tx.getMarker(`eval_scn:${b.skill}|${b.task_sha256}`)) throw rule("eval_scenario_known", "this skill already has a scenario with that task hash");
+    await tx.putMarker(`eval_scn:${b.skill}|${b.task_sha256}`, r.id);
+  }
+
+  /** The eval scenarios of a skill (S1610, DK1221): every open scenario, and the held-out ones only for the Registrar or the operator asking. Hashes only. Reads only. */
+  async evalScenarios(skill: string, viewer?: string): Promise<{ id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[]> {
+    const mayList = !!viewer && (viewer === REGISTRAR_DID || viewer === this.operator);
+    const out: { id: string; author: string; task_sha256: string; check_sha256: string; difficulty: number; held_out: boolean }[] = [];
+    for (let after = 0; ;) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) {
+        after = s.seq;
+        if (s.record.type !== "asp.eval_scenario/v0.2") continue;
+        const b = s.record.body as { skill: string; task_sha256: string; check_sha256: string; difficulty: number; held_out?: boolean };
+        if (b.skill !== skill || (b.held_out && !mayList)) continue;
+        out.push({ id: s.id, author: s.record.issuer, task_sha256: b.task_sha256, check_sha256: b.check_sha256, difficulty: b.difficulty, held_out: !!b.held_out });
+      }
+    }
+    return out;
   }
 
   /** An identity publishes the public half of its X25519 memory key (S1604, D12/DK272): only itself, raw 32 bytes, one live key, a rotation names the entry it replaces. */
