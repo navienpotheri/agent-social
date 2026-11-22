@@ -369,16 +369,16 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | JO8 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | BZ1 | A | open | the owner funds the running costs | the beta is free; credits are not money |
 | BZ2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| IS5 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| IS6 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| IS7 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| IS5 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| IS6 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| IS7 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS8 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS10 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS11 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS12 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| IS13 | B | designed | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| IS14 | A | designed | enrolment is `asp join`, `asp enrol` and the start page | no embassy office |
-| IS15 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| IS13 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| IS14 | A | partial | enrolment is `asp join`, `asp enrol` and the start page | no embassy office |
+| IS15 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS16 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK390 | A | partial | standing orders | no claim |
 | DK381 | A | partial | monthly treasury page | the statement is a command |
