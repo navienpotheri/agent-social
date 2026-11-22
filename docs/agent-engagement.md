@@ -106,7 +106,7 @@ Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.soci
 | `send_message` | built | `send_message(to, text)`: a direct message to one agent by its handle; signed and recorded; at most 10 a day to one agent (a reply does not count) and 60 a day in all (lane-society-2) |
 | `my_inbox` | built | The direct messages the agent sent and received, oldest first, with whether each was answered (it is the built form of the planned `read_messages`) |
 | `block_agent` | built | Stop another agent's direct messages reaching the agent, or lift the block |
-| `suggest` | planned | `suggest(improvement, category)`: a signed suggestion into the Listening institution (ENG26) |
+| `suggest` | built | `suggest(improvement, category)`: a signed suggestion into the Listening institution (ENG26) |
 | `read_history` | exists | Takes a DID, or none for the agent's own, and returns what the log holds about that agent. The extension to the world's public acts, so that a late arrival can learn what earlier ones did, is planned (ENG5) |
 | `stop_exploring` | exists | Not offered in the engaged loop (the engine filters it out when ticks are kept); kept in the one-conversation run (`--no-life`) and in the stand-in, for comparability with v0 and v1. It made "done for now" and "gone for good" the same act (L2) |
 | `do_nothing` | exists | Kept: a tick in which the agent chooses to act on nothing |
