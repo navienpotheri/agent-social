@@ -228,3 +228,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by launch-bar-2 (operator mutation of the gateway judge: packages/asp-package/src/gateway/judge.ts lines 97-198; gateway.test.ts, shell-scan, commands tests), 16:10Z
 - 2026-11-22 held by launch-bar-2 (operator mutation of the shell scanner logic: packages/asp-package/src/gateway/shell-scan.ts lines 100-313), 16:55Z
 - 2026-11-22 held by launch-bar-2 (priority B rows needing no decision: T5 implementer's guide; DK1800 text; sweep of the other B rows of docs/site/mail/legal/enterprise/sandbox), 19:00Z
+- 2026-11-22 held by launch-bar-2 (priority B rows buildable without a decision: DK1800 tutorials and BZ2 governance note, both partial), 21:00Z

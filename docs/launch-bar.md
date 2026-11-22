@@ -364,7 +364,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | JO7 | C | designed | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | JO8 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | BZ1 | A | open | the owner funds the running costs | the beta is free; credits are not money |
-| BZ2 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| BZ2 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS5 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS6 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | IS7 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

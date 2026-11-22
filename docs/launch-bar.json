@@ -2385,7 +2385,7 @@
   {
    "id": "BZ2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The open-source project has no community plan: contribution rules, governance of the specification, a licence for the city's content and a roadmap others can follow and join",
    "bucket": "after",
    "hours": 0,
