@@ -2324,7 +2324,7 @@
   {
    "id": "JO1",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for acceptance criteria, and too few verifiers for the checks the intent asks for",
    "bucket": "after",
    "hours": 0,

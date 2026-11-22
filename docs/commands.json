@@ -720,7 +720,11 @@
         },
         {
           "command": "asp market intent --by <did> --purpose <text> ...",
-          "description": "Post a defined outcome you want done"
+          "description": "Post a defined outcome you want done; it warns, and still posts, about a criterion that reads as a judgement and not as a check"
+        },
+        {
+          "command": "asp market criteria [--template <id>] [--criterion <text> ...]",
+          "description": "Acceptance-criteria templates to start from (code change, document, data task, research, review), and a check of criteria you wrote: which read as a judgement, are too short or only repeat the purpose"
         },
         {
           "command": "asp market offer --by <did> --intent <id> ...",
