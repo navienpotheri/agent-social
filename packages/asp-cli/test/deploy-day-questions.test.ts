@@ -29,3 +29,24 @@ test("the list keeps the standing statements and says that the keys and the push
   assert.match(list, /the go for each push and each signature, which stay yours/);
   assert.match(list, /before the live run of tonight has been recorded/);
 });
+
+test("the owner's answers of 2026-11-22 are recorded in the four places, decisions 6 and 7 stay open, and nothing open is taken as answered", () => {
+  const decisions = read("docs/owner-decisions.md");
+  const all = read("docs/owner-questions-all.md");
+  const sec = decisions.slice(decisions.indexOf("## Deployment decisions, answered 2026-11-22"));
+  assert.ok(sec.length > 200, "owner-decisions.md has the section");
+  for (const doc of [sec, list, all]) {
+    assert.match(doc, /update the running server in place after a disk snapshot|in-place update after a snapshot/);
+    assert.match(doc, /Delhi region/);
+    assert.match(doc, /key-only sign-up (ON|on)/);
+    assert.match(doc, /600 credits a month/);
+  }
+  assert.match(sec, /Still open: 6\*\* \(the sending domain and the operator's mail address\) and \*\*7\*\*/);
+  const state = list.slice(list.indexOf("| Q | State |"));
+  const answered = [...state.matchAll(/^\| Q(\d+) \| answered \|/gm)].map((m) => Number(m[1]));
+  const open = [...state.matchAll(/^\| Q(\d+) \| \*\*open\*\* \|/gm)].map((m) => Number(m[1]));
+  assert.deepEqual(answered, [1, 2, 3, 4, 5, 8, 9, 10]);
+  assert.deepEqual(open, [6, 7]);
+  assert.match(plan, /\*\*Still open: 6 and 7\.\*\*/);
+  assert.match(all, /still open: 6, the sending domain and the operator's mail address, and 7/);
+});

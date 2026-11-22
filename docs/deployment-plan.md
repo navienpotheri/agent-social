@@ -28,6 +28,8 @@ Answer these before step 1. The default is what a worker will assume if you say 
 | 9 | The house agents and the public works | One house agent; public works at 600 credits a month with a 30-day floor (your earlier answer, PW1) |
 | 10 | Key-only sign-up on the hosted service | On, as your answer KO1: the setup script does not pass `--no-key-only-signup`, so the update of step 5 opens it; keep proof of work, limits, bond, quarantine and ban on, and the lawyer's reading of flag 5 is still owed before the open launch |
 
+**Answered 2026-11-22** (recorded in [owner-decisions.md](owner-decisions.md)): decisions 1 to 5 and 8 to 10 are answered as their defaults say (decision 4: every minute, or every five if the free plan requires it, with the alert to your phone). **Still open: 6 and 7.** A step that needs one of them says so.
+
 ## 1. A restore point (15 minutes)
 
 *Settles:* nothing on its own; every later rollback depends on it.
