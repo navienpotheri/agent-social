@@ -223,3 +223,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM11, DK271: the panel draw exclusions, panel-sybil.test.ts and panel-funding.test.ts), 12:30Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows E4: secrets masking, redact.ts, redact.test.ts), 13:20Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows D6: injection detection, gateway/injection.ts, injection.test.ts), 14:00Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM10: swarm containment, watch.ts, watch.test.ts), 14:50Z
