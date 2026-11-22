@@ -392,6 +392,7 @@ import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { renderInvoiceHtml } from "./invoice-html.ts";
 import { renderRunsHtml } from "./runs-html.ts";
+import { cohortCommand, CohortUsage } from "./cohort-cmd.ts";
 import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -734,6 +735,15 @@ const OPTIONS = {
   note: { type: "string" },
   dir: { type: "string" },
   house: { type: "boolean" },
+  toolset: { type: "string" },
+  upstream: { type: "string" },
+  "run-dir": { type: "string" },
+  parallel: { type: "string" },
+  "max-turns": { type: "string" },
+  "key-env": { type: "string" },
+  "per-agent-usd": { type: "string" },
+  "total-usd": { type: "string" },
+  "agent-prefix": { type: "string" },
   operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
@@ -1304,6 +1314,14 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "work") return await workCmd(home, sub, rest, v, io);
+    if (cmd === "cohort") {
+      try {
+        return await cohortCommand(home, sub, v as never, io as never, {
+          sessionStart: (sid, purpose) => sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: "cohort", at: new Date().toISOString(), runtime: "cohort", agent: "cohort", me: "cohort", bank: "cohort", purpose, scopes: [], hosts: [] }),
+          sessionEnd: (sid, state, calls, refused, tokens, exitCode, runLog) => sessionIndexAdd(home, { t: "end", sid, contract: "cohort", at: new Date().toISOString(), state, calls, refused, tokens, exitCode, ...(runLog ? { runLog } : {}) }),
+        }, now);
+      } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);

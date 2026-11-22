@@ -71,3 +71,9 @@ What `runCohort` does for each agent: starts one gateway in this process (`creat
 ## Honest limits
 
 The stand-in provider is what the tests use: no key, no network. The first real run is the owner's, with a key in an environment variable of the owner's own process. The gateway reads tool calls; it is not a sandbox, and the tools are the only means an agent has.
+
+## What is built (2026-11-22)
+
+`packages/asp-package/src/cohort/driver.ts` (the loop), `runner.ts` (one gateway for each agent, the total cap), `packages/asp-cli/src/cohort-cmd.ts` (`asp cohort run`: the plan, `--yes`, the session for `asp runs` and `asp stop --all`); tests `packages/asp-package/test/cohort-driver.test.ts` and `packages/asp-cli/test/cohort-cmd.test.ts` against a stand-in provider (a toy tool set stands in for the society worker's). Mutation round on the driver: 18 mutants, one equivalent (an abort check that the wall-clock check repeats), the rest killed.
+
+Limits found while building it: the gateway answers a provider's 429 without forwarding the `retry-after` header, so the loop waits 2, 4, 8 and 16 seconds (it reads the header when it is present); a refused call comes back to the model as text beginning `[ASP]` and the loop tells the model its call was not run (the gateway's strikes, 5 here, and the loop breaker stop one that keeps trying); an agent that answers with no tool call has finished.
