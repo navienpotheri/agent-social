@@ -53,7 +53,7 @@ test("a wash needs its minimum jobs, balanced values and a real share; a pair is
   const k = Math.max(t.washMinJobs, 4);
   const trade = (a: number, b: number, va: number, vb: number) => [...world(), ...many(a, "a1", "b1", va), ...many(b, "b1", "a1", vb)];
   assert.ok(kinds(trade(k / 2, k / 2, 100, 100)).includes("wash"));
-  assert.ok(!kinds(trade(Math.floor((k - 1) / 2), Math.ceil((k - 1) / 2), 100, 100)).includes("wash"), "one job short of the minimum");
+  { const lo = Math.floor((k - 1) / 2), hi = Math.ceil((k - 1) / 2); assert.ok(!kinds(trade(lo, hi, hi * 100, lo * 100)).includes("wash"), "one job short of the minimum, with balanced values"); }
   assert.ok(!kinds(trade(k / 2, k / 2, 100, Math.floor(100 * (t.washRatio - 0.15)))).includes("wash"), "the values are far from balanced");
   assert.ok(!kinds(trade(k, k, 100, 100)).includes("closed_circle"), "two controllers are a wash, not a circle");
   // a share below the ratio: a1 and b1 also trade a lot with others, so their pair is a small part of their work
