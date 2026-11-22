@@ -75,6 +75,8 @@ export interface CohortOptions {
   event?: boolean;
   /** The orientation expedition (groups of four, a house guide, five small stops) and the places to discover (expedition.ts). */
   expedition?: boolean;
+  /** Leave out the two true lines about learning and about more to find (a briefing variant to compare against, ENG69). */
+  noHints?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
   library?: boolean;
   /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
@@ -142,11 +144,12 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
   const groups: ReadonlySet<string> = new Set([...(o.expedition || o.markers !== undefined ? ["expedition"] : []), ...(o.games ? ["games"] : []), ...(o.roles ? ["town"] : []), ...(o.library ? ["library"] : [])]);
-  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
+  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), hintLines: !o.noHints, toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
   const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   world.api.groups = groups;
+  world.api.hintLines = !o.noHints;
   await world.api.market?.scaleFor(o.agents); // a board as big as the cohort, so agents that arrive together do not all rush the same first jobs
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {

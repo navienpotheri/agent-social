@@ -283,6 +283,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     seenBy.add(agent.did);
     const inv = await invitationsFor(world, agent);
     r = { ...r, invitations: inv.length };
+    if (world.hintLines !== false && (world.markers || world.expedition)) extra.push("About this place: learning is possible here, and my_progress shows what you have learned. There is more here than the first look shows.");
     extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
