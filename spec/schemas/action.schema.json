@@ -172,6 +172,25 @@
     "unprompted": {
       "description": "True when the performer acted on its own initiative and not because its principal or a job step asked (register row DK1232; spec-delta S1606). Absent is false. The log refuses it where the Mandate does not allow unprompted work (unprompted_not_allowed) or past its daily cap (unprompted_cap), and counts it so a report can show the share (`unpromptedShare`).",
       "type": "boolean"
+    },
+    "workflow_step": {
+      "description": "A transition of the Mandate's workflow clause this Action reports (register row DK1209; spec-delta S1607): `from` must be the state the job is in (it starts at the clause's `start`) and `{from, to}` must be one of its transitions. The log refuses an Action that carries a step under a Mandate with no clause (workflow_not_in_mandate), from the wrong state (workflow_wrong_state) or by a transition the clause does not allow (workflow_bad_transition).",
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        }
+      }
     }
   }
 }

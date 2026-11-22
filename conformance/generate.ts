@@ -623,6 +623,9 @@ sv("action_job_data_chain_uppercase", "action", { contract: fakeId("c"), scopes_
 sv("action_job_data_chain_prefixed", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "sha256:" + "d".repeat(57) }, false);
 sv("valid_action_unprompted", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: true }, true);
 sv("action_unprompted_not_boolean", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: "yes" }, false);
+sv("valid_action_workflow_step", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan", to: "work" } }, true);
+sv("action_workflow_step_no_to", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan" } }, false);
+sv("action_workflow_step_bad_name", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "Plan", to: "work" } }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -668,6 +671,11 @@ sv("valid_mandate_unprompted_forbidden", "mandate", { ...m, unprompted: { allowe
 sv("mandate_unprompted_no_allowed", "mandate", { ...m, unprompted: { per_day_cap: 5 } }, false);
 sv("mandate_unprompted_zero_cap", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 0 } }, false);
 sv("mandate_unprompted_extra_field", "mandate", { ...m, unprompted: { allowed: true, weekly: 5 } }, false);
+sv("valid_mandate_workflow", "mandate", { ...m, workflow: { states: ["plan", "work", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "done" }], terminal: ["done"] } }, true);
+sv("mandate_workflow_one_state", "mandate", { ...m, workflow: { states: ["plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_no_transitions", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [] } }, false);
+sv("mandate_workflow_repeated_state", "mandate", { ...m, workflow: { states: ["plan", "plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
+sv("mandate_workflow_extra_field", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [{ from: "plan", to: "work" }], skip: true } }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -1867,6 +1875,17 @@ const worldRules = [
       ["unprompted_allowed_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: true, per_day_cap: 1 }], ["unprompted_forbidden_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: false }],
       ["unprompted_allowed_under_a_ceiling_with_no_cap", { ...T, unprompted: { allowed: true } }, { allowed: true, per_day_cap: 50 }], ["unprompted_stated_under_no_ceiling", T, { allowed: true }],
     ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, ...(unprompted === undefined ? {} : { unprompted }) } });
+  }
+  // workflow clauses (spec-deltas S1607): only ever narrowed, never dropped, never a new state or transition or start
+  {
+    const W = { states: ["plan", "work", "check", "done"], start: "plan", transitions: [{ from: "plan", to: "work" }, { from: "work", to: "check" }, { from: "check", to: "work" }, { from: "check", to: "done" }], terminal: ["done"] };
+    const TW = { ...T, workflow: W };
+    for (const [name, workflow] of [
+      ["workflow_the_same", W], ["workflow_a_transition_dropped", { ...W, transitions: W.transitions.slice(0, 3) }], ["workflow_a_state_dropped", { ...W, states: ["plan", "work", "check"], terminal: [], transitions: W.transitions.slice(0, 3) }],
+      ["workflow_a_transition_added", { ...W, transitions: [...W.transitions, { from: "plan", to: "done" }] }], ["workflow_a_state_added", { ...W, states: [...W.states, "review"] }], ["workflow_another_start", { ...W, start: "work" }],
+      ["workflow_a_terminal_added", { ...W, terminal: ["done", "check"] }], ["workflow_dropped", undefined],
+    ] as [string, unknown][]) cases.push({ name, ceiling: TW, candidate: { ...TW, ...(workflow === undefined ? (({ workflow: _w, ...r }) => r)(TW) : { workflow }) } });
+    cases.push({ name: "workflow_stated_under_no_ceiling", ceiling: T, candidate: { ...T, workflow: W } });
   }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {

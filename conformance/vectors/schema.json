@@ -629,6 +629,50 @@
       "valid": false
     },
     {
+      "name": "valid_action_workflow_step",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "workflow_step": {
+          "from": "plan",
+          "to": "work"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "action_workflow_step_no_to",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "workflow_step": {
+          "from": "plan"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "action_workflow_step_bad_name",
+      "schema": "action",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "scopes_used": [
+          "repo.read"
+        ],
+        "workflow_step": {
+          "from": "Plan",
+          "to": "work"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_action",
       "schema": "action",
       "instance": {
@@ -1799,6 +1843,344 @@
         "unprompted": {
           "allowed": true,
           "weekly": 5
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_mandate_workflow",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "workflow": {
+          "states": [
+            "plan",
+            "work",
+            "done"
+          ],
+          "start": "plan",
+          "transitions": [
+            {
+              "from": "plan",
+              "to": "work"
+            },
+            {
+              "from": "work",
+              "to": "done"
+            }
+          ],
+          "terminal": [
+            "done"
+          ]
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "mandate_workflow_one_state",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "workflow": {
+          "states": [
+            "plan"
+          ],
+          "start": "plan",
+          "transitions": [
+            {
+              "from": "plan",
+              "to": "plan"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_workflow_no_transitions",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "workflow": {
+          "states": [
+            "plan",
+            "work"
+          ],
+          "start": "plan",
+          "transitions": []
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_workflow_repeated_state",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "workflow": {
+          "states": [
+            "plan",
+            "plan"
+          ],
+          "start": "plan",
+          "transitions": [
+            {
+              "from": "plan",
+              "to": "plan"
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "mandate_workflow_extra_field",
+      "schema": "mandate",
+      "instance": {
+        "contract": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.branch.write",
+          "pr.open",
+          "tests.run"
+        ],
+        "forbidden_means": [
+          "skipping or deleting tests",
+          "editing CI configuration",
+          "deploying"
+        ],
+        "spend": {
+          "cap": 0,
+          "unit": "credit",
+          "per_action_max": 0
+        },
+        "irreversible": {
+          "policy": "checkpoint",
+          "examples": [
+            "merge",
+            "force_push",
+            "deploy"
+          ]
+        },
+        "subcontract": {
+          "allowed": false
+        },
+        "nodes": {
+          "max_parallel": 4,
+          "liability": "to_issuer"
+        },
+        "learning": {
+          "scope": "harness",
+          "share_to_commons": false
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan",
+          "before_irreversible",
+          "delivery"
+        ],
+        "expires": "2026-10-04T00:00:00Z",
+        "revocable": true,
+        "workflow": {
+          "states": [
+            "plan",
+            "work"
+          ],
+          "start": "plan",
+          "transitions": [
+            {
+              "from": "plan",
+              "to": "work"
+            }
+          ],
+          "skip": true
         }
       },
       "valid": false

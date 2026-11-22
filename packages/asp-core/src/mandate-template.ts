@@ -15,7 +15,7 @@ export const scopeCovered = (ceiling: string[], scope: string): boolean => ceili
 
 /**
  * The ways a candidate Mandate goes beyond a ceiling: one field name for each (`scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `checkpoints`, `expires`,
- * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
+ * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`, `workflow`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
  */
 export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[] {
   const out: string[] = [];
@@ -60,6 +60,14 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
     // unprompted work only narrows (S1606): allowed only where the ceiling allows it, and under the ceiling's daily cap when it states one; absent reads as not allowed
     const c = ceiling.unprompted as MandateLike, s: MandateLike | undefined = m.unprompted;
     if (s?.allowed && (!c.allowed || (has(c.per_day_cap) && !(typeof s.per_day_cap === "number" && s.per_day_cap <= c.per_day_cap)))) out.push("unprompted");
+  }
+  if (has(ceiling.workflow)) {
+    // a workflow clause only narrows (S1607): the clause must stay, with the same start, and no state, transition or terminal state the ceiling does not have
+    const c = ceiling.workflow as MandateLike, s: MandateLike | undefined = m.workflow;
+    const inC = (list: string[] | undefined, x: string): boolean => (list ?? []).includes(x);
+    const widened = !s || s.start !== c.start || !(s.states ?? []).every((x: string) => inC(c.states, x)) || !(s.terminal ?? []).every((x: string) => inC(c.terminal, x))
+      || !(s.transitions ?? []).every((t: MandateLike) => (c.transitions ?? []).some((u: MandateLike) => u.from === t.from && u.to === t.to));
+    if (widened) out.push("workflow");
   }
   if (has(ceiling.outbound_scan)) {
     // the outbound scan only narrows: block stays block, and every kind the ceiling states stays

@@ -1545,6 +1545,14 @@ export class EventLog {
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
     const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    const wf = (r.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[] } }).workflow;
+    if (wf) {
+      // A workflow clause (S1607, DK1209): its start and transitions must name its own states.
+      if (!wf.states.includes(wf.start)) throw rule("workflow_unknown_state", `the start state ${wf.start} is not one of the clause's states`);
+      const bad = wf.transitions.find((t) => !wf.states.includes(t.from) || !wf.states.includes(t.to));
+      if (bad) throw rule("workflow_unknown_state", `the transition ${bad.from} to ${bad.to} names a state the clause does not have`);
+      await tx.putMarker(`workflow:${body.contract}`, JSON.stringify(wf));
+    }
     if (up) await tx.putMarker(`unprompted_policy:${body.contract}`, JSON.stringify(up)); // whether the performer may act on its own initiative (S1606, DK1232)
   }
 
@@ -1591,6 +1599,18 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // A workflow step (S1607, DK1209): the job is in one state of the Mandate's clause and moves by one of its transitions; the current state is kept.
+    {
+      const step = (r.body as { workflow_step?: { from: string; to: string } }).workflow_step;
+      if (step) {
+        const clause = JSON.parse((await tx.getMarker(`workflow:${body.contract}`)) ?? "null") as { start: string; transitions: { from: string; to: string }[]; terminal?: string[] } | null;
+        if (!clause) throw rule("workflow_not_in_mandate", `the Mandate of ${body.contract} has no workflow clause: an Action cannot report a step of one`);
+        const current = (await tx.getMarker(`workflow_state:${body.contract}`)) ?? clause.start;
+        if (step.from !== current) throw rule("workflow_wrong_state", `the job is in ${current}, not ${step.from}`);
+        if (!clause.transitions.some((t) => t.from === step.from && t.to === step.to)) throw rule("workflow_bad_transition", `the clause does not allow ${step.from} to ${step.to}`);
+        await tx.putMarker(`workflow_state:${body.contract}`, step.to);
+      }
+    }
     // Unprompted work (S1606, DK1232): an Action that says the performer acted on its own initiative needs a Mandate that allows it, within its daily cap (UTC); every Action is counted so a report can show the share.
     {
       const unprompted = (r.body as { unprompted?: boolean }).unprompted === true;
@@ -1853,6 +1873,16 @@ export class EventLog {
     await noteLock(tx, escrow.backer, body.contract, null);
     // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
     if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** The state of a contract's workflow clause (S1607, DK1209): its current state, whether it is terminal, or null when the Mandate has no clause. Reads only. */
+  async workflowState(contract: string): Promise<{ state: string; terminal: boolean } | null> {
+    return this.store.transaction(async (tx) => {
+      const clause = JSON.parse((await tx.getMarker(`workflow:${contract}`)) ?? "null") as { start: string; terminal?: string[] } | null;
+      if (!clause) return null;
+      const state = (await tx.getMarker(`workflow_state:${contract}`)) ?? clause.start;
+      return { state, terminal: (clause.terminal ?? []).includes(state) };
+    });
   }
 
   /** The share of a contract's Actions that were unprompted, in permille (S1606, DK1232): how many Actions the performer reported, how many were on its own initiative, and the share. Reads only. */

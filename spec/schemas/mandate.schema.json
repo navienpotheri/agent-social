@@ -434,6 +434,64 @@
           "maximum": 100000
         }
       }
+    },
+    "workflow": {
+      "description": "A workflow clause (register row DK1209, from DK841; spec-delta S1607): the states a job moves through (`states`, 2 to 16), where it starts, the transitions allowed between them, and the states that end it (`terminal`). Absent means no clause. Like every limit it only narrows: a template, a node and a member may keep the clause or drop states and transitions from it, never add one, change the start or drop the clause where the ceiling states one. An Action may carry `workflow_step {from, to}`; the log refuses a step the clause does not allow (workflow_bad_transition) or from a state the job is not in (workflow_wrong_state) and keeps the current state (`workflowState`). A gateway that enforces the clause on tool calls is separate work.",
+      "type": "object",
+      "required": [
+        "states",
+        "start",
+        "transitions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,32}$"
+          },
+          "minItems": 2,
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "start": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{1,32}$"
+        },
+        "transitions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "pattern": "^[a-z0-9_-]{1,32}$"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^[a-z0-9_-]{1,32}$"
+              }
+            }
+          }
+        },
+        "terminal": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,32}$"
+          },
+          "maxItems": 16,
+          "uniqueItems": true
+        }
+      }
     }
   }
 }
