@@ -35,6 +35,7 @@ import type { GatewayTelemetry } from "./telemetry-tap.ts";
 import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
+import { roleRefusal, type Role } from "./roles.ts";
 import { ladderAtCall, ladderStep } from "../circumvention.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
@@ -64,6 +65,8 @@ export interface GatewayOptions {
   untrustedFlow?: boolean;
   /** The escalation ladder at the next call (DK211; OFF by default, so a run is unchanged without it): once this run's own refusals show an agent retrying a refused scope (5 refused attempts of one scope in ten minutes: tighten; 8: quarantine), a call that reaches outside the project is held for approval (or refused when this run cannot ask) and under quarantine everything but reading is refused. The same retry reading `ladderStep` makes from the log, made in-run. */
   escalationLadder?: boolean;
+  /** The role the Mandate names (DK1231): a router executes nothing and a watchdog only reads logs and signals a halt. Absent: no role, no change. */
+  role?: Role;
   /** The live Mandate's scopes. */
   scopes: string[];
   /** A fleet member's ceiling (DK1471): scopes the Mandate record grants that its fleet's template does not. A call on one is refused naming the template, not the Mandate. */
@@ -474,6 +477,11 @@ export function createGateway(opts: GatewayOptions): Gateway {
         const a = await askPrincipalOnce(call, gateScope);
         if (!a.approved) { allow = false; reason = `the scope ${gateScope} needs the principal's approval and it was not given${a.reason ? `: ${a.reason}` : ""}`; }
       }
+    }
+    // The Mandate's role (DK1231): a router dispatches and does not execute, a watchdog only reads logs and signals a halt. Only when the Mandate carries a role.
+    if (opts.role && allow && j.scope) {
+      const rr = roleRefusal(opts.role, gated && gateScope ? gateScope : j.scope);
+      if (rr) { allow = false; strike = false; reason = `[ASP] ${rr}`; rec?.event("role_refusal", { role: opts.role, scope: j.scope }); }
     }
     // The escalation ladder (DK211), only when asked for: what this run's own refusals call for decides the next call.
     if (opts.escalationLadder && allow && j.scope) {

@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 63,
+  "must": 64,
   "withdraw": 103,
   "after": 327,
-  "total": 493
+  "total": 494
  },
- "mustWorkerHours": 303.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -1910,6 +1910,17 @@
    "flags": "",
    "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "GV6",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "runbook exists; the restore drill on the real host is the owner's"
   },
   {
    "id": "GV7",
@@ -4033,14 +4044,14 @@
   },
   {
    "id": "DK1209",
-   "pri": "B",
+   "pri": "?",
    "status": "partial",
    "gap": "The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4153,14 +4164,14 @@
   },
   {
    "id": "DK1227",
-   "pri": "B",
+   "pri": "?",
    "status": "partial",
    "gap": "Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4189,14 +4200,14 @@
   },
   {
    "id": "DK1231",
-   "pri": "B",
+   "pri": "?",
    "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {

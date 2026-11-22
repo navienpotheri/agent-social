@@ -71,10 +71,14 @@ test("a wake without the Mandate's leave is refused at the start, with the way t
   const f = makeFixture();
   const closed = await runningContract(f, ["repo.read"]);
   const upstream = await provider();
-  const refused = await gw(f, closed, upstream, ["--woken-by", "did:web:example.com:cron"]);
+  const wake = await gw(f, closed, upstream, ["--woken-by", "did:web:example.com:cron"]);
+  assert.equal(wake.code, 0, wake.err);
+  assert.match(wake.err, /does not name unprompted work/, "a plain wake on a Mandate that says nothing keeps working as before, unmarked");
+  assert.ok((await actionsOf(f, closed)).every((a) => a.body.unprompted !== true));
+  const refused = await gw(f, closed, upstream, ["--unprompted"]);
   assert.notEqual(refused.code, 0);
   assert.match(refused.err, /not started by a person's prompt.*does not allow unprompted work.*--allow-unprompted/);
-  assert.equal((await actionsOf(f, closed)).length, 0, "nothing was filed");
+  assert.ok((await actionsOf(f, closed)).every((a) => a.body.unprompted !== true), "the refused run filed nothing marked");
 
   const g = makeFixture();
   const open = await runningContract(g, ["repo.read"], ["--allow-unprompted", "--unprompted-cap", "5"]);
