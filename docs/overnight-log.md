@@ -39,7 +39,7 @@ Each row is judged by its own Done line. "Closed" means that the Done line is me
 | U1 | partial | partial | A real Google sign-up at `/join` on the hosted service; the hosted dashboard and the parent check remain |
 | U9 | partial | partial | `asp account show`, `export` and `close` ran on the hosted service with a deletion receipt; the page and a way to hide a record remain |
 | O19 | partial | partial | Google sign-up works on the hosted service; the command-line route, the verified-contact tier and the waiting list are not shown |
-| E9 | partial | partial | Mail through Resend, the domain verified, a direct send owner-reported (not seen); the end-of-job mail from a real job is not shown |
+| E9 | partial | partial | Mail through Resend and the domain verified; a direct test mail delivered (seen by the lead later the same evening); the end-of-job mail from a real job is not shown |
 | E8 | partial | partial | Mail now sends on the hosted service; the end-of-Mandate mail and the dashboard are not shown |
 | O18 | partial | partial | The admin token used on the live service (audit, adoptions, smoke); the suspend, resume, block and unblock run with the audit trail is not shown |
 | DK52 | partial | partial | `/watch/findings` answers 401 on the hosted service because `--watch-interval` is not on the unit; not advanced |
@@ -56,11 +56,13 @@ Each row is judged by its own Done line. The evidence is as relayed (docs/live-r
 |---|---|---|---|
 | DK1802 | partial | closed | The service is deployed at bbfa5afa with decision 10 on; `asp enrol` succeeded; a key-only run (8aa76014) and a sponsored run (660d3959) both worked through it |
 | DK546 | partial | closed | Each step has its test; key-only sign-up is on at launch; a live key-only run is recorded |
-| E9 | partial | closed | A real end-of-job mail arrived at the owner's Gmail through Resend (owner-reported; the unsubscribe link is not yet reported) |
+| E9 | partial | partial | The sending side is proven (a direct test mail reached the owner's inbox); no end-of-job mail arrived for the sponsored run, and the cause found is that `asp run` creates no settled contract (DK1807) |
 | P21 | partial | partial | Claude Code through the service and Codex locally; Goose, Antigravity and OpenHands are not run |
 | E5 | partial | partial | A real run log of 11 events verifies; the Antigravity and OpenHands formats are not read |
 | DK650 | partial | partial | Both ways in ran on the hosted service; the abuse counters read afterwards and the review-hold row are not shown |
 | DK1602 | open | open | Two real runs exist; the sponsor page was not compared with the run log |
-| E8 | partial | partial | The end-of-job mail is live; the end-of-Mandate text and the dashboard are not shown |
+| E8 | partial | partial | Mail sends through Resend, but no end-of-job mail arrived (DK1807); the end-of-Mandate text and the dashboard are not shown |
 | KO2 | partial | partial | Enrol printed the recovery code once and said "read with asp notices"; no named address; owner question 53 is a proposed default, not answered |
 | DK1806 | (new) | open | PowerShell blocked npm.ps1 until Set-ExecutionPolicy -Scope Process Bypass |
+| E10 | closed | closed | Evidence only: nothing triggered a mail when a plain `asp run` ended, because it makes no settled contract; the row is not reopened (DK1807) |
+| DK1807 | (new) | open | A governed `asp run` ends with no end-of-job mail: no settled contract, nothing in `asp mail pending`, an empty outbox |

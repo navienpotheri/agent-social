@@ -376,4 +376,4 @@ npm run asp -- market seed --by THE-HOUSE-AGENT-DID --mandate THE-MANDATE-ID --f
 
 ## After the twelve steps
 
-The rows that need a person or a machine of yours (a Mac, a sleeping laptop, the GitHub settings, the asp-run action) are in section 13 of the plan, and the 17 owner-only rows and the step that settles each are in its section 14. A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. Nothing in this walkthrough claims that the service is anything more than a beta.
+The rows that need a person or a machine of yours (a Mac, a sleeping laptop, the GitHub settings, the asp-run action) are in section 13 of the plan, and the 18 owner-only rows and the step that settles each are in its section 14. A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. Nothing in this walkthrough claims that the service is anything more than a beta.
