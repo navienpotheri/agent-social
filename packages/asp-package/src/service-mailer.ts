@@ -13,9 +13,11 @@
  * What was sent, skipped or suppressed is kept in a small file, so a restart sends nothing twice. A busy provider is retried on later passes, up to five times.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { renewalNotices, type OwnerStore, type Tenant } from "@agent-social/asp-log";
 import { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MailLog } from "./mail.ts";
+import { buildRunEndMail, collectRunEndFacts, findRunEnds } from "./mail-run.ts";
 import { RetryableMailError, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport } from "./mail-send.ts";
 
 export interface MailerOptions {
@@ -56,6 +58,14 @@ interface State {
   auditedAt?: number;
   /** The audit's last verdict, so `asp serve` can report it without re-running the audit. */
   lastAuditVerdict?: "balanced" | "mismatch";
+  /** An address a tenant proved it holds (KO2): a key-only tenant has no verified Google address, so it names one and enters the code the service sent there. */
+  tenantAddress?: Record<string, { email: string; confirmedAt: string }>;
+  /** A code sent, not yet entered: only an HMAC of it is kept. */
+  pendingAddress?: Record<string, { email: string; codeMac: string; expiresAt: string; attempts: number }>;
+  /** When each tenant asked for a code (the limit of three a day survives a confirmation). */
+  addressAsked?: Record<string, string[]>;
+  /** Mail with no address to go to, kept with the reason and tried again on every pass until it has one (or until it is too old to be worth sending). */
+  held?: Record<string, { why: string; at: string }>;
   /** The UTC quarter (2026-Q4) of the last stress replay, and what it found, kept so a restart does not run it again in the same quarter. */
   stressQuarter?: string;
   lastStress?: { quarter: string; at: string; verdict: string; note: string; reserveStatus: string };
@@ -98,13 +108,54 @@ export class ServiceMailer {
   unsubscribeUrl(email: string): string { return `${this.o.publicUrl().replace(/\/$/, "")}/mail/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubscribeToken(email, this.o.secret)}`; }
   verifyUnsubscribe(email: string, token: string): boolean { return unsubscribeOk(email, token, this.o.secret); }
 
-  /** The verified email of the open tenant that wrote as this identity, if any. */
+  /** The address mail for this identity goes to: the verified Google email of the open tenant that wrote as it, or the address that tenant proved it holds (KO2). */
   recipientFor(did: string): string | undefined {
     for (const t of this.o.tenants()) {
       if (t.closed || t.role === "admin") continue;
-      if (this.o.owners.of(t.name).includes(did) && t.signup?.google?.email) return t.signup.google.email;
+      if (this.o.owners.of(t.name).includes(did)) { const e = t.signup?.google?.email ?? this.state.tenantAddress?.[t.name]?.email; if (e) return e; }
     }
     return undefined;
+  }
+
+  // ---- KO2: a key-only tenant names an address and proves it (a code sent to it, entered back) ----
+  private macOf(tenant: string, email: string, code: string): string { return createHmac("sha256", this.o.secret).update(`addr|${tenant}|${email.toLowerCase()}|${code}`).digest("hex"); }
+  /** What this tenant's mail address is, what is waiting for a code, and what has been held for want of one. */
+  addressState(tenant: string): { address?: { email: string; source: "google" | "confirmed"; confirmedAt?: string }; pending?: { email: string; expiresAt: string }; held: { key: string; why: string; at: string }[] } {
+    const t = this.o.tenants().find((x) => x.name === tenant);
+    const dids = new Set(this.o.owners.of(tenant));
+    const held = Object.entries(this.state.held ?? {}).filter(([, h]) => { const d = /(did:[^ ]+)$/.exec(h.why)?.[1]; return !!d && dids.has(d); }).map(([key, h]) => ({ key, ...h }));
+    const google = t?.signup?.google?.email, conf = this.state.tenantAddress?.[tenant], pend = this.state.pendingAddress?.[tenant];
+    return { ...(google ? { address: { email: google, source: "google" as const } } : conf ? { address: { email: conf.email, source: "confirmed" as const, confirmedAt: conf.confirmedAt } } : {}), ...(pend && Date.parse(pend.expiresAt) > this.now() ? { pending: { email: pend.email, expiresAt: pend.expiresAt } } : {}), held };
+  }
+  /** Sends a code to the address (at most 3 a day for a tenant, and none to an address that unsubscribed). The address is NOT used for any mail until the code comes back. */
+  async requestAddress(tenant: string, email: string): Promise<{ ok: true; expiresAt: string } | { ok: false; status: number; message: string }> {
+    if (!/^[^ @]+@[^ @]+[.][^ @]+$/.test(email) || email.length > 254) return { ok: false, status: 400, message: "that does not look like an email address" };
+    if (this.isSuppressed(email)) return { ok: false, status: 409, message: "that address asked not to be mailed by this service, so no code is sent to it" };
+    const p = (this.state.pendingAddress ??= {});
+    const asked = (this.state.addressAsked?.[tenant] ?? []).filter((t) => this.now() - Date.parse(t) < 86_400_000);
+    if (asked.length >= 3) return { ok: false, status: 429, message: "three codes have been sent today; wait, or use the last one" };
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const expiresAt = new Date(this.now() + 30 * 60_000).toISOString();
+    const text = [`Someone entered this address for the agent account ${tenant} on Agent Social.`, "", `The code is ${code}. It works for 30 minutes.`, "", "If you did not ask for this, ignore this mail: nothing is sent to this address until the code is entered, and you can leave it unused.", "A mail may not arrive; the signed log is the record.", ""].join("\n");
+    try {
+      await this.o.transport.send({ from: this.o.from, to: email, subject: "Your code to confirm this address for Agent Social", text, html: `<p>Someone entered this address for the agent account <b>${esc(tenant)}</b> on Agent Social.</p><p>The code is <b>${code}</b>. It works for 30 minutes.</p><p>If you did not ask for this, ignore this mail: nothing is sent to this address until the code is entered.</p>` });
+    } catch (e) { return { ok: false, status: e instanceof RetryableMailError ? 503 : 502, message: `the code could not be sent: ${(e as Error).message}` }; }
+    p[tenant] = { email: email.toLowerCase(), codeMac: this.macOf(tenant, email, code), expiresAt, attempts: 0 };
+    (this.state.addressAsked ??= {})[tenant] = [...asked, new Date(this.now()).toISOString()];
+    this.save();
+    return { ok: true, expiresAt };
+  }
+  /** The code comes back: the address becomes the tenant's (five wrong tries end the code). */
+  confirmAddress(tenant: string, code: string): { ok: true; email: string } | { ok: false; status: number; message: string } {
+    const pend = this.state.pendingAddress?.[tenant];
+    if (!pend || Date.parse(pend.expiresAt) <= this.now()) return { ok: false, status: 404, message: "there is no code waiting (it may have expired): ask for a new one" };
+    if (pend.attempts >= 5) return { ok: false, status: 429, message: "too many wrong tries: ask for a new code" };
+    const want = Buffer.from(pend.codeMac, "hex"), got = Buffer.from(this.macOf(tenant, pend.email, String(code).trim()), "hex");
+    if (want.length !== got.length || !timingSafeEqual(want, got)) { pend.attempts++; this.save(); return { ok: false, status: 400, message: `that is not the code (${5 - pend.attempts} tries left)` }; }
+    (this.state.tenantAddress ??= {})[tenant] = { email: pend.email, confirmedAt: new Date(this.now()).toISOString() };
+    delete this.state.pendingAddress![tenant];
+    this.save();
+    return { ok: true, email: pend.email };
   }
 
   private recentTo(email: string): number {
@@ -115,7 +166,10 @@ export class ServiceMailer {
   /** Sends one mail unless it was handled, the address is suppressed, or a limit holds it. Returns whether it was sent. */
   private async deliver(key: string, to: string | undefined, why: string, build: (to: string, unsubscribe: string) => { subject: string; text: string; html: string }, operator = false): Promise<boolean> {
     if (this.state.sent[key] || this.state.skipped[key]) return false;
-    if (!to) { this.state.skipped[key] = `no address: ${why}`; this.save(); return false; }
+    // No address: the mail is HELD with the reason and tried again on every pass (an address may be confirmed later, KO2); a mail held for more than a week is not sent late.
+    if (!to) { const h = (this.state.held ??= {}); if (!h[key]) { h[key] = { why: `no address: ${why}`, at: new Date(this.now()).toISOString() }; this.save(); } return false; }
+    const heldAt = this.state.held?.[key]?.at;
+    if (heldAt && this.now() - Date.parse(heldAt) > 7 * 86_400_000) { this.state.skipped[key] = "held longer than a week with no address; not sent late"; delete this.state.held![key]; this.save(); return false; }
     if (!operator && this.isSuppressed(to)) { this.state.skipped[key] = "address suppressed"; this.save(); return false; }
     if (!operator && this.recentTo(to) >= (this.o.maxPerRecipientPerHour ?? 10)) return false; // held until the hour clears
     if ((this.state.attempts[key] ?? 0) >= 5) { this.state.skipped[key] = "gave up after 5 attempts"; this.save(); return false; }
@@ -129,6 +183,7 @@ export class ServiceMailer {
         ...(operator ? {} : { headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } }),
       });
       this.state.sent[key] = { to, at: new Date(this.now()).toISOString(), id: r.id };
+      if (this.state.held?.[key]) delete this.state.held[key];
       this.save();
       this.say(`mail sent: ${key} -> ${to} (${r.id})`);
       return true;
@@ -179,6 +234,14 @@ export class ServiceMailer {
         const f = await collectMandateFacts(log, c);
         if (!f) continue;
         if (await this.deliver(key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildMandateMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
+      // The end of a governed run (ML1): `asp run` signs a final Action report and settles no contract, so the run's end is read from that report; one mail for each run.
+      for (const e of await findRunEnds(log)) {
+        if (sent >= budget) break;
+        if (this.state.sent[e.key] || this.state.skipped[e.key]) continue;
+        const f = await collectRunEndFacts(log, e);
+        if (!f) continue;
+        if (await this.deliver(e.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildRunEndMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
       }
       // Alerts.
       for (const a of await findAlerts(log, this.now())) {
@@ -297,8 +360,8 @@ async function readText(req: IncomingMessage, max: number): Promise<string | und
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** `publicRoutes` for createLogServer: /mail/unsubscribe (GET shows a page, POST does it: also the one-click POST) and /mail/webhook/resend. */
-export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: string; now?: () => number }) {
+/** `publicRoutes` for createLogServer: /mail/unsubscribe (GET shows a page, POST does it: also the one-click POST), /mail/webhook/resend, and (with `auth`) /mail/address for a tenant to name an address and prove it (KO2). */
+export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: string; now?: () => number; auth?: (req: IncomingMessage) => { name: string; role?: string } | undefined }) {
   const page = (res: ServerResponse, status: number, title: string, body: string) => {
     res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" });
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:34rem;margin:2rem auto;padding:0 1rem}button{padding:.6rem 1rem;font:inherit}</style></head><body><h1>${esc(title)}</h1>${body}</body></html>`);
@@ -311,6 +374,21 @@ export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: str
       if (req.method === "POST") { await readText(req, 1024); mailer.suppress(email, "unsubscribed"); page(res, 200, "You are unsubscribed", `<p>${esc(email)} will get no more mail from Agent Social about jobs and alerts.</p>`); return true; }
       if (req.method === "GET") { page(res, 200, "Stop these mails?", `<p>Stop mail about your agents' jobs and alerts to <strong>${esc(email)}</strong>?</p><form method="post" action="${esc(url.pathname + url.search)}"><button type="submit">Unsubscribe</button></form>`); return true; }
       res.writeHead(405); res.end(); return true;
+    }
+    if (url.pathname === "/mail/address" || url.pathname === "/mail/address/confirm") {
+      const json = (status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(body)); return true; };
+      const tenant = o.auth?.(req);
+      if (!tenant || tenant.role === "admin") return json(401, { ok: false, error: { code: "UNAUTHORIZED", message: "sign in with your token" } });
+      if (req.method === "GET" && url.pathname === "/mail/address") return json(200, { ok: true, ...mailer.addressState(tenant.name) });
+      if (req.method !== "POST") { res.writeHead(405); res.end(); return true; }
+      let body: { address?: string; code?: string } = {};
+      try { body = JSON.parse((await readText(req, 4096)) ?? "{}"); } catch { return json(400, { ok: false, error: { code: "BAD_REQUEST", message: "send JSON" } }); }
+      if (url.pathname === "/mail/address") {
+        const r = await mailer.requestAddress(tenant.name, String(body.address ?? "").trim());
+        return r.ok ? json(200, { ok: true, expiresAt: r.expiresAt, message: "a code was sent to that address; enter it with asp notices address confirm <code>" }) : json(r.status, { ok: false, error: { code: "ADDRESS", message: r.message } });
+      }
+      const c = mailer.confirmAddress(tenant.name, String(body.code ?? ""));
+      return c.ok ? json(200, { ok: true, address: c.email }) : json(c.status, { ok: false, error: { code: "CODE", message: c.message } });
     }
     if (url.pathname === "/mail/webhook/resend") {
       if (req.method !== "POST") { res.writeHead(405); res.end(); return true; }

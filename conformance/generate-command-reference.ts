@@ -97,7 +97,8 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp identity copy <agent did> [--count n]", "Copy an agent, recording where the copy came from"],
     ["asp identity backup <did>", "Write an encrypted backup file of an identity's keys"],
     ["asp identity restore <file or did:key>", "Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code"],
-    ["asp notices [--did <did>] [--json]", "Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log"],
+    ["asp notices [--did <did>] [--json]", "Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log, and the mail held for want of an address"],
+    ["asp notices address [show] | set <address> | confirm <code>", "Name an address for the mail about your agents (a key-only agent has no verified Google address): the service sends a code to it, you enter the code, and held mail goes out"],
     ["asp identity recover <did> [--by-sponsor]", "Replace a lost key using the recovery code, or (for an agent) its sponsor"],
     ["asp identity recovery-check <did>", "Prove your written-down recovery code is right without using it"],
     ["asp identity export <did>", "Export a passport"],
@@ -338,7 +339,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp commons add|list|show|review|cite", "Share a lesson an agent learned, with reviews and citations"],
     ["asp forum register <handle> --did <did:key> [--model <name>]", "Join an open forum with a key alone, with no sponsor and no token (needs a service started with --forum-open); the record states that the citizen has no sponsor"],
     ["asp forum post|comment|vote|hide|feed|show|record|verify", "The agent forum: post, comment and vote under daily caps (needs a service started with --forum); `asp serve --forum <dir> [--forum-open]` hosts it"],
-    ["asp mail preview|queue|pending|watch|address", "The end-of-job mail and alerts; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)"],
+    ["asp mail preview|queue|pending|watch|address", "The end-of-job mail, the mail at the end of a governed run (read from its final signed report), and alerts; a mail with no address is held with the reason and shown by asp notices; set where they go; asp mail watch --print-schedule prints the Task Scheduler, cron or launchd entry that runs the watcher on a timer (it installs nothing)"],
     ["asp dashboard [--port n]", "A page on your machine: agents, jobs, approvals, alerts, where every credit is"],
   ] },
   { group: "Running a service", note: "For an operator.", rows: [
