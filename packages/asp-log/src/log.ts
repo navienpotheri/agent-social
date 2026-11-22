@@ -27,6 +27,8 @@ import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type Balanc
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
 /** A quality review panel (JO8, S1704): at most 7 reviewers a delivery; 3 make a panel that counts for a reviewer's record; a criterion is contested when its scores are 4 or more points apart. */
+/** The observer phase of a community juror (DK122, S1705): five cases whose ruling has since been made. */
+export const OBSERVER_CASES = 5;
 export const QUALITY_PANEL_MAX = 7, QUALITY_PANEL_MIN = 3, QUALITY_CONTESTED_SPREAD = 4;
 export interface QualityReport { delivery: string; reviewers: number; criteria: { criterion: number; median: number; spread: number; contested: boolean }[]; overall: number; contested: boolean; panel: { reviewer: string; deviation: number }[]; enough: boolean }
 import { FAILURE_GRACE_MS, FAILURE_SLASH_PERMILLE, failureSlash } from "./contract-failure.ts";
@@ -505,6 +507,7 @@ export class EventLog {
     if (type === "contract_cancellation" || type === "contract_amendment") await this.projectContractChange(tx, verified, type);
     if (type === "team_split") await this.projectTeamSplit(tx, verified);
     if (type === "quality_review") await this.projectQualityReview(tx, verified);
+    if (type === "shadow_opinion") await this.projectShadowOpinion(tx, verified);
     if (type === "contract_failure") await this.projectContractFailure(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
@@ -2098,6 +2101,7 @@ export class EventLog {
   private async checkRulingPanel(tx: LogTx, r: AspRecord): Promise<void> {
     const body = r.body as { kind: string; about: string };
     if (body.kind !== "ruling") return;
+    await tx.putMarker(`ruled:${body.about}`, r.id); // a shadow opinion (S1705) is given before this
     const contract = await tx.getRecord(body.about);
     if (!contract) return; // the lifecycle's own about_contract guard already rejects this
     const cbody = contract.record.body as { principal: string; performer: string };
@@ -4300,6 +4304,43 @@ export class EventLog {
     if (panel.includes(r.issuer)) throw rule("quality_review_known", `${r.issuer} has already reviewed ${b.delivery}`);
     if (panel.length >= QUALITY_PANEL_MAX) throw rule("quality_review_panel_full", `${b.delivery} has its ${QUALITY_PANEL_MAX} reviewers`);
     await tx.putMarker(key, JSON.stringify([...panel, r.issuer]));
+  }
+
+  /**
+   * A shadow opinion (DK122, S1705, courts.md CT-14): a registered juror who is not a party to a disputed contract states how it would decide, before any ruling, once. It moves nothing; `observerRecord` compares
+   * it with the ruling afterwards, which is the observer phase of a community juror.
+   */
+  private async projectShadowOpinion(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string };
+    if (r.prev !== null) throw rule("shadow_not_chained", "a shadow opinion starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("shadow_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string };
+    if (r.issuer === cb.principal || r.issuer === cb.performer) throw rule("shadow_party", `${r.issuer} is a party to ${b.contract}`);
+    if (!(await tx.getJuror(r.issuer))) throw rule("shadow_unknown_juror", `${r.issuer} is not a registered juror`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || chain.state === "Settled") throw rule("shadow_after_ruling", `${b.contract} is settled: a shadow opinion is given before the ruling`);
+    if (chain.state !== "Disputed") throw rule("shadow_no_dispute", `${b.contract} is ${chain.state ?? "not started"}, not in dispute`);
+    if (await tx.getMarker(`ruled:${b.contract}`)) throw rule("shadow_after_ruling", `${b.contract} already has a ruling`);
+    if (await tx.getMarker(`shadow:${b.contract}:${r.issuer}`)) throw rule("shadow_known", `${r.issuer} has already given an opinion on ${b.contract}`);
+    await tx.putMarker(`shadow:${b.contract}:${r.issuer}`, r.id);
+  }
+
+  /**
+   * An observer's record (DK122, courts.md CT-14): its shadow opinions, the ones on cases that have since been ruled (and where it did not sit on the panel) as `closed`, how many agreed with the ruling's verdict, and
+   * whether it has completed the observer phase, which is OBSERVER_CASES closed opinions. Agreement is published and gates nothing: a juror who disagrees with the panel is not thereby wrong. Reads only.
+   */
+  async observerRecord(did: string): Promise<{ did: string; opinions: number; closed: number; agreed: number; agreementPermille: number | null; phaseComplete: boolean }> {
+    const mine = (await this.recordsOfTypes(["shadow_opinion"])).filter((r) => r.issuer === did);
+    const rulings = (await this.recordsOfTypes(["attestation"])).filter((r) => (r.body as { kind?: string }).kind === "ruling" && r.subject);
+    let closed = 0, agreed = 0;
+    for (const s of mine) {
+      const rs = rulings.filter((r) => r.subject === (s.body as { contract: string }).contract);
+      if (!rs.length || rs.some((r) => r.issuer === did)) continue; // not yet ruled, or the observer sat on the panel
+      closed++;
+      if ((rs.at(-1)!.body as { verdict?: string }).verdict === (s.body as { verdict: string }).verdict) agreed++;
+    }
+    return { did, opinions: mine.length, closed, agreed, agreementPermille: closed ? Math.floor((agreed * 1000) / closed) : null, phaseComplete: closed >= OBSERVER_CASES };
   }
 
   /** The panel of a delivery (JO8): the reviews, the median and the spread of each criterion, the criteria the reviewers disagree on, and each reviewer's mean distance from the panel's medians. Reads only. */

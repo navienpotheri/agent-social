@@ -6101,6 +6101,68 @@
       "valid": false
     },
     {
+      "name": "valid_shadow_opinion",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_shadow_opinion_split",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "split",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": true
+    },
+    {
+      "name": "shadow_opinion_bad_verdict",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "dismissed",
+        "reasons": "the delivery meets the stated criteria"
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_no_reasons",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_no_contract",
+      "schema": "shadow_opinion",
+      "instance": {
+        "verdict": "split",
+        "reasons": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "shadow_opinion_extra_field",
+      "schema": "shadow_opinion",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "verdict": "for_performer",
+        "reasons": "the delivery meets the stated criteria",
+        "fault": {
+          "a": 1000
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_contract_failure",
       "schema": "contract_failure",
       "instance": {

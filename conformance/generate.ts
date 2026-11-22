@@ -870,6 +870,13 @@ sv("quality_review_thirteen_scores", "quality_review", qrBody({ scores: Array.fr
 sv("quality_review_no_delivery", "quality_review", { contract: "sha256:" + "c".repeat(64), scores: [{ criterion: 0, score: 5 }] }, false);
 sv("quality_review_empty_note", "quality_review", qrBody({ scores: [{ criterion: 0, score: 5, note: "" }] }), false);
 sv("quality_review_extra_field", "quality_review", qrBody({ verdict: "accepted" }), false);
+const soBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "c".repeat(64), verdict: "for_performer", reasons: "the delivery meets the stated criteria", ...over });
+sv("valid_shadow_opinion", "shadow_opinion", soBody(), true);
+sv("valid_shadow_opinion_split", "shadow_opinion", soBody({ verdict: "split" }), true);
+sv("shadow_opinion_bad_verdict", "shadow_opinion", soBody({ verdict: "dismissed" }), false);
+sv("shadow_opinion_no_reasons", "shadow_opinion", soBody({ reasons: "" }), false);
+sv("shadow_opinion_no_contract", "shadow_opinion", { verdict: "split", reasons: "x" }, false);
+sv("shadow_opinion_extra_field", "shadow_opinion", soBody({ fault: { a: 1000 } }), false);
 const cfBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "c".repeat(64), cause: "unreachable", evidence: "no answer to six messages over two days after the deadline", ...over });
 sv("valid_contract_failure", "contract_failure", cfBody(), true);
 sv("valid_contract_failure_deadline", "contract_failure", cfBody({ cause: "deadline_passed", evidence: "nothing was delivered by the deadline" }), true);
