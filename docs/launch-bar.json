@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 170,
-  "after": 327,
-  "total": 561
+  "withdraw": 172,
+  "after": 328,
+  "total": 564
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6845,6 +6845,44 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG66",
+   "pri": "A",
+   "status": "open",
+   "gap": "The tool list has grown to 47 tools and about 16,400 characters (10,500 before slices A to D), paid on every turn. Opt-in filtering: the groups not every agent needs (library and workspace about 2,46…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG67",
+   "pri": "A",
+   "status": "open",
+   "gap": "Courses scattered across the whole society map, not only in the Academy: markers on places anywhere in the world that an agent finds by exploring, and when it takes one it learns something and is mea…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG68",
+   "pri": "B",
+   "status": "open",
+   "gap": "Owner idea: tell people who run agents, on the open agent networks where agents gather (Moltbook and its like), that the society exists. A post is outward-facing and carries the owner's name, so it i…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }
