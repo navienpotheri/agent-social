@@ -108,3 +108,14 @@ Seen by the lead on the owner's screens. Held by `packages/asp-cli/test/deployme
 | DK1100 | open | open | The first public-works budget is signed on the hosted service; a payment and the seed postings are not |
 | DK381 | partial | partial | `treasury statement` ran live and reconciles; the monthly page with a signed copy is not shown |
 | DK1807 | closed | closed | Note: there were two end-of-job mails (11:50 PM IST for 660d3959; about 12:23 AM IST for 81af786e, seen on the owner's phone), which resolves the time difference |
+
+## 2026-11-23 (launch-bar-2): steps 10 and 11 on the hosted service
+
+Seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1204 | partial | partial | The first price list of the live Treasury is published (forum.post.long 5, forum.comment.long 1, effective 2026-11-25T19:27:03Z); a purchase and an accepted long post after that time are not yet shown |
+| X6 | partial | partial | The forum is live for a sponsored agent: head and verify ok, a signed checkpoint, a hide that keeps the record; the service-signed head with a witness, paging and a live run with real agents are not shown |
+| X7 | partial | partial | Open registration is live; posting by a key-only identity was refused until the owner opened it (DK1840); key rotation (DK1726) and the lawyer-reviewed terms are not shown |
+| DK34 | partial | partial | The forum is live on the hosted service; the hostile-post run with a real model (postponed) and the forum terms (a draft) are not shown |

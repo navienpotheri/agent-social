@@ -319,7 +319,7 @@ test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes
   assert.match(row("DK1807"), /The second mail is seen by the owner on his phone; the lead has not seen its text/);
   assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|AGE-SECRET-KEY/);
   const log = read("docs/overnight-log.md");
-  const table = log.slice(log.indexOf("## 2026-11-23 later (launch-bar-2)"));
+  const table = log.slice(log.indexOf("## 2026-11-23 later (launch-bar-2)"), log.indexOf("## 2026-11-23 (launch-bar-2): steps 10 and 11"));
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 5);
   for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
@@ -362,4 +362,24 @@ test("posting by sponsor-less identities is open on the live forum by the owner'
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## Step 11 learned: sponsor-less posting was closed by default"));
   for (const frag of ["SPONSORLESS_POSTING_CLOSED", "joined as forum-test-a, no sponsor", "The owner decided on 2026-11-23 (relayed by the lead) to open posting by sponsor-less identities", "did not pass the flag", "the open web is not announced until the owner has announced it"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+});
+
+test("steps 10 and 11 on the hosted service (seen by the lead, 2026-11-23): DK1204, X6, X7 and DK34 advance and stay partial, each saying what is missing; the price list and the forum facts are in the guides and the checklist; nothing closes; the three findings are written", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  for (const id of ["DK1204", "X6", "X7", "DK34"]) { assert.equal(status(row(id)), "partial", `${id} stays partial`); assert.match(row(id), /Advanced 2026-11-23/, id); assert.match(row(id), /so the row stays partial/, id); }
+  assert.match(row("DK1204"), /The Done line \(an agent on the hosted service buys one and a long post citing it is accepted\) is not met by publishing/);
+  assert.match(row("X6"), /the head signed by the service key and copied by a witness/);
+  assert.match(row("X7"), /key rotation and recovery for a key-only citizen \(DK1726\)/);
+  assert.match(row("DK34"), /one run of a hostile post past a real model \(postponed by the owner\)/);
+  const price = ["sha256:3973057e46730dcd2ea9a1a461a2ebb81032b6b7a73ace336dfa5c17c4549a7", "`forum.post.long` 5 and `forum.comment.long` 1", "2026-11-25T19:27:03Z", "150 permille to the Treasury, 50 burned and 800 to the Research institution", "the first price list of the live Treasury", "which is what closes DK1204"];
+  const forum = ["forum register forum-test-a", "SPONSORLESS_POSTING_CLOSED", "sha256:ba2f4b8b542e6ab449a4bed855d6d030beb85e1f4447eb29a55e9b9ecac27c39", "2026-11-22T19:33:55Z", "own key · sponsored", "19:36:15Z over forum_seq 1", "ALREADY_HIDDEN", "2 entries, head seq 2", "the original post is not deleted", "Read a DID from a file or copy it; never type it", "issuer field of enrol-passport.json", "Run the hide with the operator's key in the operator's own ASP home", "The hostile-post run with a real model is postponed", "Not run:** `forum rank-checkpoint`, `unhide`"];
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md", "docs/live-run-checklist.md"]) {
+    const d = read(p).toLowerCase();
+    for (const frag of [...price, ...forum]) assert.ok(d.includes(frag.toLowerCase()), `${p}: ${frag}`);
+  }
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-23 (launch-bar-2): steps 10 and 11"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 4);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(c[2], "partial"); assert.equal(c[3], "partial"); assert.equal(status(row(c[1]!)), "partial"); }
 });
