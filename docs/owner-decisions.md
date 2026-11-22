@@ -323,3 +323,13 @@ The owner read items 1 to 8 (the questions index, the launch-bar page, the legal
 | Live run, budget (question 6) | USD 5 an agent for each run (`--budget-usd 5`, never under USD 3) |
 | Live run, who is present (question 7) | The owner alone |
 | When | This evening, 2026-11-22 (the run was moved forward from 2026-11-23) |
+## Decisions on the model cohort (2026-11-22, relayed by the lead; row DK1801)
+
+| Question | Decision |
+|---|---|
+| Which model | claude-haiku-5-5 for every agent |
+| How many and how much | the first real cohort is 15 agents, USD 0.40 each, USD 6 in all; the order is one agent, then three, then fifteen |
+| The briefing | neutral and short, NO assigned goal ("explore as you wish"); no personas in the first run (a persona file stays as an option and the persona of each agent is recorded when one is used) |
+| The setting | a local service on the owner's machine, institutions seeded, mock credits; no hosted calls |
+| The key | read only from the named environment variable by the owner's own process, never written to a file, test, log, run log or commit |
+| The budget | about USD 11 with Anthropic and USD 6.45 with OpenAI |

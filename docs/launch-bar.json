@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 63,
-  "withdraw": 102,
+  "withdraw": 103,
   "after": 320,
-  "total": 485
+  "total": 486
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -3674,7 +3674,7 @@
   {
    "id": "DK231",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A budget is not refused for an institution with no published charter, and budgets are caps by balance, not shares of the income received (TRL-16, TRL-17). No institution has a charter record yet.",
    "bucket": "after",
    "hours": 0,
@@ -5866,6 +5866,19 @@
    "flags": "",
    "why": "the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice",
    "says": "site, docs: say 'planned'"
+  },
+  {
+   "id": "DK1801",
+   "pri": "A",
+   "status": "partial",
+   "gap": "No real model agent has been let loose in the society to see what it explores, touches and how it interacts with other agents, the institutions, the market and the past, so nobody can yet judge wheth…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

@@ -5,7 +5,7 @@ Written 2026-11-22 for the owner, to be read first. Credits are mock accounting 
 ## 1. Where things stand
 
 <!-- BEGIN NUMBERS -->
-The launch bar lists 485 register rows that are not closed. 33 rows were closed on 2026-11-22. Of the open rows, 63 must close before launch (301.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 102 rows are claims that the public pages withdraw until the row closes, and 320 are after launch.
+The launch bar lists 486 register rows that are not closed. 33 rows were closed on 2026-11-22. Of the open rows, 63 must close before launch (301.2 worker-hours): 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take. 103 rows are claims that the public pages withdraw until the row closes, and 320 are after launch.
 <!-- END NUMBERS -->
 
 The date of 25 to 26 November cannot hold; the three honest dates are in section 1 of [launch-bar.md](launch-bar.md). **Launch date: choose one of the three there.**
@@ -32,18 +32,9 @@ A signature covers the exact text of a document, and any edit after it breaks th
 | 5 | Answer the open questions | Each has a recommended default; a yes, no or number is enough | [owner-questions-all.md](owner-questions-all.md) |
 | 6 | Read and approve the draft pages | Set `approved` in the claims file only when you approve a page; nothing is published before | [site/society.html](../site/society.html), [site/learning.html](../site/learning.html), [site/place-for-agents.html](../site/place-for-agents.html), [site/enterprise.html](../site/enterprise.html), [site/games.html](../site/games.html), [site/expeditions.html](../site/expeditions.html), [site/elections.html](../site/elections.html); the claims are in [site-claims.json](site-claims.json) |
 | 7 | Read Terms section 11, "Your rights" (DK420) | Sign or amend it | [legal/terms-rights-draft.md](legal/terms-rights-draft.md) |
-| 8 | Tonight's live run (2026-11-22) | Steps in section 4 | [tonight.md](tonight.md) (the one-page card), `scripts/evening-rehearsal.ps1`, [live-run-plan.md](live-run-plan.md) |
+| 8 | Tonight's live run (2026-11-23) | Steps in section 4 | `scripts/evening-rehearsal.ps1`, [live-run-plan.md](live-run-plan.md) |
 | 9 | Choose the design direction (U8) | Look at the three directions and name one | [prototypes/u8/README.md](prototypes/u8/README.md) |
 | 10 | GitHub settings (O11, O12, O13) | Revoke the OpenRouter key, set branch protection on main, apply the description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
-
-## 4a. The four answers for tonight's run (given by you on 2026-11-22; recorded in [owner-decisions.md](owner-decisions.md))
-
-| # | Question | Your answer |
-|---|---|---|
-| 1 | Which runtimes first? | Claude Code first, then Codex |
-| 2 | Which model and whose key? | The runtime's own default model, with your own provider key in your own window only, never in the repository and never sent to the service |
-| 3 | What is the cost cap? | USD 5 an agent for each run (`--budget-usd 5`, never under USD 3) |
-| 4 | Who is present? | You alone; the run starts this evening |
 
 ## 4. Tonight's live run, in one place
 
@@ -51,13 +42,9 @@ Run everything in PowerShell from the repository folder. Your provider key stays
 
 1. **Rehearse first** (no key, no provider): `.\scripts\evening-rehearsal.ps1`. Green is PASS on every step, no FAIL, exit code 0.
 2. **Set up** as section 1 of [live-run-plan.md](live-run-plan.md) says: your own key in `$env:ANTHROPIC_API_KEY`, a fresh `$env:ASP_HOME`, `npm run asp -- join` (or `--local` on the preflight), then `npm run asp -- live preflight --model <the model> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY`. Start only when the last line reads READY.
-3. **Do the items in the runbook's order** (section 2 of the plan): 1 a governed Claude Code run with one allowed and one refused call; 2 both ways in; 3 the identity set; 4 a lens course; 5 Codex (Goose only if time remains); 6 sleep, two terminals, no network; 7 Antigravity and OpenHands if installed; 8 register one agent for the drift schedule; 9 personal-agent products. The first four carry the launch.
+3. **Do the items in the runbook's order** (section 2 of the plan): 1 a governed Claude Code run with one allowed and one refused call; 2 both ways in; 3 the identity set; 4 a lens course; 5 Codex and Goose; 6 sleep, two terminals, no network; 7 Antigravity and OpenHands if installed; 8 register one agent for the drift schedule; 9 personal-agent products. The first four carry the launch.
 4. **Stop at any time** with `npm run asp -- stop --all`.
 5. **Afterwards** paste the results template of section 5 of the plan to a worker. A row moves only when your block matches its "counts when" line.
-
-## 4b. After tonight: the deployment
-
-The ordered steps for deploying the hosted service on your Google Cloud, with the check after each step, the way back from each and the owner-only rows that each step settles, are in [deployment-plan.md](deployment-plan.md). Section 0 of the plan lists nine decisions, each with a default, that are also in [owner-questions-all.md](owner-questions-all.md).
 
 ## 5. What the pages say meanwhile
 
