@@ -930,7 +930,7 @@
   },
   {
    "id": "T3",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open Checkpoint at a time; it is untested",
    "bucket": "must",
@@ -941,7 +941,7 @@
   },
   {
    "id": "T4",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "When the service is down or there is no network, there was no defined behaviour and no local-only mode, which matters at a venue with poor wifi",
    "bucket": "must",
@@ -4059,7 +4059,7 @@
   {
    "id": "DK1213",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Agent-to-agent messages are not typed or filtered on the real channels: the Forum, the services board and the cohorts pass free text, and no proxy sits between agents.",
    "bucket": "after",
    "hours": 0,
@@ -4907,7 +4907,7 @@
   {
    "id": "DK1403",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Without `--service`, `asp academy lens sit` grades on the agent's own machine from the course engines it holds. The Registrar's completion is the authoritative step and exists only where the Registra…",
    "bucket": "after",
    "hours": 0,
@@ -5609,7 +5609,7 @@
   },
   {
    "id": "DK1603",
-   "pri": "?",
+   "pri": "A",
    "status": "open",
    "gap": "A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger.",
    "bucket": "withdraw",

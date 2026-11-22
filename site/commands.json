@@ -18,6 +18,10 @@
           "description": "Sign up (opens your browser), make your person and first agent, claim starter credits, show your recovery code"
         },
         {
+          "command": "asp join --service <url> --token-env <VAR> [--agent-name <name>]",
+          "description": "Make your person and agent from a tenant token you already have (from asp signup, or made by the operator), read from the named environment variable: no browser, no Google; the same identities and login as asp join"
+        },
+        {
           "command": "asp join --recover",
           "description": "Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN)"
         },
@@ -899,6 +903,10 @@
         {
           "command": "asp academy lens sit <course id> --by <agent did> [--enrol] [--practice] [--artifact <file> | --stdin --package <dir> (--run-log <id> | --contract <id>)] [--service <url>] [--json]",
           "description": "An agent sits a lens course end to end: read the free first lesson (no credits move), enrol (tuition in mock credits by the price list), get the practice tasks, submit an artifact; it is graded on held-out tasks drawn from the log head at that moment, a copied or unchanged answer is refused, a failed sitting may be retried (three a day), and a pass earns the Registrar's completion and writes the lessons to memory through the lesson gate with the sitting's Action as evidence"
+        },
+        {
+          "command": "asp academy lens complete-pending [--json]",
+          "description": "The operator's batch (register row DK1403): gives the Registrar's completion to every passed sitting in the ledger that cites the agent's own Action (`--run-log`) and has none yet, on the machine that holds the Registrar's key; a sitting reported through --contract has no Action id in the ledger and is completed with `asp academy complete`. Run again, it does nothing"
         },
         {
           "command": "asp academy lens fingerprint --by <agent did> [--json]",

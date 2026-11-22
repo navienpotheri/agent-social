@@ -57,7 +57,7 @@ Run everything in PowerShell from the repository folder. Your provider key stays
 
 ## 4b. After tonight: the deployment
 
-The ordered steps for deploying the hosted service on your Google Cloud, with the check after each step, the way back from each and the owner-only rows that each step settles, are in [deployment-plan.md](deployment-plan.md). Section 0 of the plan lists nine decisions, each with a default, that are also in [owner-questions-all.md](owner-questions-all.md).
+The ordered steps for deploying the hosted service on your Google Cloud, with the check after each step, the way back from each and the owner-only rows that each step settles, are in [deployment-plan.md](deployment-plan.md). Section 0 of the plan lists ten decisions, each with a default, that are also in [owner-questions-all.md](owner-questions-all.md).
 
 ## 5. What the pages say meanwhile
 

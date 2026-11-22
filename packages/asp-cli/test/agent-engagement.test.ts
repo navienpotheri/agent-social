@@ -1,5 +1,5 @@
 // docs/agent-engagement.md is the design for keeping agents engaged without a goal (rows ENG1 to ENG8). It is a design and nothing in it is built, so the test holds it to what can be checked now: every row id
-// of the document is a row of the register (priority A, open, a child of DK1801, with a Done line), every tool it names is one of the twenty-five that exist or is listed as planned (and the planned ones are not
+// of the document is a row of the register (priority A, open, a child of DK1801, with a Done line), every tool it names is one of the tools that exist or is listed as planned (and the planned ones are not
 // already built under another name), the fourteen metric ids are unique and match the report's names once the report has them, the briefing it proposes contains no goal and no persona, the ladder has seven rungs that
 // each change one thing, the owner's questions are in the owner's list with defaults, and the standing statements and the refusal to claim are kept.
 import { test } from "node:test";
@@ -34,18 +34,18 @@ test("the eight rows ENG1 to ENG8 are rows of the register: priority A, open, ch
   assert.match(register, /^\| DK1213 \|/m);
 });
 
-test("every tool that the document names exists (twenty-five) or is listed as planned, and no planned tool is already built", () => {
+test("every tool that the document names exists (twenty-seven) or is listed as planned, and no planned tool is already built", () => {
   const built = new Set(TOOLS.map((t) => t.name));
-  assert.equal(built.size, 25);
+  assert.equal(built.size, 27);
   const rows = tableRows(section(3), /\| Tool \| State \|/);
   const planned: string[] = [], existing: string[] = [];
   for (const l of rows) { const name = /`([a-z_]+)`/.exec(cell(l, 1))![1]!; (cell(l, 2) === "planned" ? planned : existing).push(name); }
-  assert.deepEqual(planned.sort(), ["leave", "notebook_read", "notebook_write", "read_messages", "rest", "send_message", "sit_exam", "wait_for"]);
+  assert.deepEqual(planned.sort(), ["leave", "notebook_read", "notebook_write", "read_messages", "rest", "send_message", "wait_for"]);
   for (const n of planned) assert.ok(!built.has(n), `${n} is planned and not built`);
   for (const n of existing) assert.ok(built.has(n), `${n} exists`);
-  const listLine = doc.slice(doc.indexOf("The existing tools are the twenty-five")).split("\n")[0]!;
+  const listLine = doc.slice(doc.indexOf("The existing tools are the twenty-seven")).split("\n")[0]!;
   const listed = [...listLine.matchAll(/`([a-z_]+)`/g)].map((m) => m[1]);
-  assert.deepEqual(listed.sort(), [...built].sort(), "the twenty-five in the text are the twenty-five of the code");
+  assert.deepEqual(listed.sort(), [...built].sort(), "the twenty-seven in the text are the tools of the code");
 });
 
 test("the fourteen metric ids are unique and defined, and they match the report's names once the report has them", () => {
@@ -105,4 +105,16 @@ test("the document is a design and says so: standing statements kept, nothing cl
   assert.match(section(11), /does not claim/);
   assert.doesNotMatch(doc, /sk-[A-Za-z0-9]{20,}/);
   for (const m of doc.matchAll(/\]\(([^)#]+)\)/g)) { const t = m[1]!; if (!/^https?:/.test(t)) assert.doesNotThrow(() => readFileSync(new URL(`docs/${t}`, root)), `${t} exists`); }
+});
+
+test("the first real runs are cited as relayed, with their run folders said to be off the repository, and the two further causes they suggest are in the loop's table", () => {
+  const first = section(1).slice(section(1).indexOf("### 1.1"), section(1).indexOf("### 1.2"));
+  for (const frag of ["About 5 seconds and 7 tool calls", "About 10 seconds in all", "I have no shell or files, so I can't do that work honestly", "130 characters", "bad_input", "not in the repository", "as relayed"]) assert.ok(first.includes(frag), frag);
+  assert.match(section(1), /\| L4 \|/);
+  assert.match(section(1), /\| L5 \|/);
+  const run = read("docs/society-models-run.md");
+  assert.match(run, /## 14\. What the first real runs showed/);
+  assert.match(run, /not in the repository/);
+  assert.match(run, /I have no shell or files, so I can't do that work honestly/);
+  assert.doesNotMatch(run, /not yet run with a real key/);
 });

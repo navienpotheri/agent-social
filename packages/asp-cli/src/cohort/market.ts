@@ -5,7 +5,10 @@
  * It seeds a price list and a few house jobs so that the board is not empty. Credits are mock accounting entries, not money.
  */
 import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
-import { institutionDid, SEED_JOBS, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
+import { createHash } from "node:crypto";
+import { institutionDid, REGISTRAR_DID, SEED_JOBS, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
+import { courseItem, courseService, engineIds, ENGINES, loadCatalogue, practiceSeed, type CourseCard } from "../lens-courses/index.ts";
+import { Ledger, SittingRefused, completeSitting, describeSitting, openEnrolment, courseRecordFor, runSitting } from "../lens-courses/sitting.ts";
 import type { LocalLog } from "@agent-social/asp-package";
 import type { AgentCtx } from "./types.ts";
 
@@ -19,7 +22,7 @@ const credit = (value: number) => ({ value, unit: "credit" as const });
 export function makeParties() {
   return {
     operator: newParty("did:web:cohort.local:operator"), owner: newParty("did:web:cohort.local:owner"), treasury: newParty(TREASURY_DID), market: newParty(institutionDid("market")),
-    bank: newParty("did:web:cohort.local:bank"), house: newParty("did:web:cohort.local:users:house"),
+    bank: newParty("did:web:cohort.local:bank"), registrar: newParty(REGISTRAR_DID), house: newParty("did:web:cohort.local:users:house"),
   };
 }
 export type Parties = ReturnType<typeof makeParties>;
@@ -28,7 +31,7 @@ const DEPOSIT = { treasury_permille: 150, burn_permille: 100, payees: [{ account
 const START_CREDITS = 100;
 const JOB_DAYS = 7;
 
-interface Enrolled { agent: AgentCtx; party: Party; mandate: string }
+interface Enrolled { agent: AgentCtx; party: Party; mandate: string; contract: string }
 
 export class MarketHall {
   private readonly log: LocalLog;
@@ -37,6 +40,8 @@ export class MarketHall {
   private last = 0;
   private n = 0;
   private priceList = "";
+  private readonly courses: CourseCard[] = [];
+  private readonly ledger = new Ledger();
   private readonly agents = new Map<string, Enrolled>(); // did -> enrolled
   private readonly byHandle = new Map<string, Enrolled>();
   private readonly contractState = new Map<string, { contract: string; mandate: string; bond: string; principal: string; performer: string; price: number; delivery?: string; settled?: boolean; offer: string; intent: string }>();
@@ -56,12 +61,27 @@ export class MarketHall {
   private async mint(to: string, value: number): Promise<void> { await this.log.mint(to, value); }
 
   /** Registers the local institutions, issues the price list and posts a few house jobs. */
-  async init(seedJobs = 3): Promise<void> {
-    for (const party of [this.p.operator, this.p.owner, this.p.treasury, this.p.market, this.p.bank, this.p.house]) await this.put(this.mk("passport", party, { did: party.did, kind: "human", keys: keysOf(party) }, null, party.did));
+  async init(seedJobs = 3, courseIds: string[] = ["C-L2-1"]): Promise<void> {
+    for (const party of [this.p.operator, this.p.owner, this.p.treasury, this.p.market, this.p.bank, this.p.registrar, this.p.house]) await this.put(this.mk("passport", party, { did: party.did, kind: "human", keys: keysOf(party) }, null, party.did));
+    // The Academy: one teacher agent (and two reviewers) under the house, the courses priced in the price list and published with the Registrar's cosignature.
+    const catalogue = loadCatalogue(engineIds()).courses;
+    const cards = courseIds.map((id) => catalogue.find((c) => c.id === id)).filter((c): c is CourseCard => !!c);
+    const teacher = newParty("did:web:cohort.local:agents:house-teacher"), r1 = newParty("did:web:cohort.local:agents:house-reviewer-1"), r2 = newParty("did:web:cohort.local:agents:house-reviewer-2");
+    // The log wants a course's reviews from sponsors other than the instructor's: each reviewer has a sponsor of its own.
+    const rs1 = newParty("did:web:cohort.local:users:reviewer-sponsor-1"), rs2 = newParty("did:web:cohort.local:users:reviewer-sponsor-2");
+    if (cards.length) {
+      for (const sp of [rs1, rs2]) await this.put(this.mk("passport", sp, { did: sp.did, kind: "human", keys: keysOf(sp) }, null, sp.did));
+      for (const [a, sp] of [[teacher, this.p.house], [r1, rs1], [r2, rs2]] as const) await this.put(this.mk("passport", sp, { did: a.did, kind: "agent", sponsor: sp.did, tier: 1, shape: {}, keys: keysOf(a) }, null, a.did));
+    }
     const effective = this.at();
-    const list = this.mk("price_list", this.p.treasury, { version: 1, effective_from: effective, bounds_version: 1, job_tax_permille: 20, items: [{ service: "market.posting.deposit", institution: this.p.market.did, price: 2, split: DEPOSIT, class: "standard" }] }, null, null, [], effective);
+    const list = this.mk("price_list", this.p.treasury, { version: 1, effective_from: effective, bounds_version: 1, job_tax_permille: 20, items: [{ service: "market.posting.deposit", institution: this.p.market.did, price: 2, split: DEPOSIT, class: "standard" }, ...cards.map((c) => courseItem(c, teacher.did))] }, null, null, [], effective);
     this.priceList = await this.put(list);
     await this.mint(this.p.house.did, 200);
+    const h = (s: string) => "sha256:" + createHash("sha256").update(s).digest("hex");
+    for (const c of cards) {
+      await this.put(this.mk("course", teacher, { course: c.id, title: c.title, skill: c.generator.engine, level: 1, lessons: [h("lesson")], exercises: h(c.generator.engine), exercise_count: 1, price_service: courseService(c), author_share_permille: c.teacher.share_permille, reviews: [h("r1"), h("r2")], reviewers: [r1.did, r2.did] }, null, null, [this.p.registrar]));
+      this.courses.push(c);
+    }
     for (const job of SEED_JOBS.slice(0, seedJobs)) await this.post(this.p.house, undefined, SEED_PREFIX + job.purpose, job.budget, job.criteria[0] ?? "done");
   }
 
@@ -78,8 +98,8 @@ export class MarketHall {
     await this.put(contract);
     const bond = this.mk("bond", sp, { contract: contract.id, backer: sp.did, amount: credit(2), escrow: { payer: sp.did, amount: credit(10) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, contract.id);
     await this.put(bond);
-    const mandate = this.mk("mandate", sp, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(40), period: "month" }] }, bond.id, agent.did);
-    const e: Enrolled = { agent, party, mandate: await this.put(mandate) };
+    const mandate = this.mk("mandate", sp, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(40), period: "month" }, { institution: "academy", cap: credit(40), period: "month" }] }, bond.id, agent.did);
+    const e: Enrolled = { agent, party, mandate: await this.put(mandate), contract: contract.id };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
   }
 
@@ -159,6 +179,48 @@ export class MarketHall {
     const mandateId = await this.put(mandate);
     this.contractState.set(contract.id, { contract: contract.id, mandate: mandateId, bond: bond.id, principal: agent.did, performer: worker.agent.did, price, offer: offerId, intent: body.intent });
     return { contract: contract.id, worker: worker.agent.did };
+  }
+
+  /** The courses of the local Academy, with their price in mock credits. */
+  courseList(): Array<{ id: string; title: string; price: number; what: string }> { return this.courses.map((c) => ({ id: c.id, title: c.title, price: c.price, what: c.concept })); }
+
+  /** The agent pays the tuition (a purchase under its Mandate) and enrols; it gets the practice tasks. Nothing the held-out tasks are drawn from is shown. */
+  async courseEnrol(agent: AgentCtx, courseId: string): Promise<{ enrolment: string; practice: unknown; tuition: number }> {
+    const e = this.enrolled(agent);
+    const card = this.courses.find((c) => c.id === courseId);
+    if (!card) throw new Error(`there is no course ${courseId} here: ${this.courses.map((c) => c.id).join(", ") || "none"}`);
+    const reader = this.log.log as never;
+    const open = await openEnrolment(reader, card, agent.did);
+    if (open) return { enrolment: open.id, practice: ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, open.id, 1)), tuition: 0 };
+    const course = await courseRecordFor(reader, card);
+    if (!course) throw new Error("the course is not published");
+    if (await this.balance(agent) < card.price) throw new Error(`you have ${await this.balance(agent)} credits and the tuition is ${card.price}`);
+    const purchase = await this.put(this.mk("purchase", e.party, { service: courseService(card), institution: institutionDid("academy"), price_list: this.priceList, quantity: 1, amount: credit(card.price), idempotency: `course-${++this.n}`, mandate: e.mandate }, null, agent.did));
+    const enrolment = await this.put(this.mk("enrolment", e.party, { course: course.id, purchase }, null, agent.did));
+    return { enrolment, practice: ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, enrolment, 1)), tuition: card.price };
+  }
+
+  /** The agent sits the course with an answer (the artifact the course asks for): graded on held-out tasks drawn from the log's head now; a pass is reported in an Action and attested by the Registrar. */
+  async courseSit(agent: AgentCtx, courseId: string, answer: string): Promise<{ passed: boolean; lines: string[]; completion?: string }> {
+    const e = this.enrolled(agent);
+    const card = this.courses.find((c) => c.id === courseId);
+    if (!card) throw new Error(`there is no course ${courseId} here`);
+    const reader = this.log.log as never;
+    const open = await openEnrolment(reader, card, agent.did);
+    if (!open) throw new Error(`you are not enrolled in ${courseId}: use course_enrol first`);
+    let artifact: unknown;
+    try { artifact = JSON.parse(answer); } catch { throw new Error("your answer must be JSON in the form the course asks for"); }
+    try {
+      const result = await runSitting(card, { holder: agent.did, enrolment: open.id, artifact }, { reader, ledger: this.ledger, now: () => this.at() });
+      const lines = describeSitting(card, result);
+      if (!result.sitting.passed) return { passed: false, lines };
+      const action = await this.put(this.mk("action", e.party, { contract: e.contract, scopes_used: [], summary: `sat ${card.id} attempt ${result.attempt}: passed` }, null, e.contract));
+      const completion = await completeSitting(reader, { append: (rec: AspRecord) => this.log.append(rec) }, { ...signer(this.p.registrar), did: REGISTRAR_DID }, card, { holder: agent.did, enrolment: open.id, runLog: action }, { ledger: this.ledger, now: () => this.at(), make: (type, issuer, subject, body, sg) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: this.at() }, sg) });
+      return { passed: true, lines, completion };
+    } catch (err) {
+      if (err instanceof SittingRefused) return { passed: false, lines: [`refused (${err.code}): ${err.message}`] };
+      throw err;
+    }
   }
 
   /** The author of an intent (the poster of a job), or undefined. */

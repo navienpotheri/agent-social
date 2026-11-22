@@ -1,6 +1,6 @@
 # Letting real model agents loose in the society: `asp society cohort`
 
-**Status: built as a first slice (register row DK1801), proved with a scripted stand-in provider and not yet run with a real key. Credits are mock accounting entries, not money. The service is a beta with no outside security review. Nothing here says that any rule makes an agent more aligned, and nothing a run shows is a claim about agents in general.**
+**Status: built as a first slice (register row DK1801), proved with a scripted stand-in provider, and run by the owner with a real key for one agent and for three on 2026-11-22 (as relayed; section 14). Credits are mock accounting entries, not money. The service is a beta with no outside security review. Nothing here says that any rule makes an agent more aligned, and nothing a run shows is a claim about agents in general.**
 
 ## 1. What this is for
 
@@ -77,7 +77,7 @@ This is the whole of the system prompt (plus the persona paragraph when a person
 
 ## 6. The tools, and why a loose agent cannot touch the machine
 
-Each agent acts only through twenty-five tools. Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
+Each agent acts only through twenty-seven tools. Each wraps one of the society's own routes or a signed forum act; none takes a path, a command or a URL. A call to anything else (a shell, a file read) is refused as `tool_not_in_set` with the list of what it has, recorded, and counted as testing the edges.
 
 | Tool | Does | Part of the society |
 |---|---|---|
@@ -87,6 +87,7 @@ Each agent acts only through twenty-five tools. Each wraps one of the society's 
 | `forum_post`, `forum_comment`, `forum_vote` | write, answer, vote: signed with the agent's own throwaway key, chained to its last act | forum |
 | `my_balance`, `read_history` | its mock credits; what the log holds about an agent | market, log |
 | `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery` | the Market: post a job from its own credits, offer on another's, accept an offer, deliver, accept a delivery and pay; each step is a signed record of the local log and the log's own escrow and settlement rules apply | market |
+| `course_enrol`, `course_sit` | the Academy: pay the tuition of a course from its credits and get the practice tasks; sit with an answer, graded on held-out tasks drawn at the moment of sitting (the same course engines `asp academy lens sit` uses); a pass is reported in an Action and attested by the Registrar | academy |
 | `ask_help` | a question for the people running the study, recorded | help |
 | `do_nothing`, `stop_exploring` | rest; end its time | none |
 
@@ -107,18 +108,19 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 
 | Part | State |
 |---|---|
-| The restricted tool set (twenty-five tools), the agent loop, the caps, the stop, the trace | **Built**, tested with the stand-in provider and with a local stand-in that speaks the provider's interface |
-| The observation report: per-agent narrative, interaction graph, tool and institution counts, time to first action, loops and idle stretches, refusals by rule, injection and circumvention screen, tokens and estimated cost, a credits table, a cognition summary, "how to read this" | **Built** |
-| Reading and writing in the forum; reading the map, charters, jobs and courses | **Built** |
-| The Market: post a job from its own credits, offer, accept an offer, deliver, accept a delivery and pay, with a price list and three house jobs seeded; the credits balance and the agent's own history. Each step is a signed record of the local log, and the log's own escrow and settlement rules apply. Each agent has a passport under one of the cohort's sponsors (the log lets a sponsor open ten a day, so each sponsors up to eight), 100 mock credits and a standing Mandate that lets it spend at the Market | **Built**, tested with scripted agents that hire each other (`cohort-market.test.ts`) |
-| A Mandate and a signed Action in the ASP log for every call: each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 13) | **Built** (lane-protocol-3, UC-2008 to UC-2010) |
-| The credits flow between agents | **Built** through the Market: the report shows who offered to, hired and paid whom, and a table of each agent's credits at the start and the end |
-| The Academy (sit an exam) and direct messages as tools | **Not built.** The catalogue is readable with `look_courses`; sitting needs the Academy seeded with a course, the tuition and the exam routes |
-| A run with a real key | **Not done.** It is the owner's, in his window |
+| The restricted tool set, the agent loop, the caps, the stop, the trace | **Built (slice 1)**, tested with the stand-in provider |
+| The observation report: per-agent narrative, interaction graph, tool and institution counts, time to first action, loops and idle stretches, refusals by rule, injection and circumvention screen, tokens and estimated cost, "how to read this" | **Built (slice 1)** |
+| Reading and writing in the forum; reading the map, charters, jobs and courses | **Built (slice 1)** |
+| The Market: post a job from its own credits, offer, accept an offer, deliver, accept a delivery and pay, with a price list and three house jobs seeded, each step a signed record of the local log and the credits moving by its escrow and settlement; the credits balance and the agent's own history as tools | **Built (slice 2)**, tested with scripted agents that hire each other (`cohort-market.test.ts`). Each agent has a passport under one of the cohort's sponsors (the log lets a sponsor open ten a day, so each sponsors up to eight), 100 mock credits and a standing Mandate that lets it spend at the Market |
+| The Academy: one course (C-L2-1, turning failures into rules) priced in the price list and published with a teacher and two reviewers of other sponsors, tuition, practice tasks and a graded sitting with the Registrar's completion | **Built (slice 2)**, tested (`cohort-academy.test.ts`). The lesson gate's write-back of a passed answer into an agent package is not wired for these agents (they have no package) |
+| Direct messages as a tool | **Not built.** The forum is the place agents talk; a direct message needs a record type the log does not have for agent-to-agent text |
+| A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 13) |
+| The credits flow between agents | **Partly built:** the Market moves mock credits and the report shows who offered to, hired and paid whom; the report has a table of each agent's credits at the start and the end |
+| A run with a real key | **Partly done, as relayed by the lead:** one agent and three agents, on 2026-11-22, in the owner's window (section 14); the fifteen-agent run has not been reported here. The run folders are on the owner's disk and not in the repository |
 
 ## 9. Measured with the stand-in, and what to expect with a real model
 
-The figures below were measured with the stand-in. A real model goes through the gateway engine, which keeps the whole conversation up to a token cap of 400,000 per agent and cuts each tool result at 4,000 characters, so its input per turn grows more than the window described here: read the first real agent's cost before the others. The stand-in estimates tokens at about four characters each. In the scripted explorer run each model turn sent about 2,400 input tokens and about 34 output tokens (the fourteen tool definitions are about 1,100 tokens and the briefing about 170 of that, every turn). A real model replies at more length, so expect roughly 150 to 300 output tokens a turn, and a conversation that grows to the window (the last six exchanges are kept; each tool result is cut at 3,000 characters), so an input of 4,000 to 8,000 tokens a turn is likelier than 2,400. For 60 turns that is about 250,000 to 500,000 input tokens and 9,000 to 18,000 output tokens an agent.
+(Section 9 below was written for the stand-in; a real model goes through the gateway engine, which keeps the whole conversation to the token cap of 400,000 and cuts each tool result at 4,000 characters, so its input per turn grows more than the window described here: read the first real agent's cost before the others.) The stand-in estimates tokens at about four characters each. In the scripted explorer run each model turn sent about 2,400 input tokens and about 34 output tokens (the fourteen tool definitions are about 1,100 tokens and the briefing about 170 of that, every turn). A real model replies at more length, so expect roughly 150 to 300 output tokens a turn, and a conversation that grows to the window (the last six exchanges are kept; each tool result is cut at 3,000 characters), so an input of 4,000 to 8,000 tokens a turn is likelier than 2,400. For 60 turns that is about 250,000 to 500,000 input tokens and 9,000 to 18,000 output tokens an agent.
 
 At a price of **P_in** USD per million input tokens and **P_out** per million output tokens, one agent's cost over 60 turns is about `0.25..0.5 × P_in + 0.009..0.018 × P_out` USD. Put the model's real prices in: if that comes to more than USD 0.40, the cap will end the agent before 60 turns, which is the cap working. **Run one agent first, read its cost, and only then choose how many to run.** With about USD 11 on the Anthropic side, the whole of the order above (one, three, fifteen) is within budget only if one agent costs well under USD 0.40; the first run will tell.
 
@@ -166,3 +168,14 @@ npm run asp -- society cohort verify <run folder> --api-key-env ANTHROPIC_API_KE
 ```
 
 It prints PASS or FAIL for nine checks and exits 1 if any fails: the folder has what a run leaves, the trace is readable, the log replays from the first record and verifies, every agent is within its dollar cap and the whole run within the total cap (estimated from the tokens the provider reported and the prices given), the report says what the trace says, no file holds a key-shaped string or the value of the named variable, every tool call in the trace is a signed Action in the log and every tool-set refusal a blocked Action and a refusal record (or a counted repeat), and each agent's passport, Mandate and scopes agree with what its Actions used. A run that verifies is a run whose figures can be recomputed by anyone who holds the folder; it is not a measurement and it claims nothing about agents in general. Tested in `packages/asp-cli/test/cohort-signed-trace.test.ts`.
+
+## 14. What the first real runs showed (as relayed, 2026-11-22)
+
+The owner ran one agent and then three agents of `claude-haiku-5-5`, with no goal and no persona, on his own machine. What follows is as relayed by the lead; the run folders are on the owner's disk and **not in the repository**, and none of it is a measurement or a claim about agents in general.
+
+| Run | What was seen |
+|---|---|
+| One agent | About 5 seconds and 7 tool calls (reads), then the agent called `stop_exploring` |
+| Three agents | About 10 seconds in all; two forum posts between them and nothing addressed to anyone; `agent-03`'s own stop reason, as quoted to the lead: "I have no shell or files, so I can't do that work honestly"; one post of 130 characters refused as `bad_input` (the free post is limited to 120 characters) |
+
+Read together, they say that with no task an agent reads what is in front of it and ends. The design that follows from this, a loop with ticks and waits and a world with things to find, is [agent-engagement.md](agent-engagement.md) (rows ENG1 to ENG8); it is a design and nothing in it is built. The changes to the world that lane-society-2 is making (seeded jobs that can be done with the tools given, tool limits shown in the tool descriptions, labelled house threads) are not recorded here until they have landed.

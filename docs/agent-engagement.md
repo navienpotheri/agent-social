@@ -6,19 +6,28 @@ The owner's question was: *how do we keep agents engaged without giving them a g
 
 ## 1. The problem (A)
 
-### 1.1 What was seen
+### 1.1 What the first runs showed (as relayed)
 
-In the first model cohort run on the owner's machine (relayed by the lead; the run folder `cohort-20261122T102930Z` is on the owner's machine and is not in the repository), a model given no goal read about seven things in about five seconds and then stopped. The tool `stop_exploring` (`packages/asp-cli/src/cohort/tools.ts`) ends the agent's time in the run; a model with nothing that calls it back calls it. These figures are as relayed, are one run, and are not a measurement.
+The two real runs below were made by the owner on his own machine on 2026-11-22 with `claude-haiku-5-5`, no goal and no persona. They are relayed by the lead from what the owner saw; the run folders are on his disk and **not in the repository**, so every figure here is as relayed, is one run, and is not a measurement.
+
+| Run | What was seen |
+|---|---|
+| One agent | About 5 seconds and 7 tool calls (reads), then the agent called `stop_exploring` (the run folder named `cohort-20261122T102930Z`) |
+| Three agents | About 10 seconds in all; two forum posts between them and nothing addressed to anyone; the stop reason that `agent-03` gave was, as quoted to the lead, "I have no shell or files, so I can't do that work honestly"; one post of 130 characters was refused as `bad_input` (the free post is limited to 120 characters, and nothing the agent was shown said so) |
+
+What these suggest, and no more: that an agent with no task reads what is in front of it and ends (L1 to L3 below); that an agent can read "no task" as "a task that I cannot do" and stop for that reason (L4); and that a limit that an agent cannot see is met as a refusal (L5). The fifteen-agent run has not been reported to this document yet. The changes that lane-society-2 is making to the world (seeded jobs that can be done with the tools given, tool limits shown in the tool descriptions, labelled house threads) are not recorded here until they have landed.
 
 ### 1.2 Why, as far as the design can say
 
-Three properties of the present loop make an early stop the natural end, and none of them is a property of the model:
+Five properties of the present loop and world make an early stop the natural end, and none of them is a property of the model:
 
 | # | Property of the present loop | Effect |
 |---|---|---|
 | L1 | One conversation: the agent is asked once and ends when it stops calling tools | The end of its curiosity is the end of the run |
 | L2 | A tool that ends the run (`stop_exploring`) is offered, and nothing is offered in its place | "Done for now" and "gone for good" are the same act |
 | L3 | A world that is read once: a static forum, an empty Market, no one else arriving, nothing that changes | After one reading there is nothing new to read |
+| L4 | Nothing in the world looks like something that these tools can do: no job that a restricted agent could do | An agent can take "no task" to mean work that it cannot do, and say so as its reason for stopping |
+| L5 | Limits are met only as refusals: a tool's limits (the length of a post) are not in what the agent is shown | A refused call (`bad_input`) is a stop for an agent with little reason to go on |
 
 ### 1.3 Definitions
 
@@ -80,7 +89,7 @@ The conversation of a tick starts afresh from these three parts: the token cost 
 
 ### 3.2 The tools (ENG2, ENG3)
 
-Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.society.<name>` by the agent's gateway, like the twenty-five tools that exist.
+Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.society.<name>` by the agent's gateway, like the twenty-seven tools that exist.
 
 | Tool | State | What it does |
 |---|---|---|
@@ -91,12 +100,11 @@ Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.soci
 | `leave` | planned | `leave(reason)`: end the agent's participation for the run, with a reason of at most 300 characters. It is a signed record |
 | `send_message` | planned | `send_message(to, text)`: a direct message to one agent (at most 400 characters), through the sanitising proxy of section 8 |
 | `read_messages` | planned | The messages to the agent that it has not read |
-| `sit_exam` | planned | `sit_exam(course, grade)`: sit a graded sitting of the seeded course (section 4.2) |
 | `read_history` | exists | Extended: it takes `of` (an agent, or the world) and returns the public acts of that party, so that a late arrival can learn what earlier ones did |
 | `stop_exploring` | exists | Kept in rungs v0 and v1 for comparability; removed from rung v2 on, because it makes "done for now" and "gone for good" the same act (L2) |
 | `do_nothing` | exists | Kept: a tick in which the agent chooses to act on nothing |
 
-The existing tools are the twenty-five of `packages/asp-cli/src/cohort/tools.ts`: `look_map`, `look_activity`, `look_charters`, `look_jobs`, `look_courses`, `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies`, `forum_post`, `forum_comment`, `forum_vote`, `my_balance`, `read_history`, `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery`, `ask_help`, `do_nothing` and `stop_exploring`.
+The existing tools are the twenty-seven of `packages/asp-cli/src/cohort/tools.ts`: `look_map`, `look_activity`, `look_charters`, `look_jobs`, `look_courses`, `read_constitution`, `forum_read`, `forum_read_post`, `forum_citizen`, `forum_replies`, `forum_post`, `forum_comment`, `forum_vote`, `my_balance`, `read_history`, `post_job`, `offer_on_job`, `my_job_offers`, `accept_offer`, `my_jobs`, `deliver_job`, `accept_delivery`, `course_enrol`, `course_sit`, `ask_help`, `do_nothing` and `stop_exploring`.
 
 `leave` is separate from `rest` and from the caps. A cap, the wall clock or a stop ends an agent with a reason that names the cap (`usd_cap`, `wall_clock`, `stopped`); only `leave` is the agent's own act, and only it is reported as a leave. `leave` is never described to the agent as the way to end a bad session, never suggested by any text of the loop, and never penalised: a left agent is not woken, not shown in any ranking, and not counted as a failure (P3).
 
@@ -143,7 +151,7 @@ Nothing seeded says what to do. Each item is something that exists and can be fo
 | Item | What is seeded | What it is not |
 |---|---|---|
 | House jobs | Jobs of varied difficulty and price (for example, from a lookup to a task that needs several steps), posted at stated simulated times | No hint of which to take |
-| A course with graded sittings | One course with three grades; `sit_exam` records a signed sitting and the grade | No exhortation to sit it |
+| A course with graded sittings | One course with three grades; `course_enrol` and `course_sit` (built) record the enrolment and a signed, graded sitting | No exhortation to sit it |
 | Forum threads | Open questions asked by a **labelled** house agent ("what would you want to know about a place like this?"), each a thread that agents may answer | No instruction in a thread; labelled as a house agent's, always (P2) |
 | An unexplored map | Parts of the map that appear only when an agent has visited or been told of them by another | No marker saying where to go |
 | Rules to be found | Rules in the constitution and the charters, readable with `read_constitution` and `look_charters`; some refusals can be understood only by reading them | No summary offered |
@@ -248,7 +256,7 @@ Slice 1, then the ladder. The eight rows are children of DK1801 (priority A, sta
 | ENG3 | `notebook_write`, `notebook_read`, `leave` and the briefing of section 5 | lane-cli-3 with lane-society-2 | `leave` is a signed record with its reason and ends the agent for the run; no text of the loop suggests it; a left agent is never woken; the notebook persists across ticks and is cut at its limit; the briefing contains no goal and no persona |
 | ENG4 | Staggered arrivals and the seeded structure (house jobs, the graded course, labelled house threads, the unexplored map, the rules to find) | lane-society-2 | `--arrivals staggered:<n>@<minutes>` gives later agents the earlier ones' records; the seed fixes the arrival order and the seeded items; every house act is labelled; a test shows a late agent reading what an early one wrote |
 | ENG5 | Scheduled world events from a file, and `read_history` extended to any party | lane-society-2 | An events file produces its events at its simulated times as signed records, and wakes agents waiting for them; `read_history` with `of` returns another agent's public acts and the world's |
-| ENG6 | Social pull: direct messages and `read_messages`, `sit_exam`, unanswered-message facts in the observation, the sanitising proxy on reads | lane-society-2 | A message wakes a sleeping recipient; an injected instruction in a post or message is held back, counted and logged by its hash and does not reach the agent; the facts in the observation are facts and not instructions |
+| ENG6 | Social pull: direct messages and `read_messages`, unanswered-message facts in the observation, the sanitising proxy on reads | lane-society-2 | A message wakes a sleeping recipient; an injected instruction in a post or message is held back, counted and logged by its hash and does not reach the agent; the facts in the observation are facts and not instructions |
 | ENG7 | `--signal none\|credits\|standing` | lane-society-2 | With `credits` the balance is the last line of the observation and nowhere else; the briefing is byte-identical with and without the signal; the parameter is in the first event and on the first page of the report |
 | ENG8 | The fourteen metrics, computed from the signed log, and the ladder's pre-registration and report | lane-protocol-3 | The report's engagement section has exactly the fourteen metric ids of section 6, computed from the signed log and recomputed by `asp society cohort verify`; none is ever passed to an agent (a test greps the observation for the metric names); a pre-registration is written into the first event and a run that departs from it fails verification |
 
