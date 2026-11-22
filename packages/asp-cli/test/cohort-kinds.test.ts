@@ -55,7 +55,7 @@ test("two sponsored and two key-only agents in one society: sponsor identities o
       if (n === 2) return use("rest", { until: "3h" });
       if (n === 3) return use("forum_read", { sort: "new" });
       if (n === 4) return use("forum_comment", { post: idOf(r.last, "From C") ?? "missing", text: "Hello C, from A." });
-      if (n === 5) return use("send_message", { to: "agent-03", kind: "reply", text: "Hello C: A here." });
+      if (n === 5) return use("send_message", { to: "agent-03", kind: "note", text: "Hello C: A here." });
     }
     if (w === "B") {                                           // sponsored: comments on D's post
       if (n === 1) return use("rest", { until: "3h" });
@@ -97,7 +97,8 @@ test("two sponsored and two key-only agents in one society: sponsor identities o
   assert.match(md, /\| Agents \| 2 \| 2 \|/);
   assert.match(md, /Messages between kinds:\*\* .*sponsored -> key-only 1.*|Messages between kinds:\*\* .*key-only -> sponsored 1/);
   const k = JSON.parse(readFileSync(join(dir, "kinds.json"), "utf8")) as ReturnType<typeof kindsReport>;
-  assert.equal(k.between.messages["sponsored -> key-only"], 1); assert.equal(k.between.messages["key-only -> sponsored"], 1);
+  const msgs = events.filter((e) => e.t === "tool" && e.tool === "send_message").map((e) => [e.agent, e.ok, e.refused, e.input.to]);
+  assert.equal(k.between.messages["sponsored -> key-only"], 1, JSON.stringify(msgs)); assert.equal(k.between.messages["key-only -> sponsored"], 1, JSON.stringify(msgs));
   assert.equal(k.between.comments["sponsored -> key-only"], 2, "A commented on C's post and B on D's"); assert.equal(k.between.comments["key-only -> sponsored"], 1, "C commented on A's post");
   assert.equal(k.between.comments["sponsored -> sponsored"] ?? 0, 0);
   assert.equal(k.kinds["key-only"]!.refused, 1, "D was refused once");
