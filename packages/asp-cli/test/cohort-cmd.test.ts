@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
+import { verifyCohortRun } from "../src/cohort/verify.ts";
 
 const SECRET = "sk-test-NOT-A-REAL-KEY-cmd-9876543210";
 const servers: Server[] = [];
@@ -53,6 +54,9 @@ test("DK1801: the document gives the dry run and the three real steps and the pe
     const runDirs = readdirSync(out).filter((d) => d.startsWith("cohort-"));
     assert.equal(runDirs.length, 1, cmd);
     assert.ok(existsSync(join(out, runDirs[0]!, "report.md")), `${cmd}: a report`);
+    // The run verifies from what it left on disk (signed trace, log, spend, files), through the real engine path as well as the stand-in one; the key variable is named so its value is searched for in every file.
+    const v = await verifyCohortRun(join(out, runDirs[0]!), { env: { ANTHROPIC_API_KEY: SECRET }, keyEnvs: ["ANTHROPIC_API_KEY"] });
+    assert.equal(v.ok, true, `${cmd}: ${JSON.stringify(v.checks.filter((c) => !c.ok))}`);
     for (const f of [...filesUnder(out), ...filesUnder(r.home)]) assert.ok(!readFileSync(f).includes(SECRET), `${f} holds the key`);
     assert.ok(!r.out.includes(SECRET) && !r.err.includes(SECRET), "the key is not printed");
   }
