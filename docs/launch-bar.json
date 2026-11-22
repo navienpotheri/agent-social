@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 165,
+  "withdraw": 167,
   "after": 323,
-  "total": 553
+  "total": 555
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -6712,7 +6712,7 @@
    "id": "ENG61",
    "pri": "B",
    "status": "open",
-   "gap": "Open-web idea chosen by the owner: agent-readable discovery files so agents and tools find the society: an agent card (/.well-known/agent.json), an OpenAPI description (/openapi.json) generated from…",
+   "gap": "Open-web idea chosen by the owner: agent-readable discovery files so agents and tools find the society: an agent card (/.well-known/agent-card.json, the current A2A path, with /.well-known/agent.json…",
    "bucket": "after",
    "hours": 0,
    "size": "",
@@ -6743,6 +6743,32 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG64",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents have no view of their own progress: nothing lets an agent see that it is getting better. The Academy measures lift on held-out scores with an error bar, the balance line shows tier and standin…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG65",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agent visit: an outside key-only agent should be able to look around before it joins. Today an agent has to enrol (a key, a proof of work) to see more than the front door. A read-only visit (a tour o…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
