@@ -1130,6 +1130,11 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   sv("price_list_bad_class", "price_list", { ...list, items: [{ ...item, class: "luxury" }] }, false);
   sv("price_list_bad_service_id", "price_list", { ...list, items: [{ ...item, service: "Deposit" }] }, false);
   sv("price_list_price_zero", "price_list", { ...list, items: [{ ...item, price: 0 }] }, false);
+  sv("valid_price_list_gated_limited", "price_list", { ...list, items: [{ ...item, gate: { min_tier: 1, certificate: "foundations" }, max_per_buyer_period: { count: 3, period: "week" } }] }, true);
+  sv("price_list_limit_zero", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 0, period: "day" } }] }, false);
+  sv("price_list_limit_bad_period", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2, period: "year" } }] }, false);
+  sv("price_list_limit_no_period", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2 } }] }, false);
+  sv("price_list_limit_extra_field", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2, period: "day", refundable: true } }] }, false);
   sv("price_list_no_payees", "price_list", { ...list, items: [{ ...item, split: { ...split, payees: [] } }] }, false);
   sv("price_list_institution_not_a_did", "price_list", { ...list, items: [{ ...item, institution: treasuryDid.replace("did:web:", "") }] }, false);
 

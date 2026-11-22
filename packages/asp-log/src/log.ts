@@ -76,7 +76,7 @@ import { projectHousingAct } from "./housing-rules.ts";
 import { projectEventsAct } from "./events-rules.ts";
 import { projectResearchAct } from "./research-rules.ts";
 import { projectTelemetryAct } from "./telemetry-rules.ts";
-import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
+import { assertNotDormant, checkGate, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
@@ -257,7 +257,7 @@ export const MAX_LATE_ACTIONS = 5;
 
 interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
-  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"]; max_per_buyer_period?: { count: number; period: "day" | "week" | "month" } }[];
 }
 interface PurchaseBody { buyer?: string; service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
@@ -2415,6 +2415,16 @@ export class EventLog {
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
     if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
+    else if (item.gate) await checkGate(tx, buyer, item, r.issued_at, rep?.tier); // a gate on any other institution's item (DK93)
+    // At most `count` units of the item for one buyer in a period (DK93): counted by quantity when bought.
+    let periodMark: { key: string; total: number } | undefined;
+    if (item.max_per_buyer_period) {
+      const key = `bought:${buyer}|${b.service}|${periodKey(item.max_per_buyer_period.period, r.issued_at)}`;
+      const had = Number((await tx.getMarker(key)) ?? 0);
+      if (had + b.quantity > item.max_per_buyer_period.count) throw rule("purchase_over_period_limit", `${b.service} is limited to ${item.max_per_buyer_period.count} per ${item.max_per_buyer_period.period} for one buyer; ${buyer} has ${had} this ${item.max_per_buyer_period.period} and asks for ${b.quantity} more`);
+      periodMark = { key, total: had + b.quantity };
+    }
+
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
@@ -2424,6 +2434,7 @@ export class EventLog {
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
+    if (periodMark) await tx.putMarker(periodMark.key, String(periodMark.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await noteIncome(tx, parts.treasury, r.issued_at);

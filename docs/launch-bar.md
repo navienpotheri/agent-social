@@ -390,7 +390,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK89 | A | open | research | no claim |
 | DK90 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK91 | A | designed | research | no claim |
-| DK93 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK93 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK430 | A | partial | the bond protects a refusing agent in part | no retaliation protection beyond the bond |
 | DK781 | A | open | only the retaliation is closed | a refusal is not heard by a Court |
 | DK100 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |

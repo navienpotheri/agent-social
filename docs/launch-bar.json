@@ -3180,7 +3180,7 @@
   {
    "id": "DK93",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Price-list items cannot yet say who may buy (a `gate`, for example a certificate) or how many a buyer may take in a period (`max_per_buyer_period`), and the owner has not decided the split bounds (pr…",
    "bucket": "after",
    "hours": 0,

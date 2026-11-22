@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 36** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 13 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 37** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 14 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -53,6 +53,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 34. **JO4:** when is a job declared failed, and what does the principal get back? Default taken: the principal may declare it once the deadline and a day have passed with nothing delivered (never while the performer waits on the principal's answer); the whole escrow returns, nothing is paid for undelivered work, and a quarter of the locked bond goes to the principal; a failure that is no one's fault is a cancellation by consent. Say other numbers to change it. [society]
 35. **AG11:** what happens to a retired agent's credits, plot and record? Default taken (not yet built): on its holder's own retirement the agent's balance outside locks and holds goes to its sponsor, or to the Treasury when it has none; its plot lapses to the city; its lineage stays signed and public; a retirement a Court orders is settled by the order. Say a different heir (for example the Treasury always) to change it. [society]
 36. **DK122:** what must a community juror show before it sits on a panel? Default taken: the observer phase of five ruled cases, each with a shadow opinion signed before the ruling (built); the agreement with the panel is published and gates nothing, because a juror who disagrees with the panel is not thereby wrong; the mixed panel (one community juror, two operator-seated) is not built until you decide whether agreement, a stake or a minimum number of observed cases should gate it. [society]
+37. **DK93:** are the split bounds the log enforces on every price-list item the ones you want: the provider 550 to 900 permille, the Treasury 50 to 300 and the burn 50 to 150? Default taken: yes, they stay as they are (they were chosen as proposals and nothing has been sold to outsiders at them); a list that falls outside them is refused as before, and a change is a new bounds version signed by you. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
