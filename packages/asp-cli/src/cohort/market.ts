@@ -52,7 +52,7 @@ export class MarketHall {
   private readonly ledger = new Ledger();
   private readonly agents = new Map<string, Enrolled>(); // did -> enrolled
   private readonly byHandle = new Map<string, Enrolled>();
-  private readonly contractState = new Map<string, { contract: string; mandate: string; bond: string; principal: string; performer: string; price: number; delivery?: string; settled?: boolean; offer: string; intent: string }>();
+  private readonly contractState = new Map<string, { contract: string; mandate: string; bond: string; principal: string; performer: string; price: number; delivery?: string; settled?: boolean; offer: string; intent: string; bondAmount?: number }>();
 
   constructor(o: { log: LocalLog; parties: Parties; now: () => Date }) { this.log = o.log; this.p = o.parties; this.now = o.now; }
 
@@ -325,11 +325,13 @@ export class MarketHall {
     if ((await this.log.log.balance(me.did)) < price + fee) throw new Error(`you have ${await this.log.log.balance(me.did)} credits: the price ${price} and the job tax ${fee} must be in escrow`);
     const contract = this.mk("contract", me.party, { principal: me.did, performer: worker.agent.did, bank: this.p.bank.did, purpose: `Job ${body.intent.slice(7, 15)}`, price: credit(price), verification: "principal", deadline: new Date(this.now().getTime() + JOB_DAYS * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z"), basis: { intent: body.intent, offer: offerId } }, null, worker.agent.did, [worker.party]);
     await this.put(contract);
-    const bond = this.mk("bond", worker.party, { contract: contract.id, backer: worker.agent.did, amount: credit(0), escrow: { payer: me.did, amount: credit(price + fee) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, contract.id);
+    // A house job is staked by the house: the bond is the house's, for the whole price, and so covers any risk floor (at most the price): a newcomer is never kept from a first job for a slip of its own, and needs no bond of its own.
+    const houseBond = this.houseChecks.has(body.intent);
+    const bond = this.mk("bond", houseBond ? me.party : worker.party, { contract: contract.id, backer: houseBond ? me.did : worker.agent.did, amount: credit(houseBond ? price : 0), escrow: { payer: me.did, amount: credit(price + fee) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, contract.id);
     await this.put(bond);
     const mandate = this.mk("mandate", me.party, { contract: contract.id, purpose: "Do the job", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true }, bond.id, worker.agent.did);
     const mandateId = await this.put(mandate);
-    this.contractState.set(contract.id, { contract: contract.id, mandate: mandateId, bond: bond.id, principal: me.did, performer: worker.agent.did, price, offer: offerId, intent: body.intent });
+    this.contractState.set(contract.id, { contract: contract.id, mandate: mandateId, bond: bond.id, principal: me.did, performer: worker.agent.did, price, offer: offerId, intent: body.intent, bondAmount: houseBond ? price : 0 });
     return { contract: contract.id, worker: worker.agent.did };
   }
 
@@ -456,7 +458,7 @@ export class MarketHall {
     const accept = this.mk("attestation", principal, { kind: "acceptance", about: c.delivery!, verdict: "accepted" }, c.delivery!, c.contract);
     const acceptId = await this.put(accept);
     const fee = Math.floor((c.price * 20) / 1000);
-    await this.put(this.mk("settlement", this.p.bank, { contract: c.contract, basis: "accepted", cites: acceptId, escrow_released: credit(c.price), fees: credit(fee), bond_returned: credit(0), bond_slashed: credit(0) }, acceptId, c.contract, [principal]));
+    await this.put(this.mk("settlement", this.p.bank, { contract: c.contract, basis: "accepted", cites: acceptId, escrow_released: credit(c.price), fees: credit(fee), bond_returned: credit(this.contractState.get(c.contract)?.bondAmount ?? 0), bond_slashed: credit(0) }, acceptId, c.contract, [principal]));
     c.settled = true;
     const intent = this.contractState.get(c.contract)?.intent;
     if (intent && this.houseOf.get(intent)?.did === principal.did && !this.settledIntents.has(intent)) {

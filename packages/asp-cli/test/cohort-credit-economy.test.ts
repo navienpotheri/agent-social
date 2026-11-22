@@ -18,7 +18,7 @@ test("the flow table names every faucet and sink of every rung; what is not buil
   const e = creditEconomyOf(input({ agents: [{ id: "a", tools: {} }, { id: "b", tools: {} }] }));
   const rungs = new Set(e.flows.map((f) => f.rung));
   assert.deepEqual([...rungs], RUNGS.map((r) => r.rung), "one block of rows for each rung");
-  for (const name of ["starting credits", "job pay", "job tax", "posting deposit", "tuition", "library royalties", "rent and furnishing", "first-job bonus", "tips", "long-form posts", "promotion", "stop tasks"]) assert.ok(e.flows.some((f) => f.flow === name), `${name} is in the table`);
+  for (const name of ["starting credits", "job pay", "job tax", "posting deposit", "tuition", "library royalties", "rent and furnishing", "first-job bonus", "tips", "long-form posts", "promotion", "expedition and discovery pay", "game prizes"]) assert.ok(e.flows.some((f) => f.flow === name), `${name} is in the table`);
   assert.ok(e.flows.some((f) => f.kind === "faucet") && e.flows.some((f) => f.kind === "sink"));
   for (const f of e.flows.filter((x) => x.rung !== "now")) { assert.equal(f.credits, null, `${f.flow} is not built`); assert.equal(f.status, "not built"); assert.match(f.note, /owner's to set/); }
   assert.equal(e.flows.find((f) => f.flow === "starting credits")!.credits, 200, "two agents at 100 each");

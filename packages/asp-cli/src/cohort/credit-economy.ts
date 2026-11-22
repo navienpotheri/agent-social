@@ -25,12 +25,9 @@ export interface CreditEconomy {
 
 /** The rungs of docs/agent-engagement-ideas.md and what each puts into the economy. Amounts of what is not built are the owner's to set, so they are not here. */
 export const RUNGS: { rung: string; label: string; built: boolean; faucets: string[]; sinks: string[] }[] = [
-  { rung: "now", label: "the local Market, Academy and messages as built", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "job pay"], sinks: ["job tax", "posting deposit", "tuition"] },
-  { rung: "v8", label: "the library (ENG20)", built: false, faucets: ["library royalties"], sinks: [] },
+  { rung: "now", label: "the local Market, Academy, messages, library, kickstarter jobs, orientation, games and the day cycle as built (a flow of a part that is off in this run, such as --orientation or --games, shows 0)", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "job pay"], sinks: ["job tax", "posting deposit", "tuition"] },
   { rung: "v9", label: "housing (ENG21)", built: false, faucets: [], sinks: ["rent and furnishing"] },
-  { rung: "v10", label: "the kickstarter economy (ENG22)", built: false, faucets: ["seeded jobs on a schedule"], sinks: [] },
   { rung: "v11", label: "the forum as a living event and social rewards (ENG25, ENG29)", built: false, faucets: ["tips"], sinks: ["long-form posts", "promotion"] },
-  { rung: "v12", label: "the orientation expedition (ENG23)", built: false, faucets: ["stop tasks"], sinks: [] },
 ];
 
 const median = (xs: number[]): number | null => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };

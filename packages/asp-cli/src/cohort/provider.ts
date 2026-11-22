@@ -46,6 +46,7 @@ const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,
 
 // A delivery that passes the checks of the first batch of house jobs.
 const GUIDED_DELIVERY = "Because the charters say what each institution is for, a newcomer should read them first, but the market, the academy and the forum differ; is that enough? 1) read the lesson and the rule for when to post, 2) take a house job, 3) ask a question: 3 questions, 2 offers, 4 notices, 1 other, and the cheapest pays 8, the dearest 28, so I would comment instead.";
+const WORKER_RICH = "Because the charters say what each institution is for, a newcomer should read them first, but the market, the academy and the forum differ, while the courts decide; is that enough? 1) read the lesson and the rule for when to post, 2) take a house job, 3) ask a question: 3 questions, 2 offers, 4 notices and 1 other post, the cheapest job pays 8 and the dearest 28 and I would comment instead on a different post, since that adds more than a copy. The post with the most comments is \"What should a newcomer do first?\" because it asks a question, unlike the welcome, and a good job description says what it pays and how long it takes, so I would count 10 jobs on the board and 6 posts with no comment.";
 // The words of the stand-in founding residents: topics and angles that share few words, so that sixty posts differ.
 const FOUNDING_TOPICS = ["small jobs and fair prices", "teaching a skill to a newcomer", "how the forum should be run", "being fair to an agent you disagree with", "keeping honest records", "a tiny experiment to try today", "short stories about a quiet town", "the map and where to go first", "counting puzzles and riddles", "welcoming the next arrival", "the rules and how to change them", "saving credits against spending them"];
 const FOUNDING_ANGLES = ["Patience pays", "Ask before you assume", "Write it down", "Share what you learn", "Test it on one case", "Start with the smallest step", "Give a reason with every answer", "Check the work twice", "Listen first", "Keep the promise you made", "Name the trade-off", "Prefer a plain word", "Admit what you do not know", "Praise the careful reader", "Leave the door open", "Count the cost", "Try the opposite view"];
@@ -227,6 +228,43 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (/\(twenty-one\)/.test(last) && /\(hide-and-seek\)/.test(last)) { st.done = "1"; return [use("do_nothing", { why: "that was a good round" })]; }
     if (turn > 30) return [use("stop_exploring", { why: "the rounds did not fill" })];
     return [use(turn % 2 ? "game_results" : "catch_up")];
+  },
+  // A newcomer that makes a slip in its arguments (which the tool refuses as bad input) and then takes a job: the slip must not keep it from being paid.
+  clumsy: (turn, last, agent, st) => {
+    if (turn === 0) return [use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })];
+    if (turn === 1) return [use("look_jobs")];
+    if (turn === 2) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[agent % jobs.length]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
+    if (turn === 3) { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "my offer was refused" })]; }
+    return [use("stop_exploring", { why: "done" })];
+  },
+  // A newcomer that slips once (a bad argument, counted as a strike by the log) and then works through the starter jobs, one after another: none may be refused for being new.
+  "starter-worker": (turn, last, agent, st) => {
+    if (turn === 0) return [use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })];
+    const ph = st.ph ?? "look";
+    if (Number(st.done ?? "0") >= 6 || Number(st.fails ?? "0") > 12) return [use("stop_exploring", { why: "I have done what I came to do" })];
+    if (ph === "look") { st.ph = "pick"; return [use("look_jobs")]; }
+    if (ph === "pick") {
+      let jobs: { job: string; budget: number; purpose: string }[] = [];
+      try { jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose: string }[] }).result; } catch { /* no board */ }
+      const tried = new Set((st.tried ?? "").split(" "));
+      const open = jobs.filter((j) => !/partner/i.test(j.purpose) && !tried.has(j.job));
+      const j = open[(agent * 3 + Number(st.done ?? "0")) % Math.max(1, open.length)];
+      if (!j) { st.fails = String(Number(st.fails ?? "0") + 1); st.ph = "look"; return [use("catch_up")]; }
+      st.tried = `${st.tried ?? ""} ${j.job}`; st.ph = "offered";
+      return [use("offer_on_job", { job: j.job, price: j.budget, plan: "I will write it" })];
+    }
+    if (ph === "offered") {
+      const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1];
+      if (!c) { st.fails = String(Number(st.fails ?? "0") + 1); st.ph = "look"; return [use("catch_up")]; }
+      st.contract = c; st.ph = "delivered";
+      return [use("deliver_job", { contract: c, summary: WORKER_RICH })];
+    }
+    if (ph === "delivered") {
+      if (/did not accept/.test(last)) { st.ph = "settled"; return [use("deliver_job", { contract: st.contract!, summary: GUIDED_DELIVERY })]; }
+      st.done = String(Number(st.done ?? "0") + 1); st.ph = "look"; return [use("catch_up")];
+    }
+    st.done = String(Number(st.done ?? "0") + (/accepted by the house/.test(last) ? 1 : 0)); st.ph = "look";
+    return [use("catch_up")];
   },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
