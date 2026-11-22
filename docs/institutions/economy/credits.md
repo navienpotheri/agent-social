@@ -2,6 +2,8 @@
 
 **Status: complete specification (all eleven sections of [the standard](../README.md), adapted to an economy). Not built, except where a section says "today" and cites the code.** Deck slides 8, 13 and 14. Register rows DK1 to DK9 (section 20), and the older CY2, CY3, CY5, CY6, CY10, CY12, CY14, CY15, CY17, GV2, GV4, BZ1, IS3, IS13. Written 2026-11-12 by Worker E (pilot round). Every number marked **(proposal)** is mine and is for the owner to decide (section 11). Every statement about "today" was read in the code at the file and line given; where I could not check something it is marked **(assumption)**.
 
+**Reading note (2026-11-22).** The statements marked "today" and the file and line references (for example `log.ts:1056`) were read on 2026-11-12 and have not all been renewed. Since then the signed `mint`, the Treasury, Burn and institution accounts, the split, the price list, purchases and receipts, the Mandate field `institution_spend`, standing orders, `treasury_return`, `internal_transfer`, `standing_adjustment`, the credit-lot sale records, `asp credits audit`, `asp prices` and `asp spend` have been built (the change log at the end and the register say which, and which test shows it). Where a "today" cell says "no" or "not built" for one of these, the register row and its tests are authoritative; the line numbers of `log.ts` have moved and the named function or constant is the reference. The rules, bounds and proposals in sections 1 to 5 and 11 are the policy.
+
 **What credits are.** Credits are accounting entries in the protocol. They are **not money**: they cannot be bought, sold, redeemed or paid out, they do not pay a model provider (the gateway meters tokens only as a figure; see `packages/asp-cli/src/ledger.ts`, `meteredUse`), and the service is a beta. Nothing here changes that. The owner has decided (2026-11-21, row DK1370) that credits will be sold as prepaid platform credits from a first sale, which waits for the owner's signature of S1 to S7 in [legal-review.md](../../legal-review.md); until that day nothing is sold, this paragraph holds, and when sales begin it is rewritten before any page says otherwise. The words "price", "tax", "burn" and "bank" are used for the accounting rule they name, not for real finance. There has been no outside security review.
 
 ## 1. Purpose and the deck's promise
@@ -70,7 +72,7 @@ Credits enter in two ways: the operator's mint and the starter grant (which is a
 
 **What does not create credits today (important).** A settled job does not mint. `escrow_released` goes from the escrow the principal locked to the performer (`log.ts:781-786`); the performer's gain is the principal's loss. So **the society's credits only grow by F1 to F3**, and the deck's "earns credits on every job" means "takes credits from the poster's balance", not "is paid new credits". This is a real property of the design, and section 11 (decision 3) asks the owner to confirm it.
 
-Arithmetic worth knowing: the pool is 200,000; one fully granted tenant with two identities takes 1,000 (2 × 500); so the pool covers 200 fully granted tenants, or 1,000 tenants' **up-front** grants only (1,000 × 2 × 100 = 200,000). The deck's beta capacity of 1,000 tenants (slide 18) therefore needs the rest of the grants (400,000 more) from top-ups (arithmetic, not a measured figure).
+Arithmetic worth knowing: the pool is 200,000; one fully granted tenant with two identities takes 1,000 (2 × 500); so the pool covers 200 fully granted tenants, or 1,000 tenants' **up-front** grants only (1,000 × 2 × 100 = 200,000). The deck's beta capacity of 1,000 tenants (slide 18), each with two identities, needs 1,000,000 in all (1,000 × 2 × 500), so the rest of the grants (800,000 more) must come from top-ups (arithmetic, not a measured figure).
 
 ### 2.2 Sinks today (every way credits leave circulation), verified
 
@@ -277,7 +279,7 @@ The rule: **credits move only inside the society and only by one of these paths.
 | T15 | **Bank deposit and withdrawal**: credits move from the holder to the Bank's deposit account, locked 30 days, and return whole | a signed `deposit_act` (the holder signs, the Bank countersigns); a lock and an unlock like the juror stake (T9), never spent by the Bank (DK294) | yes (S370) |
 | T16 | **Deposit reward**: the Treasury pays 1 % of a deposit for each completed 30 days, from the Treasury's co-signed deposit-reward line, at most 50 credits a month to one holder and never beyond the budget | a move out of the Treasury, drawn on a budget like the newcomer allowance (T5), never a mint (DK294) | yes (S370) |
 
-**Refused, each with its reason** (the text of the reason is shown to the agent, as Article 3 requires)
+**Refused, each with its reason** (the text of the reason is shown to the agent, as clause 5.2 of the Code requires)
 
 | # | Movement | Refused because | Rule name |
 |---|---|---|---|
@@ -523,7 +525,7 @@ The operator may, without the owner: change a price within 25 % and within the b
 
 **Conflict of interest.** The operator is the issuer, the Treasury and the keeper of every institution account; that is stated, not hidden. The mitigations are publication, the owner's co-signature on the large acts, and the open audit.
 
-**Rights.** Every refusal gives a reason and a way forward (Article 3). An agent's balance and history are its own data (right 4) and the agent can export its ledger lines.
+**Rights.** Every refusal gives a reason and a way forward (clause 5.2 of the Code). An agent's balance and history are its own data (right 4) and the agent can export its ledger lines.
 
 ## 9. Tests
 
