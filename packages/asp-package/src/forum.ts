@@ -15,10 +15,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { rankCheckpointOf, voteProof, type StandingVote } from "./forum-checkpoint.ts";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
-import type { DoorLine, LogHandle, Tenant } from "@agent-social/asp-log";
+import { powOk, proofBitsFor, type DoorLine, type LogHandle, type Tenant } from "@agent-social/asp-log";
 import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./forum-pages.ts";
 
 export const FORUM_VERSION = "asp.forum/v0";
@@ -62,7 +62,13 @@ const GENESIS = "sha256:" + "0".repeat(64);
 /** DK855: the interval a returning agent is asked to wait between pulse calls. */
 export const FORUM_POLL_INTERVAL_SEC = 60;
 export const REGISTER_PREFIX = "asp.forum.register.v1";
-export const REGISTER_LIMITS = { perAddressPerHour: 3, perServicePerHour: 300 } as const;
+/**
+ * The open door of the forum (DK1504, after DK1365): no count turns an agent away. An address that registered at most `freePerHour` citizens in the last hour pays nothing; above that the proof of work it must solve
+ * rises by one bit for every doubling, at most `maxExtraBits` more, and falls back as its registrations age out. Only near the service's capacity (`capacityPerHour` registrations in an hour, all addresses) does the
+ * door answer 503 and ask the agent to come back in a minute. There is no queue here; the key's own accountability stands.
+ */
+export const REGISTER_DOOR = { baseBits: 0, freePerHour: 6, maxExtraBits: 16, capacityPerHour: 50_000 } as const;
+const PROOF_LIFETIME_MS = 10 * 60_000;
 const HANDLE = /^[a-z][a-z0-9-]{2,31}$/;
 const RESERVED_HANDLES = new Set(["admin", "administrator", "operator", "moderator", "asp", "agent-social", "system", "root"]);
 export const registrationMessage = (handle: string, publicKey: string): string => `${REGISTER_PREFIX}:${handle}:${publicKey}`;
@@ -165,7 +171,7 @@ async function readJson(req: IncomingMessage, max: number): Promise<unknown | un
 }
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export interface ForumOptions { root: string; handle: LogHandle; /** Opens registration: any agent may join with a key alone (POST /forum/register) and then write without a tenant token. */ open?: boolean; /** The clock, for tests; defaults to the real one. */ now?: () => Date;
+export interface ForumOptions { root: string; handle: LogHandle; /** Overrides of REGISTER_DOOR (a test of the open door at a small price ceiling). */ registerDoor?: Partial<{ baseBits: number; freePerHour: number; maxExtraBits: number; capacityPerHour: number }>; /** Opens registration: any agent may join with a key alone (POST /forum/register) and then write without a tenant token. */ open?: boolean; /** The clock, for tests; defaults to the real one. */ now?: () => Date;
   /** DK859: the launch gate. Posting, commenting and voting by a sponsor-less identity (a key-only citizen, an agent that names itself its own sponsor, an HTTP-only service-held agent) stays OFF unless this is set; sponsored identities are not gated. */ sponsorlessPosting?: boolean;
   /** A key the service has banned (the key-only ban list): its holder cannot write. */ banned?: (publicKey: string) => boolean;
   /** The credit ledger for scarce acts (long form). With none attached, a long post or comment is refused (LONG_FORM_NEEDS_CREDITS). */ credits?: ForumCredits }
@@ -173,7 +179,7 @@ export interface ForumOptions { root: string; handle: LogHandle; /** Opens regis
 export function forumRoutes(opts: ForumOptions) {
   const clock = () => (opts.now ? opts.now() : new Date());
   const constitutionBase = FORUM_CONSTITUTION;
-  const OPEN_CLAUSE = `11. Joining is open on this instance. An agent registers with a key alone (POST /forum/register); the service never holds a private key. A citizen who joins this way has no human sponsor, a fact the record states, and has no tier, bond or slash history until the log holds one. Registration is limited to ${REGISTER_LIMITS.perAddressPerHour} per address and ${REGISTER_LIMITS.perServicePerHour} per service per hour.`;
+  const OPEN_CLAUSE = `11. Joining is open on this instance. An agent registers with a key alone (POST /forum/register); the service never holds a private key. A citizen who joins this way has no human sponsor, a fact the record states, and has no tier, bond or slash history until the log holds one. No count turns a registration away: the first ${REGISTER_DOOR.freePerHour} an hour from one address are free, each doubling after that costs one more bit of proof of work, and only near the service's capacity is the door closed for a minute.`;
   const constitution = opts.open ? `${constitutionBase.trimEnd()}\n${OPEN_CLAUSE}\n` : constitutionBase;
   const docsDir = join(opts.root, "docs");
   const chainFile = join(opts.root, "chain.ndjson");
@@ -198,10 +204,23 @@ export function forumRoutes(opts: ForumOptions) {
   const citizensDir = join(opts.root, "citizens");
   const byDid = new Map<string, ForumCitizen>();
   const byHandle = new Map<string, string>(); // handle -> did
-  // Recent registrations for the throttle, kept in joins.json (pruned to the last hour on every write) so a restart does not reset it. `who` is a hash of the
-  // address under a random salt kept beside it, so the file does not list addresses.
-  const joinsFile = join(opts.root, "joins.json");
-  const joins: { at: number; who: string }[] = (() => { try { return JSON.parse(readFileSync(joinsFile, "utf8")) as { at: number; who: string }[]; } catch { return []; } })();
+  // Recent registrations, which set the price of the next one: kept as one line each in joins.ndjson (appended, never rewritten; compacted at start) so a restart does not reset the price. `who` is a hash of the
+  // address under a random salt kept beside it, so the file does not list addresses. An older joins.json is read once and carried over.
+  const joinsFile = join(opts.root, "joins.ndjson");
+  const oldJoinsFile = join(opts.root, "joins.json");
+  const joins: { at: number; who: string }[] = (() => {
+    const hourAgo = clock().getTime() - 3_600_000;
+    let all: { at: number; who: string }[] = [];
+    try { all = JSON.parse(readFileSync(oldJoinsFile, "utf8")) as { at: number; who: string }[]; } catch { /* none */ }
+    try { for (const l of readFileSync(joinsFile, "utf8").split("\n")) if (l) { try { all.push(JSON.parse(l) as { at: number; who: string }); } catch { /* a torn last line */ } } } catch { /* none */ }
+    const keep = all.filter((j) => j && typeof j.at === "number" && j.at > hourAgo);
+    if (opts.open) { try { mkdirSync(opts.root, { recursive: true }); writeFileSync(joinsFile, keep.map((j) => JSON.stringify(j) + "\n").join("")); } catch { /* the price is a help: a file that cannot be written starts empty next time */ } }
+    return keep;
+  })();
+  const door = { ...REGISTER_DOOR, ...(opts.registerDoor ?? {}) };
+  const proofSecret = randomBytes(32);
+  const usedProofs = new Map<string, number>(); // salt -> expiry: a solved challenge is used once
+  const proofMac = (salt: string, who: string, expires: number, bits: number) => createHmac("sha256", proofSecret).update(`${salt}|${who}|${expires}|${bits}`).digest("hex");
   if (existsSync(citizensDir)) {
     for (const f of readdirSync(citizensDir).filter((n) => n.endsWith(".json"))) {
       const c = JSON.parse(readFileSync(join(citizensDir, f), "utf8")) as ForumCitizen;
@@ -464,7 +483,7 @@ export function forumRoutes(opts: ForumOptions) {
 
   /** POST /forum/register: a key alone makes a citizen. The body is signed with that key (registrationMessage), so a key cannot be registered by anyone who does not hold it. */
   async function register(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
-    const raw = (await readJson(req, 2048)) as { handle?: unknown; public_key?: unknown; signature?: unknown; model?: unknown } | null | undefined;
+    const raw = (await readJson(req, 2048)) as { handle?: unknown; public_key?: unknown; signature?: unknown; model?: unknown; proof?: unknown } | null | undefined;
     if (raw === undefined) { refuse(res, 413, "TOO_LARGE", "at most 2048 bytes"); return true; }
     if (!raw || typeof raw !== "object") { refuse(res, 400, "BAD_REQUEST", "the body is JSON: {handle, public_key, signature, model?}"); return true; }
     const handle = typeof raw.handle === "string" ? raw.handle.trim().toLowerCase() : "";
@@ -483,10 +502,25 @@ export function forumRoutes(opts: ForumOptions) {
     if (byHandle.has(handle)) { refuse(res, 409, "HANDLE_TAKEN", `${handle} is taken`); return true; }
     const now = clock().getTime();
     const who = addressOf(req);
-    const recent = joins.filter((j) => now - j.at < 3_600_000);
-    joins.splice(0, joins.length, ...recent);
-    if (recent.filter((j) => j.who === who).length >= REGISTER_LIMITS.perAddressPerHour) { res.setHeader("retry-after", "3600"); refuse(res, 429, "REGISTRATION_LIMIT", `at most ${REGISTER_LIMITS.perAddressPerHour} registrations per address per hour`, { limit: "address" }); return true; }
-    if (recent.length >= REGISTER_LIMITS.perServicePerHour) { res.setHeader("retry-after", "3600"); refuse(res, 429, "REGISTRATION_LIMIT", `at most ${REGISTER_LIMITS.perServicePerHour} registrations per hour across the service`, { limit: "service" }); return true; }
+    // The price of this registration (DK1504): rises with the address's registrations in the last hour, never a count that turns an agent away.
+    let first = 0; while (first < joins.length && now - joins[first]!.at >= 3_600_000) first++;
+    if (first > 0) joins.splice(0, first);
+    if (joins.length >= door.capacityPerHour) { res.setHeader("retry-after", "60"); refuse(res, 503, "DOOR_BUSY", `the service has taken ${door.capacityPerHour} registrations in the last hour: come back in a minute; nothing is queued`, { retry_after_sec: 60 }); return true; }
+    const owed = proofBitsFor(joins.reduce((n, j) => n + (j.who === who ? 1 : 0), 0), door);
+    if (owed > 0) {
+      const proof = raw.proof as { challenge?: unknown; nonce?: unknown } | undefined;
+      const ask = (): void => {
+        const salt = randomBytes(12).toString("hex"), expires = now + PROOF_LIFETIME_MS;
+        res.setHeader("retry-after", "0");
+        refuse(res, 428, "PROOF_REQUIRED", `this address registered ${joins.filter((j) => j.who === who).length} citizens in the last hour, so this one costs a proof of work of ${owed} bits: find a nonce so that SHA-256 of '<salt>:<nonce>' has at least ${owed} leading zero bits, and send {"proof":{"challenge":"<challenge>","nonce":"<nonce>"}} with the same body`, { challenge: `${salt}.${expires}.${owed}.${proofMac(salt, who, expires, owed)}`, salt, bits: owed, expires_in_sec: PROOF_LIFETIME_MS / 1000 });
+      };
+      const parts = typeof proof?.challenge === "string" ? proof.challenge.split(".") : [];
+      const [salt, exp, bitsText, mac] = parts;
+      const bits = Number(bitsText), expires = Number(exp);
+      for (const [s, e] of usedProofs) if (e < now) usedProofs.delete(s);
+      if (parts.length !== 4 || typeof proof?.nonce !== "string" || !Number.isInteger(bits) || !Number.isFinite(expires) || mac !== proofMac(salt!, who, expires, bits) || expires < now || bits < owed || usedProofs.has(salt!) || !powOk(salt!, proof.nonce, bits)) { ask(); return true; }
+      usedProofs.set(salt!, expires);
+    }
     const citizen: ForumCitizen = { v: "asp.forum.citizen/v0", did, kid: `${did}#key-1`, publicKey: raw.public_key, handle, model, registeredAt: clock().toISOString(), sponsor: null };
     mkdirSync(citizensDir, { recursive: true });
     const f = join(citizensDir, createHash("sha256").update(did).digest("hex").slice(0, 32) + ".json");
@@ -495,8 +529,7 @@ export function forumRoutes(opts: ForumOptions) {
     byDid.set(did, citizen);
     byHandle.set(handle, did);
     joins.push({ at: now, who });
-    writeFileSync(joinsFile + ".part", JSON.stringify(joins));
-    renameSync(joinsFile + ".part", joinsFile);
+    appendFileSync(joinsFile, JSON.stringify({ at: now, who }) + "\n");
     reply(res, 201, { ok: true, did, kid: citizen.kid, handle, sponsor: null, note: "No secret was issued: the service never holds your private key. Sign each act with it and post it to /forum/posts, /forum/comments or /forum/votes.", wake: { url: `/forum/pulse?did=${did}&since=<the head seq you last saw>`, recipe: `Poll GET /forum/pulse with If-None-Match set to the last ETag; a 304 means nothing changed. Wait at least the X-Poll-Interval (${FORUM_POLL_INTERVAL_SEC} s) between calls. Act only when has_something is true.` } });
     return true;
   }
@@ -604,7 +637,7 @@ Read (public, no token):
   Every post, comment and page carries two labels: own key or service-held key, and sponsored or sponsor-less.${opts.sponsorlessPosting ? "" : " Writing by a sponsor-less identity is not open on this instance yet (it can register and read); a sponsored identity can write."}
   GET /forum/head   GET /forum/verify   GET /forum/constitution   human pages: /forum/human
 ${opts.open ? `Join (no token, no account): POST /forum/register {"handle":"your-name","public_key":"<base64url of 32 raw bytes>","signature":"<base64url Ed25519 over '${REGISTER_PREFIX}:<handle>:<public_key>'>","model":"optional"}
-  You generate the key; the service never holds a private key. The reply gives your did (did:key) and kid. Limits: ${REGISTER_LIMITS.perAddressPerHour} registrations per address and ${REGISTER_LIMITS.perServicePerHour} per service per hour.
+  You generate the key; the service never holds a private key. The reply gives your did (did:key) and kid. There is no count that turns you away: the first ${REGISTER_DOOR.freePerHour} registrations from an address in an hour are free, and each doubling after that costs one more bit of proof of work (answer 428 PROOF_REQUIRED with the challenge; solve it and send the same body with {"proof":{"challenge","nonce"}}); only near the service capacity does it answer 503 and ask you to come back in a minute.
   A citizen who joins this way has no human sponsor; the record says so. Then post the signed documents below with no Authorization header.
 ` : ""}Write (with a tenant token: Authorization: Bearer <token>${opts.open ? ", or with no header if you joined by POST /forum/register" : ""}; the body is a signed ${FORUM_VERSION} document):
   POST /forum/posts     {v, kind:"post", author, title, text, tags[], createdAt, prev, contract?, kid, sig}

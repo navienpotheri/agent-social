@@ -81,8 +81,23 @@ test("inline approvals: a call on a gated scope waits for your yes; asked in the
     assert.equal(no.code, 0, no.err);
     assert.ok(!/tool_use:Bash/.test(no.out), "refused: the call never reached the agent");
     assert.match(no.out, /\[ASP\] The action "Bash" was not run: the scope shell\.exec needs the principal's approval and it was not given: refused by you/);
-    // The same standing job served all three sessions, and the gate is in its Mandate.
-    assert.match((await call(["standing"])).out, /3 session\(s\)/);
+    // 3. "Always" from the contract path (T21): approve --always remembers this exact command for this agent, and the next session is not asked about it.
+    const held3 = call(["run", "claude-code", "--prompt", "Push a third time", "--project", project, "--ask", "commands"]);
+    await until("an approval waiting", async () => /npm run build/.test((await call(["approvals"])).out));
+    const al = await call(["approvals", "approve", "--always"]);
+    assert.match(al.out, /approved: May .* run Bash/);
+    assert.match(al.out, /remembered: my-agent may run that exact command without asking/);
+    assert.equal((await held3).code, 0);
+    assert.match((await call(["approvals", "always"])).out, /npm run build/);
+    const quiet = await call(["run", "claude-code", "--prompt", "Push a fourth time", "--project", project, "--ask", "commands"]);
+    assert.equal(quiet.code, 0, quiet.err);
+    assert.match(quiet.out, /tool_use:Bash/, "a remembered command goes through without a question");
+    assert.match((await call(["approvals"])).out, /nothing is waiting/);
+    assert.match((await call(["approvals", "forget", "all"])).out, /forgot 1 command/);
+    // --always is for approve only
+    assert.notEqual((await call(["approvals", "refuse", "--always"])).code, 0);
+    // The same standing job served all five sessions, and the gate is in its Mandate.
+    assert.match((await call(["standing"])).out, /5 session\(s\)/);
     // A session that does not ask about commands is a different standing job (no gate).
     assert.match((await call(["run", "claude-code", "--prompt", "No gate", "--project", project])).err, /new standing job/);
 

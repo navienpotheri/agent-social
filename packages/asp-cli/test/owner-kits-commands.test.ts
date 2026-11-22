@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8");
-const KITS = ["docs/owner-sign-kit.md", "docs/owner-live-block.md", "docs/live-check-kit.md", "docs/incident-drill.md"].filter((p) => existsSync(new URL(p, root)));
+const KITS = ["docs/owner-sign-kit.md", "docs/owner-live-block.md", "docs/live-check-kit.md", "docs/incident-drill.md", "docs/tonight.md"].filter((p) => existsSync(new URL(p, root)));
 
 test("every command in the owner's kits is a documented command, and every flag is one the CLI knows", async () => {
   const { main } = await import("../src/cli.ts");

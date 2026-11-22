@@ -1,4 +1,4 @@
-// The owner's runbook for the live run of 2026-11-23 (docs/live-run-plan.md): every command it tells the owner to type is a documented command (the preflight, still to be built, is the one named exception),
+// The owner's runbook for the live run of tonight, 2026-11-22 (docs/live-run-plan.md): every command it tells the owner to type is a documented command (the preflight, still to be built, is the one named exception),
 // every file it links exists, every row it names is a register row, and it keeps the key out of the repository and states the cost cap, the stop command and the results template.
 import { test } from "node:test";
 import assert from "node:assert/strict";

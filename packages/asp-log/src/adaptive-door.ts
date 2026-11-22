@@ -31,6 +31,12 @@ export type Admission =
   | { state: "breaker"; retryAfterSec: number };
 export type Poll = { state: "ready" } | { state: "waiting"; position: number; etaSec: number } | { state: "unknown" };
 
+/** The work an address owes after `count` admissions in the last hour: the base cost, nothing more up to `freePerHour`, then one bit for every doubling, at most `maxExtraBits` more (DK1365, DK1504). */
+export function proofBitsFor(count: number, o: { baseBits: number; freePerHour: number; maxExtraBits: number }): number {
+  const extra = count < o.freePerHour ? 0 : Math.min(o.maxExtraBits, Math.floor(Math.log2(count / o.freePerHour)) + 1);
+  return o.baseBits + extra;
+}
+
 interface Waiting<T> { id: string; address: string; at: number; payload: T }
 const HOUR = 3_600_000, MINUTE = 60_000;
 
@@ -55,11 +61,7 @@ export class AdaptiveDoor<T = unknown> {
   }
 
   /** The proof-of-work bits this address must solve now. */
-  bitsFor(address: string): number {
-    const n = this.count(address);
-    const extra = n < this.o.freePerHour ? 0 : Math.min(this.o.maxExtraBits, Math.floor(Math.log2(n / this.o.freePerHour)) + 1);
-    return this.o.baseBits + extra;
-  }
+  bitsFor(address: string): number { return proofBitsFor(this.count(address), this.o); }
 
   private slots(): number { this.recent = this.recent.filter((t) => t > this.now() - MINUTE); return Math.max(0, this.o.drainPerMinute - this.recent.length); }
   /** Records an admission: the address's count and the minute's. */

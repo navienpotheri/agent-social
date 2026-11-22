@@ -29,7 +29,8 @@ const WEB = new Set(["web_fetch", "webfetch", "fetch", "web_search", "websearch"
 const NO_SCOPE = new Set(["todowrite", "todo_write", "exitplanmode", "update_plan", "think", "task_complete", "finish"]);
 
 /** The command text a shell-like tool call carries. */
-export function commandOf(args: Record<string, unknown>): string | undefined {
+export function commandOf(argsIn: Record<string, unknown>): string | undefined {
+  const args = argsIn && typeof argsIn === "object" ? argsIn : {};
   for (const k of ["command", "cmd", "CommandLine", "command_line", "script", "input", "code"]) {
     const v = args[k];
     if (typeof v === "string" && v.trim()) return v;

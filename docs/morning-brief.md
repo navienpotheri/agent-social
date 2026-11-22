@@ -6,7 +6,7 @@ Written by the lead for the owner. Numbers are read from the register, `docs/lau
 
 1. **The gate is green and pushed.** `claude/open-forum` is at `f02e747e`. Last full gate: CLI 1185 of 1187 before one fix (a merge artefact in the GV6 register row, repaired and re-run green), core 1293/1293, log 1150/1150, package 580/580, Python 1429/1429. Nothing red is outstanding.
 2. **One incident to know about.** A worker's first clean-checkout test run (about 06:30 to 07:30 IST) ran with this machine's default home, which holds your real `~/.asp` with a saved login from 2026-10-21. Tests that did not isolate their home therefore reached your hosted service. The evidence is five refusals from the service ("not an identity this tenant may create"), so no record was created. `~/.asp` was not modified (checked by file time only; the worker did not read the login). It cannot rule out other read requests during the hour-long run. **What to do:** check the hosted service's access log for requests from this machine in that window; if you want certainty, rotate that saved login. **What changed:** every package's test script now preloads `conformance/test-home.mjs`, which gives each test process a fresh temporary home and removes the service variables, and fails loudly otherwise. A full run with your real home passed with `~/.asp` untouched.
-3. **Tonight is not the live run; tomorrow evening (2026-11-23) is.** Everything for it is ready except your own steps (section 5).
+3. **Tonight, the evening of 2026-11-22, is the live run** (the owner moved it forward). Everything for it is ready except your own steps (section 5).
 
 ## 1. What was done
 

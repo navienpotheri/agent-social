@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
+  "must": 63,
   "withdraw": 102,
   "after": 320,
-  "total": 486
+  "total": 485
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 301.2,
  "entries": [
   {
    "id": "D3",
@@ -930,7 +930,7 @@
   },
   {
    "id": "T3",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open Checkpoint at a time; it is untested",
    "bucket": "must",
@@ -941,7 +941,7 @@
   },
   {
    "id": "T4",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "When the service is down or there is no network, there was no defined behaviour and no local-only mode, which matters at a venue with poor wifi",
    "bucket": "must",
@@ -953,7 +953,7 @@
   {
    "id": "T5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (vectors, running your own log, adding an adapter), and neither SDK is published as a package",
    "bucket": "after",
    "hours": 0,
@@ -1004,18 +1004,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate and refusals, whether it adapts or loops, whether its identity is stable across sessions, m…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "T11",
-   "pri": "B",
-   "status": "open",
-   "gap": "The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model that produced it, and a recipient cannot verify its origin without trusting the producer",
    "bucket": "after",
    "hours": 0,
    "size": "",
@@ -1086,7 +1074,7 @@
   },
   {
    "id": "T21",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "A gated job under a contract is not yet fair or light on the person: ~~the hook asks about every shell command~~ (fixed: under a contract a gate on shell commands now asks about the risky ones by def…",
    "bucket": "must",
@@ -1161,14 +1149,14 @@
   },
   {
    "id": "T32",
-   "pri": "B",
+   "pri": "?",
    "status": "open",
    "gap": "`asp today` (T14) shows the day from this machine's session index and run logs, and does not yet show: how long approvals took to answer (the median and the slowest: needs the Checkpoints' times from…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -1370,7 +1358,7 @@
   },
   {
    "id": "E5",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Only `asp gateway` runs keep a run log. `asp run` (Claude Code, Codex, Antigravity, OpenHands through their own adapters) and orchestrated runs do not, so the mail would have nothing to show for them",
    "bucket": "must",
@@ -1405,7 +1393,7 @@
   },
   {
    "id": "E8",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The end-of-Mandate mail and the dashboard do not exist yet; the run log has no reader for a person",
    "bucket": "must",
@@ -2298,15 +2286,16 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "US7",
-   "pri": "?",
+   "id": "DK1800",
+   "pri": "B",
    "status": "partial",
-   "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
+   "gap": "The beta has the five Mandate presets and no more for a person who is not an expert: no written tutorials or worked examples for each kind of work, no help text in languages other than English, and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "safe Mandate presets for coding, research and writing"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "US8",
@@ -2384,7 +2373,7 @@
   {
    "id": "BZ2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The open-source project has no community plan: contribution rules, governance of the specification, a licence for the city's content and a roadmap others can follow and join",
    "bucket": "after",
    "hours": 0,
@@ -3637,7 +3626,7 @@
   },
   {
    "id": "DK241",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The telemetry safeguards are tested as units, not yet wired into a live run: the gateway does not yet read the Mandate's `telemetry` field and feed the Collector from real model replies and tool call…",
    "bucket": "must",
@@ -4951,7 +4940,7 @@
   },
   {
    "id": "DK1345",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The journey view (DK1300) shows what the log and the forum record. It does not yet show the agent's reasoning traces, goals and beliefs, its exploration of worlds and expeditions, direct messages bet…",
    "bucket": "must",
@@ -5315,7 +5304,7 @@
   {
    "id": "DK1504",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The forum's own open registration still has hard counts: 3 an hour per address and 300 an hour in all (REGISTER_LIMITS in packages/asp-package/src/forum.ts).",
    "bucket": "withdraw",
    "hours": 0,
@@ -5365,7 +5354,7 @@
   },
   {
    "id": "DK1359",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
    "bucket": "must",
@@ -5398,7 +5387,7 @@
   },
   {
    "id": "DK1364",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Personal agents at small scale are not verified end to end: a person using one of the popular personal-agent runtimes should be able to bring their agent into the protocol and the society, and nobody…",
    "bucket": "must",
@@ -5453,7 +5442,7 @@
   },
   {
    "id": "DK1373",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "An enterprise cannot provision or deprovision its people and agents from its own identity system: no just-in-time provisioning from single sign-on, no SCIM-style feed, and leaving staff do not suspen…",
    "bucket": "must",
@@ -5464,7 +5453,7 @@
   },
   {
    "id": "DK1374",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "An enterprise cannot export its audit trail: no log export in a standard format, no scheduled file or API for its own security tools.",
    "bucket": "must",
@@ -5690,7 +5679,7 @@
   },
   {
    "id": "DK1716",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Outbound secrets and personal data are not scanned at the gateway by content. What exists: the run log redacts the secrets it writes (`redactSecrets`, E2), the gateway refuses reading or sending a se…",
    "bucket": "must",
@@ -5737,7 +5726,7 @@
   },
   {
    "id": "DK1727",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The documents the owner reads and the documents the public reads have not had an editorial pass. The owner (2026-11-21): they \"still need editing before they can go live, but they are ok for now, and…",
    "bucket": "must",

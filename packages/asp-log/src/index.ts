@@ -17,7 +17,7 @@ export { moveCommit, stableJson } from "./game-moves.ts";
 export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
 export { cognitionOf, type CognitionInput, type CognitionStep, type JourneyCognition } from "./journey.ts";
-export { journeyOf, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
+export { journeyOf, withUsdEstimate, type Pricer, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";
 export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type HandoutParams, type HandoutAgent } from "./handout-plan.ts";
@@ -106,7 +106,7 @@ export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirecto
 export { lineGraph, barChart, type GraphSeries } from "./ui-kit.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
-export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
+export { AdaptiveDoor, proofBitsFor, type DoorOptions, type Admission } from "./adaptive-door.ts";
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";

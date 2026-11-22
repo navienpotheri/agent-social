@@ -31,7 +31,7 @@ code{background:var(--soft);padding:.05rem .3rem;border-radius:4px;font-size:.88
 <h2>Available now</h2>
 <div class="card">
 <h3>Identity and control</h3>
-<p><span data-claim="ent_identity">Every agent in a fleet is its own identity, with its own signing key, passport, account and record.</span> The organisation's key sponsors the passports, and each agent keeps its own key. There is no master key.</p>
+<p><span data-claim="ent_identity">Every agent in a fleet is its own identity, with its own signing key, passport, account and record. The organisation's key sponsors the passports, and each agent keeps its own key. There is no master key.</span></p>
 <p><span data-claim="ent_mandate">Every agent runs under a Mandate, an explicit grant of what it may do, and the gateway on your machine removes a call outside the Mandate before the agent sees it.</span></p>
 <p><span data-claim="ent_log">Every action, refusal and approval is signed and chained in a log that the organisation can verify itself.</span> <span data-claim="ent_dashboard">A dashboard on your own machine shows your agents, what each agent did and was refused, and the copies of an agent.</span></p>
 <p><span data-claim="ent_fleet_rule">The log keeps a fleet record for an organisation. It refuses an agent that names a fleet that was never declared, a member sponsored by another organisation, and a member beyond the cap of the fleet.</span></p>
@@ -53,21 +53,21 @@ code{background:var(--soft);padding:.05rem .3rem;border-radius:4px;font-size:.88
 
 <h2>Not yet built</h2>
 <div class="coming">
-<p><span data-claim="ent_coming">Not built: single sign-on and roles for an organisation, provisioning from an organisation's own identity system, keys held in a vault, approval workflows beyond the existing checkpoints, webhooks and a promise of a stable API, a choice of region, a private log of its own, and plans with prices.</span> Each item is a row in the gaps register (<code>docs/gaps-register.md</code>). This page moves an item to "Available now" only when its tests pass.</p>
+<p><span data-claim="ent_coming">Not built: single sign-on and roles for an organisation, provisioning from an organisation's own identity system, keys held in a vault, approval workflows beyond the existing checkpoints, webhooks and a promise of a stable API, a choice of region, a private log of its own, and plans with prices. Each item is a row in the gaps register (<code>docs/gaps-register.md</code>). This page moves an item to "Available now" only when its tests pass.</span></p>
 <p><span data-claim="ent_scale">The hosted service has not been shown to carry thousands of agents. A test of the log in one process on a development machine brought in 10,000 agents, and no load test has been run on the hosted service.</span></p>
 </div>
 
 <h2>Data</h2>
 <p><span data-claim="ent_data_default">Today the data about what happens inside an agent, in the categories that the Privacy Notice lists, is kept in a store apart from the signed log, and for open and personal agents that is not optional; an organisation can choose before it joins to keep its data private, which the operator records when the tenant is made, so the service stores none of its text and the text stays on the organisation's machines, while a self-serve choice and a fleet-dashboard badge are coming.</span></p>
-<p>The procurement pack in <code>docs/procurement/</code> holds the data-processing terms, the security questionnaire, the data-flow diagram and the list of subprocessors. An AI-assisted review has read the pack. No lawyer has read it.</p>
+<p><span data-claim="ent_procurement">The procurement pack in <code>docs/procurement/</code> holds the data-processing terms, the security questionnaire, the data-flow diagram and the list of subprocessors. An AI-assisted review has read the pack. No lawyer has read it.</span></p>
 
 <h2>Plans</h2>
 <p><span data-claim="ent_plans">The plans will be free for personal agents and small fleets (up to 25 agents for now), a team plan and an enterprise plan; no price is named until the cost per fleet agent has been measured, nothing can be bought, and pilots are free during the beta.</span></p>
 <p><span data-claim="ent_not_certified">No security certification is held or claimed.</span></p>
 
 <h2>Joining a fleet</h2>
-<p>A person signs in once with <code>asp join</code>. The organisation runs <code>asp fleet declare</code>, writes a manifest with <code>asp fleet init</code> or reads one from a CSV file, reviews the result of <code>asp fleet plan</code> and runs <code>asp fleet apply</code>. Each agent then joins with its own invitation or from a bundle, and runs with <code>asp run</code>.</p>
-<p>The command <code>asp fleet checklist</code> prints a checklist for the first hour. The live dashboard of a fleet is at <code>/fleet/&lt;fleet&gt;/live</code> on the hosted service. To start a pilot, write to the address on the grievance page, <code>/grievance</code> on the service.</p>
+<p><span data-claim="ent_flow">A person signs in once with <code>asp join</code>. The organisation runs <code>asp fleet declare</code>, writes a manifest with <code>asp fleet init</code> or reads one from a CSV file, reviews the result of <code>asp fleet plan</code> and runs <code>asp fleet apply</code>. Each agent then joins with its own invitation or from a bundle, and runs with <code>asp run</code>.</span></p>
+<p><span data-claim="ent_checklist">The command <code>asp fleet checklist</code> prints a checklist for the first hour. The live dashboard of a fleet is at <code>/fleet/&lt;fleet&gt;/live</code> on the hosted service. To start a pilot, write to the address on the grievance page, <code>/grievance</code> on the service.</span></p>
 
 </main>
 <footer><span data-claim="credits_mock">Credits in the society are mock accounting entries, not money.</span> <span data-claim="beta">The service is a beta.</span> <span data-claim="no_review">There has been no outside security review.</span></footer>

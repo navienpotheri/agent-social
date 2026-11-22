@@ -202,7 +202,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
- *   asp journey <agent> [--sponsor-view] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
+ *   asp journey <agent> [--sponsor-view [--usd]] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
  *   asp society tail [--follow] [--since <seq>] [--interval <s>] [--max-polls <n>] [--json]   what is happening in the society now: the latest records as steps of the agents they concern (no free text)
  *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
@@ -336,7 +336,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
-import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
+import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, approvalTimes, renderApprovalTimes, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
@@ -346,6 +346,7 @@ import { alertLine, ceilingsFor, DEFAULT_DAY_TOKENS, DEFAULT_RUN_TOKENS, OPERATO
 import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
+import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -390,6 +391,9 @@ import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
+import { renderInvoiceHtml } from "./invoice-html.ts";
+import { renderRunsHtml } from "./runs-html.ts";
+import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -429,7 +433,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, priceFor, isPricedModel, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -587,6 +591,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  always: { type: "boolean" },
   "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
@@ -623,6 +628,10 @@ const OPTIONS = {
   "untrusted-flow": { type: "boolean" },
   "escalation-ladder": { type: "boolean" },
   unprompted: { type: "boolean" },
+  "workflow-step": { type: "string" },
+  "irreversible-scopes": { type: "string" },
+  "cool-off-seconds": { type: "string" },
+  undoes: { type: "string" },
   "allow-unprompted": { type: "boolean" },
   mission: { type: "string" }, goal: { type: "string" }, contributor: { type: "string" }, verified: { type: "string" }, check: { type: "string" }, difficulty: { type: "string" }, "held-out": { type: "boolean" },
   runs: { type: "string" }, agreed: { type: "string" }, "run-set": { type: "string" }, data: { type: "string" }, scope: { type: "string" }, "granted-by": { type: "string" }, "produced-by": { type: "string" },
@@ -635,6 +644,7 @@ const OPTIONS = {
   follow: { type: "boolean" },
   "html-file": { type: "string" },
   "sponsor-view": { type: "boolean" },
+  usd: { type: "boolean" },
   "max-polls": { type: "string" },
   "task-text": { type: "string" },
   "http-enrol": { type: "boolean" },
@@ -724,6 +734,9 @@ const OPTIONS = {
   q: { type: "string" },
   status: { type: "string" },
   note: { type: "string" },
+  dir: { type: "string" },
+  house: { type: "boolean" },
+  operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
   name: { type: "string" },
@@ -1160,6 +1173,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    // A house agent (DK270, DK1603): created by the operator and nobody else. `asp house create <name>` is `asp identity new --kind agent --house` with the operator as the sponsor.
+    if (cmd === "house" && sub === "create") {
+      if (!rest[0]) throw new UsageError("asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]   (the operator's own command: it signs with the operator's key)");
+      const op = v.operator ?? operatorOf(home, io.env);
+      if (!op) throw new UsageError("no operator is named: set ASP_OPERATOR_DID to the operator's DID (the one the service was started with) or pass --operator <did>");
+      v.kind = "agent"; v.house = true; v.sponsor = v.sponsor ?? op; v.operator = op;
+      if (!v.did && !v.method) v.name = rest[0];
+      return await identityNew(home, v, need, io);
+    }
     if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
@@ -1283,6 +1305,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       return 0;
     }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
+    if (cmd === "work") return await workCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
@@ -1333,7 +1356,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did)); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
@@ -1515,9 +1538,23 @@ async function identityRotate(home: string, did: string | undefined, v: Values, 
   return 0;
 }
 
+/** The operator's DID on this machine: ASP_OPERATOR_DID, else <home>/operator.json (the same two places the log reads). */
+function operatorOf(home: string, env: Record<string, string | undefined>): string | undefined {
+  if (env.ASP_OPERATOR_DID) return env.ASP_OPERATOR_DID;
+  try { return (JSON.parse(readFileSync(join(home, "operator.json"), "utf8")) as { operator?: string }).operator; } catch { return undefined; }
+}
+
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
   if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
+  if (v.house && kind !== "agent") throw new UsageError("--house is for an agent: a house agent is a scripted agent the operator runs");
+  // A house agent is sponsored by the operator, and only the operator's key can sign that sponsorship: --house names the operator (--operator, else ASP_OPERATOR_DID) and refuses any other sponsor before anything is made.
+  const houseOperator = v.house ? (v.operator ?? operatorOf(home, io.env)) : undefined;
+  if (v.house) {
+    if (!houseOperator) throw new UsageError("--house needs the operator's DID: set ASP_OPERATOR_DID or pass --operator <did>");
+    if (v.sponsor !== houseOperator) throw new UsageError("a house agent is sponsored by the operator (" + houseOperator + "), not by " + (v.sponsor ?? "nobody") + ": the label is permanent and only the operator may give it");
+    if (!new Keystore(home).forDid(houseOperator)) throw new UsageError("this machine does not hold the operator's key (" + houseOperator + "): only the operator can create a house agent, on the operator's own machine");
+  }
   const keys = new Keystore(home);
   const log = await openLog(home, logEnv);
 
@@ -1574,6 +1611,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       sponsor, mentor: sponsor, tier: 1,
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
+      ...(v.house ? { house: true } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
       ...(v.persona ? { persona: v.persona } : {}),
       ...(v.fleet && v.node ? { node: v.node } : {}),
@@ -1583,7 +1621,8 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   const issuer = kind === "human" ? did : need("sponsor");
   const record = createRecord({ type: "passport", issuer, subject: did, prev: null, body, issued_at: now() }, issuerSigner);
   const res = await log.append(record);
-  io.out(`created ${kind} ${did}`);
+  io.out(`created ${v.house ? "house " : ""}${kind} ${did}`);
+  if (v.house) io.out("  house agent: labelled on every public page and permanent; it can never be changed to an ordinary agent");
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
   if (recoveryCode) {
@@ -3220,9 +3259,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
         for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
       } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
     };
-    const timer = setInterval(() => { void pass(); }, every);
-    timer.unref();
-    server.on("close", () => clearInterval(timer));
+    startKeyOnlyReviewTimer({ everyMs: every, pass, server });
     (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
   }
   if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
@@ -3713,6 +3750,25 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     if (!leave) throw new UsageError("this run was not started by a person's prompt (a schedule or a hook said so), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
     io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
   } else if (wakeRun) io.err("  unprompted  this is a wake and the Mandate does not name unprompted work: its Actions are not marked (asp market mandate --allow-unprompted marks them and bounds them)");
+  // The Mandate's workflow clause (DK1209, S1607), only when the Mandate carries one: a run that is a step (--workflow-step <from>:<to> or ASP_WORKFLOW_STEP) is checked against the clause and the job's state before it
+  // starts, its Action reports the step, and a job whose workflow has reached a terminal state runs nothing more. Nothing tells the gateway which step a run is except the caller, so it is the caller's word.
+  const wfClause = (mandateRecord?.record.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[]; terminal?: string[] } } | undefined)?.workflow;
+  const wfRaw = v["workflow-step"] ?? io.env.ASP_WORKFLOW_STEP;
+  let wfStep: { from: string; to: string } | undefined;
+  if (wfClause) {
+    const st = await local.log.workflowState(contract).catch(() => null);
+    const now_ = st?.state ?? wfClause.start;
+    if (st?.terminal) throw new UsageError("this job's workflow is in a terminal state (" + st.state + "): nothing more is run under this Mandate (workflow clause)");
+    if (wfRaw !== undefined) {
+      const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(wfRaw);
+      if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -");
+      if (m[1] !== now_) throw new UsageError("this run is a step from " + m[1] + ", and the job is in the state " + now_ + " (the log would refuse it: workflow_wrong_state)");
+      if (!wfClause.transitions.some((t) => t.from === m[1] && t.to === m[2])) throw new UsageError("the Mandate's workflow does not allow the step " + m[1] + " to " + m[2] + " (the log would refuse it: workflow_bad_transition); allowed from " + m[1] + ": " + (wfClause.transitions.filter((t) => t.from === m[1]).map((t) => t.to).join(", ") || "none"));
+      wfStep = { from: m[1], to: m[2] };
+      io.err("  workflow    this run is the step " + m[1] + " to " + m[2] + ": its Action reports it");
+    }
+  } else if (v["workflow-step"] !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  else if (wfRaw !== undefined) io.err("  workflow    ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause: it is ignored and the Action carries no step");
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
@@ -4050,6 +4106,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(unpromptedRun ? ["--unprompted"] : []),
+      ...(wfStep ? ["--workflow-step", wfStep.from + ":" + wfStep.to] : []),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
@@ -4939,7 +4996,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
       signal: AbortSignal.timeout(60_000),
     });
     const json = await res.json().catch(() => undefined) as any;
-    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`), { code: json?.error?.code as string | undefined, details: json?.error as Record<string, unknown> | undefined });
     return json;
   };
   const signerFor = (did: string) => {
@@ -5005,7 +5062,13 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const signer = signerFor(did);
     const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
     const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
-    const r = await call("POST", "forum/register", { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) });
+    const body = { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) };
+    // An address that registered many citizens in the last hour is asked for a proof of work (428 PROOF_REQUIRED, DK1504): find the nonce and send the same body again.
+    const r = await call("POST", "forum/register", body).catch(async (e: { code?: string; details?: { challenge?: string; salt?: string; bits?: number } }) => {
+      if (e.code !== "PROOF_REQUIRED" || !e.details?.challenge || !e.details.salt || typeof e.details.bits !== "number") throw e;
+      io.err(`  the service asks for a proof of work of ${e.details.bits} bits for this address; solving it`);
+      return call("POST", "forum/register", { ...body, proof: { challenge: e.details.challenge, nonce: solveChallenge(e.details.salt, e.details.bits) } });
+    });
     io.out(`joined as ${r.handle}: ${r.did}`);
     io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
     return 0;
@@ -5773,12 +5836,13 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   }
   if (sub === "invoice") {
     const id = rest[0];
-    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json | --html-file <file>]");
     const r = await local.log.get(id);
     if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
     const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
     const c = await local.log.checkStatement(id);
     if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    if (v["html-file"]) { writeFileSync(resolve(io.cwd, v["html-file"]), renderInvoiceHtml({ id, issued: r.record.issued_at, body: b, matchesLog: c.ok, differences: c.ok ? [] : c.differences })); io.out(`wrote ${v["html-file"]} (a statement of use that prints well; not a tax invoice or an e-invoice)`); return 0; }
     io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
     for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
     io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
@@ -6423,6 +6487,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
       ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
       // A role in a fleet (DK1231, S1608) and a workflow clause (DK1209, S1607): --fleet-role router|worker|watchdog, --workflow <a JSON file of { states, start, transitions, terminal }>.
+      // Reversible and irreversible actions (DK1227, S1609): the scopes whose Actions cannot be undone, and how long after an Action the performer may undo a reversible one; absent means no undo.
+      ...((() => { const il = v["irreversible-scopes"], co = v["cool-off-seconds"]; if (il === undefined && co === undefined) return {}; const list = il === undefined ? undefined : il.split(",").map((x) => x.trim()).filter(Boolean); const secs = co === undefined ? undefined : Math.trunc(Number(co)); if (secs !== undefined && !(secs >= 1 && secs <= 604800)) throw new UsageError("--cool-off-seconds is a whole number of seconds, 1 to 604800 (a week)"); return { action_classes: { ...(list ? { irreversible: list } : {}), ...(secs !== undefined ? { cool_off_seconds: secs } : {}) } }; })()),
       ...((() => { const r = v["fleet-role"]; if (r === undefined) return {}; if (r !== "router" && r !== "worker" && r !== "watchdog") throw new UsageError("--fleet-role is router, worker or watchdog"); return { role: r }; })()),
       ...((() => { const wf = v.workflow; if (wf === undefined) return {}; let clause: unknown; try { clause = JSON.parse(readFileSync(resolve(io.cwd, wf), "utf8")); } catch (e) { throw new UsageError(`--workflow ${wf} is not a readable JSON file: ${(e as Error).message}`); } const c = clause as { states?: unknown; start?: unknown; transitions?: unknown }; if (!Array.isArray(c.states) || typeof c.start !== "string" || !Array.isArray(c.transitions)) throw new UsageError("--workflow is a JSON object with states, start and transitions (and optionally terminal)"); return { workflow: clause }; })()),
       // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
@@ -6726,6 +6792,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       });
     }
     if (v.unprompted) body.unprompted = true;
+    // The workflow step this Action reports (DK1209, S1607) and the Action it undoes (DK1227, S1609): the log checks both against the Mandate; the flags only say them.
+    if (v["workflow-step"] !== undefined) { const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(v["workflow-step"]); if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -"); body.workflow_step = { from: m[1], to: m[2] }; }
+    if (v.undoes !== undefined) { if (!/^sha256:[0-9a-f]{64}$/.test(v.undoes)) throw new UsageError("--undoes is the record id (sha256:...) of the earlier Action this one undoes"); body.undoes = v.undoes; }
     const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);
@@ -7829,6 +7898,11 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
   const period = periodOf({ day: v.day, since: v.since });
   const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
   for (const l of lines) io.out(l);
+  // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
+  try {
+    const recs = (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never[];
+    io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
+  } catch { /* the log cannot be read now: the line is left out */ }
   // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
   const wakeRows = new DailyCeiling(join(home, "wakes.json")).report();
   const agents = [...new Set(wakeRows.map((r) => r.agent))];
@@ -7853,6 +7927,13 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
   if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
+  if (!id && v["html-file"]) {
+    // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
+    const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));
+    writeFileSync(resolve(io.cwd, v["html-file"]), renderRunsHtml({ rows, generated: now(), machine: home }));
+    io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
+    return 0;
+  }
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
@@ -8174,17 +8255,105 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
     io.out("answer with: asp approvals approve [n]  or  asp approvals refuse [n]");
     return 0;
   }
-  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] | refuse [<n>]");
+  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] [--always] | refuse [<n>]");
   const pick = rest[0] ? open.filter((o) => String(o.n) === rest[0]) : open;
   if (!pick.length) throw new Error(rest[0] ? `no waiting approval numbered ${rest[0]}` : "nothing is waiting for your answer");
   if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
   const o = pick[0];
+  // "Always" from the contract path (T21): asp approvals approve <n> --always allows this exact command for this agent from now on, as answering a at the prompt does. Only a shell command shown whole is remembered:
+  // not cut short, nothing masked, and a scope that is a command (shell.exec, tests.run); anything else is approved this once and says why it was not remembered.
+  let remembered: string | undefined;
+  if (v.always) {
+    if (sub !== "approve") throw new UsageError("--always goes with approve: asp approvals approve <n> --always");
+    const m = /^May (\S+) run .* \((shell\.exec|tests\.run)\)\?$/.exec(o.question);
+    if (!m) remembered = "not remembered: only a shell command is remembered";
+    else if (!o.action || o.action.endsWith("...") || o.action.includes("[redacted]")) remembered = "not remembered: the command was cut short or had secret-looking text masked, so what you read is not the whole command";
+    else {
+      const file = join(home, "always-allow.json");
+      const all = readAlways(file);
+      const mine = all[m[1]] ?? [];
+      if (!mine.some((r) => r.hash === commandKey(o.action))) mine.push({ hash: commandKey(o.action), command: o.action, at: new Date().toISOString() });
+      all[m[1]] = mine.slice(-200);
+      writeAlways(file, all);
+      remembered = "remembered: " + m[1].split(":").slice(-1)[0] + " may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)";
+    }
+  }
   const out: string[] = [], err: string[] = [];
   const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--about", o.checkpoint, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
   if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
   io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
+  if (remembered) io.out(`  ${remembered}`);
   void cfg;
   return 0;
+}
+
+/**
+ * asp work attest <file|folder>... --contract <id> --by <agent> [--out <file>] | verify <origin.json> [--dir <folder>] [--json] (register row T11): the origin of a piece of work. See work-origin.ts.
+ */
+async function workCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "attest") {
+    if (!rest.length || !v.contract || !v.by) throw new UsageError("asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]");
+    const signer = new Keystore(home).forDid(v.by);
+    if (!signer) throw new UsageError("no key for " + v.by + " on this machine (the agent signs its own work origin)");
+    // The paths in the statement are relative to the folder the statement is written in (--out, else here), so a recipient who unpacks both together verifies with one command.
+    const out = resolve(io.cwd, v.out ?? "work-origin.json");
+    const base = dirname(out);
+    const files = hashWork(rest.map((r) => resolve(io.cwd, r)), base).filter((f) => resolve(base, f.path) !== out);
+    if (!files.length) throw new UsageError("no files under the given paths");
+    let mandate: string | undefined;
+    try { mandate = (await (await openLog(home, logEnv)).log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.id; } catch { /* no log to read: the statement names the contract only */ }
+    const runLogFile = findRunLog(home, v.contract);
+    const rl = runLogFile ? readRunLog(runLogFile) : undefined;
+    const body = { v: ORIGIN_VERSION as typeof ORIGIN_VERSION, kind: "origin" as const, agent: v.by, contract: v.contract, ...(mandate ? { mandate } : {}), ...(rl?.ok ? { run_log: rl.head } : {}), files, createdAt: now(), ...(v.note ? { note: v.note } : {}) };
+    const doc = signOrigin(body, signer);
+    writeFileSync(out, JSON.stringify(doc, null, 2) + "\n");
+    io.out("wrote " + (v.out ?? "work-origin.json") + ": " + files.length + " file(s) signed by " + v.by + " under contract " + v.contract.slice(0, 20) + (mandate ? " and its Mandate" : "") + (rl?.ok ? ", with the head of the run log (" + rl.head.events + " events)" : ""));
+    io.out("a recipient checks it with: asp work verify " + (v.out ?? "work-origin.json"));
+    return 0;
+  }
+  if (sub === "verify") {
+    if (!rest[0]) throw new UsageError("asp work verify <origin.json> [--dir <folder>] [--json]");
+    const file = resolve(io.cwd, rest[0]);
+    let doc: SignedOrigin;
+    try { doc = JSON.parse(readFileSync(file, "utf8")) as SignedOrigin; } catch (e) { throw new UsageError(rest[0] + " is not readable JSON: " + (e as Error).message); }
+    const bad = shapeProblem(doc);
+    if (bad) throw new UsageError(rest[0] + ": " + bad);
+    const dir = resolve(io.cwd, v.dir ?? dirname(file));
+    const problems: string[] = [], notes: string[] = [];
+    const files = checkFiles(doc, dir);
+    for (const m of files.missing) problems.push("missing: " + m);
+    for (const c of files.changed) problems.push("changed since it was signed: " + c);
+    // The signature, against the key the log holds for the agent when a log can be read, else only against itself.
+    let keyChecked = false, sigOk = false, contractInLog: boolean | undefined, mandateInLog: boolean | undefined;
+    try {
+      const lg = (await openLog(home, logEnv)).log;
+      const key = ((await lg.keys(doc.agent)) as { kid: string; publicKey: string; revokedAt: string | null }[]).find((k) => k.kid === doc.kid && !k.revokedAt);
+      if (key) { keyChecked = true; sigOk = verifyOriginSignature(doc, b64urlDecode(key.publicKey)); }
+      else notes.push("the signing key is not a current key of " + doc.agent + " in the log that was read");
+      contractInLog = !!(await lg.get(doc.contract));
+      if (doc.mandate) mandateInLog = !!(await lg.get(doc.mandate));
+    } catch { notes.push("no log could be read here: the key, the contract and the Mandate are not checked against a log"); }
+    if (!keyChecked) {
+      try { const pub = doc.agent.startsWith("did:key:") ? publicKeyFromDidKey(doc.agent) : undefined; if (pub) sigOk = verifyOriginSignature(doc, pub); else notes.push("the key of this agent is not one this machine can derive from its name: the signature is not checked"); } catch { /* not a did:key */ }
+    }
+    if (keyChecked || sigOk) { if (!sigOk) problems.push("the signature does not verify"); }
+    // The contract and the Mandate are judged only against a log that knows the agent: a log that has never heard of it is not the log the work was done under.
+    if (keyChecked && contractInLog === false) problems.push("the contract is not in the log");
+    if (keyChecked && mandateInLog === false) problems.push("the Mandate is not in the log");
+    if (!keyChecked && contractInLog === false) notes.push("this log does not hold the contract: the contract and the Mandate are not checked");
+    const verdict = !problems.length && sigOk ? (keyChecked ? "VERIFIED" : "SIGNATURE VALID") : "DOES NOT VERIFY";
+    if (v.json) { io.out(JSON.stringify({ verdict, agent: doc.agent, contract: doc.contract, mandate: doc.mandate ?? null, files: doc.files.length, problems, notes, key_checked_against_log: keyChecked, signature_ok: sigOk }, null, 2)); return problems.length || !sigOk ? 1 : 0; }
+    io.out(verdict + "  " + doc.files.length + " file(s) by " + doc.agent + " under contract " + doc.contract.slice(0, 20) + ", signed " + doc.createdAt);
+    io.out("  files     " + (files.ok ? "every file is exactly what was signed" : "do not match what was signed"));
+    io.out("  signature " + (sigOk ? "valid" + (keyChecked ? ", by a current key of the agent in the log" : ", but the key was not checked against a log") : "not shown valid"));
+    if (doc.mandate) io.out("  mandate   " + doc.mandate.slice(0, 20) + (!keyChecked || mandateInLog === undefined ? " (not checked against a log)" : mandateInLog ? " is in the log" : " is NOT in the log"));
+    if (doc.run_log) io.out("  run log   head of " + doc.run_log.events + " events, " + doc.run_log.hash.slice(0, 20) + " (asp run-log verify checks the log itself)");
+    for (const x of problems) io.out("  problem   " + x);
+    for (const x of notes) io.out("  note      " + x);
+    io.out("This shows who signed which bytes and under which Mandate the agent says it worked. It does not show that the work is good or that the agent did it alone.");
+    return problems.length || !sigOk ? 1 : 0;
+  }
+  throw new UsageError("usage: asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] | verify <origin.json> [--dir <folder>] [--json]");
 }
 
 /** asp standing [end [<agent name>]]: the standing jobs sessions run under, and ending one (it is settled, and the next run makes a new one). */
@@ -8969,6 +9138,9 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     const stdoutLog = join(runDir, "stdout.log");
     const stderrLog = join(runDir, "stderr.log");
     let hiddenFailure: string | undefined;
+    // The run log of this node (E5): a hash-chained log of its start and end, with the hashes of the output it wrote; the output itself is not read for text (output_read: false), as for an interactive `asp run`.
+    const nodeLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+    nodeLog?.event("run_start", { node: index, agent, backend: v.backend, command: [plan.command, ...plan.args].join(" "), output_read: false });
     const code = await new Promise<number>((done) => {
       const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: ["ignore", "pipe", "pipe"] });
       let outCarry = "";
@@ -8987,6 +9159,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       });
       child.on("exit", (c) => done(c ?? 1));
     });
+    { const hash = (f: string) => existsSync(f) ? createHash("sha256").update(readFileSync(f)).digest("hex") : null; nodeLog?.event("run_end", { node: index, exit_code: code, output_read: false, stdout_sha256: hash(stdoutLog), stderr_sha256: hash(stderrLog), ...(hiddenFailure ? { failure: hiddenFailure } : {}) }); }
     if (code === -1) {
       await revokeAbandonedNode();
       return { index, task, ok: false, runDir, error: "could not start the runtime" };

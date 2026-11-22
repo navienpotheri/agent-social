@@ -14,3 +14,7 @@
 - 2026-11-22 11:45 IST keeper: window 20 percent; lanes society-2, cli-3, launch-bar-2 resumed (protocol-3 running). Merge round hit conflict markers in two source files, repaired (201ab86a); the first gate on it was invalid and stalled; clean gate (gate2.log) started 11:44. Last push still 2356c362.
 
 - 2026-11-22 12:17 push: tip 34603749. Full run: core 1334, log 1176, Python ok, package 629/629 after the fix, cli 1208/1218 with 9 load failures and 1 import failure all passing alone (45/45 plus live-scripts 6/6). Gateway repaired (ladderAtCall import). Not in this push: tips after 0ee462b9 (cli-3), de1cb432+ (society-2), latest protocol-3 and launch-bar-2.
+
+- 2026-11-22 12:41 IST keeper: window 38 percent; lane-cli-3 resumed (others running). Gate3 on 2ebc0da8 (merge of all four lanes incl. scanner fix, JO8, DK1345/1371/1379) running; last push 4b4ccd61.
+
+- 2026-11-22 13:50 IST keeper: window 62 percent. Lanes cli-3, protocol-3, launch-bar-2 resumed (society-2 running). Lead tip 0419b981+deployment plan merge is FROZEN for the owner live run tonight (no merges into this folder until he is done). Last push still 4b4ccd61; later lane tips (cli-3 bf0be93e, society-2, protocol-3, launch-bar-2) wait for a post-run merge and full gate.

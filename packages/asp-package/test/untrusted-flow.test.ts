@@ -59,3 +59,14 @@ test("docs/containment-flow.md is the generated table", async () => {
   const { flowDoc } = await import("../../../evals/benchmark/flow.ts");
   assert.equal(readFileSync(new URL("../../../docs/containment-flow.md", import.meta.url), "utf8").replace(/\r\n/g, "\n"), flowDoc(), "run: node evals/benchmark/flow.ts --out docs/containment-flow.md");
 });
+
+test("boundaries: a token of 6 characters counts and one of 5 does not; an opaque run of 32 characters counts and one of 31 does not; at most 5 copied tokens are reported", () => {
+  assert.ok(salientTokens("write to a@b.co please").has("a@b.co"), "6 characters");
+  assert.ok(!salientTokens("write to a@b.c please").has("a@b.c"), "5 characters");
+  const k32 = "Q".repeat(32), k31 = "Q".repeat(31);
+  assert.ok(salientTokens(`token ${k32} end`).has(k32.toLowerCase()), "32 characters");
+  assert.equal(salientTokens(`token ${k31} end`).size, 0, "31 characters");
+  const many = Array.from({ length: 7 }, (_v, i) => `host${i}.bad-example.net`);
+  const hits = copiedFromUntrusted({ cmd: many.join(" ") }, salientTokens(many.join(" ")), { principalText: "summarise" });
+  assert.equal(hits.length, 5);
+});

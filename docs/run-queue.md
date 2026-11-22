@@ -219,10 +219,32 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (DK122: the court draw seeded by a record neither party controls, and a per-juror open-case cap, as a dated draw version; S1611, UC-1952), 06:00Z
 - 2026-11-22 held by lane-society-2 (DK117 exam withdrawal, fee-free re-sit after an error revocation, author suspension; then JO4/JO5/JO6 contract amendment, cancellation and team split; S1700-S1749, UC-2104 and up), 07:30Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows DK1476, DK1769, DK1715 in lane-cli-3 area and JO3, US1; results in docs/verification-log.md), 08:10Z
+
+- 2026-11-22 lane-cli-3 done: DK1232/DK1231/DK1227 gateway halves (opt-in), DK211 ladder reconciled, adversarial paths and live-path probes, client-disconnect abort, mutation review of my closed rows (docs/mutation-review.md). Scanned the must-launch rows for a CLI or gateway side that needs no live run or person: none meetable (T3/T4/E5/E8/DK1374/DK241 lefts are live, person or owner work). Free for a named row.
+- 2026-11-22 lane-cli-3 done: DK1345 (journey --usd estimate), DK1371 (first hour on journey and after sign-up), DK1379 (invoice page); owner questions 31 to 33.
 - 2026-11-22 held by lane-protocol-3 (second-eyes mutation check of the lens loop DK1750-DK1754: lens-loop.ts, lens-courses/*, intake registry; verification-log rows only, plus tests), 12:00Z
 - 2026-11-22 held by lane-protocol-3 (CLI and library halves of DK1209 workflow, DK1221 eval, DK1223 grader, DK1231 role, DK1240 mission, DK1744 inspectorate: new command modules in packages/asp-cli/src, tests; then second-eyes mutation of rent DK1710, DK1730, DK1360/1382/1384/1470, DK1357 re-run), 13:00Z
+- 2026-11-22 lane-cli-3 done: DK1232/DK1231/DK1227 gateway halves (opt-in), DK211 ladder reconciled, adversarial paths and live-path probes, client-disconnect abort, mutation review of my closed rows (docs/mutation-review.md). Scanned the must-launch rows for a CLI or gateway side that needs no live run or person: none meetable (T3/T4/E5/E8/DK1374/DK241 lefts are live, person or owner work). Free for a named row.
+- 2026-11-22 lane-cli-3 done: DK1345 (journey --usd estimate), DK1371 (first hour on journey and after sign-up), DK1379 (invoice page); owner questions 31 to 33.
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows T24, T25, BM2, BM3, BM4, BM7, BM13, BM14, BM15, BM19: the shell scanner, packages/asp-package/src/shell-scan.ts; results in docs/verification-log.md), 11:40Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM11, DK271: the panel draw exclusions, panel-sybil.test.ts and panel-funding.test.ts), 12:30Z
 - 2026-11-22 held by lane-protocol-3 (batch of 8 closed A rows nobody mutation-checked: DK313 and T26 bond floor (bond-floor.ts), DK365 and BM11 panel draw (courts), DK350 abuse report, DK441 conservation property, M9 starter minting, DK395 seed jobs), 14:00Z
 - 2026-11-22 held by lane-protocol-3 (second batch of closed A rows nobody mutation-checked: DK394 panel pick, DK393 plot rent and housing hide, CY6 reward farming, CY2 spend gate; verification-log rows plus tests), 15:00Z
 - 2026-11-22 held by lane-protocol-3 (second-eyes mutation check of society-2's DK1505 invitation revocation, DK230 newcomer allowance, DK827 wake tokens, JO8, DK122, SO9; verification-log rows plus tests), 16:00Z
+- 2026-11-22 held by lane-cli-3 (must-close pass: E5, E8, T3, T4, T21, DK241, DK1716, DK1364, DK1345 remainder, DK1374 remainder, DK1373), live-run night
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows E4: secrets masking, redact.ts, redact.test.ts), 13:20Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows D6: injection detection, gateway/injection.ts, injection.test.ts), 14:00Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows BM10: swarm containment, watch.ts, watch.test.ts), 14:50Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows CY2, DK3, DK390: the purchase rule and the institution spend check in log.ts; spend-gate, agent-purchase, standing-order tests), 15:30Z
+- 2026-11-22 held by launch-bar-2 (operator mutation of the gateway judge: packages/asp-package/src/gateway/judge.ts lines 97-198; gateway.test.ts, shell-scan, commands tests), 16:10Z
+- 2026-11-22 held by launch-bar-2 (operator mutation of the shell scanner logic: packages/asp-package/src/gateway/shell-scan.ts lines 100-313), 16:55Z
+- 2026-11-22 held by launch-bar-2 (priority B rows needing no decision: T5 implementer's guide; DK1800 text; sweep of the other B rows of docs/site/mail/legal/enterprise/sandbox), 19:00Z
+
 - 2026-11-22 held by lane-protocol-3 (must-close: DK1714 breach alert mail wired to POST /admin/breach plus timing, DK1362 and O6 load through the service at 5,000 and 10,000 and the fixes, CY12 decision doc and owner question, DK1710 remainder tests; DK9, DK95, DK530 confirmed at their limit), 17:00Z
 - 2026-11-22 held by lane-protocol-3 (priority B, standing order: DK232 treasury_statement record and reserve floor, DK231 budget needs charter and share, DK114 author share decision, DK1401 sittings ledger as a signed record; log/ledger/protocol only, no live path), 18:00Z
+
+- 2026-11-22 held by lane-society-2 (the lead, owner awake: DK1302 scripted hire evidence, DK730/DK731 live-looking pages from real indicators, DK79 local-run finish, DK546 remainder, DK1363 pricing draft table, DK1100/DK760 public-works routine; then priority B society/rules/pages/learning/games/elections/forum rows; freeze: gateway/server.ts, shell-scan.ts, pricing.ts, budget code, evening-rehearsal)
+
+- 2026-11-22 held by lane-cli-3 (priority B in the CLI/gateway/service area: T32 first, then T11, T19, T10, P7, E7)
+
+- 2026-11-22 held by launch-bar-2 (priority B rows buildable without a decision: DK1800 tutorials and BZ2 governance note, both partial), 21:00Z
