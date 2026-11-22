@@ -7614,6 +7614,1541 @@
       ]
     },
     {
+      "name": "unprompted_the_same",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_a_lower_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 3
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_forbidden",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": false
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_a_higher_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 11
+        }
+      },
+      "expected": [
+        "unprompted"
+      ]
+    },
+    {
+      "name": "unprompted_the_cap_dropped",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true
+        }
+      },
+      "expected": [
+        "unprompted"
+      ]
+    },
+    {
+      "name": "unprompted_absent_is_forbidden",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 10
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_allowed_under_a_ceiling_that_forbids",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": false
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 1
+        }
+      },
+      "expected": [
+        "unprompted"
+      ]
+    },
+    {
+      "name": "unprompted_forbidden_under_a_ceiling_that_forbids",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": false
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": false
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_allowed_under_a_ceiling_with_no_cap",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true,
+          "per_day_cap": 50
+        }
+      },
+      "expected": []
+    },
+    {
+      "name": "unprompted_stated_under_no_ceiling",
+      "ceiling": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        }
+      },
+      "candidate": {
+        "purpose": "Work for the enterprise",
+        "floor": "asp.floor/v1",
+        "scopes": [
+          "repo.read",
+          "repo.write",
+          "pr.*"
+        ],
+        "forbidden_means": [
+          "rm -rf"
+        ],
+        "spend": {
+          "cap": 100,
+          "unit": "credit",
+          "per_action_max": 20
+        },
+        "irreversible": {
+          "policy": "checkpoint"
+        },
+        "subcontract": {
+          "allowed": true,
+          "max_depth": 2
+        },
+        "nodes": {
+          "max_parallel": 4
+        },
+        "learning": {
+          "scope": "memory",
+          "share_to_commons": true
+        },
+        "self_modification": "principal_approves",
+        "overlay": null,
+        "checkpoints": [
+          "plan"
+        ],
+        "expires": "2027-06-01T00:00:00Z",
+        "revocable": true,
+        "network": {
+          "hosts": [
+            "api.example.com",
+            "*.example.org"
+          ]
+        },
+        "institution_spend": [
+          {
+            "institution": "academy",
+            "cap": {
+              "value": 60,
+              "unit": "credit"
+            },
+            "period": "month"
+          }
+        ],
+        "token_budget": {
+          "per_run": 50000,
+          "per_month": 1000000,
+          "per_day": 300000
+        },
+        "loop_limits": {
+          "equivalent_calls": 8,
+          "depth": 3,
+          "near_repeats": 12
+        },
+        "outbound_scan": {
+          "mode": "block",
+          "kinds": [
+            "secret",
+            "card number"
+          ]
+        },
+        "unprompted": {
+          "allowed": true
+        }
+      },
+      "expected": []
+    },
+    {
       "name": "private_scopes_the_same",
       "ceiling": {
         "purpose": "Work for the enterprise",

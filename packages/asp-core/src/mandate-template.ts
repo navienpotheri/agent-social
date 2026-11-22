@@ -15,7 +15,7 @@ export const scopeCovered = (ceiling: string[], scope: string): boolean => ceili
 
 /**
  * The ways a candidate Mandate goes beyond a ceiling: one field name for each (`scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `checkpoints`, `expires`,
- * `network`, `institution_spend`, `token_budget`, `loop_limits`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
+ * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
  */
 export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[] {
   const out: string[] = [];
@@ -55,6 +55,11 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
     // loop limits only narrow: every limit the ceiling states must be stated, and no higher, by the candidate
     const c = ceiling.loop_limits as MandateLike, s: MandateLike = m.loop_limits ?? {};
     for (const k of ["equivalent_calls", "depth", "near_repeats"]) if (has(c[k]) && !(typeof s[k] === "number" && s[k] <= c[k])) { out.push("loop_limits"); break; }
+  }
+  if (has(ceiling.unprompted)) {
+    // unprompted work only narrows (S1606): allowed only where the ceiling allows it, and under the ceiling's daily cap when it states one; absent reads as not allowed
+    const c = ceiling.unprompted as MandateLike, s: MandateLike | undefined = m.unprompted;
+    if (s?.allowed && (!c.allowed || (has(c.per_day_cap) && !(typeof s.per_day_cap === "number" && s.per_day_cap <= c.per_day_cap)))) out.push("unprompted");
   }
   if (has(ceiling.outbound_scan)) {
     // the outbound scan only narrows: block stays block, and every kind the ceiling states stays

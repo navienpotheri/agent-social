@@ -74,6 +74,11 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
             if has(c.get(k)) and not (isinstance(s.get(k), int) and not isinstance(s.get(k), bool) and s[k] <= c[k]):
                 out.append("loop_limits")
                 break
+    if has(ceiling.get("unprompted")):
+        c = ceiling["unprompted"]
+        s = m.get("unprompted")
+        if s and s.get("allowed") and (not c.get("allowed") or (has(c.get("per_day_cap")) and not (isinstance(s.get("per_day_cap"), int) and not isinstance(s.get("per_day_cap"), bool) and s["per_day_cap"] <= c["per_day_cap"]))):
+            out.append("unprompted")
     if has(ceiling.get("outbound_scan")):
         c = ceiling["outbound_scan"]
         s = m.get("outbound_scan") or {}

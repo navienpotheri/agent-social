@@ -252,7 +252,9 @@
         "private_scopes": {
           "description": "The private-memory scopes this run may read and write (register rows D12 and DK272; spec-delta S1593; docs/private-memory-run-design.md). Absent means no private scope. Narrows like every other limit: a template or a node may remove names and never add them. Each name is 1 to 64 characters from a-z 0-9 - _, at most 16, no duplicates: the log refuses a list that breaks this (private_scopes_invalid), and the gateway refuses a private-memory call for a scope not in the list and counts it as a blocked attempt.",
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -412,6 +414,24 @@
               "iban"
             ]
           }
+        }
+      }
+    },
+    "unprompted": {
+      "description": "Unprompted work (register row DK1232, from DK822; spec-delta S1606): whether the agent may act on its own initiative (an Action with `unprompted: true`), and at most how many such Actions a day (`per_day_cap`, UTC). Absent reads as NOT allowed. Like every limit it only narrows: a template, a node and a member may forbid it or lower the cap, never allow it where the ceiling does not or raise or drop a cap the ceiling states. The log refuses an unprompted Action where the Mandate forbids it (unprompted_not_allowed) or past the cap (unprompted_cap).",
+      "type": "object",
+      "required": [
+        "allowed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "type": "boolean"
+        },
+        "per_day_cap": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
         }
       }
     }

@@ -621,6 +621,8 @@ sv("valid_action_job_data_chain", "action", { contract: fakeId("c"), scopes_used
 sv("action_job_data_chain_short", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "d".repeat(63) }, false);
 sv("action_job_data_chain_uppercase", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "D".repeat(64) }, false);
 sv("action_job_data_chain_prefixed", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], job_data_chain: "sha256:" + "d".repeat(57) }, false);
+sv("valid_action_unprompted", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: true }, true);
+sv("action_unprompted_not_boolean", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], unprompted: "yes" }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -661,6 +663,11 @@ sv("mandate_not_revocable", "mandate", { ...m, revocable: false }, false);
 sv("mandate_missing_purpose", "mandate", (({ purpose: _p, ...rest }) => rest)(m), false);
 sv("valid_mandate_network_rate", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { hosts: ["docs.python.org"], rate: { per_host_per_minute: 30, total_per_minute: 120 } } }, true);
 sv("valid_mandate_network_rate_only", "mandate", { ...m, scopes: ["repo.read", "web.read"], network: { rate: { per_host_per_minute: 10 } } }, true);
+sv("valid_mandate_unprompted", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 5 } }, true);
+sv("valid_mandate_unprompted_forbidden", "mandate", { ...m, unprompted: { allowed: false } }, true);
+sv("mandate_unprompted_no_allowed", "mandate", { ...m, unprompted: { per_day_cap: 5 } }, false);
+sv("mandate_unprompted_zero_cap", "mandate", { ...m, unprompted: { allowed: true, per_day_cap: 0 } }, false);
+sv("mandate_unprompted_extra_field", "mandate", { ...m, unprompted: { allowed: true, weekly: 5 } }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -1851,6 +1858,16 @@ const worldRules = [
     ["a_dropped_token_limit", { token_budget: { per_run: 40000 } }], ["a_dropped_daily_cap", { token_budget: { per_run: 40000, per_month: 800000 } }], ["a_higher_daily_cap", { token_budget: { per_run: 40000, per_month: 800000, per_day: 400000 } }],
     ["lower_loop_limits", { loop_limits: { equivalent_calls: 5, depth: 2, near_repeats: 9 } }], ["more_equivalent_calls", { loop_limits: { equivalent_calls: 9, depth: 3, near_repeats: 12 } }], ["deeper_recursion", { loop_limits: { equivalent_calls: 8, depth: 4, near_repeats: 12 } }], ["more_near_repeats", { loop_limits: { equivalent_calls: 8, depth: 3, near_repeats: 13 } }], ["a_dropped_near_limit", { loop_limits: { equivalent_calls: 8, depth: 3 } }], ["a_dropped_loop_limit", { loop_limits: { depth: 3, near_repeats: 12 } }], ["a_redact_mode", { outbound_scan: { mode: "redact", kinds: ["secret", "card number"] } }], ["a_dropped_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret"] } }], ["an_added_outbound_kind", { outbound_scan: { mode: "block", kinds: ["secret", "card number", "email address"] } }], ["no_outbound_scan", { outbound_scan: undefined }], ["no_outbound_mode", { outbound_scan: { kinds: ["secret", "card number"] } }], ["no_loop_limits", { loop_limits: undefined }], ["no_token_budget", { token_budget: undefined }],
   ].map(([name, over]) => ({ name: name as string, ceiling: T, candidate: { ...T, ...(over as object) } }));
+  // unprompted work (spec-deltas S1606): allowed only where the ceiling allows it, under its daily cap; absent reads as not allowed
+  {
+    const TU = { ...T, unprompted: { allowed: true, per_day_cap: 10 } };
+    for (const [name, ceiling, unprompted] of [
+      ["unprompted_the_same", TU, { allowed: true, per_day_cap: 10 }], ["unprompted_a_lower_cap", TU, { allowed: true, per_day_cap: 3 }], ["unprompted_forbidden", TU, { allowed: false }],
+      ["unprompted_a_higher_cap", TU, { allowed: true, per_day_cap: 11 }], ["unprompted_the_cap_dropped", TU, { allowed: true }], ["unprompted_absent_is_forbidden", TU, undefined],
+      ["unprompted_allowed_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: true, per_day_cap: 1 }], ["unprompted_forbidden_under_a_ceiling_that_forbids", { ...T, unprompted: { allowed: false } }, { allowed: false }],
+      ["unprompted_allowed_under_a_ceiling_with_no_cap", { ...T, unprompted: { allowed: true } }, { allowed: true, per_day_cap: 50 }], ["unprompted_stated_under_no_ceiling", T, { allowed: true }],
+    ] as [string, Record<string, unknown>, unknown][]) cases.push({ name, ceiling, candidate: { ...ceiling, ...(unprompted === undefined ? {} : { unprompted }) } });
+  }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {
     const TP = { ...T, learning: { ...(T.learning as object), private_scopes: ["notes", "plans"] } };

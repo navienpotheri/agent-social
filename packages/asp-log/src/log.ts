@@ -1544,6 +1544,8 @@ export class EventLog {
       if (bad.length || mb.network || mb.spend.cap > 0 || mb.subcontract.allowed) throw rule("service_mandate_in_society_only", `a Mandate under an in-society service has read-only scopes, no network, no spend and no subcontracting${bad.length ? ` (not allowed: ${bad.join(", ")})` : ""}`);
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
+    const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    if (up) await tx.putMarker(`unprompted_policy:${body.contract}`, JSON.stringify(up)); // whether the performer may act on its own initiative (S1606, DK1232)
   }
 
   /**
@@ -1589,6 +1591,20 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // Unprompted work (S1606, DK1232): an Action that says the performer acted on its own initiative needs a Mandate that allows it, within its daily cap (UTC); every Action is counted so a report can show the share.
+    {
+      const unprompted = (r.body as { unprompted?: boolean }).unprompted === true;
+      if (unprompted) {
+        const policy = JSON.parse((await tx.getMarker(`unprompted_policy:${body.contract}`)) ?? "null") as { allowed: boolean; per_day_cap?: number } | null;
+        if (!policy?.allowed) throw rule("unprompted_not_allowed", `the Mandate of ${body.contract} does not allow work on the performer's own initiative: an Action with unprompted true is refused`);
+        const dayKey = `unprompted_day:${body.contract}|${r.issued_at.slice(0, 10)}`;
+        const today = Number((await tx.getMarker(dayKey)) ?? 0);
+        if (policy.per_day_cap !== undefined && today >= policy.per_day_cap) throw rule("unprompted_cap", `${today} unprompted Actions today on ${body.contract}: the Mandate allows ${policy.per_day_cap} a day`);
+        await tx.putMarker(dayKey, String(today + 1));
+        await tx.putMarker(`unprompted_n:${body.contract}`, String(Number((await tx.getMarker(`unprompted_n:${body.contract}`)) ?? 0) + 1));
+      }
+      await tx.putMarker(`actions_n:${body.contract}`, String(Number((await tx.getMarker(`actions_n:${body.contract}`)) ?? 0) + 1));
+    }
     const claimedWait = (r.body as { metrics?: { approval_wait_seconds?: number } }).metrics?.approval_wait_seconds;
     if (claimedWait) {
       const snap = chain?.snapshot;
@@ -1837,6 +1853,14 @@ export class EventLog {
     await noteLock(tx, escrow.backer, body.contract, null);
     // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
     if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** The share of a contract's Actions that were unprompted, in permille (S1606, DK1232): how many Actions the performer reported, how many were on its own initiative, and the share. Reads only. */
+  async unpromptedShare(contract: string): Promise<{ actions: number; unprompted: number; permille: number }> {
+    return this.store.transaction(async (tx) => {
+      const actions = Number((await tx.getMarker(`actions_n:${contract}`)) ?? 0), unprompted = Number((await tx.getMarker(`unprompted_n:${contract}`)) ?? 0);
+      return { actions, unprompted, permille: actions ? Math.round((unprompted * 1000) / actions) : 0 };
+    });
   }
 
   /** Whether a contract's job data is confirmed deleted (S1602, JO3): `not_applicable` while the contract is unsettled or retains data for a stated number of days; `confirmed` with the chain head the performer cited; `unconfirmed` when it settled with none. Reads only. */
