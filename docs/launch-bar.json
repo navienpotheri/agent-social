@@ -1173,7 +1173,7 @@
   {
    "id": "O17",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they miss records already in the log when the service started, restart from nothing if the fil…",
    "bucket": "after",
    "hours": 0,
