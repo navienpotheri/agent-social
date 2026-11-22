@@ -488,30 +488,21 @@ export function createGateway(opts: GatewayOptions): Gateway {
       const rr = roleRefusal(opts.role, gated && gateScope ? gateScope : j.scope);
       if (rr) { allow = false; strike = false; reason = `[ASP] ${rr}`; rec?.event("role_refusal", { role: opts.role, scope: j.scope }); }
     }
-    // The escalation ladder (DK211), only when asked for: what this run's own refusals call for decides the next call.
-    if (opts.escalationLadder && allow && j.scope) {
-      const { step, why: stepWhy } = ladderNow();
-      const l = ladderAtCall(step, gated && gateScope ? gateScope : j.scope);
-      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}); tell your principal what you need and why`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
+    // The ladder (DK211), one state machine with two inputs, each only when asked for: the step a Clinic or watcher wrote to a file (`ladder`, asp gateway --ladder-file) and the step this run's own refusals call for (`escalationLadder`). The stricter of the two decides this call.
+    if (allow && j.scope && (opts.ladder || opts.escalationLadder)) {
+      const fileStep = opts.ladder ? opts.ladder() : "none";
+      const run = opts.escalationLadder ? ladderNow() : { step: "none" as LadderStep, why: "" };
+      const RANK: LadderStep[] = ["none", "warn", "tighten", "quarantine", "review"];
+      const step = RANK.indexOf(run.step) > RANK.indexOf(fileStep) ? run.step : fileStep;
+      const lscope = gated && gateScope ? gateScope : j.scope;
+      const l = ladderAtCall(step, lscope);
+      const source = step === run.step && run.step !== "none" ? ` (${run.why})` : "";
+      if (l.action === "refuse") { allow = false; strike = false; reason = `[ASP] this call (${lscope}) was not run: this agent stands on the ladder at "${step}": ${l.why}${source}. Tell your principal; the Clinic lifts it.`; rec?.event("ladder", { step, action: "refuse", scope: j.scope }); }
       else if (l.action === "hold") {
-        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, gated && gateScope ? gateScope : j.scope) : { approved: false as boolean, reason: "this run cannot ask for approval" };
-        rec?.event("ladder", { step, action: a.approved ? "held_then_approved" : "held_then_refused", scope: j.scope });
-        if (!a.approved) { allow = false; strike = false; reason = `[ASP] ${l.why} (${stepWhy}) and the approval was not given${a.reason ? `: ${a.reason}` : ""}`; }
-      }
-    }
-    // The ladder (DK211): the step the agent stands on decides this call. A hold is asked about like a gated call; a refusal is a refusal without a strike (the strike was the circumvention that put it on the ladder).
-    if (allow && opts.ladder && j.scope) {
-      const step = opts.ladder();
-      const d = ladderAtCall(step, j.scope);
-      if (d.action === "refuse") { allow = false; strike = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}": ${d.why}. Tell your principal; the Clinic lifts it.`; rec?.event("ladder_refusal", { scope: j.scope, step }); }
-      else if (d.action === "hold") {
         strike = false;
-        if (!opts.gate?.approvalsDir) { allow = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and this run cannot ask for it.`; rec?.event("ladder_refusal", { scope: j.scope, step }); }
-        else {
-          const a = await askPrincipalOnce(call, j.scope);
-          rec?.event("ladder_hold", { scope: j.scope, step, approved: a.approved });
-          if (!a.approved) { allow = false; reason = `[ASP] this call (${j.scope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and it was not given${a.reason ? `: ${a.reason}` : ""}.`; }
-        }
+        const a = opts.gate?.approvalsDir ? await askPrincipalOnce(call, lscope) : { approved: false as boolean, reason: "", cannotAsk: true };
+        rec?.event("ladder", { step, action: a.approved ? "held_then_approved" : "held_then_refused", scope: j.scope });
+        if (!a.approved) { allow = false; reason = `[ASP] this call (${lscope}) was not run: this agent stands on the ladder at "${step}", which holds it for the principal's approval, and ${(a as { cannotAsk?: boolean }).cannotAsk ? "this run cannot ask for it" : `it was not given${a.reason ? `: ${a.reason}` : ""}`} (${l.why})${source}.`; }
       }
     }
     // Brute force and scanning (gap H1): a command that reads as guessing credentials or probing ports is refused, and it is a strike: a network scope does not allow it.

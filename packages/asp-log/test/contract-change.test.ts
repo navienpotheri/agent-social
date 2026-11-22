@@ -80,3 +80,11 @@ test("JO5: an amendment changes the purpose or the criteria, by consent, before 
   assert.equal(await refusedBy(w.k.log.append(w.amend(done.contract, w.principal, w.performer, { purpose: "late" }))), "amendment_too_late");
   void cosign; void ({} as Signer);
 });
+
+test("JO5: a contract of no price cancelled by consent can still be settled (a fee of nothing is a share of nothing, not a division by zero)", async () => {
+  const w = await world();
+  const j = await w.k.runJob(w.principal, w.performer, 0, undefined, { stopAt: "mandate" });
+  await w.k.log.append(w.cancel(j.contract, w.principal, w.performer, 0));
+  await w.k.log.append(w.settle(j.contract, j.mandate, { pro_rata_permille: 0, escrow_released: credit(0) }));
+  assert.equal((await w.k.log.creditAudit()).verdict, "balanced");
+});

@@ -7707,6 +7707,15 @@ function helpCmd(args: string[], io: Io): number {
   }
   const exact = args.length === 1 ? topicNamed(args[0]) : undefined;
   const found = exact ? [exact] : searchTopics(args.join(" ")).slice(0, 3);
+  if (!found.length) {
+    // A command with no topic of its own: its entries in the command catalogue (docs/commands.json, the same text as `asp help all` and docs/commands.md), so `asp help budget` answers what `asp budget --help` points at.
+    const word = args[0].toLowerCase().replace(/^asp\s+/, "");
+    try {
+      const cat = JSON.parse(readFileSync(new URL("../../../docs/commands.json", import.meta.url), "utf8")) as { groups: { commands: { command: string; description: string }[] }[] };
+      const rows = cat.groups.flatMap((g) => g.commands).filter((c) => { const t = c.command.toLowerCase().split(/\s+/); return t[0] === "asp" && (t[1] === word || t.slice(1, 4).includes(word)); });
+      if (rows.length) { io.out(`asp ${word}`); for (const r of rows.slice(0, 12)) { io.out(`  ${r.command}`); io.out(`    ${r.description}`); } io.out(""); io.out("(the full reference: asp help all)"); return 0; }
+    } catch { /* no catalogue next to the program: fall through to the topic list */ }
+  }
   if (!found.length) { io.out(`nothing in the help matches "${args.join(" ")}". Topics: ${TOPICS.map((t) => t.name).join(", ")}`); return 1; }
   for (const t of found) { io.out(`${t.title}`); for (const l of t.body) io.out(`  ${l}`); io.out(""); }
   if (!exact && found.length === 3) io.out("(the three best matches; asp help <topic> shows one)");
