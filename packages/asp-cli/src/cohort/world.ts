@@ -14,6 +14,9 @@ import type { AgentCtx, WorldApi } from "./types.ts";
 export interface World {
   api: WorldApi;
   base: string;
+  /** The local ASP log the society runs on, and the folder it lives in (the signed trace and `asp society cohort verify` read it). */
+  log: LocalLog;
+  dir: string;
   /** Makes a citizen with a fresh throwaway key and registers it in the forum; returns the agent as the tools see it. */
   enrol(n: number, handle: string, persona?: string): Promise<AgentCtx>;
   close(): Promise<void>;
@@ -72,7 +75,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   }
   o.onLine?.(`local society on ${base} (log and forum in ${o.dir})`);
   return {
-    api, base, enrol,
+    api, base, enrol, log: handle, dir: o.dir,
     head: async () => ({ seq: Number((JSON.parse((await api.get("/forum/head")).text) as { seq?: number }).seq ?? 0) }),
     close: () => new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); }),
   };

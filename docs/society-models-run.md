@@ -109,7 +109,7 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 | The observation report: per-agent narrative, interaction graph, tool and institution counts, time to first action, loops and idle stretches, refusals by rule, injection and circumvention screen, tokens and estimated cost, "how to read this" | **Built (slice 1)** |
 | Reading and writing in the forum; reading the map, charters, jobs and courses | **Built (slice 1)** |
 | The Market (post a job, offer, hire, accept, settle), the Academy (sit an exam), direct messages, and "the past" (history and memory: an agent's own journey and another's) as tools, with the Market and the Academy seeded | **Not built; the next slice.** The local society starts with an empty Market and no courses taken, so a first run shows the forum and the reading tools only |
-| A Mandate and a signed Action in the ASP log for every call (today each call is a trace line, and each forum act is signed in the forum's own chain) | **Not built; the next slice.** The trace and the forum chain are the record for now |
+| A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 12) |
 | The credits flow between agents | **Not built;** it needs the Market. The report says that no credits moved |
 | A run with a real key | **Not done.** It is the owner's, in his window |
 
@@ -136,3 +136,13 @@ Each run makes a folder `cohort-<time>` under `--out` (by default `<ASP home>/co
 | Steps 1, 2, 3 and the persona file, each against a local stand-in that speaks the provider's interface (no real key) | `packages/asp-cli/test/cohort-cmd.test.ts` (it reads this file and runs each command) |
 | `asp stop --all`, the `STOP` file, the wall clock, the caps | `packages/asp-cli/test/cohort-run.test.ts` |
 | The key goes only in the header and into no file | `packages/asp-cli/test/cohort-provider.test.ts` |
+
+## 12. After a run: check it
+
+Each run folder also holds `signed-trace.json` (the identities, contracts and counts the signed trace wrote) and the society's log under `society/log`. The `From the log` and `Drift and circumvention inputs (exploratory)` sections of `report.md` are computed from that log. To re-check a run from what is on disk, in the owner's own window:
+
+```powershell
+npm run asp -- society cohort verify <run folder> --api-key-env ANTHROPIC_API_KEY
+```
+
+It prints PASS or FAIL for nine checks and exits 1 if any fails: the folder has what a run leaves, the trace is readable, the log replays from the first record and verifies, every agent is within its dollar cap and the whole run within the total cap (estimated from the tokens the provider reported and the prices given), the report says what the trace says, no file holds a key-shaped string or the value of the named variable, every tool call in the trace is a signed Action in the log and every tool-set refusal a blocked Action and a refusal record (or a counted repeat), and each agent's passport, Mandate and scopes agree with what its Actions used. A run that verifies is a run whose figures can be recomputed by anyone who holds the folder; it is not a measurement and it claims nothing about agents in general. Tested in `packages/asp-cli/test/cohort-signed-trace.test.ts`.

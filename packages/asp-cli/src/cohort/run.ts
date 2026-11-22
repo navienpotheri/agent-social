@@ -7,7 +7,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { runAgent, type Caps, type Shared } from "./agent.ts";
+import { logReport, renderLogSections } from "./from-log.ts";
 import { analyse, renderReport, type Report } from "./observe.ts";
+import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
+import { TOOLS } from "./tools.ts";
 import type { Provider, TraceEvent } from "./types.ts";
 import { bootWorld } from "./world.ts";
 
@@ -48,7 +51,14 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   mkdirSync(dir, { recursive: true });
   const tracePath = join(dir, "trace.jsonl");
   const events: TraceEvent[] = [];
-  const trace = (e: TraceEvent) => { events.push(e); appendFileSync(tracePath, JSON.stringify(e) + "\n"); };
+  let bridge: SignedTrace | undefined;
+  const trace = (e: TraceEvent) => {
+    events.push(e); appendFileSync(tracePath, JSON.stringify(e) + "\n");
+    // Every tool call also leaves a signed record in the run's own ASP log (signed-trace.ts); the bridge queues and never throws into the loop.
+    if (e.t === "tool") bridge?.observe({ agent: e.agent, at: e.at, turn: e.turn, tool: e.tool, input: e.input, ok: e.ok, ...(e.refused ? { refused: e.refused } : {}), scope: e.scope, institution: e.institution, writes: e.writes, ...(e.target ? { target: e.target } : {}), ...(e.targetAuthor ? { targetAuthor: e.targetAuthor } : {}) });
+  };
+  let signed: SignedTraceSummary | undefined;
+  let logPart: Awaited<ReturnType<typeof logReport>> | undefined;
   const stamp = () => new Date(now()).toISOString();
   const shared: Shared = { spentUsd: 0 };
 
@@ -77,6 +87,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
       agents.push(a);
       trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
     }
+    bridge = await SignedTrace.open({ log: world.log, tools: TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
     o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
     const watcher = setInterval(() => { stopRequested(); }, 250);
     try {
@@ -85,6 +96,8 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         await runAgent({ agent: a, provider: o.provider, world: world.api, caps, shared, trace, stopRequested, now });
       }));
     } finally { clearInterval(watcher); }
+    signed = await bridge.close();
+    logPart = await logReport(world.log, signed);
   } finally {
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");
@@ -92,7 +105,8 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   const report = analyse(events);
   const { markdown, json } = renderReport(report);
   const markdownPath = join(dir, "report.md");
-  writeFileSync(markdownPath, markdown);
+  writeFileSync(markdownPath, logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown);
+  if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   writeFileSync(join(dir, "report.json"), json);
   o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${o.totalUsd}; report ${markdownPath}`);
   return { report, dir, markdownPath, sid };

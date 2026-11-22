@@ -30,8 +30,8 @@ async function asp(args: string[], env: Record<string, string> = {}) {
   const code = await main(args, io);
   return { code, out: out.join("\n"), err: err.join("\n"), home };
 }
-/** The documented commands: the fenced PowerShell lines that run `asp society cohort`, with the placeholders filled in. */
-const documented = [...doc.matchAll(/```powershell\n([\s\S]*?)```/g)].flatMap((m) => m[1]!.split("\n")).filter((l) => /society cohort/.test(l)).map((l) => l.replace(/^npm run asp -- /, "").replace(/<usd per million input tokens>/g, "1").replace(/<usd per million output tokens>/g, "5"));
+/** The documented commands: the fenced PowerShell lines that run `asp society cohort`, with the placeholders filled in (`verify` checks a finished run and is tested in cohort-signed-trace.test.ts). */
+const documented = [...doc.matchAll(/```powershell\n([\s\S]*?)```/g)].flatMap((m) => m[1]!.split("\n")).filter((l) => /society cohort/.test(l) && !/society cohort verify/.test(l)).map((l) => l.replace(/^npm run asp -- /, "").replace(/<usd per million input tokens>/g, "1").replace(/<usd per million output tokens>/g, "5"));
 const tokens = (cmd: string): string[] => cmd.split(/\s+/).filter(Boolean);
 
 test("DK1801: the document gives the dry run and the three real steps and the persona run, and each command in it runs and writes a report", async () => {
