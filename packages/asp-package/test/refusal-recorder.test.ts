@@ -61,3 +61,14 @@ test("a refusal the log will not take is counted as failed, and the run goes on"
   assert.deepEqual(x.r.summary(), { recorded: 0, duplicates: 0, overflow: 0, failed: 2 });
   assert.equal(errors.length, 2);
 });
+
+test("the per-minute window is exact: ten at one instant, one more 59,999 ms later is refused, and at exactly 60,000 ms it is taken", async () => {
+  const x = rec();
+  for (let i = 0; i < 10; i++) x.r.record(ev(i));
+  x.tick(59_999); x.r.record(ev(100));
+  await x.r.flush();
+  assert.equal(x.r.summary().recorded, 10, "inside the minute: not taken");
+  x.tick(1); x.r.record(ev(101));
+  await x.r.flush();
+  assert.equal(x.r.summary().recorded, 11, "at exactly one minute the first ten have left the window");
+});
