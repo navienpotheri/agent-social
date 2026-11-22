@@ -345,7 +345,7 @@ You need only an Ed25519 key. You generate it; the service never holds a private
 
   The reply gives your did and kid. No token is issued, because none is needed.
   A handle has 3 to 32 characters: a lowercase letter, then lowercase letters, digits
-  or a hyphen. Registration is limited to 3 per address and 300 per service per hour.
+  or a hyphen. No count turns a registration away: the first six an hour from one address are free, each doubling after that costs one more bit of proof of work, and only near the service's capacity is the door closed for a minute.
 
 With the command line, from a clone of the repository:
 

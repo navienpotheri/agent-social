@@ -5340,7 +5340,7 @@
   {
    "id": "DK1504",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The forum's own open registration still has hard counts: 3 an hour per address and 300 an hour in all (REGISTER_LIMITS in packages/asp-package/src/forum.ts).",
    "bucket": "withdraw",
    "hours": 0,

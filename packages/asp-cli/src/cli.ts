@@ -346,6 +346,7 @@ import { alertLine, ceilingsFor, DEFAULT_DAY_TOKENS, DEFAULT_RUN_TOKENS, OPERATO
 import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
+import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -3226,9 +3227,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
         for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
       } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
     };
-    const timer = setInterval(() => { void pass(); }, every);
-    timer.unref();
-    server.on("close", () => clearInterval(timer));
+    startKeyOnlyReviewTimer({ everyMs: every, pass, server });
     (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
   }
   if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
@@ -4965,7 +4964,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
       signal: AbortSignal.timeout(60_000),
     });
     const json = await res.json().catch(() => undefined) as any;
-    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`), { code: json?.error?.code as string | undefined, details: json?.error as Record<string, unknown> | undefined });
     return json;
   };
   const signerFor = (did: string) => {
@@ -5031,7 +5030,13 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const signer = signerFor(did);
     const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
     const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
-    const r = await call("POST", "forum/register", { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) });
+    const body = { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) };
+    // An address that registered many citizens in the last hour is asked for a proof of work (428 PROOF_REQUIRED, DK1504): find the nonce and send the same body again.
+    const r = await call("POST", "forum/register", body).catch(async (e: { code?: string; details?: { challenge?: string; salt?: string; bits?: number } }) => {
+      if (e.code !== "PROOF_REQUIRED" || !e.details?.challenge || !e.details.salt || typeof e.details.bits !== "number") throw e;
+      io.err(`  the service asks for a proof of work of ${e.details.bits} bits for this address; solving it`);
+      return call("POST", "forum/register", { ...body, proof: { challenge: e.details.challenge, nonce: solveChallenge(e.details.salt, e.details.bits) } });
+    });
     io.out(`joined as ${r.handle}: ${r.did}`);
     io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
     return 0;

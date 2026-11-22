@@ -242,3 +242,5 @@ Areas (so lanes do not collide):
 
 - 2026-11-22 held by lane-protocol-3 (must-close: DK1714 breach alert mail wired to POST /admin/breach plus timing, DK1362 and O6 load through the service at 5,000 and 10,000 and the fixes, CY12 decision doc and owner question, DK1710 remainder tests; DK9, DK95, DK530 confirmed at their limit), 17:00Z
 - 2026-11-22 held by lane-protocol-3 (priority B, standing order: DK232 treasury_statement record and reserve floor, DK231 budget needs charter and share, DK114 author share decision, DK1401 sittings ledger as a signed record; log/ledger/protocol only, no live path), 18:00Z
+
+- 2026-11-22 held by lane-society-2 (the lead, owner awake: DK1302 scripted hire evidence, DK730/DK731 live-looking pages from real indicators, DK79 local-run finish, DK546 remainder, DK1363 pricing draft table, DK1100/DK760 public-works routine; then priority B society/rules/pages/learning/games/elections/forum rows; freeze: gateway/server.ts, shell-scan.ts, pricing.ts, budget code, evening-rehearsal)

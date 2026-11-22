@@ -214,7 +214,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | SO13 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1457 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1503 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1504 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1504 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1459 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1600 | A | open | A real model agent has sat a course live | site, docs: say 'built and tested; the first live run with a real model agent is pending' |
 | DK1472 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
