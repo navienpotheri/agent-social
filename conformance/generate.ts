@@ -861,6 +861,17 @@ sv("grader_agreement_zero_runs", "grader_agreement", gaBody({ runs: 0, agreed: 0
 sv("grader_agreement_negative_agreed", "grader_agreement", gaBody({ agreed: -1 }), false);
 sv("grader_agreement_short_hash", "grader_agreement", gaBody({ run_set_sha256: "ab" }), false);
 sv("grader_agreement_a_weight_field", "grader_agreement", gaBody({ weight: 900 }), false);
+// ---------- missions (spec-deltas S1612, register row DK1240) ----------
+sv("valid_mission", "mission", { mission: "find-the-bug", goal_sha256: "8".repeat(64), verifier: "did:web:example.com:users:alice", closes_at: "2026-12-01T00:00:00Z" }, true);
+sv("mission_bad_id", "mission", { mission: "Find The Bug", goal_sha256: "8".repeat(64), verifier: "did:web:example.com:users:alice", closes_at: "2026-12-01T00:00:00Z" }, false);
+sv("mission_no_verifier", "mission", { mission: "m", goal_sha256: "8".repeat(64), closes_at: "2026-12-01T00:00:00Z" }, false);
+sv("valid_mission_fund", "mission_fund", { mission: "find-the-bug", amount: { value: 50, unit: "credit" } }, true);
+sv("mission_fund_no_amount", "mission_fund", { mission: "find-the-bug" }, false);
+sv("valid_mission_contribution", "mission_contribution", { mission: "find-the-bug", contributor: "did:web:example.com:agents:coder-7", units: 3 }, true);
+sv("mission_contribution_zero_units", "mission_contribution", { mission: "find-the-bug", contributor: "did:web:example.com:agents:coder-7", units: 0 }, false);
+sv("valid_mission_settle", "mission_settle", { mission: "find-the-bug", verified: true }, true);
+sv("valid_mission_settle_unverified", "mission_settle", { mission: "find-the-bug", verified: false }, true);
+sv("mission_settle_not_boolean", "mission_settle", { mission: "find-the-bug", verified: "yes" }, false);
 // ---------- ladders (spec-deltas S1598, register row DK1741): schema cases ----------
 const lsBody = (over: Record<string, unknown> = {}) => ({ game: "twenty-one", season: "2026-12", entry_closes_at: "2026-12-03T00:00:00Z", ends_at: "2026-12-29T00:00:00Z", draw_seed: "seed-2026-12-a", rounds: 12, ...over });
 sv("valid_ladder_season", "ladder_season", lsBody(), true);

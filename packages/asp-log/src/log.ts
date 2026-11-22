@@ -382,6 +382,7 @@ export class EventLog {
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
     if (type === "eval_scenario") await this.projectEvalScenario(tx, verified);
     if (type === "grader_agreement") await this.projectGraderAgreement(tx, verified);
+    if (type === "mission" || type === "mission_fund" || type === "mission_contribution" || type === "mission_settle") await this.projectMission(tx, verified, type);
     if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
@@ -2993,6 +2994,70 @@ export class EventLog {
     if (!f.finding) throw rule("finding_not_deliberate", f.why);
     if (await tx.getMarker(`finding:${b.decoy}|${b.agent}`)) throw rule("finding_known", "this decoy and agent have a finding already");
     await tx.putMarker(`finding:${b.decoy}|${b.agent}`, r.id);
+  }
+
+  /**
+   * Missions on the log (S1612, DK1240): a pooled goal. Funders pay into the pool account `did:web:asp.local:pool:mission-<id>`, the mission's verifier records contributions and settles: a verified goal pays the whole pool by
+   * recorded units (largest remainder, ties by DID order), an unverified one returns each funder what it put in. Credits move between accounts and none are made or lost.
+   */
+  private async projectMission(tx: LogTx, r: AspRecord, type: string): Promise<void> {
+    if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
+    const b = r.body as { mission: string; goal_sha256?: string; verifier?: string; closes_at?: string; amount?: { value: number }; contributor?: string; units?: number; verified?: boolean };
+    const now = Date.parse(r.issued_at);
+    const pool = `did:web:asp.local:pool:mission-${b.mission}`;
+    if (type === "mission") {
+      if (await tx.getMarker(`mission:${b.mission}`)) throw rule("mission_known", `mission ${b.mission} exists already`);
+      if (b.verifier !== this.operator && !(await tx.getPassport(b.verifier!))) throw rule("mission_unknown_verifier", `${b.verifier} has no passport in this log`);
+      if (Date.parse(b.closes_at!) <= now) throw rule("mission_closes_in_past", "funding closes in the future");
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify({ verifier: b.verifier, closes_at: b.closes_at, state: "open", funders: {}, units: {} }));
+      return;
+    }
+    const raw = await tx.getMarker(`mission:${b.mission}`);
+    if (!raw) throw rule("mission_unknown", `${b.mission} is not a mission in this log`);
+    const m = JSON.parse(raw) as { verifier: string; closes_at: string; state: string; funders: Record<string, number>; units: Record<string, number> };
+    if (type === "mission_fund") {
+      if (m.state !== "open" || now >= Date.parse(m.closes_at)) throw rule("mission_closed", `mission ${b.mission} no longer takes funds`);
+      const amount = b.amount!.value;
+      if (!(amount > 0)) throw rule("mission_fund_nothing", "a fund puts in at least one credit");
+      await this.debit(tx, r.issuer, amount);
+      await this.credit(tx, pool, amount);
+      m.funders[r.issuer] = (m.funders[r.issuer] ?? 0) + amount;
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+      return;
+    }
+    if (r.issuer !== m.verifier) throw rule(type === "mission_contribution" ? "mission_contribution_wrong_issuer" : "mission_settle_wrong_issuer", `${r.issuer} is not the verifier of ${b.mission}`);
+    if (m.state === "settled") throw rule("mission_settled", `mission ${b.mission} is settled`);
+    if (type === "mission_contribution") {
+      if (!(await tx.getPassport(b.contributor!))) throw rule("mission_contributor_unknown", `${b.contributor} has no passport in this log`);
+      m.units[b.contributor!] = (m.units[b.contributor!] ?? 0) + b.units!;
+      await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+      return;
+    }
+    // mission_settle
+    const held = Object.values(m.funders).reduce((a, x) => a + x, 0);
+    if (b.verified) {
+      const who = Object.keys(m.units).sort();
+      if (!who.length) throw rule("mission_no_contribution", "a verified mission needs at least one recorded contribution: there is no one to pay");
+      const total = who.reduce((a, x) => a + m.units[x], 0);
+      const shares = who.map((d) => ({ d, base: Math.floor((held * m.units[d]) / total), frac: (held * m.units[d]) % total }));
+      let left = held - shares.reduce((a, s) => a + s.base, 0);
+      for (const s of [...shares].sort((x, y) => y.frac - x.frac || (x.d < y.d ? -1 : 1))) { if (left <= 0) break; s.base++; left--; }
+      await this.debit(tx, pool, held);
+      for (const s of shares) await this.credit(tx, s.d, s.base);
+    } else {
+      await this.debit(tx, pool, held);
+      for (const [f, v] of Object.entries(m.funders)) await this.credit(tx, f, v);
+    }
+    m.state = "settled";
+    await tx.putMarker(`mission:${b.mission}`, JSON.stringify(m));
+  }
+
+  /** The state of a mission (S1612, DK1240): funds, recorded units, whether it is settled. Reads only. */
+  async missionState(id: string): Promise<{ state: string; verifier: string; funded: number; funders: number; units: Record<string, number> } | null> {
+    const raw = await this.store.transaction((tx) => tx.getMarker(`mission:${id}`));
+    if (!raw) return null;
+    const m = JSON.parse(raw) as { verifier: string; state: string; funders: Record<string, number>; units: Record<string, number> };
+    return { state: m.state, verifier: m.verifier, funded: Object.values(m.funders).reduce((a, x) => a + x, 0), funders: Object.keys(m.funders).length, units: m.units };
   }
 
   /** A judge's agreement with the deterministic check (S1611, DK1223): the totals the grader's weight follows. */
