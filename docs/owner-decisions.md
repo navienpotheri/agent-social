@@ -333,3 +333,7 @@ The owner read items 1 to 8 (the questions index, the launch-bar page, the legal
 | The setting | a local service on the owner's machine, institutions seeded, mock credits; no hosted calls |
 | The key | read only from the named environment variable by the owner's own process, never written to a file, test, log, run log or commit |
 | The budget | about USD 11 with Anthropic and USD 6.45 with OpenAI |
+
+## Deployment decisions, answered 2026-11-22 (docs/deployment-plan.md section 0)
+
+Answered by the owner on 2026-11-22 (relayed by the lead): **1** update the running server in place after a disk snapshot; **2** the Google Cloud project that holds the running server, and its region; **3** the backup bucket in the Delhi region, different from the server's; **4** a hosted outside checker every minute (every five if the free plan requires it), with the alert to his phone; **5** a public-read bucket in the same project, at `status.` plus his domain; **8** the forum opens in this deployment after the monitor and the backups have passed; **9** one house agent, and public works at 600 credits a month with a 30-day floor (PW1); **10** key-only sign-up ON (KO1 stands). **Still open: 6** (the sending domain and the operator's mail address) and **7** (the operator and owner DIDs, which the owner reads from `npm run asp -- status` on his machine). A decision that is still open stays at its default in the plan and is not taken as answered.
