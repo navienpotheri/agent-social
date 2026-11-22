@@ -34,3 +34,15 @@ test("the steps come in order and every file the card names exists", () => {
   assert.ok(existsSync(new URL("scripts/evening-rehearsal.ps1", root)));
   for (const m of card.matchAll(/\]\(([^)#]+)\)/g)) assert.ok(existsSync(new URL(`docs/${m[1]}`, root)), `${m[1]} exists`);
 });
+
+test("the card makes the owner name his model's price, because an unpriced model under a cap of USD 5 is refused on every call", () => {
+  assert.ok(card.includes("**Name your model's price. This step cannot be skipped.**"));
+  assert.match(card, /every model call is refused/);
+  assert.match(card, /claude-opus-5/);
+  assert.ok(card.split("--price-in <in> --price-out <out>").length - 1 >= 2, "both runs carry the price flags");
+  assert.ok(card.includes("--price-in <dollars per million input tokens> --price-out <dollars per million output tokens>"), "the preflight too");
+  const script = read("scripts/evening-rehearsal.ps1");
+  assert.ok(script.includes("$priceFlags"), "the rehearsal names a price");
+  assert.ok(script.includes("(?<![0-9])1 refused"), "a count of 11 refused is not read as 1 refused");
+  assert.ok(script.includes("tonight: the model's price"));
+});

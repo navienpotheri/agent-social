@@ -402,7 +402,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
-import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
+import { buildReport, capProblem, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -3773,6 +3773,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so at the start, with the remedy (the same rule as asp live preflight).
+  if (v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
   const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
@@ -7527,6 +7529,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so now, with the remedy (the gateway's own start note is not shown by asp run).
+  if (!hooked && v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
@@ -7877,6 +7881,19 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
   }
   return [...bySid.values()].sort((a, b) => b.start.at.localeCompare(a.start.at));
 }
+/**
+ * Every session of this machine, newest first, from the ASP home AND from <home>/local, where \`asp run --local\` keeps its own index; each entry says where it lives (\`src\`), because its stop file, its run log and its log are
+ * there. Found in the owner's first real run: a home that already held old sessions never looked at the local index (it was a fallback for an EMPTY home), so tonight's sessions were not listed, not found by id, and
+ * \`asp live report\` showed an old run.
+ */
+function sessionsAll(home: string): { start: SessionStart; end?: SessionEnd; src: string }[] {
+  const mine = sessionsOf(home).map((x) => ({ ...x, src: home }));
+  const isLocal = /[\\/]local[\\/]*$/.test(home);
+  const localHome = join(home, "local");
+  const local = !isLocal && existsSync(sessionIndexPath(localHome)) ? sessionsOf(localHome).map((x) => ({ ...x, src: localHome })) : [];
+  const seen = new Set<string>();
+  return [...mine, ...local].sort((a, b) => b.start.at.localeCompare(a.start.at)).filter((x) => (seen.has(x.start.sid) ? false : (seen.add(x.start.sid), true)));
+}
 const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 
 function pidAlive(pid: number): boolean {
@@ -7887,7 +7904,7 @@ function pidAlive(pid: number): boolean {
  * Read from this machine's session index and run logs, and said to be so.
  */
 async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise<number> {
-  const sessions: DaySession[] = sessionsOf(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
+  const sessions: DaySession[] = sessionsAll(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
   const eventsOf = (s: DaySession) => {
     const p = s.end?.runLog;
     if (!p || !existsSync(p)) return undefined;
@@ -7925,6 +7942,7 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
+<<<<<<< HEAD
   if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
   if (!id && v["html-file"]) {
@@ -7934,6 +7952,9 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
     io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
     return 0;
   }
+=======
+  const all = sessionsAll(home);
+>>>>>>> claude/sharp-dirac-595b53
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
@@ -7948,7 +7969,8 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   const hit = all.filter((s) => s.start.sid.startsWith(id));
   if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
   if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
-  const { start, end } = hit[0];
+  const { start, end, src } = hit[0];
+  home = src; // the log and the run logs of a session are where its index is
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
@@ -7988,12 +8010,12 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     });
   }
   if (sub === "report") {
-    if (!sessionsOf(home).length && existsSync(join(home, "local", "runs.ndjson"))) return await liveCommand(join(home, "local"), sub, v, io);
-    const all = sessionsOf(home);
+    const all = sessionsAll(home);
     const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
     if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
     if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
-    const { start, end } = pick[0];
+    const { start, end, src } = pick[0];
+    home = src; // the log, the run logs and the records of a session are where its index is
     const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
     let log: { records: number; actions: number } | undefined;
     let share: { actions: number; unprompted: number; permille: number } | undefined;
@@ -8005,7 +8027,7 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
       share = await l.unpromptedShare(start.contract);
     } catch { /* the log could not be read: the report says what it has */ }
     const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}), ...(share ? { unprompted: share } : {}) });
-    if (v.json) io.out(JSON.stringify(report, null, 2)); else printReport(report, (l) => io.out(l));
+    if (v.json) io.out(JSON.stringify(report, null, 2)); else { if (!v.session) io.out(`reporting the newest session, ${start.sid} (asp runs lists the others; asp live report --session <id> reports one of them)`); printReport(report, (l) => io.out(l)); }
     return report.runLog.chainOk === false ? 1 : 0;
   }
   throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json]");
@@ -8013,23 +8035,21 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
 async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  let running = sessionsOf(home).filter((s) => !s.end);
-  // `asp run --local` keeps its sessions under <ASP_HOME>/local: when none run here, stop those (the stop file goes where that gateway looks).
-  if (!running.length && !home.replace(/[\\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) { const local = sessionsOf(join(home, "local")).filter((s) => !s.end); if (local.length) return await stopCmd(join(home, "local"), id, v, io); }
+  // The sessions of the home and of <home>/local (asp run --local): each stop file goes where that session's gateway looks.
+  const running = sessionsAll(home).filter((s) => !s.end);
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
   // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.
   if (v.all) {
     if (id) throw new UsageError("asp stop --all stops every running session; give no id with it");
-    mkdirSync(home, { recursive: true });
-    for (const { start } of pick) writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+    for (const { start, src } of pick) { mkdirSync(src, { recursive: true }); writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`); }
     io.out(`stopping ${pick.length} session${pick.length === 1 ? "" : "s"}: ${pick.map((s) => `${s.start.sid} (${s.start.agent})`).join(", ")}; each tool ends within a few seconds (the standing jobs stay; asp standing end ends those too)`);
     return 0;
   }
   if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>, or asp stop --all"); }
-  const { start } = pick[0];
-  mkdirSync(home, { recursive: true });
-  writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+  const { start, src } = pick[0];
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
   io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
   return 0;
 }

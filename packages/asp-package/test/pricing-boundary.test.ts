@@ -13,11 +13,17 @@ test("each family has its own price, the mini models are not priced as the big o
   for (const m of ["gemini-flash", "qwen3-coder", "llama-3.1-70b", "mistral-large", "deepseek-chat", "some-free-model"]) assert.deepEqual(priceFor(m), { inPerM: 1, outPerM: 3 }, m);
 });
 
+test("the Opus family has its own price, rounded up from the list prices ($5/$25 and $4/$20), whatever the version in its name", () => {
+  for (const m of ["claude-opus-5", "claude-opus-5-5", "claude-opus-4-8", "claude-opus-4-6", "CLAUDE-OPUS-5"]) assert.deepEqual(priceFor(m), { inPerM: 6, outPerM: 30 }, m);
+});
+
 test("a model not in the table, or no model, is priced at the high default and is not counted as priced", () => {
-  for (const m of ["claude-opus-5-5", "gpt-7", "", undefined, null, 42]) assert.deepEqual(priceFor(m), DEFAULT_PRICE, String(m));
+  for (const m of ["claude-fable-5-2", "gpt-7", "gpt-5-codex", "", undefined, null, 42]) assert.deepEqual(priceFor(m), DEFAULT_PRICE, String(m));
   assert.deepEqual(DEFAULT_PRICE, { inPerM: 15, outPerM: 75 });
   assert.equal(isPricedModel("claude-haiku-5-5"), true);
-  assert.equal(isPricedModel("claude-opus-5-5"), false);
+  assert.equal(isPricedModel("claude-fable-5-2"), false, "Fable and Mythos are not in the table");
+  assert.equal(isPricedModel("gpt-5-codex"), false, "no list price is cited for it here, so it stays unpriced");
+  assert.equal(isPricedModel("claude-opus-5-5"), true);
   assert.equal(isPricedModel(undefined), false);
   assert.equal(isPricedModel(7), false);
 });

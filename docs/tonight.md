@@ -10,7 +10,7 @@ One page for the owner, who runs it alone. Credits are mock accounting entries, 
 .\scripts\evening-rehearsal.ps1
 ```
 
-*Right:* a line starting PASS for every step, no line starting FAIL, and `echo $LASTEXITCODE` prints 0. *If not:* stop and send the FAIL lines to a worker; do not go on.
+*Right:* a line starting PASS for every step (16 with Claude Code and Codex installed), no line starting FAIL, and `echo $LASTEXITCODE` prints 0. One PASS line is information for step 2: it names the model that your Claude Code uses by default and says whether the gateway knows its price. *If not:* stop and send the FAIL lines to a worker; do not go on.
 
 ## Step 2: set up (once)
 
@@ -20,8 +20,10 @@ $env:ANTHROPIC_API_KEY = "PASTE-YOUR-OWN-KEY"
 $env:ASP_HOME = "$HOME\asp-live-2026-11-22"
 npm run asp -- runtimes
 npm run asp -- join
-npm run asp -- live preflight --model <the model Claude Code uses by default> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY
+npm run asp -- live preflight --model <the model named in the rehearsal's information line> --budget-usd 5 --price-in <dollars per million input tokens> --price-out <dollars per million output tokens> --api-key-env ANTHROPIC_API_KEY
 ```
+
+**Name your model's price. This step cannot be skipped.** The gateway estimates the spend from a price table. A model that is not in the table (the rehearsal's information line says whether yours is: the first rehearsal on this machine found `claude-opus-5` not in it) is priced high, and under a cap of USD 5 the worst case of one call then exceeds the cap, so **every model call is refused** and the session shows "0 tool call(s) judged, 11 refused". Read your model's input and output prices, in dollars per million tokens, from the provider's own pricing page, round them up, and give them as `--price-in` and `--price-out` to the preflight and to every `asp run` below (the commands below show them). A price lower than the real one makes the cap understate the spend, so round up and check the provider's usage page after each run.
 
 *Right:* every command takes about three seconds to start; `runtimes` lists Claude Code and Codex; `join` opens your browser and waits for you; the preflight ends with the line READY and no red line. *If not:* a red `identities` means that you have not joined (run `join`, or add `--local` to the preflight and to every run); a red key line means the key is not set in this window; a red `runtime` line means Claude Code is not installed or not signed in (run `claude --version`, then `claude` once); amber `sleep` means keep the lid open and the machine plugged in. The whole table of symptoms is section 4a of the runbook.
 
@@ -36,17 +38,17 @@ New-Item -ItemType Directory -Force C:\scratch\repo | Out-Null
 Then, from the repository folder:
 
 ```powershell
-npm run asp -- run claude-code --project C:\scratch\repo --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5
+npm run asp -- run claude-code --project C:\scratch\repo --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 --price-in <in> --price-out <out>
 npm run asp -- live report
 npm run asp -- runs
 ```
 
-*Right:* the listing is allowed; the `curl` call is refused with the scope `shell.network` and a reason; `live report` shows the calls allowed and refused, the spend against USD 5 and a run log that verifies; `runs` shows "1 refused". *If not:* a message that says "dollar cap reached" is the limit you set, not a fault of your key; start a new run with a higher `--budget-usd` (3 or more). A refusal of something you wanted: allow it on the next run with `--allow commands`. A `429` with no ASP wording is the provider's own limit: wait a minute.
+*Right:* the listing is allowed; the `curl` call is refused with the scope `shell.network` and a reason; `live report` shows the calls allowed and refused, the spend against USD 5 and a run log that verifies; `runs` shows "1 refused". *If not:* if every call is refused and the session shows only refusals of "model request" with the scope `model.usd`, the price was not named (see step 2); a message that says "dollar cap reached" is the limit you set, not a fault of your key; start a new run with a higher `--budget-usd` (3 or more). A refusal of something you wanted: allow it on the next run with `--allow commands`. A `429` with no ASP wording is the provider's own limit: wait a minute.
 
 ## Step 4: item 5, Codex (about 20 minutes)
 
 ```powershell
-npm run asp -- run codex --project C:\scratch\repo --prompt "Say done" --budget-usd 5
+npm run asp -- run codex --project C:\scratch\repo --prompt "Say done" --budget-usd 5 --price-in <in> --price-out <out>
 npm run asp -- live report
 ```
 
