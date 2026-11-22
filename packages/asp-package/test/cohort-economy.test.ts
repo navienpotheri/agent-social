@@ -52,7 +52,8 @@ test("the static prefix is marked for the cache (the end of the tools and of the
   const r = await run(eco.url, { cache: true, historyTurns: 4 }, events);
   assert.equal(r.outcomes[0]!.stopped, "finished");
   assert.ok(eco.seen.every((s) => s.marked && s.systemMarked), "every request marks the tool list and the briefing");
-  assert.ok(Math.max(...eco.seen.map((s) => s.messages.length)) <= 1 + 2 * 4, "never more than the opening and four exchanges");
+  assert.equal(Math.max(...eco.seen.map((s) => s.messages.length)), 1 + 2 * 4, "the opening and exactly four exchanges, and no more");
+  assert.ok(eco.seen.every((s) => s.messages.every((m: { role: string }, i: number) => m.role === (i % 2 === 0 ? "user" : "assistant"))), "the roles alternate in every request: a dropped exchange is a whole reply and its results");
   assert.ok(events.some((e) => e.kind === "compact" && e.why === "history"));
   const late = eco.seen.at(-1)!.messages[0].content as string;
   assert.match(late, /What you have done so far.*did a thing/s, "the summary stands in for the dropped exchanges");
@@ -124,4 +125,15 @@ test("an observation stays inside its character budget however many events there
   assert.equal(digestCalls, before, "no refresh on the next wake");
   await a.tools().find((x) => x.name === "rest")!.run({ until: "10m" }, ctx());
   assert.equal(digestCalls, before + 1, "refreshed on the third wake since the last digest");
+});
+
+test("over a tight budget the events are dropped one by one until the observation fits, and the count of the rest is told", async () => {
+  const f = fake();
+  const raised: LifeEvent[] = Array.from({ length: 3 }, (_, i) => ({ kind: "reply" as const, at: i, text: `a remark ${i} ` + "y".repeat(150) }));
+  const life = new Life({ clock: f.clock, source: { kinds: ["reply"], poll: async (_a, c) => (c ? { events: [], cursor: 1 } : { events: raised, cursor: 1 }) }, notebookDir: mkdtempSync(join(tmpdir(), "asp-life-")), sleep: f.sleep, limits: { observationChars: 420 } });
+  const r = await life.agent("a").tools().find((x) => x.name === "wait_for")!.run({ events: ["reply"], max_wait: "1h" }, ctx());
+  const body = r.text.slice(0, r.text.indexOf("Your notebook"));
+  assert.ok(body.length <= 422, `${body.length} chars`);
+  assert.match(body, /and [123] more \(coalesced\)/);
+  assert.match(body, /3 things happened/);
 });

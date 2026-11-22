@@ -30,6 +30,13 @@ test("the planner prints, for each rung, the expected dollars (with the cache an
   const nums = [...r.out.matchAll(/expected about \$(\d+\.\d\d) \(about \$(\d+\.\d\d) without the cache\)/g)].map((m) => [Number(m[1]), Number(m[2])]);
   assert.equal(nums.length, 3);
   assert.ok(nums.every(([withCache, without]) => withCache < without), "the cache is worth something in every rung");
+  const capped = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "15", "--budget-usd", "0.40", "--total-usd", "5"]);
+  assert.match(capped.out, /15 agents: expected about .*worst case \$5\.00/, "the worst case never passes the run's total cap");
+  const short = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "1", "--budget-usd", "5", "--ticks", "10"]);
+  const long = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "1", "--budget-usd", "5"]);
+  const first = (t: string) => Number(/expected about \$(\d+\.\d\d)/.exec(t)![1]);
+  assert.ok(first(long.out) > first(short.out) * 2, "the default is many more ticks than ten");
+  assert.match(long.out, /40 ticks an agent/);
   const unpriced = await asp(["society", "cohort", "plan", "--model", "brand-new", "--agents", "1", "--budget-usd", "0.4"]);
   assert.match(unpriced.out, /brand-new is not in the price table/);
   assert.equal((await asp(["society", "cohort", "plan", "--budget-usd", "0.4"])).code, 2);
