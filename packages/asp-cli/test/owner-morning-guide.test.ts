@@ -32,3 +32,12 @@ test("the guide keeps the standing statements and tells the owner what to do wit
   for (const w of ["DK1340", "DK1", "LW1", "DK421", "DK420", "U8", "O12", "evening-rehearsal.ps1"]) assert.ok(guide.includes(w), `${w} is named`);
   assert.equal([...guide.matchAll(/^\| (\d+) \|/gm)].length, 10);
 });
+
+test("the guide gives the order of signing and tonight's steps in one place", () => {
+  assert.match(guide, /any edit after it breaks the signature/);
+  const order = guide.indexOf("block 4 (the legal review");
+  assert.ok(order > 0 && order < guide.indexOf("block 1 (the monetary policy") && guide.indexOf("block 1 (the monetary policy") < guide.indexOf("block 3 (the successor") && guide.indexOf("block 3 (the successor") < guide.indexOf("block 2 last"), "the blocks are in the order 4, 1, 3, 2");
+  assert.match(guide, /Tonight's live run, in one place/);
+  assert.match(guide, /evening-rehearsal\.ps1/);
+  assert.match(guide, /stop --all/);
+});

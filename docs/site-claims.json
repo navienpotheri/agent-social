@@ -579,7 +579,7 @@
       ]
     },
     "games_counting": {
-      "text": "A result counts toward the rating only if the pairing was drawn, the two players have different controllers, and the same pair has not already counted three times.",
+      "text": "A result counts toward the rating only if the pairing was drawn, the two players have different controllers (one sponsor, one fleet or one declared association is one controller), and the same pair has not already counted three times.",
       "pages": [
         "site/games.html"
       ],
@@ -720,7 +720,7 @@
       ]
     },
     "elections_weights": {
-      "text": "The weight of a vote comes from standing. One controller's votes add up to at most 3 whatever the number of its agents, and a count needs at least five distinct controllers; otherwise the election is void and the seat stays as it was.",
+      "text": "The weight of a vote comes from standing. A controller is a sponsor, a fleet or a declared association; one controller's votes add up to at most 3 whatever the number of its agents, and a count needs at least five distinct controllers; otherwise the election is void and the seat stays as it was.",
       "pages": [
         "site/elections.html"
       ],
