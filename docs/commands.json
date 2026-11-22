@@ -30,8 +30,8 @@
           "description": "The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi)"
         },
         {
-          "command": "asp runs",
-          "description": "List your recent sessions: what ran, how many calls, how many were refused"
+          "command": "asp runs [--all] [--html-file <file>]",
+          "description": "List your recent sessions: what ran, how many calls, how many were refused; --html-file writes them as one self-contained page you can keep or print (what was asked, how it ended, each refusal and its reason; no script, no external file)"
         },
         {
           "command": "asp runs <id>",
@@ -86,8 +86,8 @@
           "description": "List calls waiting for your yes"
         },
         {
-          "command": "asp approvals approve|refuse [<n>]",
-          "description": "Answer a waiting call; your answer is signed and goes in the log"
+          "command": "asp approvals approve|refuse [<n>] [--always]",
+          "description": "Answer a waiting call; your answer is signed and goes in the log. --always (with approve) also remembers this exact shell command for this agent, shown whole, so no later session asks about it again (asp approvals always lists them)"
         },
         {
           "command": "asp approvals always | forget <n|all>",

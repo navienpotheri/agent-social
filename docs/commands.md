@@ -17,7 +17,7 @@ Most people use only these.
 | `asp join --recover` | Lost your token? Sign in again on the service's /join/recover page, then save the new token (read from ASP_NEW_TOKEN) |
 | `asp run <claude-code|codex|goose|openclaw|hermes|antigravity|openhands> --prompt "..."` | Run a real coding agent under a Mandate: files and commands in your folder, no network unless you name hosts |
 | `asp run <runtime> --local --prompt "..."` | The same governed session with no service and no account: identities and records live only on this machine (for a demo with no wifi) |
-| `asp runs` | List your recent sessions: what ran, how many calls, how many were refused |
+| `asp runs [--all] [--html-file <file>]` | List your recent sessions: what ran, how many calls, how many were refused; --html-file writes them as one self-contained page you can keep or print (what was asked, how it ended, each refusal and its reason; no script, no external file) |
 | `asp runs <id>` | One session in detail: the task, what was refused and why, the Action reports, the run log |
 | `asp today` | What your agents did today: each session, what was refused and why, what you answered, anything wrong, and what each agent returned for its tokens and who paid for its presence (--day YYYY-MM-DD, --since 24h, --all adds scopes and cost) |
 | `asp learned [--since <dispatch or edge>]` | What an agent learned (since a dispatch or an edge, when given): every memory change with what it added, changed and removed; show, keep, undo (a new signed update) and edit one (--package <dir>) |
@@ -31,7 +31,7 @@ Most people use only these.
 | `asp gateway ... --private-scopes <a,b> --package <dir> [--principal <did>]` | Give the agent private memory for this run: the named scopes, sealed to you and this agent (an X25519 key for each, the agent's sealed to yours), opened only inside the gateway for the length of the run and offered to the agent as the tools asp_memory_private_list, _read and _write (256 KiB a scope, 16 scopes, names a-z 0-9 - _). The run log holds a scope, a size and a hash, never the text; no other agent of yours, and no host with only a node key, can read a scope. The agent's text still reaches its model provider when it reads a scope into a prompt (DK272, D12) |
 | `asp stop [<id> | --all]` | End a running session from another window, or every running session on this machine at once; the standing jobs stay |
 | `asp approvals` | List calls waiting for your yes |
-| `asp approvals approve|refuse [<n>]` | Answer a waiting call; your answer is signed and goes in the log |
+| `asp approvals approve|refuse [<n>] [--always]` | Answer a waiting call; your answer is signed and goes in the log. --always (with approve) also remembers this exact shell command for this agent, shown whole, so no later session asks about it again (asp approvals always lists them) |
 | `asp approvals always | forget <n|all>` | List the exact commands you said "always" to, or take them back |
 | `asp status` | Where things stand: who you are, what is running, what waits for you, what to do next |
 | `asp help [<topic>|<words>|all]` | Help by topic or search; `all` prints the complete reference |

@@ -391,6 +391,7 @@ import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { renderInvoiceHtml } from "./invoice-html.ts";
+import { renderRunsHtml } from "./runs-html.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -588,6 +589,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  always: { type: "boolean" },
   "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
@@ -7884,6 +7886,13 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
   if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
+  if (!id && v["html-file"]) {
+    // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
+    const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));
+    writeFileSync(resolve(io.cwd, v["html-file"]), renderRunsHtml({ rows, generated: now(), machine: home }));
+    io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
+    return 0;
+  }
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
@@ -8205,15 +8214,34 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
     io.out("answer with: asp approvals approve [n]  or  asp approvals refuse [n]");
     return 0;
   }
-  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] | refuse [<n>]");
+  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] [--always] | refuse [<n>]");
   const pick = rest[0] ? open.filter((o) => String(o.n) === rest[0]) : open;
   if (!pick.length) throw new Error(rest[0] ? `no waiting approval numbered ${rest[0]}` : "nothing is waiting for your answer");
   if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
   const o = pick[0];
+  // "Always" from the contract path (T21): asp approvals approve <n> --always allows this exact command for this agent from now on, as answering a at the prompt does. Only a shell command shown whole is remembered:
+  // not cut short, nothing masked, and a scope that is a command (shell.exec, tests.run); anything else is approved this once and says why it was not remembered.
+  let remembered: string | undefined;
+  if (v.always) {
+    if (sub !== "approve") throw new UsageError("--always goes with approve: asp approvals approve <n> --always");
+    const m = /^May (\S+) run .* \((shell\.exec|tests\.run)\)\?$/.exec(o.question);
+    if (!m) remembered = "not remembered: only a shell command is remembered";
+    else if (!o.action || o.action.endsWith("...") || o.action.includes("[redacted]")) remembered = "not remembered: the command was cut short or had secret-looking text masked, so what you read is not the whole command";
+    else {
+      const file = join(home, "always-allow.json");
+      const all = readAlways(file);
+      const mine = all[m[1]] ?? [];
+      if (!mine.some((r) => r.hash === commandKey(o.action))) mine.push({ hash: commandKey(o.action), command: o.action, at: new Date().toISOString() });
+      all[m[1]] = mine.slice(-200);
+      writeAlways(file, all);
+      remembered = "remembered: " + m[1].split(":").slice(-1)[0] + " may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)";
+    }
+  }
   const out: string[] = [], err: string[] = [];
   const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--about", o.checkpoint, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
   if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
   io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
+  if (remembered) io.out(`  ${remembered}`);
   void cfg;
   return 0;
 }
@@ -9000,6 +9028,9 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     const stdoutLog = join(runDir, "stdout.log");
     const stderrLog = join(runDir, "stderr.log");
     let hiddenFailure: string | undefined;
+    // The run log of this node (E5): a hash-chained log of its start and end, with the hashes of the output it wrote; the output itself is not read for text (output_read: false), as for an interactive `asp run`.
+    const nodeLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+    nodeLog?.event("run_start", { node: index, agent, backend: v.backend, command: [plan.command, ...plan.args].join(" "), output_read: false });
     const code = await new Promise<number>((done) => {
       const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: ["ignore", "pipe", "pipe"] });
       let outCarry = "";
@@ -9018,6 +9049,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       });
       child.on("exit", (c) => done(c ?? 1));
     });
+    { const hash = (f: string) => existsSync(f) ? createHash("sha256").update(readFileSync(f)).digest("hex") : null; nodeLog?.event("run_end", { node: index, exit_code: code, output_read: false, stdout_sha256: hash(stdoutLog), stderr_sha256: hash(stderrLog), ...(hiddenFailure ? { failure: hiddenFailure } : {}) }); }
     if (code === -1) {
       await revokeAbandonedNode();
       return { index, task, ok: false, runDir, error: "could not start the runtime" };
