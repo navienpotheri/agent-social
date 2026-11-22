@@ -79,9 +79,15 @@ $preOk = $pre -match "READY" -and $pre -notmatch "NOT READY"
 Step "asp live preflight --local" $preOk (($pre -split "`n" | Select-String "RED|NOT READY|READY" | ForEach-Object { $_.Line.Trim() }) -join " | ")
 Step "the key is not printed" (-not ($pre -match [regex]::Escape($env:ANTHROPIC_API_KEY))) "only its length is shown"
 
+<<<<<<< HEAD
 $run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $priceFlags $ladderFlag 2>$null) -join "`n"
 Step "governed run: one call refused" ($run -match "(?<![0-9])1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
 if (-not ($run -match "(?<![0-9])1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
+=======
+$run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $ladderFlag 2>$null) -join "`n"
+Step "governed run: one call refused" ($run -match "\b1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
+if (-not ($run -match "\b1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
+>>>>>>> claude/protocol-ledger-3
 Step "governed run: the run ended" ($run -match "finished|Session summary") "session summary printed"
 if ($run -match "model\.usd|dollar cap|call could cost up to") { Write-Host "     HINT: the dollar cap refused the MODEL calls, not the curl call. A model that is not in the price table is priced high, and a cap of USD 5 then admits no call at all; name your model's real price with --price-in and --price-out (dollars per million tokens), as docs/tonight.md says." }
 
@@ -101,10 +107,17 @@ if ($modelSeen) {
 } else { Step "tonight: the model's price (information)" $true "no model request was seen in the run log (a stand-in program was used, or the run did not reach the model)" }
 
 $rep = (npm run asp -- live report 2>$null) -join "`n"
+<<<<<<< HEAD
 Step "asp live report" ($rep -match "(?<![0-9])1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
 if (-not ($rep -match "(?<![0-9])1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
 $runs = (npm run asp -- runs 2>$null) -join "`n"
 Step "asp runs" ($runs -match "(?<![0-9])1 refused") "the session is listed"
+=======
+Step "asp live report" ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
+if (-not ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
+$runs = (npm run asp -- runs 2>$null) -join "`n"
+Step "asp runs" ($runs -match "\b1 refused") "the session is listed"
+>>>>>>> claude/protocol-ledger-3
 
 $p = (npm run asp -- pause 2>$null) -join "`n"
 $r = (npm run asp -- resume 2>$null) -join "`n"
@@ -122,8 +135,13 @@ if ($codex) {
   for ($i = 0; $i -lt 50 -and -not ((Test-Path "$work\standin2.log") -and ((Get-Content "$work\standin2.log" -Raw) -match "listening")); $i++) { Start-Sleep -Milliseconds 200 }
   $env:ASP_RUN_OPENAI_UPSTREAM = "http://127.0.0.1:$port2/v1"
   $env:OPENAI_API_KEY = "sk-rehearsal-placeholder-not-a-key-000000"
+<<<<<<< HEAD
   $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $priceFlags $ladderFlag 2>$null) -join "`n"
   Step "codex: governed run, one call refused" ($cx -match "(?<![0-9])1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
+=======
+  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $ladderFlag 2>$null) -join "`n"
+  Step "codex: governed run, one call refused" ($cx -match "\b1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
+>>>>>>> claude/protocol-ledger-3
   if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue
 } else { $skipped += "codex"; Write-Host "SKIP codex: not installed here (PATH: $($env:PATH.Split([IO.Path]::PathSeparator).Count) entries)" }

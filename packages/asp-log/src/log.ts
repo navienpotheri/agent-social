@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
-import { noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
+import { haltState, noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
@@ -114,6 +114,8 @@ const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
 const RETURN_RESERVE = 50;
 /** An emergency stop has a sunset: at most 72 hours (S1420, GV6). */
 export const EMERGENCY_MAX_MS = 72 * 3_600_000;
+/** The longest a credit halt on the Bank or the Insurer may stand (DK1229, S1653). */
+export const CREDIT_HALT_MAX_MS = 7 * 86_400_000;
 
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
@@ -192,6 +194,8 @@ export interface EventLogOptions {
   panelV2From?: string;
   /** The time from which a new budget must leave the Treasury's uncommitted balance at or above one month of approved budgets (the total of the latest earlier month with budgets; DK232, TRL-19, guard G6). Off when unset. */
   treasuryReserveFloorFrom?: string;
+  /** The time from which a Treasury budget for an institution needs that institution's published charter in force (DK231, TRL-16). Off when unset. */
+  charterRequiredFrom?: string;
   /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
   panelV3From?: string;
   /**
@@ -315,6 +319,7 @@ export class EventLog {
   private configLoaded = false;
   private readonly panelV2From?: string;
   private readonly reserveFloorFrom?: string;
+  private readonly charterRequiredFrom?: string;
   private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -338,6 +343,8 @@ export class EventLog {
     this.panelV2From = opts.panelV2From;
     if (opts.treasuryReserveFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.treasuryReserveFloorFrom))) throw new Error(`treasuryReserveFloorFrom must be an ISO time, got ${opts.treasuryReserveFloorFrom}`);
     this.reserveFloorFrom = opts.treasuryReserveFloorFrom;
+    if (opts.charterRequiredFrom !== undefined && !Number.isFinite(Date.parse(opts.charterRequiredFrom))) throw new Error(`charterRequiredFrom must be an ISO time, got ${opts.charterRequiredFrom}`);
+    this.charterRequiredFrom = opts.charterRequiredFrom;
     if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
     this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -476,6 +483,7 @@ export class EventLog {
     if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
+    if (type === "credit_halt") await this.projectCreditHalt(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
     if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
@@ -495,7 +503,7 @@ export class EventLog {
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
     if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
     if (type === "subsidy_use") await projectSubsidyUse(tx, verified);
-    if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
+    if (type === "claim_decision") { if ((verified.body as { decision: string }).decision !== "denied" && (await haltState(tx, "insurer", verified.issued_at)).live) throw rule("insurer_halted", "the Insurer is under a halt (credit_halt): a claim decision that pays waits for the halt to end; a denial is not held"); await projectClaimDecision(tx, verified, this.insurerEnv); }
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
@@ -3743,6 +3751,33 @@ export class EventLog {
     await tx.putMarker("estop:live", JSON.stringify({ id: live.id, until: r.issued_at, reason: live.reason }));
   }
 
+  /**
+   * A credit halt or its lifting (DK1229, S1653): the Treasury's circuit breaker on the Bank's withdrawals or the Insurer's claim payments. A halt has a sunset (at most 7 days) and one is live for an institution at a
+   * time; the Bank and Insurer rules read it (`bank-active.ts` `haltState`). Lifting a halt on the Bank pays its queue at once, in proportion to what each holder asked.
+   */
+  private async projectCreditHalt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "halt" | "lift"; institution: "bank" | "insurer"; reason: string; until?: string; halt?: string };
+    if (r.prev !== null) throw rule("credit_halt_not_chained", "a credit halt starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("credit_halt_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury halts or lifts a halt`);
+    const state = await haltState(tx, b.institution, r.issued_at);
+    if (b.act === "halt") {
+      if (state.live) throw rule("credit_halt_already_live", `the ${b.institution} is halted (${state.id}) until ${state.until}: a new halt can start when it has ended`);
+      const at = Date.parse(r.issued_at), until = Date.parse(b.until!);
+      if (!(until > at)) throw rule("credit_halt_until_past", "a halt ends after it begins");
+      if (until - at > CREDIT_HALT_MAX_MS) throw rule("credit_halt_too_long", "a halt lasts at most 7 days: it has a sunset, and a longer one is a new decision after it ends");
+      await tx.putMarker(`credit_halt:${b.institution}`, JSON.stringify({ id: r.id, until: b.until, reason: b.reason, settled: false }));
+      return;
+    }
+    if (!state.live || state.id !== b.halt) throw rule("credit_halt_not_live", `${b.halt} is not the live halt of the ${b.institution}`);
+    await tx.putMarker(`credit_halt:${b.institution}`, JSON.stringify({ id: state.id, until: r.issued_at, reason: state.reason, settled: false }));
+    if (b.institution === "bank") await serveQueue(tx, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) }, r.issued_at);
+  }
+
+  /** Every credit halt and lift, oldest first (S1653): the public record. */
+  async creditHaltHistory(): Promise<{ id: string; at: string; act: string; institution: string; reason: string; until?: string; halt?: string }[]> {
+    return (await this.recordsOfTypes(["credit_halt"])).map((r) => { const b = r.body as { act: string; institution: string; reason: string; until?: string; halt?: string }; return { id: r.id, at: r.issued_at, act: b.act, institution: b.institution, reason: b.reason, ...(b.until ? { until: b.until } : {}), ...(b.halt ? { halt: b.halt } : {}) }; });
+  }
+
   /** The emergency stop in force now, or none (S1420): public, for the page and the commands. */
   async emergencyState(at: string = this.now().toISOString()): Promise<{ id: string; until: string; reason: string } | null> { return this.store.transaction(async (tx) => (await this.liveStop(tx, at)) ?? null); }
 
@@ -3889,6 +3924,13 @@ export class EventLog {
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
     if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
+    // A budget for an institution needs its published charter in force (DK231, TRL-16): from the cutover, an institution with no charter record has no budget.
+    if (this.charterRequiredFrom && !allowanceLine && Date.parse(r.issued_at) >= Date.parse(this.charterRequiredFrom)) {
+      const head = Number((await tx.getMarker(`charter_head:${b.institution}`)) ?? 0);
+      let inForce: Awaited<ReturnType<typeof readCharter>> = null;
+      for (let v = head; v >= 1 && !inForce; v--) { const c = await readCharter(tx, b.institution, v); if (c && Date.parse(c.effective_from) <= Date.parse(r.issued_at)) inForce = c; }
+      if (!inForce) throw rule("budget_no_charter", `${b.institution} has no published charter in force: the Treasury sets no budget for an institution with no charter (publish it with asp charter publish)`);
+    }
     const lastKey = `budget_last:${line}`;
     const last = await tx.getMarker(lastKey);
     if (!this.cosignedBy(r, this.owner)) {

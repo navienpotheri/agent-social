@@ -33,7 +33,7 @@ export {
 export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, PUBLIC_PAGE_PATH, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
-export { UsageStore, type Usage } from "./usage.ts";
+export { UsageStore, usageFromLog, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";

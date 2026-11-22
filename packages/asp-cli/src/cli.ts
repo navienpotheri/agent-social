@@ -347,6 +347,8 @@ import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
+import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
+import { verifyCmd } from "./cohort/verify.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -415,7 +417,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, usageFromLog, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -702,6 +704,11 @@ const OPTIONS = {
   "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
   "wake-tokens": { type: "string" },
+  "total-usd": { type: "string" },
+  behaviours: { type: "string" },
+  "persona-file": { type: "string" },
+  "provider-url": { type: "string" },
+  "max-turns": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
@@ -1353,6 +1360,10 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: the sponsor's machine must hold the keys of the sponsor and the agent`); return x; };
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "cohort") {
+      if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
@@ -3097,6 +3108,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (sandbox && !db.startsWith("local:")) throw new UsageError("--sandbox runs on a local log: --db local:<dir> (a new, empty directory)");
   if (db.startsWith("local:")) { try { checkEnvironment(db.slice("local:".length), sandbox ? "sandbox" : "production"); } catch (e) { throw new UsageError((e as Error).message); } }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  // The usage counts are the log's own (O17): raised to what the log holds for each tenant, so a lost usage file, or records written before the service counted, do not give a tenant a quota it has used.
+  if (!noAuth) { const raised = usage.reconcile(await usageFromLog((after, limit) => handle.log.since(after, limit) as never, owners.all())); if (raised) io.out(`  usage counts raised from the log for ${raised} tenant(s)`); }
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
@@ -7234,8 +7247,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
     delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
     let lids: { me: string; agent: string; bank: string } | undefined;
-    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    const readIds = () => { try { return JSON.parse(readFileSync(idFile, "utf8")) as { me: string; agent: string; bank: string }; } catch { return undefined; } };
+    lids = readIds();
+    // Two first-time starts at once (gap T3) must end on ONE set of identities: the first to make the folder `<file>.making` makes them; the other waits for the file (a folder older than two minutes is a crashed start's and is taken over).
+    let making = false;
     if (!lids) {
+      const lock = `${idFile}.making`;
+      for (let i = 0; !lids && !making; i++) {
+        try { mkdirSync(lock); making = true; } catch {
+          lids = readIds();
+          if (lids) break;
+          try { if (Date.now() - statSync(lock).mtimeMs > 120_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+          if (i > 1200) throw new Error("another asp start has been making the local identities for over a minute: run again");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (making) lids = readIds();
+    }
+    if (!lids) {
+      try {
       const make = async (args: string[]) => {
         const out: string[] = [], err: string[] = [];
         const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
@@ -7248,6 +7278,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       lids = { me, agent, bank };
       writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
       io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+      } finally { try { rmSync(`${idFile}.making`, { recursive: true, force: true }); } catch { /* already gone */ } }
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
@@ -7943,8 +7974,12 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
   const all = sessionsOf(home);
+=======
+  const all = sessionsAll(home);
+>>>>>>> claude/protocol-ledger-3
   if (!id && v["html-file"]) {
     // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
     const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));

@@ -123,3 +123,5 @@ export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type Gate
 
 export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
 export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";
+export { runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
+export { runCohort, type CohortOptions } from "./cohort/runner.ts";

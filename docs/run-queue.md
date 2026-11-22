@@ -248,3 +248,5 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-cli-3 (priority B in the CLI/gateway/service area: T32 first, then T11, T19, T10, P7, E7)
 
 - 2026-11-22 held by launch-bar-2 (priority B rows buildable without a decision: DK1800 tutorials and BZ2 governance note, both partial), 21:00Z
+- 2026-11-22 held by lane-society-2 (DK1801: the model cohort runner, `asp society cohort`; restricted tool set, observation harness, stand-in scripted tests, then --agents 1, 3, 15; docs/society-models-run.md; no gateway/server.ts, shell-scan.ts, pricing.ts, budget code)
+- 2026-11-22 held by lane-protocol-3 (DK1801 signed trace: packages/asp-cli/src/cohort/signed-trace.ts, from-log.ts, verify.ts, `asp society cohort verify`; small hooks in cohort/run.ts and world.ts; register row, scope.md and testing-map rows), 19:00Z

@@ -1885,6 +1885,16 @@ const worldRules = [
   sv("emergency_lift_no_stop", "emergency_stop", { act: "lift", reason: "fixed" }, false);
   sv("emergency_lift_with_until", "emergency_stop", { act: "lift", reason: "fixed", stop: "sha256:" + "9".repeat(64), until: "2026-11-24T00:00:00Z" }, false);
   sv("emergency_stop_no_reason", "emergency_stop", { act: "stop", until: "2026-11-24T00:00:00Z" }, false);
+  sv("valid_credit_halt_bank", "credit_halt", { act: "halt", institution: "bank", reason: "a run on withdrawals after a rumour", until: "2026-11-24T00:00:00Z" }, true);
+  sv("valid_credit_halt_insurer", "credit_halt", { act: "halt", institution: "insurer", reason: "claims above the reserve", until: "2026-11-24T00:00:00Z" }, true);
+  sv("valid_credit_lift", "credit_halt", { act: "lift", institution: "bank", reason: "the queue can be paid", halt: "sha256:" + "9".repeat(64) }, true);
+  sv("credit_halt_no_until", "credit_halt", { act: "halt", institution: "bank", reason: "x" }, false);
+  sv("credit_halt_names_a_halt", "credit_halt", { act: "halt", institution: "bank", reason: "x", until: "2026-11-24T00:00:00Z", halt: "sha256:" + "9".repeat(64) }, false);
+  sv("credit_lift_no_halt", "credit_halt", { act: "lift", institution: "bank", reason: "x" }, false);
+  sv("credit_lift_with_until", "credit_halt", { act: "lift", institution: "bank", reason: "x", halt: "sha256:" + "9".repeat(64), until: "2026-11-24T00:00:00Z" }, false);
+  sv("credit_halt_unknown_institution", "credit_halt", { act: "halt", institution: "treasury", reason: "x", until: "2026-11-24T00:00:00Z" }, false);
+  sv("credit_halt_no_reason", "credit_halt", { act: "halt", institution: "bank", until: "2026-11-24T00:00:00Z" }, false);
+  sv("credit_halt_unknown_act", "credit_halt", { act: "extend", institution: "bank", reason: "x", until: "2026-11-24T00:00:00Z" }, false);
   sv("emergency_unknown_act", "emergency_stop", { act: "extend", reason: "x", until: "2026-11-24T00:00:00Z" }, false);
   // ---------- the run halt (spec-deltas S1422): schema cases ----------
   const haltBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "4".repeat(64), agent: "did:web:example.com:agents:coder-7", reason: "equivalent_calls", detail: "shell called 8 times with the same arguments", count: 8, limit: 8, tool: "shell", ...over });

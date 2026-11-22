@@ -20491,6 +20491,115 @@
       "valid": false
     },
     {
+      "name": "valid_credit_halt_bank",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "bank",
+        "reason": "a run on withdrawals after a rumour",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_credit_halt_insurer",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "insurer",
+        "reason": "claims above the reserve",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_credit_lift",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "lift",
+        "institution": "bank",
+        "reason": "the queue can be paid",
+        "halt": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": true
+    },
+    {
+      "name": "credit_halt_no_until",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "bank",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_halt_names_a_halt",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "bank",
+        "reason": "x",
+        "until": "2026-11-24T00:00:00Z",
+        "halt": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lift_no_halt",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "lift",
+        "institution": "bank",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_lift_with_until",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "lift",
+        "institution": "bank",
+        "reason": "x",
+        "halt": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_halt_unknown_institution",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "treasury",
+        "reason": "x",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_halt_no_reason",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "halt",
+        "institution": "bank",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
+      "name": "credit_halt_unknown_act",
+      "schema": "credit_halt",
+      "instance": {
+        "act": "extend",
+        "institution": "bank",
+        "reason": "x",
+        "until": "2026-11-24T00:00:00Z"
+      },
+      "valid": false
+    },
+    {
       "name": "emergency_unknown_act",
       "schema": "emergency_stop",
       "instance": {
