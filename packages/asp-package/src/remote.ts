@@ -47,6 +47,11 @@ export class RemoteLog implements LogHandle {
     const e = body.error ?? {};
     if (res.status === 401) throw new Error(`the log service refused the request: ${e.message ?? res.status} (set ASP_LOG_TOKEN)`);
     if (res.status === 403) throw new Error(`the log service refused the request: ${e.message ?? res.status}${e.code ? ` (${e.code})` : ""}`);
+    // A service that runs older code than this client refuses a record with a field the client's schema allows (DK1803): said plainly, and never worked around by dropping the field (the `data` field of a contract
+    // carries a promise about what is kept, so it is not left out silently).
+    if (e.code === "SCHEMA_INVALID" && /must NOT have additional propert/i.test(String(e.message))) {
+      throw new AspError("SCHEMA_INVALID", `this service runs older code than your client: it does not know a field your client sends (${String(e.message).replace(/^[A-Z_]+: /, "")}). Ask the operator to update it, or run with --local. Nothing was dropped or changed to make it fit.`, e.detail);
+    }
     if (e.name === "AspError" && e.code) throw new AspError(e.code as AspErrorCode, String(e.message).replace(/^[A-Z_]+: /, ""), e.detail);
     throw new Error(e.message ?? `the log service answered ${res.status}`);
   }

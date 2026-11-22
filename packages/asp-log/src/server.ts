@@ -27,7 +27,7 @@ import { joinDone, joinDoneCli, joinError, joinForm, recoverDone, recoverForm } 
 import { CHALLENGE_RE, JoinPickup } from "./join-pickup.ts";
 import type { AppendResult } from "./log.ts";
 import type { EventLog } from "./log.ts";
-import type { AspRecord } from "@agent-social/asp-core";
+import { schemaFingerprint, type AspRecord } from "@agent-social/asp-core";
 
 /** What a log offers its callers, whether it is a local file, a database or a remote service. */
 export interface LogHandle {
@@ -211,6 +211,8 @@ function tooMany(res: ServerResponse, v: Verdict) {
   res.end(text);
 }
 
+/** The record schemas this build holds, fingerprinted once (DK1803: the health answer says them so a client can tell a service that runs older code). */
+let buildSchemas: Record<string, string> | undefined;
 export function createLogServer(opts: ServerOptions): Server {
   const maxBody = opts.maxBody ?? 4 * 1024 * 1024;
   const pickup = opts.google ? new JoinPickup() : undefined;
@@ -223,7 +225,7 @@ export function createLogServer(opts: ServerOptions): Server {
       if (opts.blocked?.().includes(address)) return json(res, 403, { ok: false, error: { code: "BLOCKED", message: "this address is blocked by the operator" } });
       if (limits) { const v = limits.checkAddress(address); if (!v.ok) return tooMany(res, v); }
       if (limits && req.method === "GET" && /^\/registry\/(agents|names)\/|^\/registry\/search/.test((req.url ?? "").split("?")[0]!)) { const v = limits.checkLookup(address); if (!v.ok) return tooMany(res, v); }
-      if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true });
+      if (req.method === "GET" && req.url === "/health") return json(res, 200, { ok: true, build: { schemas: (buildSchemas ??= schemaFingerprint()) } });
       if (req.method === "GET" && PUBLIC_PAGE_PATH.test((req.url ?? "").split("?")[0])) {
         // Public, read-only pages of the Registry and the Market (public-pages.ts): no token, derived from the log, escaped, with a strict CSP.
         const reply = await publicReply(opts.handle.log, req.url ?? "", String(req.headers.accept ?? "").includes("text/html"));
