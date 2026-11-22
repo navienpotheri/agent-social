@@ -25,3 +25,10 @@ A test that compares the code with its own constants cannot tell `>=` from `>`. 
 | Private memory: 256 KiB a scope, 16 scopes, the new-scope test | private-memory-run.ts | 3 | none survived |
 | Ladder file: missing is none, unreadable or unknown is tighten, the five steps | ladder-file.ts | 5 | 1 survived: the `typeof step === "string"` guard is equivalent (`includes` is false for a non-string) |
 | Roles and the irreversible gate scopes | gateway/roles.ts | 8 | 1 survived (policy scopes dropped when action_classes is present); killed in `roles.test.ts` |
+
+## Third pass (same day)
+
+| Limit | File | Mutants | Result |
+|---|---|---|---|
+| Workflow step checks, terminal state, the step reaching the Action, the cool-off bounds 1 to 604800 | cli.ts | 8 | 2 survived (the cool-off bounds were tested with a contract that did not exist); killed by `workflow-gateway.test.ts` with an exact 0, 1, 604800, 604801 |
+| Standing budget warnings: level 80, the cap at equality, the percentage rounded down, day and month apart | budget.ts | 8 | none survived the new `budget-boundary.test.ts` except one equivalent: a cap of 0 cannot be set (a cap is a whole number of at least 1) |

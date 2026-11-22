@@ -147,7 +147,20 @@ test("DK1227: a Mandate with action classes and a cool-off lets the performer un
   const undo3 = await asp(h, ["market", "action", "--contract", c3, "--by", CODER, "--scopes-used", "repo.read", "--undoes", /^action (sha256:[0-9a-f]{64})/.exec(a3.out)![1]]);
   assert.notEqual(undo3.code, 0);
   assert.match(undo3.err, /undo_not_allowed|no cool-off/);
-  // a bad cool-off is a usage error
-  const bad = await asp(makeFixture(), ["market", "mandate", "--contract", "x", "--principal", ALICE, "--performer", CODER, "--cool-off-seconds", "0"]);
-  assert.notEqual(bad.code, 0);
+  // the cool-off bounds are exact: 1 and 604800 seconds are taken, 0 and 604801 are not
+  const tryCool = async (secs: string) => {
+    const x = makeFixture();
+    await ok(x, ["identity", "new", "--kind", "human", "--did", ALICE]);
+    await ok(x, ["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Fix the flaky test"]);
+    await ok(x, ["identity", "new", "--kind", "human", "--did", BANK]);
+    await ok(x, ["credits", "grant", "--to", ALICE, "--amount", "1000"]);
+    await ok(x, ["credits", "grant", "--to", CODER, "--amount", "200"]);
+    const intent = /^intent (\S+)/.exec((await ok(x, ["market", "intent", "--by", ALICE, "--purpose", "Fix it", "--budget", "1000", "--deadline", "2026-12-01T00:00:00Z"])).out)![1];
+    const offer = /^offer (\S+)/.exec((await ok(x, ["market", "offer", "--by", CODER, "--intent", intent, "--price", "1000", "--plan", "fix", "--eta", "2026-11-01T00:00:00Z"])).out)![1];
+    const contract = /^contract (\S+):/.exec((await ok(x, ["market", "contract", "--principal", ALICE, "--bank", BANK, "--intent", intent, "--offer", offer])).out)![1];
+    await ok(x, ["market", "bond", "--contract", contract, "--backer", CODER, "--amount", "200", "--escrow-payer", ALICE, "--escrow-amount", "1000"]);
+    return asp(x, ["market", "mandate", "--contract", contract, "--principal", ALICE, "--performer", CODER, "--scopes", "repo.read", "--cool-off-seconds", secs]);
+  };
+  for (const good of ["1", "604800"]) { const r = await tryCool(good); assert.equal(r.code, 0, good + ": " + r.err); }
+  for (const bad of ["0", "604801", "abc"]) { const r = await tryCool(bad); assert.notEqual(r.code, 0, bad); assert.match(r.err, /--cool-off-seconds is a whole number of seconds, 1 to 604800/, bad); }
 });
