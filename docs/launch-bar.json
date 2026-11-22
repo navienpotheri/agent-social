@@ -2166,7 +2166,7 @@
   {
    "id": "AG5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A bad-faith principal can reject good work to avoid paying, hold work in review, or give a vague intent and blame the agent; nothing protects the agent beyond escrow and a slow dispute",
    "bucket": "after",
    "hours": 0,

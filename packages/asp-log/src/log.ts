@@ -4983,6 +4983,41 @@ export class EventLog {
   }
 
   /**
+   * A principal's record as a poster of work (AG5): of the jobs it commissioned, how many it accepted and rejected, how each rejection fared before a Court (a ruling that put the greater share of the fault on
+   * the principal means the rejection was not justified, on the fault map the ruling stands on after any appeal), the rejections no Court has ruled on, and how long it took to review a delivery. Built from the
+   * records; a count is not a verdict, and a principal with fewer than five rejections has no share stated. Reads only.
+   */
+  async principalRecord(did: string): Promise<{ did: string; jobs: number; accepted: number; rejected: number; rejectedUnjustified: number; rejectedJustified: number; rejectedUnruled: number; unjustifiedShare: number | null; medianReviewHours: number | null; slowestReviewHours: number | null }> {
+    const recs = await this.recordsOfTypes(["contract", "delivery", "attestation"]);
+    const mine = new Set(recs.filter((r) => r.type === "asp.contract/v0.2" && (r.body as { principal: string }).principal === did).map((r) => r.id));
+    const deliveredAt = new Map<string, number>();
+    for (const r of recs) if (r.type === "asp.delivery/v0.2" && r.subject && mine.has(r.subject) && !deliveredAt.has(r.subject)) deliveredAt.set(r.subject, Date.parse(r.issued_at));
+    let accepted = 0, rejected = 0, unjustified = 0, justified = 0, unruled = 0;
+    const hours: number[] = [];
+    const rejectedContracts = new Set<string>();
+    for (const r of recs) {
+      if (r.type !== "asp.attestation/v0.2" || !r.subject || !mine.has(r.subject) || r.issuer !== did) continue;
+      const b = r.body as { kind: string; verdict?: string };
+      if (b.kind !== "acceptance") continue;
+      const sent = deliveredAt.get(r.subject);
+      if (sent !== undefined) hours.push((Date.parse(r.issued_at) - sent) / 3_600_000);
+      if (b.verdict === "accepted") accepted++;
+      else if (b.verdict === "rejected" && !rejectedContracts.has(r.subject)) { rejected++; rejectedContracts.add(r.subject); }
+    }
+    for (const c of rejectedContracts) {
+      const ruling = recs.filter((r) => r.type === "asp.attestation/v0.2" && r.subject === c && (r.body as { kind: string }).kind === "ruling").at(-1);
+      if (!ruling) { unruled++; continue; }
+      const fault = await this.store.transaction((tx) => effectiveFault(tx, ruling.id));
+      const mineFault = fault?.[did] ?? 0, others = Object.entries(fault ?? {}).filter(([k]) => k !== did).reduce((n, [, v]) => n + v, 0);
+      if (mineFault > others) unjustified++; else justified++;
+    }
+    hours.sort((x, y) => x - y);
+    const round = (x: number) => Math.round(x * 10) / 10;
+    const median = hours.length ? (hours.length % 2 ? hours[(hours.length - 1) / 2] : (hours[hours.length / 2 - 1] + hours[hours.length / 2]) / 2) : null;
+    return { did, jobs: mine.size, accepted, rejected, rejectedUnjustified: unjustified, rejectedJustified: justified, rejectedUnruled: unruled, unjustifiedShare: rejected >= 5 ? Math.round((unjustified * 1000) / rejected) : null, medianReviewHours: median === null ? null : round(median), slowestReviewHours: hours.length ? round(hours[hours.length - 1]) : null };
+  }
+
+  /**
    * The Courts' jurors as the public page reads them (courts.md CT-20, DK123): each registered, staked juror with its stake and the open cases whose panel it sits on, and the totals. Built from the juror registrations
    * and the docket's drawn panels; a view, with no names beyond the DIDs the log already shows. The caseload limit of the design is a proposal and is not enforced, so none is stated here.
    */
