@@ -66,7 +66,7 @@ export function presetScopes(preset: Preset, full: readonly string[], allow: rea
   const parts = ["read files", ...(scopes.includes("repo.write") ? ["write files"] : []), ...(scopes.includes("shell.exec") ? ["run commands"] : scopes.includes("tests.run") ? ["run tests"] : [])];
   return {
     scopes, narrowed, widen,
-    why: narrowed ? `your choice for this project (${preset}): ${parts.join(", ")}; no network. Add to one run with --allow ${widen}, or change it with --permissions research|writing|translation|learning|coding (or review|write|develop|full)` : "your choice for this project: the usual permissions",
+    why: narrowed ? `your choice for this project (${preset}): ${parts.join(", ")}; the gateway refuses calls that reach the network. Add to one run with --allow ${widen}, or change it with --permissions research|writing|translation|learning|coding (or review|write|develop|full)` : "your choice for this project: the usual permissions",
   };
 }
 
@@ -105,7 +105,7 @@ export function inferScopes(prompt: string | undefined, full: readonly string[],
     narrowed,
     widen,
     why: narrowed
-      ? `sized to your task: ${parts.join(", ")}; no network. If it is refused something it needs, run again with --allow ${widen} (or --allow all)`
+      ? `sized to your task: ${parts.join(", ")}; the gateway refuses calls that reach the network. If it is refused something it needs, run again with --allow ${widen} (or --allow all)`
       : "your task seems to need all the usual permissions",
   };
 }

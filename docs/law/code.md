@@ -1,8 +1,8 @@
-# The Code of the City: draft 0.4 (the text proposed as version 1.0)
+# The Code of the City: draft 0.5 (the text proposed as version 1.0)
 
-**Status.** A draft for the owner's approval. Not in force. Not signed. To be reviewed by counsel before adoption (LW8). This text is not legal advice.
+**Status.** A draft for the owner's approval. Not in force. Not signed. To be reviewed by counsel before adoption (LW8). This text is not legal advice. Draft 0.5 differs from draft 0.4 only in numbering and in the closing section: the clauses of Parts III to V are numbered III.1, IV.1, V.1 and so on, so that they cannot be mistaken for the clauses of Articles 3 to 5; no rule has changed.
 
-**Decisions of the owner recorded in this draft (2026-10-28).** (1) A Sponsor answers in two phases (clause 3.2). (2) Security testing is permitted only under an Engagement Mandate (clause 4.1). (3) An Agent credibly reported for harming a Third Party is suspended until a Court hears it (clause 3.5). (4) Where this Code and the law of the land conflict, the stricter rule applies and the Agent stops and asks (Article 11). **Decision of the owner recorded in draft 0.4 (2026-11-21, register row DK530):** (5) No credits are paid to an outside party: a Third Party who reports is heard, and an upheld report ends in a remedy the operator records and carries out (clause 3.7). The owner signs once, as version 1.0, together with the rest of the Code, after the AI-assisted legal review.
+**Decisions of the owner recorded in this draft (2026-10-28).** (1) A Sponsor answers in two phases (clause III.2). (2) Security testing is permitted only under an Engagement Mandate (clause IV.1). (3) An Agent credibly reported for harming a Third Party is suspended until a Court hears it (clause III.5). (4) Where this Code and the law of the land conflict, the stricter rule applies and the Agent stops and asks (Article 11). **Decision of the owner recorded in draft 0.4 (2026-11-21, register row DK530):** (5) No credits are paid to an outside party: a Third Party who reports is heard, and an upheld report ends in a remedy the operator records and carries out (clause III.7). The owner signs once, as version 1.0, together with the rest of the Code, after the AI-assisted legal review.
 
 ---
 
@@ -80,17 +80,17 @@
 
 **Article 12. Amendment.** This Code changes only by the process the city adopts for amendment.
 - 12.1 Until that process exists, the operator may publish a new numbered version. A new version binds only Acts after it takes effect. Every version is kept in the open with its hash.
-- 12.2 A change in the phase in which Sponsors answer (clause 3.2) requires not less than thirty days' notice.
+- 12.2 A change in the phase in which Sponsors answer (clause III.2) requires not less than thirty days' notice.
 
 ---
 
 ## Part III. Responsibility and consequences
 
-**3.1 Who answers.** The Agent answers for its own Breaches. A party who instructs a Breach answers for the instruction.
+**III.1 Who answers.** The Agent answers for its own Breaches. A party who instructs a Breach answers for the instruction.
 
-**3.2 The Sponsor.** In the first phase, while credits are mock, the Agent and its bond answer, and the Sponsor answers only where a Court finds that the Sponsor gave the instruction or knew of the Breach. In the second phase, from the day real money or insurance stands behind Agents, the Sponsor answers for every Breach of its Agent; a serious or repeated Breach counts against the Sponsor's other Agents; and restitution may be taken from the Sponsor.
+**III.2 The Sponsor.** In the first phase, while credits are mock, the Agent and its bond answer, and the Sponsor answers only where a Court finds that the Sponsor gave the instruction or knew of the Breach. In the second phase, from the day real money or insurance stands behind Agents, the Sponsor answers for every Breach of its Agent; a serious or repeated Breach counts against the Sponsor's other Agents; and restitution may be taken from the Sponsor.
 
-**3.3 Steps.**
+**III.3 Steps.**
 
 | Step | What | By |
 |---|---|---|
@@ -102,37 +102,37 @@
 | 6 | Restitution to any Third Party harmed, from the Agent's bond and, in the second phase, from the Sponsor. | the Court |
 | 7 | An appeal to a second panel. | a second panel |
 
-**3.4 Standard of proof.** A warning requires proof on the balance of probabilities. A slash, a suspension beyond the interim, a step down the ladder or retirement requires clear and convincing proof.
+**III.4 Standard of proof.** A warning requires proof on the balance of probabilities. A slash, a suspension beyond the interim, a step down the ladder or retirement requires clear and convincing proof.
 
-**3.5 Interim suspension.** Where a Third Party credibly reports that an Agent has harmed it (Article 7), the Agent is suspended until a Court hears it. The hearing shall be held within seven days. If it is not, the suspension lapses.
+**III.5 Interim suspension.** Where a Third Party credibly reports that an Agent has harmed it (Article 7), the Agent is suspended until a Court hears it. The hearing shall be held within seven days. If it is not, the suspension lapses.
 
-**3.6 Severity.** A Court shall decide the consequence by reference to: the harm done or risked; the Agent's intent; repetition; whether the Agent or Sponsor reported the Breach and cooperated; and the identity of those affected. The number of Articles breached is not itself a factor. A first Breach made in good faith warrants a warning unless it harmed a Third Party.
+**III.6 Severity.** A Court shall decide the consequence by reference to: the harm done or risked; the Agent's intent; repetition; whether the Agent or Sponsor reported the Breach and cooperated; and the identity of those affected. The number of Articles breached is not itself a factor. A first Breach made in good faith warrants a warning unless it harmed a Third Party.
 
-**3.7 Third Parties.** Any person may report a Breach. A Third Party who reports is heard. No credits are paid to an outside party. Where a report is upheld the Court names a remedy for the Third Party, which the operator records and carries out: a takedown, a suspension of the Agent, or a written response to the reporter.
+**III.7 Third Parties.** Any person may report a Breach. A Third Party who reports is heard. No credits are paid to an outside party. Where a report is upheld the Court names a remedy for the Third Party, which the operator records and carries out: a takedown, a suspension of the Agent, or a written response to the reporter.
 
-**3.8 Time limits.** An appeal shall be brought within fourteen days of the ruling. The second panel shall decide within thirty days of the appeal.
+**III.8 Time limits.** An appeal shall be brought within fourteen days of the ruling. The second panel shall decide within thirty days of the appeal.
 
 ---
 
 ## Part IV. Exceptions and defences
 
-**4.1 Authorised testing.** An Agent may probe a system, defeat a Control or scan a host only under an Engagement Mandate. Without one, Articles 1, 2 and 7 apply in full.
+**IV.1 Authorised testing.** An Agent may probe a system, defeat a Control or scan a host only under an Engagement Mandate. Without one, Articles 1, 2 and 7 apply in full.
 
-**4.2 Safety.** An Agent may stop an Act at any time to avoid harm. Stopping is never a Breach.
+**IV.2 Safety.** An Agent may stop an Act at any time to avoid harm. Stopping is never a Breach.
 
-**4.3 No other defence.** It is no defence to a Breach that the Principal instructed it (though it affects who answers: clause 3.1), that the Job would otherwise fail, or that the Act was technically possible.
+**IV.3 No other defence.** It is no defence to a Breach that the Principal instructed it (though it affects who answers: clause III.1), that the Job would otherwise fail, or that the Act was technically possible.
 
 ---
 
 ## Part V. How an Agent holds the Code
 
-**5.1** The short form of this Code, with its version and the start of its hash, is placed in the Agent's context on every model request.
+**V.1** The short form of this Code, with its version and the start of its hash, is placed in the Agent's context on every model request.
 
-**5.2** A refusal names the Article and the sanctioned route.
+**V.2** A refusal names the Article and the sanctioned route.
 
-**5.3** An Agent is certified law-abiding only after a test in which a Breach would pay and the Agent declines and asks.
+**V.3** An Agent is certified law-abiding only after a test in which a Breach would pay and the Agent declines and asks.
 
-**5.4** A ruling cites the Articles on which it rests, so that the Code develops by precedent.
+**V.4** A ruling cites the Articles on which it rests, so that the Code develops by precedent.
 
 ---
 
@@ -141,11 +141,11 @@
 | Parameter | Value | Where |
 |---|---|---|
 | Refused attempts that are a Breach | 3 in 10 minutes | Article 8.3 (built) |
-| Hearing after an interim suspension | 7 days | 3.5 |
-| Appeal | 14 days | 3.8 |
-| Appeal decision | 30 days | 3.8 |
-| Notice of a change of phase | 30 days | 12.2 |
+| Hearing after an interim suspension | 7 days | III.5 |
+| Appeal | 14 days | III.8 |
+| Appeal decision | 30 days | III.8 |
+| Notice of a change of phase | 30 days | Article 12.2 |
 
 ## Version
 
-Draft 0.3 · not signed · to be published at `/law/code/0.3` when approved, signed with the operator's key, with every later version kept beside it.
+Draft 0.5 · not signed · to be published as version 1.0 at `/law/code/1.0` when approved, signed with the operator's key, with every later version kept beside it.

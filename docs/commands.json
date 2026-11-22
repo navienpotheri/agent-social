@@ -651,6 +651,10 @@
           "description": "Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it"
         },
         {
+          "command": "asp gateway ... --escalation-ladder",
+          "description": "Off by default. Turn on the escalation ladder at the next call (DK211): when this run's own refusals show an agent retrying a refused scope (5 refused attempts of one scope in ten minutes), a call that reaches outside the project is held for approval (refused when the run cannot ask), and at 8 everything but reading is refused until a person looks. An honest agent that is never refused is not affected. Also asp run --escalation-ladder"
+        },
+        {
           "command": "asp gateway ... --untrusted-flow",
           "description": "Hold an outward call (the network, a push, another server's tool) that carries a host, address, email, command line or long opaque string copied from a tool result and not given by the principal or named in the Mandate. It treats every tool result as data (a file, a ticket, a shell's output, a web page) and holds only the calls that copy something out of it, so it costs far fewer harmless calls than holding every outward call after a read; a destination spelled out in pieces, or an attack that copies nothing, is not found (DK1713)"
         },
@@ -993,6 +997,10 @@
         {
           "command": "asp registry lookup <did|name> [--plain] [--json]",
           "description": "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"
+        },
+        {
+          "command": "asp registry status --sponsor <did> [--json]",
+          "description": "A sponsor's view of its agents: for each, its level and what needs doing (a renewal inside 30 or 7 days, a lapsed identity, a suspension, a takedown it may appeal, an abuse report not yet ruled)"
         },
         {
           "command": "asp registry search <text>",

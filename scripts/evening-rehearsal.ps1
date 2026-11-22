@@ -10,10 +10,11 @@
   Steps: node and git, npm install, `asp help`, `asp live preflight --local`, a governed run (one allowed call, one refused call), `asp live report`, `asp runs`, `asp pause` / `asp resume`, `asp stop --all`.
   It changes nothing outside the throwaway folders and removes them at the end. Credits are accounting entries, not money. Exit code 0 when every step passed, 1 otherwise.
 #>
-param([switch]$Clone, [switch]$SkipInstall)
+param([switch]$Clone, [switch]$SkipInstall, [switch]$Ladder)
 
 $ErrorActionPreference = "Continue"
 $results = New-Object System.Collections.Generic.List[object]
+$ladderFlag = @(); if ($Ladder) { $ladderFlag = @("--escalation-ladder") }
 function Step([string]$name, [bool]$ok, [string]$detail) { $results.Add([pscustomobject]@{ Step = $name; Result = $(if ($ok) { "PASS" } else { "FAIL" }); Detail = $detail }); Write-Host ("{0,-4} {1}: {2}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name, $detail) }
 
 $origin = (Get-Location).Path
@@ -72,7 +73,7 @@ $preOk = $pre -match "READY" -and $pre -notmatch "NOT READY"
 Step "asp live preflight --local" $preOk (($pre -split "`n" | Select-String "RED|NOT READY|READY" | ForEach-Object { $_.Line.Trim() }) -join " | ")
 Step "the key is not printed" (-not ($pre -match [regex]::Escape($env:ANTHROPIC_API_KEY))) "only its length is shown"
 
-$run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 2>$null) -join "`n"
+$run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $ladderFlag 2>$null) -join "`n"
 Step "governed run: one call refused" ($run -match "1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
 Step "governed run: the run ended" ($run -match "finished|Session summary") "session summary printed"
 
@@ -95,7 +96,7 @@ if ($codex) {
   for ($i = 0; $i -lt 50 -and -not ((Test-Path "$work\standin2.log") -and ((Get-Content "$work\standin2.log" -Raw) -match "listening")); $i++) { Start-Sleep -Milliseconds 200 }
   $env:ASP_RUN_OPENAI_UPSTREAM = "http://127.0.0.1:$port2/v1"
   $env:OPENAI_API_KEY = "sk-rehearsal-placeholder-not-a-key-000000"
-  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 2>$null) -join "`n"
+  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $ladderFlag 2>$null) -join "`n"
   Step "codex: governed run, one call refused" ($cx -match "1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
   if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue

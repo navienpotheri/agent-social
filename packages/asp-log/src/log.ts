@@ -5206,6 +5206,16 @@ export class EventLog {
     return out;
   }
 
+  /**
+   * The Courts' jurors as the public page reads them (courts.md CT-20, DK123): each registered, staked juror with its stake and the open cases whose panel it sits on, and the totals. Built from the juror registrations
+   * and the docket's drawn panels; a view, with no names beyond the DIDs the log already shows. The caseload limit of the design is a proposal and is not enforced, so none is stated here.
+   */
+  async courtJurors(): Promise<{ jurors: { did: string; staked: number; openCases: number }[]; openCases: number; staked: number }> {
+    const open = (await this.courtDocket()).filter((d) => !d.ruled);
+    const jurors = (await this.store.activeJurors()).map((j) => ({ did: j.did, staked: j.staked, openCases: open.filter((d) => d.panel.includes(j.did)).length })).sort((x, y) => x.did.localeCompare(y.did));
+    return { jurors, openCases: open.length, staked: jurors.reduce((n, j) => n + j.staked, 0) };
+  }
+
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();

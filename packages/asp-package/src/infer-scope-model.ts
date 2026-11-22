@@ -154,7 +154,7 @@ export function scopesFromSizing(sizing: ModelSizing, full: readonly string[], a
   return {
     scopes, narrowed, widen,
     why: narrowed
-      ? `sized by a model that read your task: ${parts.join(", ")}; no network${sizing.unsure ? " (it was unsure)" : ""}.${extras} If it is refused something it needs, run again with --allow ${widen} (or --allow all)`
+      ? `sized by a model that read your task: ${parts.join(", ")}; the gateway refuses calls that reach the network${sizing.unsure ? " (it was unsure)" : ""}.${extras} If it is refused something it needs, run again with --allow ${widen} (or --allow all)`
       : `a model that read your task found it needs all the usual permissions.${extras}`,
   };
 }

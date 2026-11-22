@@ -21,6 +21,8 @@ export interface WatchAction {
   /** What the calls that ran were aimed at (host:, path:, cmd: tokens; DK92). */
   targets?: string[];
   artifacts: { uri: string; sha256: string }[];
+  /** The agent's own summary of the job; compared with what the gateway saw (hide, DK211). */
+  summary?: string;
 }
 
 export interface Cluster {
