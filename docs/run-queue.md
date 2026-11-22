@@ -219,3 +219,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (DK122: the court draw seeded by a record neither party controls, and a per-juror open-case cap, as a dated draw version; S1611, UC-1952), 06:00Z
 - 2026-11-22 held by lane-society-2 (DK117 exam withdrawal, fee-free re-sit after an error revocation, author suspension; then JO4/JO5/JO6 contract amendment, cancellation and team split; S1700-S1749, UC-2104 and up), 07:30Z
 - 2026-11-22 held by launch-bar-2 (mutation checks of closed rows DK1476, DK1769, DK1715 in lane-cli-3 area and JO3, US1; results in docs/verification-log.md), 08:10Z
+- 2026-11-22 held by launch-bar-2 (mutation checks of closed rows T24, T25, BM2, BM3, BM4, BM7, BM13, BM14, BM15, BM19: the shell scanner, packages/asp-package/src/shell-scan.ts; results in docs/verification-log.md), 11:40Z
