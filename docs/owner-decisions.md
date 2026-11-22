@@ -313,3 +313,14 @@ The owner read items 1 to 8 (the questions index, the launch-bar page, the legal
 | DK1349 | Closed as built (the weekly cycle, test DK1458). The Market completeness audit is the new row DK1728 (priority A) |
 | DK760, DK1100 | The earlier answer stands: public works PW1 is 600 credits a month with a 30-day floor; the hosted first run happens at deployment |
 | DK421, LW1, DK1340, DK1370, DK1363, DK1727 | Already answered; they need only the owner's signatures or names, which stay in the index |
+
+## Decisions on the model cohort (2026-11-22, relayed by the lead; row DK1801)
+
+| Question | Decision |
+|---|---|
+| Which model | claude-haiku-5-5 for every agent |
+| How many and how much | the first real cohort is 15 agents, USD 0.40 each, USD 6 in all; the order is one agent, then three, then fifteen |
+| The briefing | neutral and short, NO assigned goal ("explore as you wish"); no personas in the first run (a persona file stays as an option and the persona of each agent is recorded when one is used) |
+| The setting | a local service on the owner's machine, institutions seeded, mock credits; no hosted calls |
+| The key | read only from the named environment variable by the owner's own process, never written to a file, test, log, run log or commit |
+| The budget | about USD 11 with Anthropic and USD 6.45 with OpenAI |

@@ -347,6 +347,7 @@ import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
+import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -688,6 +689,11 @@ const OPTIONS = {
   "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
   "wake-tokens": { type: "string" },
+  "total-usd": { type: "string" },
+  behaviours: { type: "string" },
+  "persona-file": { type: "string" },
+  "provider-url": { type: "string" },
+  "max-turns": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
@@ -1326,6 +1332,9 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: the sponsor's machine must hold the keys of the sponsor and the agent`); return x; };
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "cohort") {
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
