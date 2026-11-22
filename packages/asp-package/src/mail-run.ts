@@ -55,27 +55,39 @@ export async function collectRunEndFacts(log: MailLog, end: RunEnd): Promise<Run
   const chain = await log.chain(end.contract);
   const first = chain.find((s) => s.record.type === "asp.contract/v0.2");
   if (!first) return undefined;
-  const act = (await log.since(0, 1_000_000)).find((s) => s.id === end.action);
+  const all = await log.since(0, 1_000_000);
+  const act = all.find((s) => s.id === end.action);
   if (!act) return undefined;
-  const b = act.record.body;
+  // The run is every report of this job from the end of the run before it (a standing job has many runs) up to this end: a refusal the gateway reported in an earlier stretch of the same run is part of it.
+  const mine = all.filter((s) => s.record.type === "asp.action/v0.2" && s.record.body.contract === end.contract && s.record.issuer === act.record.issuer);
+  const prevEnd = Math.max(0, ...mine.filter((s) => s.seq < act.seq && runEndOf(s)).map((s) => s.seq));
+  const window = mine.filter((s) => s.seq > prevEnd && s.seq <= act.seq);
   const mb = chain.filter((s) => s.record.type === "asp.mandate/v0.2").at(-1)?.record.body;
-  const m = b.metrics ?? {};
-  const models = (m.models ?? []).map((x: { name: string }) => x.name as string);
-  const tIn = m.tokens_in ?? 0, tOut = m.tokens_out ?? 0;
-  const model = models[0] ?? null;
-  const events = (b.artifacts ?? []).map((x: { uri: string }) => /^asp:\/\/run-log\/(\d+)/.exec(x.uri)).filter(Boolean).map((x: RegExpExecArray) => Number(x[1])).sort((x: number, y: number) => y - x)[0];
+  const used = new Set<string>(), blocked = new Map<string, { count: number; targets: Set<string> }>(), models = new Set<string>();
+  const tot = { requests: 0, toolCalls: 0, tokensIn: 0, tokensOut: 0, seconds: 0 };
+  let rateLimited = 0, events: number | undefined, assurance: string | undefined;
+  for (const w of window) {
+    const b = w.record.body, m = b.metrics ?? {};
+    for (const x of b.scopes_used ?? []) used.add(x);
+    for (const x of b.blocked_attempts ?? []) { const e = blocked.get(x.scope) ?? { count: 0, targets: new Set<string>() }; e.count += x.count; for (const t of x.targets ?? []) e.targets.add(t); blocked.set(x.scope, e); }
+    tot.requests += m.requests ?? 0; tot.toolCalls += m.tool_calls ?? 0; tot.tokensIn += m.tokens_in ?? 0; tot.tokensOut += m.tokens_out ?? 0; tot.seconds += m.seconds ?? 0; rateLimited += m.rate_limited ?? 0;
+    for (const x of m.models ?? []) models.add(x.name as string);
+    for (const x of b.artifacts ?? []) { const r = /^asp:\/\/run-log\/(\d+)/.exec(x.uri); if (r) events = Math.max(events ?? 0, Number(r[1])); }
+    if (b.assurance) assurance = b.assurance;
+  }
+  const modelList = [...models].sort(), model = modelList[0] ?? null;
   return {
     end,
     contract: { id: end.contract, purpose: first.record.body.purpose, principal: first.record.body.principal, performer: first.record.body.performer },
     ...(mb ? { mandate: { scopes: mb.scopes ?? [], ...(mb.network?.hosts ? { hosts: mb.network.hosts } : {}), spendCap: mb.spend?.cap ?? 0, unit: mb.spend?.unit ?? "credit" } } : {}),
-    scopesUsed: [...(b.scopes_used ?? [])].sort(),
-    blocked: (b.blocked_attempts ?? []).map((x: { scope: string; count: number; targets?: string[] }) => ({ scope: x.scope, count: x.count, ...(x.targets?.length ? { targets: x.targets } : {}) })),
-    rateLimited: m.rate_limited ?? 0,
-    metrics: { requests: m.requests ?? 0, toolCalls: m.tool_calls ?? 0, tokensIn: tIn, tokensOut: tOut, seconds: m.seconds ?? 0, models },
-    ...(b.assurance ? { assurance: b.assurance } : {}),
+    scopesUsed: [...used].sort(),
+    blocked: [...blocked].sort(([x], [y]) => (x < y ? -1 : 1)).map(([scope, e]) => ({ scope, count: e.count, ...(e.targets.size ? { targets: [...e.targets].sort() } : {}) })),
+    rateLimited,
+    metrics: { ...tot, models: modelList },
+    ...(assurance ? { assurance } : {}),
     ...(events !== undefined ? { runLog: { events } } : {}),
-    ...(tIn + tOut > 0 ? { cost: { usd: costUsd(tIn, tOut, priceFor(model)), model, priced: isPricedModel(model) } } : {}),
-    summary: String(b.summary ?? ""),
+    ...(tot.tokensIn + tot.tokensOut > 0 ? { cost: { usd: costUsd(tot.tokensIn, tot.tokensOut, priceFor(model)), model, priced: isPricedModel(model) } } : {}),
+    summary: String(act.record.body.summary ?? ""),
   };
 }
 

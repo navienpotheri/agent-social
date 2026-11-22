@@ -376,7 +376,7 @@ import { SocietyUsage, evalScenarioCmd, graderCmd, inspectCmd, missionCmd } from
 import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
-import { TokenWatch, respondToBreach, PendingBreaches, type BreachCause } from "@agent-social/asp-log";
+import { TokenWatch, respondToBreach, PendingBreaches, authenticate as authenticateTenant, type BreachCause } from "@agent-social/asp-log";
 import { verifyAuditExport } from "@agent-social/asp-log";
 import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
 import { AbuseUsage, abuseCmd } from "./abuse.ts";
@@ -1211,7 +1211,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "identity" && sub === "restore") return await identityRestore(home, rest[0], v, io);
     if (cmd === "identity" && sub === "recover") return await identityRecover(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "recovery-check") return await identityRecoveryCheck(home, rest[0] ?? v.did, v, io);
-    if (cmd === "notices") return await noticesCmd(home, v, io);
+    if (cmd === "notices") return await noticesCmd(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
@@ -1824,8 +1824,42 @@ async function identityRestore(home: string, file: string | undefined, v: Values
 }
 
 /** `asp notices [--did <did>] [--json]`: what has happened to an identity that a sponsor would have been mailed about (KO2). */
-async function noticesCmd(home: string, v: Values, io: Io): Promise<number> {
+async function noticesCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const { noticesFor } = await import("./notices.ts");
+  // KO2: a key-only agent has no verified Google address. `asp notices address set <address>` has the service send a code to it; `asp notices address confirm <code>` proves it is held; until then mail is held with the reason.
+  const cfg = readJoinConfig(home);
+  const svc = io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { service: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : cfg ? { service: cfg.service, token: cfg.token } : undefined;
+  const callMail = async (path: string, body?: unknown): Promise<{ status: number; body: any }> => {
+    if (!svc) throw new UsageError("this needs the service you joined: run asp enrol or asp join first (or set ASP_LOG_URL and ASP_LOG_TOKEN)");
+    const res = await fetchRetry(new URL(path, svc.service.replace(/\/$/, "") + "/"), { method: body === undefined ? "GET" : "POST", headers: { authorization: `Bearer ${svc.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    return { status: res.status, body: (await res.json().catch(() => undefined)) as any };
+  };
+  if (sub === "address") {
+    const act = rest[0];
+    if (act === "set") {
+      if (!rest[1]) throw new UsageError("asp notices address set <address>   (the service sends a code to it; asp notices address confirm <code> proves you hold it)");
+      const r = await callMail("mail/address", { address: rest[1] });
+      if (r.status !== 200) { io.err(`  not sent: ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(`a code was sent to ${rest[1]} (it works for 30 minutes). Enter it with: asp notices address confirm <code>. Until then no mail goes to that address.`);
+      return 0;
+    }
+    if (act === "confirm") {
+      if (!rest[1]) throw new UsageError("asp notices address confirm <code>");
+      const r = await callMail("mail/address/confirm", { code: rest[1] });
+      if (r.status !== 200) { io.err(`  not confirmed: ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(`confirmed: mail about your agents, held or new, now goes to ${r.body.address}. Every mail has a link that stops it.`);
+      return 0;
+    }
+    if (act === undefined || act === "show") {
+      const r = await callMail("mail/address");
+      if (r.status !== 200) { io.err(`  ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(r.body.address ? `mail address: ${r.body.address.email} (${r.body.address.source === "google" ? "the address you signed up with, verified by Google" : `confirmed ${r.body.address.confirmedAt}`})` : "mail address: none. Mail about your agents is held, not lost. Name one: asp notices address set <address>");
+      if (r.body.pending) io.out(`  a code was sent to ${r.body.pending.email}; it works until ${r.body.pending.expiresAt}: asp notices address confirm <code>`);
+      io.out(`  mail held for want of an address: ${r.body.held.length}`);
+      return 0;
+    }
+    throw new UsageError("asp notices address [show] | set <address> | confirm <code>");
+  }
   let did = v.did;
   if (!did) { try { did = (JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { agent?: string } }).identities?.agent; } catch { /* none */ } }
   if (!did) throw new UsageError("asp notices --did <did>   (or run it where asp enrol or asp join saved your identities)");
@@ -1836,6 +1870,10 @@ async function noticesCmd(home: string, v: Values, io: Io): Promise<number> {
     const held = JSON.parse(readFileSync(join(home, "mail-held.json"), "utf8")) as Record<string, { label: string; contract: string; why: string; at: string }>;
     for (const [key, h] of Object.entries(held)) list.push({ id: key, kind: "mail held", at: h.at, detail: `${h.label}: ${h.why}` } as never);
   } catch { /* nothing held */ }
+  // The service's own held mail for this account (KO2): what it could not send for want of a verified address, and why.
+  let addr: any;
+  if (svc) { try { const r = await callMail("mail/address"); if (r.status === 200) addr = r.body; } catch { /* the service may be away: the notices from the log are enough */ } }
+  for (const h of addr?.held ?? []) list.push({ id: h.key, kind: "mail held", at: h.at, detail: `${h.why} (asp notices address set <address>)` } as never);
   if (v.json) { io.out(JSON.stringify(list, null, 2)); return 0; }
   io.out(`notices for ${did}: ${list.length}`);
   for (const n of list) io.out(`  ${n.at}  ${n.kind}: ${n.detail}  (${n.id.slice(0, 19)})`);
@@ -3319,7 +3357,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     // a deprovisioned person's agents are frozen through the fleet controls of the fleet each one belongs to
     freezeAgent: async (did, by, at) => { const p = await handle.log.passport(did).catch(() => undefined); const rec = p ? await handle.log.get(p.head).catch(() => undefined) : undefined; const fleet = (rec?.record.body as { fleet?: string } | undefined)?.fleet; if (!fleet) return false; fleetControls.freeze(fleet, by, at, did, "its owner was deprovisioned"); return true; },
   }) : undefined;
-  const publicList = [...(orgPublic ? [orgPublic] : []), journeyRoutes(journeySource as never), fleetLiveRoute(), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  const publicList = [...(orgPublic ? [orgPublic] : []), journeyRoutes(journeySource as never), fleetLiveRoute(), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}), auth: (rq) => authenticateTenant(rq, { tenants: [], tenantSource: tenantSource! }) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
   const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
   const planTable = v["plans-file"] ? (JSON.parse(readFileSync(v["plans-file"], "utf8")) as Record<string, unknown>) : undefined;

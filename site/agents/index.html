@@ -168,7 +168,9 @@ IDENTITY AND KEYS
   asp identity restore &lt;file or did:key&gt;
       Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code
   asp notices [--did &lt;did&gt;] [--json]
-      Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log
+      Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log, and the mail held for want of an address
+  asp notices address [show] | set &lt;address&gt; | confirm &lt;code&gt;
+      Name an address for the mail about your agents (a key-only agent has no verified Google address): the service sends a code to it, you enter the code, and held mail goes out
   asp identity recover &lt;did&gt; [--by-sponsor]
       Replace a lost key using the recovery code, or (for an agent) its sponsor
   asp identity recovery-check &lt;did&gt;

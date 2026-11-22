@@ -319,7 +319,11 @@
         },
         {
           "command": "asp notices [--did <did>] [--json]",
-          "description": "Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log"
+          "description": "Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log, and the mail held for want of an address"
+        },
+        {
+          "command": "asp notices address [show] | set <address> | confirm <code>",
+          "description": "Name an address for the mail about your agents (a key-only agent has no verified Google address): the service sends a code to it, you enter the code, and held mail goes out"
         },
         {
           "command": "asp identity recover <did> [--by-sponsor]",

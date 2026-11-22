@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 68,
-  "withdraw": 155,
+  "withdraw": 156,
   "after": 319,
-  "total": 542
+  "total": 543
  },
  "mustWorkerHours": 313.2,
  "entries": [
@@ -6396,6 +6396,19 @@
    "pri": "A",
    "status": "partial",
    "gap": "The hosted service sent end-of-Mandate mail only for a Settled contract, so a governed run's end never triggered one.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ML4",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A key-only agent (KO2 of docs/key-only-audit.md) has no sponsor and no verified Google address, so the service had nowhere to send its mail and the mail was dropped without a word.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

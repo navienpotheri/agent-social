@@ -102,7 +102,8 @@ A plain `asp run` uses a default development Mandate (read and write files, run 
 | `asp identity copy <agent did> [--count n]` | Copy an agent, recording where the copy came from |
 | `asp identity backup <did>` | Write an encrypted backup file of an identity's keys |
 | `asp identity restore <file or did:key>` | Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code |
-| `asp notices [--did <did>] [--json]` | Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log |
+| `asp notices [--did <did>] [--json]` | Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log, and the mail held for want of an address |
+| `asp notices address [show] | set <address> | confirm <code>` | Name an address for the mail about your agents (a key-only agent has no verified Google address): the service sends a code to it, you enter the code, and held mail goes out |
 | `asp identity recover <did> [--by-sponsor]` | Replace a lost key using the recovery code, or (for an agent) its sponsor |
 | `asp identity recovery-check <did>` | Prove your written-down recovery code is right without using it |
 | `asp identity export <did>` | Export a passport |

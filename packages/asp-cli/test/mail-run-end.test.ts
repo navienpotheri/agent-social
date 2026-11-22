@@ -220,3 +220,25 @@ test("ML1: what counts as the end of a run: the gateway's exit report (with the 
   assert.equal(runEndOf(act()), undefined, "a report with no summary is not an end");
   assert.equal(runEndOf({ ...act("x run, y"), record: { ...act("x run, y").record, type: "asp.delivery/v0.2" } }), undefined, "only an Action");
 });
+
+test("ML1: a run is every report from the end of the one before it: a refusal reported in an earlier stretch of the run is in its end mail, and the next run's mail does not repeat it", async () => {
+  const f = makeFixture();
+  await people(f, {});
+  const contract = await standingJob(f, {}, "A standing job with two runs");
+  const report = async (summary: string, extra: string[]) => assert.equal((await asp(f, ["market", "action", "--contract", contract, "--by", CODER, "--scopes-used", "repo.read", "--summary", summary, ...extra])).code, 0);
+  await report("ASP gateway (gateway-enforced, interval): 1 request(s) so far, 100 tokens, 1 blocked", ["--blocked", "shell.network=1", "--metrics", JSON.stringify({ requests: 1, tokens_in: 100, tokens_out: 10, models: [{ name: "claude-haiku-5-5" }] })]);
+  await report("ASP gateway (gateway-enforced, exit): 2 request(s) so far, 300 tokens, 0 blocked", ["--metrics", JSON.stringify({ requests: 1, tokens_in: 100, tokens_out: 90, models: [{ name: "claude-haiku-5-5" }] })]);
+  assert.equal((await asp(f, ["mail", "address", "set", ALICE, "alice@example.org"])).code, 0);
+  await asp(f, ["mail", "watch", "--once"]);
+  const mails = () => readdirSync(join(f.aspHome, "outbox")).filter((n) => n.endsWith(".txt")).sort().map((n) => readFileSync(join(f.aspHome, "outbox", n), "utf8"));
+  assert.equal(mails().length, 1);
+  assert.match(mails()[0]!, /shell\.network x1/, "the refusal from the interval report is in the run's mail");
+  assert.match(mails()[0]!, /300 tokens of claude-haiku-5-5/, "the tokens of the whole run are added");
+  await report("ASP gateway (gateway-enforced, interval): 1 request(s) so far, 50 tokens, 2 blocked", ["--blocked", "fs.write=2", "--metrics", JSON.stringify({ requests: 1, tokens_in: 40, tokens_out: 10 })]);
+  await report("ASP gateway (gateway-enforced, exit): 1 request(s) so far, 50 tokens, 0 blocked", []);
+  await asp(f, ["mail", "watch", "--once"]);
+  const all = mails();
+  assert.equal(all.length, 2);
+  const second = all.find((t) => /fs\.write x2/.test(t))!;
+  assert.ok(second && !/shell\.network/.test(second), "the second run's mail has its own refusals and not the first run's");
+});
