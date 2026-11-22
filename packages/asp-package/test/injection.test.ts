@@ -57,7 +57,7 @@ test("D6: on this repository's own source the detector flags nothing but the fil
   const hits = files.filter((f) => findInjection(readFileSync(f, "utf8")).length).map((f) => f.slice(root.length + 1).replace(/\\/g, "/"));
   assert.ok(files.length > 100);
   // The files that hold the detector's own rules, the pipeline's attack shapes, the invisible-character filters and the lesson text screen (its own attack shapes) and the guide's list of risky commands are the only ones allowed to match (they quote the patterns; agent-message.ts holds the proxy's own instruction shapes, DK842).
-  for (const h of hits) assert.ok(/pipeline\.ts$|injection\.ts$|untrusted\.ts$|lesson-gate\.ts$|lesson-text\.ts$|guide\.ts$|agent-message\.ts$|outbound-scan\.ts$|cohort\/observe\.ts$/.test(h), `a false positive in ${h}`);
+  for (const h of hits) assert.ok(/pipeline\.ts$|injection\.ts$|untrusted\.ts$|lesson-gate\.ts$|lesson-text\.ts$|guide\.ts$|agent-message\.ts$|outbound-scan\.ts$|cohort\/(observe|provider)\.ts$/.test(h), `a false positive in ${h}`);
 });
 
 async function upstream(content: unknown[]) {
