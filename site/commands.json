@@ -34,6 +34,14 @@
           "description": "List your recent sessions: what ran, how many calls, how many were refused; --html-file writes them as one self-contained page you can keep or print (what was asked, how it ended, each refusal and its reason; no script, no external file)"
         },
         {
+          "command": "asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]",
+          "description": "Tie a piece of work to where it came from (T11): writes a statement, signed by the agent's own key, with the SHA-256 of each file (relative to the folder the statement is written in), the contract, its Mandate and the head of the run log that recorded the run, when this machine has them. A platform feature, not a protocol record"
+        },
+        {
+          "command": "asp work verify <origin.json> [--dir <folder>] [--json]",
+          "description": "The one command a recipient runs: checks the files against the hashes and the signature against the key, and, when a log that knows the agent can be read, that the key is a current key of the agent in it and that the contract and Mandate are in it. VERIFIED, SIGNATURE VALID (a did:key agent checked from its name, no log) or DOES NOT VERIFY, with every problem named. It shows who signed which bytes under which Mandate; not that the work is good or that the agent did it alone"
+        },
+        {
           "command": "asp runs <id>",
           "description": "One session in detail: the task, what was refused and why, the Action reports, the run log"
         },

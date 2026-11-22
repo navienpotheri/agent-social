@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 326,
-  "total": 492
+  "after": 325,
+  "total": 491
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1012,18 +1012,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "T11",
-   "pri": "B",
-   "status": "open",
-   "gap": "The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model that produced it, and a recipient cannot verify its origin without trusting the producer",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "T15",
    "pri": "A",
    "status": "open",
@@ -1161,14 +1149,14 @@
   },
   {
    "id": "T32",
-   "pri": "B",
+   "pri": "?",
    "status": "open",
    "gap": "`asp today` (T14) shows the day from this machine's session index and run logs, and does not yet show: how long approvals took to answer (the median and the slowest: needs the Checkpoints' times from…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {

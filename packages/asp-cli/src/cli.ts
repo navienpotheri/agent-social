@@ -392,6 +392,7 @@ import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { renderInvoiceHtml } from "./invoice-html.ts";
 import { renderRunsHtml } from "./runs-html.ts";
+import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -731,6 +732,7 @@ const OPTIONS = {
   q: { type: "string" },
   status: { type: "string" },
   note: { type: "string" },
+  dir: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
   name: { type: "string" },
@@ -1290,6 +1292,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       return 0;
     }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
+    if (cmd === "work") return await workCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
@@ -8249,6 +8252,75 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
   if (remembered) io.out(`  ${remembered}`);
   void cfg;
   return 0;
+}
+
+/**
+ * asp work attest <file|folder>... --contract <id> --by <agent> [--out <file>] | verify <origin.json> [--dir <folder>] [--json] (register row T11): the origin of a piece of work. See work-origin.ts.
+ */
+async function workCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "attest") {
+    if (!rest.length || !v.contract || !v.by) throw new UsageError("asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]");
+    const signer = new Keystore(home).forDid(v.by);
+    if (!signer) throw new UsageError("no key for " + v.by + " on this machine (the agent signs its own work origin)");
+    // The paths in the statement are relative to the folder the statement is written in (--out, else here), so a recipient who unpacks both together verifies with one command.
+    const out = resolve(io.cwd, v.out ?? "work-origin.json");
+    const base = dirname(out);
+    const files = hashWork(rest.map((r) => resolve(io.cwd, r)), base).filter((f) => resolve(base, f.path) !== out);
+    if (!files.length) throw new UsageError("no files under the given paths");
+    let mandate: string | undefined;
+    try { mandate = (await (await openLog(home, logEnv)).log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.id; } catch { /* no log to read: the statement names the contract only */ }
+    const runLogFile = findRunLog(home, v.contract);
+    const rl = runLogFile ? readRunLog(runLogFile) : undefined;
+    const body = { v: ORIGIN_VERSION as typeof ORIGIN_VERSION, kind: "origin" as const, agent: v.by, contract: v.contract, ...(mandate ? { mandate } : {}), ...(rl?.ok ? { run_log: rl.head } : {}), files, createdAt: now(), ...(v.note ? { note: v.note } : {}) };
+    const doc = signOrigin(body, signer);
+    writeFileSync(out, JSON.stringify(doc, null, 2) + "\n");
+    io.out("wrote " + (v.out ?? "work-origin.json") + ": " + files.length + " file(s) signed by " + v.by + " under contract " + v.contract.slice(0, 20) + (mandate ? " and its Mandate" : "") + (rl?.ok ? ", with the head of the run log (" + rl.head.events + " events)" : ""));
+    io.out("a recipient checks it with: asp work verify " + (v.out ?? "work-origin.json"));
+    return 0;
+  }
+  if (sub === "verify") {
+    if (!rest[0]) throw new UsageError("asp work verify <origin.json> [--dir <folder>] [--json]");
+    const file = resolve(io.cwd, rest[0]);
+    let doc: SignedOrigin;
+    try { doc = JSON.parse(readFileSync(file, "utf8")) as SignedOrigin; } catch (e) { throw new UsageError(rest[0] + " is not readable JSON: " + (e as Error).message); }
+    const bad = shapeProblem(doc);
+    if (bad) throw new UsageError(rest[0] + ": " + bad);
+    const dir = resolve(io.cwd, v.dir ?? dirname(file));
+    const problems: string[] = [], notes: string[] = [];
+    const files = checkFiles(doc, dir);
+    for (const m of files.missing) problems.push("missing: " + m);
+    for (const c of files.changed) problems.push("changed since it was signed: " + c);
+    // The signature, against the key the log holds for the agent when a log can be read, else only against itself.
+    let keyChecked = false, sigOk = false, contractInLog: boolean | undefined, mandateInLog: boolean | undefined;
+    try {
+      const lg = (await openLog(home, logEnv)).log;
+      const key = ((await lg.keys(doc.agent)) as { kid: string; publicKey: string; revokedAt: string | null }[]).find((k) => k.kid === doc.kid && !k.revokedAt);
+      if (key) { keyChecked = true; sigOk = verifyOriginSignature(doc, b64urlDecode(key.publicKey)); }
+      else notes.push("the signing key is not a current key of " + doc.agent + " in the log that was read");
+      contractInLog = !!(await lg.get(doc.contract));
+      if (doc.mandate) mandateInLog = !!(await lg.get(doc.mandate));
+    } catch { notes.push("no log could be read here: the key, the contract and the Mandate are not checked against a log"); }
+    if (!keyChecked) {
+      try { const pub = doc.agent.startsWith("did:key:") ? publicKeyFromDidKey(doc.agent) : undefined; if (pub) sigOk = verifyOriginSignature(doc, pub); else notes.push("the key of this agent is not one this machine can derive from its name: the signature is not checked"); } catch { /* not a did:key */ }
+    }
+    if (keyChecked || sigOk) { if (!sigOk) problems.push("the signature does not verify"); }
+    // The contract and the Mandate are judged only against a log that knows the agent: a log that has never heard of it is not the log the work was done under.
+    if (keyChecked && contractInLog === false) problems.push("the contract is not in the log");
+    if (keyChecked && mandateInLog === false) problems.push("the Mandate is not in the log");
+    if (!keyChecked && contractInLog === false) notes.push("this log does not hold the contract: the contract and the Mandate are not checked");
+    const verdict = !problems.length && sigOk ? (keyChecked ? "VERIFIED" : "SIGNATURE VALID") : "DOES NOT VERIFY";
+    if (v.json) { io.out(JSON.stringify({ verdict, agent: doc.agent, contract: doc.contract, mandate: doc.mandate ?? null, files: doc.files.length, problems, notes, key_checked_against_log: keyChecked, signature_ok: sigOk }, null, 2)); return problems.length || !sigOk ? 1 : 0; }
+    io.out(verdict + "  " + doc.files.length + " file(s) by " + doc.agent + " under contract " + doc.contract.slice(0, 20) + ", signed " + doc.createdAt);
+    io.out("  files     " + (files.ok ? "every file is exactly what was signed" : "do not match what was signed"));
+    io.out("  signature " + (sigOk ? "valid" + (keyChecked ? ", by a current key of the agent in the log" : ", but the key was not checked against a log") : "not shown valid"));
+    if (doc.mandate) io.out("  mandate   " + doc.mandate.slice(0, 20) + (!keyChecked || mandateInLog === undefined ? " (not checked against a log)" : mandateInLog ? " is in the log" : " is NOT in the log"));
+    if (doc.run_log) io.out("  run log   head of " + doc.run_log.events + " events, " + doc.run_log.hash.slice(0, 20) + " (asp run-log verify checks the log itself)");
+    for (const x of problems) io.out("  problem   " + x);
+    for (const x of notes) io.out("  note      " + x);
+    io.out("This shows who signed which bytes and under which Mandate the agent says it worked. It does not show that the work is good or that the agent did it alone.");
+    return problems.length || !sigOk ? 1 : 0;
+  }
+  throw new UsageError("usage: asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] | verify <origin.json> [--dir <folder>] [--json]");
 }
 
 /** asp standing [end [<agent name>]]: the standing jobs sessions run under, and ending one (it is settled, and the next run makes a new one). */
