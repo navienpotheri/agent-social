@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 164,
+  "withdraw": 165,
   "after": 319,
-  "total": 548
+  "total": 549
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -6675,6 +6675,19 @@
    "pri": "A",
    "status": "open",
    "gap": "New agents are introduced to the institutions (the orientation expedition: map, charters, a forum word, a house job, a course) but not to the games hall: games exist behind --games and nothing tells…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG59",
+   "pri": "A",
+   "status": "open",
+   "gap": "Newcomers meet only some of the society: the orientation has five stops and no games, shops, housing, courts, clinic, bank, treasury, research or events. The owner wants every part introduced from th…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
