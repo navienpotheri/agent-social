@@ -6163,6 +6163,80 @@
       "valid": false
     },
     {
+      "name": "valid_invitation_revocation",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_invitation_revocation_reason",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "reason": "the file of invitations was shared by mistake"
+      },
+      "valid": true
+    },
+    {
+      "name": "invitation_revocation_no_nonce",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_short_nonce",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "abc"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_bad_nonce_chars",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "has spaces and symbols!!"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_fleet_not_did",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e"
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_empty_reason",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "invitation_revocation_extra_field",
+      "schema": "invitation_revocation",
+      "instance": {
+        "fleet": "did:web:example.com:fleets:acme-eng",
+        "nonce": "Zr3k9QmV2xT7pL1aB4cD8e",
+        "all": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_contract_failure",
       "schema": "contract_failure",
       "instance": {

@@ -431,6 +431,7 @@ export class EventLog {
     await tx.insertRecord(stored);
     if (type === "passport") await this.projectPassport(tx, verified);
     if (type === "fleet") await this.projectFleet(tx, verified);
+    if (type === "invitation_revocation") await this.projectInvitationRevocation(tx, verified);
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
@@ -803,9 +804,25 @@ export class EventLog {
     let good = false;
     try { good = !!key && verifyBytes(b64urlDecode(inv.sig), new TextEncoder().encode(invitationMessage(inv)), b64urlDecode(key.publicKey)); } catch { good = false; }
     if (!good) throw rule("invitation_bad_signature", `the invitation's signature does not verify against a current key of ${fleet.org}`);
+    if (await tx.getMarker(`invite_revoked:${inv.fleet}:${inv.nonce}`)) throw rule("invitation_revoked", "the organisation took this invitation back before it was used");
     if (await tx.getMarker(`invite_used:${inv.nonce}`)) throw rule("invitation_used", "this invitation has already been used: one invitation joins one agent");
     await tx.putMarker(`invite_used:${inv.nonce}`, body.did);
     return true;
+  }
+
+  /**
+   * An invitation revocation (DK1505, S1706): the organisation of a fleet takes back an invitation it signed and nobody has used. The fleet is declared, the invitation is named by its nonce, which has not been
+   * used and has not been revoked; `checkInvitation` then refuses a passport that carries it. Other invitations are not touched.
+   */
+  private async projectInvitationRevocation(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; nonce: string };
+    if (r.prev !== null) throw rule("invitation_revocation_not_chained", "an invitation revocation starts its own chain (prev is null)");
+    const fleet = await tx.getFleet(b.fleet);
+    if (!fleet) throw rule("invitation_revocation_unknown_fleet", `fleet ${b.fleet} is not declared`);
+    if (r.issuer !== fleet.org) throw rule("invitation_revocation_not_the_org", `${r.issuer} is not the organisation of ${b.fleet} (${fleet.org}): only the organisation that signs invitations takes them back`);
+    if (await tx.getMarker(`invite_used:${b.nonce}`)) throw rule("invitation_revocation_already_used", "this invitation has been used: the agent has joined");
+    if (await tx.getMarker(`invite_revoked:${b.fleet}:${b.nonce}`)) throw rule("invitation_revocation_known", "this invitation is already revoked");
+    await tx.putMarker(`invite_revoked:${b.fleet}:${b.nonce}`, r.id);
   }
 
   private async fleetCount(tx: LogTx, fleetDid: string): Promise<number> {
