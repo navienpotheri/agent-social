@@ -20,6 +20,8 @@ export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8
 
 /** What a cohort engine tells the bridge about one tool call. */
 export interface ToolObservation {
+  /** ENG70: the model snapshot and the tool definitions in force for this call, as short hashes; they are in the signed Action's summary. */
+  prov?: string;
   agent: string; at: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean;
   /** The rule that refused the call: `tool_not_in_set`, `scope_not_granted`, `bad_input` and `gateway` (the per-agent gateway's own refusal) are the tool set's and the Mandate's own refusals; any other is a refusal by the society's service. */
   refused?: string;
@@ -141,7 +143,7 @@ export class SignedTrace {
     const outcome = mandateRefused ? `refused:${e.refused}` : !e.ok && e.refused ? `service_refused:${e.refused}` : !e.ok ? "failed" : "ok";
     const to = e.targetAuthor && /^did:[\w:.%-]{1,120}$/.test(e.targetAuthor) ? ` to=${e.targetAuthor}` : "";
     const on = e.target && /^[\w.:-]{1,80}$/.test(e.target) ? ` target=${e.target}` : "";
-    const summary = `n=${st.s.actions + 1} turn=${e.turn} tool=${slug(e.tool)} inst=${slug(e.institution || "none")} outcome=${outcome}${on}${to}`.slice(0, 400);
+    const summary = `n=${st.s.actions + 1} turn=${e.turn} tool=${slug(e.tool)} inst=${slug(e.institution || "none")} outcome=${outcome}${on}${to}${e.prov ? ` prov=${e.prov.replace(/[^\w.:-]/g, "").slice(0, 60)}` : ""}`.slice(0, 400);
     const body: Record<string, unknown> = { contract: st.contract, scopes_used: mandateRefused ? [] : [scope], summary, assurance: "runtime_observed", targets: [token] };
     if (mandateRefused) body.blocked_attempts = [{ scope, count: 1, targets: [token] }];
     await this.put(createRecord({ type: "action", issuer: st.a.did, subject: st.contract, prev: null, issued_at: this.stamp(e.at), body }, st.signer));

@@ -5980,6 +5980,32 @@
    "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
   },
   {
+   "id": "DK1831",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A tool call that succeeded is not necessarily a call whose result was right: the reports counted successes and refusals only.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1830",
+   "pri": "A",
+   "status": "open",
+   "gap": "The inside-the-agent signals (ENG71) are built only against stand-in traces: nobody knows whether real agents write PLAN, RULE, EXPECT and BELIEF lines when invited, or whether the measures mean anyt…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
    "id": "ENG1",
    "pri": "A",
    "status": "open",
@@ -6898,22 +6924,9 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG70",
-   "pri": "A",
-   "status": "open",
-   "gap": "Run provenance is thin: the report records the model alias, not the provider's snapshot or response ids, and it is not confirmed that sampling settings, the thinking budget, the hash of the tool defi…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG71",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Inside-the-agent signals are built only in the simulated society (DK79): a real agent produces none of beliefs, plans acted on, action-conditioned predictions, world-model updates, surprise and calib…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6926,7 +6939,7 @@
   {
    "id": "ENG72",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Repeatability is not measured: there is no baseline variance. A difference between two cohort runs (round 1 against round 2, sponsored against key-only, one briefing wording against another) cannot b…",
    "bucket": "withdraw",
    "hours": 0,
@@ -6965,7 +6978,7 @@
   {
    "id": "ENG75",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "It is not known whether field cards, courses and accreditation (a Registrar-attested completion, a certificate, a standing) make agents better. The Academy's lens courses measure a lift on held-out t…",
    "bucket": "withdraw",
    "hours": 0,
