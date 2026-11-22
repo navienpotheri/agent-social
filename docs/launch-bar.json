@@ -4129,7 +4129,7 @@
   {
    "id": "DK1209",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records.",
    "bucket": "after",
    "hours": 0,
