@@ -79,3 +79,20 @@ Each row is judged by its own Done line. Seen by the lead on the owner's screens
 | DK396 | closed | closed | The 13 charters are in the live log; the cross-check and the `GET /charters` page (built, tested) have not been run on the hosted service until it is redeployed with the 21 new read methods; the row is not reopened |
 | DK1808 | (new) | open | PowerShell 5.1 mangles an inline JSON body in curl.exe; write the body to a file and send --data-binary |
 | DK1809 | (new) | open | A signed suspension record (the owner's key on the operator's machine): the later hardening of O18 |
+
+## 2026-11-23 (launch-bar-2): rows moved by the redeploy, the live charter index and the real end-of-job mail
+
+Each row is judged by its own Done line; seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1807 | open | closed | After the redeploy the service mailed the end of a governed run to the sponsor's address; the lead saw the mail in the owner's inbox (its parts are in the row); the unsubscribe click and a bounce were not run |
+| E9 | partial | closed | A live send reached the owner's own address twice: the direct test mail (not an end-of-job mail) and the end-of-job mail of a real governed run |
+| ML1 | partial | closed | The live proof that its Left line asked for: a governed run on the hosted service, after the redeploy, had its end mailed with the required parts |
+| ML3 | partial | closed | The real Resend sent it and the service was redeployed (its two Left items); the unsubscribe click, a bounce and the List-Unsubscribe headers of the real mail were not run live |
+| DK1811 | partial | closed | The redeploy was its Left line; `asp charter index` (13 of 13) and `asp treasury statement` ran live |
+| E10 | closed | closed | Evidence only: a plain `asp run` now triggers the end-of-job mail |
+| DK1810 | closed | closed | Live note only: the charters read back after the redeploy |
+| E8 | partial | partial | The end-of-job mail is live; the end-of-Mandate mail of a settled contract and the dashboard are not shown |
+| ML2 | partial | partial | The tenant's address was set by hand; the row's Left line is untouched |
+| KO2 | partial | partial | The key-only address proof was not run |

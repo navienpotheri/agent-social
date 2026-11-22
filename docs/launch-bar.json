@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
-  "withdraw": 172,
+  "must": 62,
+  "withdraw": 169,
   "after": 328,
-  "total": 564
+  "total": 559
  },
- "mustWorkerHours": 301.2,
+ "mustWorkerHours": 297.2,
  "entries": [
   {
    "id": "D3",
@@ -1391,17 +1391,6 @@
    "size": "S",
    "flags": "",
    "why": "the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done"
-  },
-  {
-   "id": "E9",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The hosted service now sends mail (S98): the end-of-job mail and alerts to a principal's verified Google address, a note to the operator when a dispute opens, through Resend, with an unsubscribe and…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "LO",
-   "why": "live send of the end mail and an alert from the deployed service"
   },
   {
    "id": "E13",
@@ -5884,19 +5873,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1807",
-   "pri": "A",
-   "status": "open",
-   "gap": "A governed `asp run` session through the hosted service ends with no end-of-job mail: it creates a standing job but no settled contract that `asp mail pending` lists, so the end mail and the alerts a…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "KO1",
    "pri": "A",
    "status": "partial",
@@ -5945,17 +5921,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1811",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Twenty-one more read methods of the log, called by operator commands, are not on the service's list of callable reads (LOG_METHODS) and so fail over the service with `log.<method> is not available`:…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "LO",
-   "why": "twenty-one read methods used by operator commands (charter index and check, the Bank, the Treasury statement, the registry, abuse) are not callable over the service until it is redeployed from this build"
   },
   {
    "id": "DK1812",
@@ -6370,36 +6335,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ML1",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A governed run (`asp run <runtime>`) ended with NO end-of-job mail: the live run of 2026-11-22 (session 660d3959, sponsor nprtest) left nothing in `asp mail pending`, no mail line in the server journ…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ML2",
    "pri": "A",
    "status": "partial",
    "gap": "A principal with no address got nothing and was told nothing: the mail had no destination and the reason was lost.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ML3",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The hosted service sent end-of-Mandate mail only for a Settled contract, so a governed run's end never triggered one.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

@@ -405,7 +405,7 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | T2 and U16 | A laptop sleeping in a session, a multi-gigabyte repository, and a newcomer's first minutes | [live-check-kit.md](live-check-kit.md) section 6 |
 | O11, O12, O13 | Revoke the OpenRouter key; set branch protection on `main`; the repository description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
 
-## 14. The 19 owner-only rows and the step that settles each
+## 14. The 18 owner-only rows and the step that settles each
 
 | Row | Step | Row | Step |
 |---|---|---|---|
@@ -417,10 +417,10 @@ These are not deployment steps; they need a person, a machine or a setting that 
 | E16 | 13 | DK650 | 13 |
 | O12 | 13 | DK1204 | 10 |
 | O13 | 13 | DK1100 | 12 |
-| O11 | 13 | E9 | 7 |
-| X6 | 11 | DK1811 | 5 |
+| O11 | 13 | | |
+| X6 | 11 | | |
 
-Closed by the evidence of 2026-11-22 and so no longer in this table: DK1802 (step 5; the two live runs through the service). E9 stays: the sending side is proven, but the end-of-job mail from a real settled job is not (DK1807). A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
+Closed by the evidence of 2026-11-22 and 2026-11-23 and so no longer in this table: DK1802 (step 5; the two live runs through the service), E9 (step 7; the end-of-job mail of a real governed run reached the owner's inbox after the redeploy) and DK1811 (step 5; the redeploy at 33c73f14, with the charter index and the Treasury statement read live). A row moves only when your recorded check matches its Done line; a step that fails becomes a register row. DK1411 (step 2), DK1341 (step 4), DK95 and DK9 (step 6) and O18 (step 8) are settled by the same steps although they are not among the 19.
 
 ## 15. What this plan does not do
 

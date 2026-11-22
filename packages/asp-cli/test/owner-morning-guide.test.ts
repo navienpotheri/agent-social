@@ -14,8 +14,9 @@ test("the numbers in the guide are the launch bar's", () => {
   assert.ok(guide.includes(`${bar.mustWorkerHours} worker-hours`));
   assert.ok(guide.includes(`${bar.counts.withdraw} rows are claims`));
   assert.ok(guide.includes(`${bar.counts.after} are after launch`));
-  const closed = /\*\*Closed on 2026-11-22: (\d+) rows/.exec(read("docs/launch-bar.md"))?.[1];
-  assert.ok(closed && guide.includes(`${closed} rows were closed on 2026-11-22`), "the closed count is the launch bar's");
+  // The launch bar names the day on which it was generated (the generator's own date), so the date is read from it and not fixed here.
+  const m = /\*\*Closed on (\d{4}-\d{2}-\d{2}): (\d+) rows/.exec(read("docs/launch-bar.md"));
+  assert.ok(m && guide.includes(`${m[2]} rows were closed on ${m[1]}`), "the closed count is the launch bar's");
 });
 
 test("every file the guide names exists", () => {
