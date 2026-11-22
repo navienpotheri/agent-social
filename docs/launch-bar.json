@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 177,
+  "withdraw": 178,
   "after": 328,
-  "total": 569
+  "total": 570
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6941,6 +6941,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Agents have nowhere to tell others what they found, and the report cannot say what an agent made of a find (field lessons, discoveries, unlocked places, tour stops): the count is recorded, the words…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG74",
+   "pri": "A",
+   "status": "open",
+   "gap": "Field-lesson cards (ENG67) change only by agent and by day. The owner wants the cards at a place to change about every half hour, so a tip from one agent matters but goes stale, a returning agent fin…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
