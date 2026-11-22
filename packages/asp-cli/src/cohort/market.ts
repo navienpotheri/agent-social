@@ -52,8 +52,8 @@ export class MarketHall {
   }
   private async put(r: AspRecord): Promise<string> { return (await this.log.append(r)).id; }
 
-  /** Mock credits for a party, by the operator's signed mint (the log refuses an unsigned one once an operator is named). */
-  private async mint(to: string, value: number): Promise<void> { await this.put(this.mk("mint", this.p.operator, { to, amount: credit(value), reason: "bootstrap", authority: "operator" }, null, to)); }
+  /** Mock credits for a party (the log names no operator here, so a mint is direct). */
+  private async mint(to: string, value: number): Promise<void> { await this.log.mint(to, value); }
 
   /** Registers the local institutions, issues the price list and posts a few house jobs. */
   async init(seedJobs = 3): Promise<void> {
@@ -65,25 +65,15 @@ export class MarketHall {
     for (const job of SEED_JOBS.slice(0, seedJobs)) await this.post(this.p.house, undefined, SEED_PREFIX + job.purpose, job.budget, job.criteria[0] ?? "done");
   }
 
-  private readonly sponsors: Party[] = [];
-  /** The sponsor of the n-th agent: the log lets one sponsor open at most 10 agent passports a day, so each person of the cohort sponsors up to eight. */
-  private async sponsorFor(n: number): Promise<Party> {
-    const k = Math.floor(Math.max(0, n) / 8);
-    while (this.sponsors.length <= k) {
-      const sp = newParty(`did:web:cohort.local:users:sponsor-${this.sponsors.length + 1}`);
-      await this.put(this.mk("passport", sp, { did: sp.did, kind: "human", keys: keysOf(sp) }, null, sp.did));
-      await this.mint(sp.did, 200);
-      this.sponsors.push(sp);
-    }
-    return this.sponsors[k]!;
-  }
-
-  /** Gives an agent an identity in the log (a passport under the cohort's sponsor), starting credits and a standing Mandate that lets it spend at the Market. */
-  async enrol(agent: AgentCtx): Promise<void> {
+  /**
+   * Gives an agent that already has a passport in the log (made by the signed trace, under one of its sponsors) its mock credits and a standing Mandate that lets it spend at the Market. The sponsor's signer is the one
+   * the signed trace holds; the contract, Bond and Mandate are the sponsor's, on a contract of their own beside the trace's.
+   */
+  async adopt(agent: AgentCtx, sponsor: { did: string; signer: Signer }): Promise<void> {
     const party: Party = { did: agent.did, kid: agent.kid, seed: agent.seed };
-    const sp = await this.sponsorFor(agent.n);
-    await this.put(this.mk("passport", sp, { did: agent.did, kind: "agent", sponsor: sp.did, tier: 1, shape: {}, keys: keysOf(party) }, null, agent.did));
+    const sp: Party = { did: sponsor.did, kid: (sponsor.signer as { kid: string }).kid, seed: (sponsor.signer as { seed: Uint8Array }).seed };
     await this.mint(agent.did, START_CREDITS);
+    await this.mint(sp.did, 12);
     const contract = this.mk("contract", sp, { principal: sp.did, performer: agent.did, bank: this.p.bank.did, purpose: `Standing Mandate for ${agent.handle}`, price: credit(10), verification: "deterministic", deadline: "2040-01-01T00:00:00Z", basis: { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, agent.did, [party]);
     await this.put(contract);
     const bond = this.mk("bond", sp, { contract: contract.id, backer: sp.did, amount: credit(2), escrow: { payer: sp.did, amount: credit(10) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, contract.id);
@@ -91,6 +81,23 @@ export class MarketHall {
     const mandate = this.mk("mandate", sp, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: [{ institution: "market", cap: credit(40), period: "month" }] }, bond.id, agent.did);
     const e: Enrolled = { agent, party, mandate: await this.put(mandate) };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
+  }
+
+  private readonly sponsors: Party[] = [];
+  /**
+   * For a world that has no signed trace (a test of the Market alone): the agent gets a passport under one of the hall's own sponsors (the log lets a sponsor open ten agent passports a day, so each sponsors up to
+   * eight) and then the same credits and standing Mandate as `adopt`.
+   */
+  async enrolStandalone(agent: AgentCtx): Promise<void> {
+    const k = Math.floor(Math.max(0, agent.n) / 8);
+    while (this.sponsors.length <= k) {
+      const sp = newParty(`did:web:cohort.local:users:sponsor-${this.sponsors.length + 1}`);
+      await this.put(this.mk("passport", sp, { did: sp.did, kind: "human", keys: keysOf(sp) }, null, sp.did));
+      this.sponsors.push(sp);
+    }
+    const sp = this.sponsors[k]!;
+    await this.put(this.mk("passport", sp, { did: agent.did, kind: "agent", sponsor: sp.did, tier: 1, shape: {}, keys: keysOf({ did: agent.did, kid: agent.kid, seed: agent.seed }) }, null, agent.did));
+    await this.adopt(agent, { did: sp.did, signer: signer(sp) });
   }
 
   private async post(poster: Party, mandate: string | undefined, purpose: string, budget: number, criterion: string): Promise<{ intent: string; posting: string }> {

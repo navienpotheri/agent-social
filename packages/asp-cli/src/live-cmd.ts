@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
+import { schemaFingerprint } from "@agent-social/asp-core";
 import { createGateway, isPricedModel, priceFor, readRunLog, worstCaseUsd, type RunEvent } from "@agent-social/asp-package";
 
 
@@ -24,6 +25,19 @@ import { createGateway, isPricedModel, priceFor, readRunLog, worstCaseUsd, type 
 export const CLAUDE_CODE_REQUEST_CHARS = 636_000;
 export const CLAUDE_CODE_MAX_REPLY_TOKENS = 32_000;
 export interface CapProblem { worstUsd: number; price: { inPerM: number; outPerM: number }; priced: boolean; text: string }
+/**
+ * Compares the record schemas a service reports in its health answer with this client's (DK1803: the owner's hosted service ran older code than the client and refused a contract with a newer field). No report at all is
+ * a service that predates the report (older than this client: amber); a differing schema is red, because a record the client signs may be refused. The remedy names the two ways out.
+ */
+export function serviceBuildProblem(service: Record<string, string> | undefined, mine: Record<string, string>): { level: "warn" | "fail"; text: string } | undefined {
+  const remedy = "ask the operator to update the service, or run with --local (no service)";
+  if (!service) return { level: "warn", text: `it does not report which record schemas it runs, so it is older than this client and may refuse a record this client signs (${remedy})` };
+  const differs = Object.keys(mine).filter((k) => service[k] !== mine[k]);
+  if (!differs.length) return undefined;
+  const missing = differs.filter((k) => service[k] === undefined);
+  return { level: "fail", text: `it runs different record schemas from this client's (${differs.slice(0, 6).join(", ")}${differs.length > 6 ? `, and ${differs.length - 6} more` : ""}${missing.length ? `; it has no schema for ${missing.slice(0, 3).join(", ")}` : ""}): it is most likely older, and may refuse a record this client signs: ${remedy}` };
+}
+
 export function capProblem(o: { cap: number; model?: string; priceIn?: number; priceOut?: number }): CapProblem | undefined {
   const price = priceFor(o.model, { ...(o.priceIn !== undefined ? { inPerM: o.priceIn } : {}), ...(o.priceOut !== undefined ? { outPerM: o.priceOut } : {}) });
   const known = isPricedModel(o.model);
@@ -128,7 +142,13 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
     try {
       const base = service.endsWith("/") ? service : service + "/";
       const r = await fetch(new URL("health", base), { signal: AbortSignal.timeout(8000) });
-      add("the log service", r.ok ? "ok" : "fail", `${new URL(base).host} answered ${r.status}`);
+      const body = r.ok ? ((await r.json().catch(() => undefined)) as { build?: { schemas?: Record<string, string> } } | undefined) : undefined;
+      const host = new URL(base).host;
+      const drift = r.ok ? serviceBuildProblem(body?.build?.schemas, schemaFingerprint()) : undefined;
+      if (!r.ok) add("the log service", "fail", `${host} answered ${r.status}`);
+      else if (drift?.level === "fail") add("the log service", "fail", `${host} answered, but ${drift.text}`);
+      else if (drift) add("the log service", "warn", `${host} answered, but ${drift.text}`);
+      else add("the log service", "ok", `${host} answered ${r.status}; it runs the same record schemas as this client`);
     } catch (e) { add("the log service", "fail", `${(() => { try { return new URL(service).host; } catch { return "the service"; } })()} was not reachable: ${(e as Error).message}`); }
   }
 
