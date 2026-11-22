@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 324,
-  "total": 490
+  "after": 323,
+  "total": 489
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -4355,18 +4355,6 @@
    "pri": "B",
    "status": "open",
    "gap": "Simulator validity certificate. extends DK801; no real interviews in the beta.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK827",
-   "pri": "B",
-   "status": "open",
-   "gap": "Limit on self-scheduled wake-ups. extends DK388.",
    "bucket": "after",
    "hours": 0,
    "size": "",

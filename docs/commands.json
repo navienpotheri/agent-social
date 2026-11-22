@@ -684,11 +684,11 @@
         },
         {
           "command": "asp gateway ... --wake-allow <did>[,<did>...]",
-          "description": "Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes)"
+          "description": "Let only the named senders wake the agent: a wake by anyone else, or by no named sender, is refused and recorded (with --daily-tokens, --daily-wakes, --sender-wakes, and --wake-tokens, the most tokens one wake may spend)"
         },
         {
           "command": "asp wakes [--agent <did>]",
-          "description": "Who woke each agent and how much it spent, by day, from the runs made through asp gateway: wakes, tokens, wakes refused and the ceiling that refused them (--daily-tokens, --daily-wakes, --sender-wakes on asp gateway; --woken-by names the sender)."
+          "description": "Who woke each agent and how much it spent, by day, from the runs made through asp gateway: wakes (and how many were idle, spending no tokens), tokens, wakes refused and the ceiling that refused them (--daily-tokens, --daily-wakes, --sender-wakes on asp gateway; --woken-by names the sender)."
         },
         {
           "command": "asp collusion [--json]",

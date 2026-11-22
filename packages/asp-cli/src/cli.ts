@@ -686,6 +686,7 @@ const OPTIONS = {
   "monthly-tokens": { type: "string" },
   "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
+  "wake-tokens": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
@@ -3684,7 +3685,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gateOn = gatedScopes.length > 0;
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
   const standing = new Budgets(join(home, "budgets.json")).get(by);
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes" | "wake-tokens") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(n("wake-tokens") !== undefined ? { wakeTokens: n("wake-tokens") } : {}), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
@@ -5848,7 +5849,7 @@ async function collusionCommand(home: string, v: Values, io: Io): Promise<number
 async function wakesCommand(home: string, v: Values, io: Io): Promise<number> {
   const rows = new DailyCeiling(join(home, "wakes.json")).report(v.agent);
   if (!rows.length) { io.out("no wake is recorded: a run through asp gateway records one"); return 0; }
-  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s), ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
+  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s)${r.idle ? ` (${r.idle} idle)` : ""}, ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
   return 0;
 }
 
