@@ -1513,6 +1513,8 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   sv("treasury_statement_month_13", "treasury_statement", { ...tstmt, period: "2026-13" }, false);
   sv("treasury_statement_bad_hash", "treasury_statement", { ...tstmt, statement_sha256: "abc" }, false);
   sv("treasury_statement_extra_field", "treasury_statement", { ...tstmt, note: "x" }, false);
+  sv("valid_treasury_statement_with_figures", "treasury_statement", { ...tstmt, opening: tstmt.balance, income: { value: 40, unit: "credit" }, spending: { value: 40, unit: "credit" } }, true);
+  sv("treasury_statement_figure_not_an_amount", "treasury_statement", { ...tstmt, opening: tstmt.balance, income: 40, spending: { value: 40, unit: "credit" } }, false);
   const polBase = { holder: "did:web:example.com:agents:alice-coder", contract: "sha256:" + "d".repeat(64), cover: "bond_slash", insured_amount: { value: 20, unit: "credit" }, premium: { value: 2, unit: "credit" }, valid_from: "2026-11-12T00:00:00Z", valid_to: "2027-01-12T00:00:00Z" };
   sv("valid_policy", "policy", polBase, true);
   sv("valid_policy_failed_job", "policy", { ...polBase, cover: "failed_job" }, true);

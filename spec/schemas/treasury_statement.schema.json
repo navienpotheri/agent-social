@@ -12,6 +12,9 @@
     "balance": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
     "reconciles": { "type": "boolean", "description": "Whether the Treasury's flows account for its ledger over the whole log (a statement for a period cannot say, and states false with unexplained null)." },
     "unexplained": { "type": "integer", "description": "The credits the flows do not account for; absent when reconciliation needs the whole log." },
+    "opening": { "$ref": "urn:asp:v0.2:common#/$defs/amount", "description": "The Treasury's balance when the period started: the last statement's closing (DK232). Present with income and spending, or none of the three." },
+    "income": { "$ref": "urn:asp:v0.2:common#/$defs/amount", "description": "What the log moved into the Treasury since the last statement (the first counts from the start of the log). The log refuses a figure that is not the sum." },
+    "spending": { "$ref": "urn:asp:v0.2:common#/$defs/amount", "description": "What the log moved out of the Treasury since the last statement. Opening + income - spending = balance (the closing)." },
     "statement_sha256": { "$ref": "urn:asp:v0.2:common#/$defs/sha256" }
   }
 }

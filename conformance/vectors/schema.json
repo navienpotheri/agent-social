@@ -15044,6 +15044,57 @@
       "valid": false
     },
     {
+      "name": "valid_treasury_statement_with_figures",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "opening": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "income": {
+          "value": 40,
+          "unit": "credit"
+        },
+        "spending": {
+          "value": 40,
+          "unit": "credit"
+        }
+      },
+      "valid": true
+    },
+    {
+      "name": "treasury_statement_figure_not_an_amount",
+      "schema": "treasury_statement",
+      "instance": {
+        "period": "2026-11",
+        "balance": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "reconciles": true,
+        "unexplained": 0,
+        "statement_sha256": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "opening": {
+          "value": 1000,
+          "unit": "credit"
+        },
+        "income": 40,
+        "spending": {
+          "value": 40,
+          "unit": "credit"
+        }
+      },
+      "valid": false
+    },
+    {
       "name": "valid_policy",
       "schema": "policy",
       "instance": {

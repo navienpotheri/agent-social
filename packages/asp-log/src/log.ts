@@ -190,6 +190,8 @@ export interface EventLogOptions {
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
   panelV2From?: string;
+  /** The time from which a new budget must leave the Treasury's uncommitted balance at or above one month of approved budgets (the total of the latest earlier month with budgets; DK232, TRL-19, guard G6). Off when unset. */
+  treasuryReserveFloorFrom?: string;
   /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
   panelV3From?: string;
   /**
@@ -312,6 +314,7 @@ export class EventLog {
   private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
+  private readonly reserveFloorFrom?: string;
   private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -333,6 +336,8 @@ export class EventLog {
     if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
+    if (opts.treasuryReserveFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.treasuryReserveFloorFrom))) throw new Error(`treasuryReserveFloorFrom must be an ISO time, got ${opts.treasuryReserveFloorFrom}`);
+    this.reserveFloorFrom = opts.treasuryReserveFloorFrom;
     if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
     this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -1237,6 +1242,7 @@ export class EventLog {
     const held = Number((await tx.getMarker(`hold:${did}`)) ?? 0);
     if (held > 0 && balance - amount < held) throw rule("collateral_held", `${did} holds ${held} credits as a mentor's collateral while its protege's line is open: ${balance - held} are free, ${amount} asked`);
     await tx.putAccount({ did, balance: balance - amount });
+    if (did === TREASURY_DID) await tx.putMarker("treasury_cum_out", String(Number((await tx.getMarker("treasury_cum_out")) ?? 0) + amount));
   }
 
   private async credit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
@@ -1244,6 +1250,7 @@ export class EventLog {
     const did = canonicalAccount(rawDid);
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     await tx.putAccount({ did, balance: balance + amount });
+    if (did === TREASURY_DID) await tx.putMarker("treasury_cum_in", String(Number((await tx.getMarker("treasury_cum_in")) ?? 0) + amount));
   }
 
   /**
@@ -3890,6 +3897,16 @@ export class EventLog {
     }
     const { balance, open } = await this.treasuryFree(tx);
     if (open + b.amount.value > balance) throw rule("budget_exceeds_treasury", `the Treasury holds ${balance} credits and ${open} are already promised to open budgets: ${b.amount.value} more is more than it has`);
+    // One month in reserve (DK232, TRL-19, guard G6): from the cutover, what the Treasury holds that no open budget has promised, after this budget, is at least the total of the latest earlier month that had budgets.
+    const periods = JSON.parse((await tx.getMarker("budget_periods")) ?? "[]") as { period: string; total: number }[];
+    if (this.reserveFloorFrom && Date.parse(r.issued_at) >= Date.parse(this.reserveFloorFrom)) {
+      const earlier = periods.filter((p) => p.period < b.period).at(-1);
+      const reserve = balance - open - b.amount.value;
+      if (earlier && reserve < earlier.total) throw rule("budget_reserve_floor", `the Treasury would keep ${reserve} credits uncommitted after this budget, below one month of approved budgets (${earlier.total}, for ${earlier.period}): the reserve is never below that`);
+    }
+    const here = periods.find((p) => p.period === b.period);
+    if (here) here.total += b.amount.value; else { periods.push({ period: b.period, total: b.amount.value }); periods.sort((x, y) => (x.period < y.period ? -1 : 1)); }
+    await tx.putMarker("budget_periods", JSON.stringify(periods));
     await tx.putMarker(key, r.id);
     await tx.putMarker(lastKey, String(b.amount.value));
     await tx.putMarker("budget_open", String(open + b.amount.value));
@@ -3952,12 +3969,25 @@ export class EventLog {
    * (`treasury_statement_period_taken`); the hash is of the full statement the Treasury's command computed, so a published page is checked against it outside the log.
    */
   private async projectTreasuryStatement(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { period: string; balance: { value: number } };
+    const b = r.body as { period: string; balance: { value: number }; opening?: { value: number }; income?: { value: number }; spending?: { value: number } };
     if (r.prev !== null) throw rule("treasury_statement_not_chained", "a Treasury statement starts its own chain (prev is null)");
     if (r.issuer !== TREASURY_DID) throw rule("treasury_statement_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury issues its statement`);
     const balance = (await tx.getAccount(TREASURY_DID))?.balance ?? 0;
     if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
     if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
+    // The arithmetic and the sums (DK232, TRL-18): opening + income - spending = closing, and the income and spending are exactly what the log moved into and out of the Treasury since the last statement (the first
+    // one counts from the start of the log). The log keeps the running totals as it moves the credits, so a figure that is one credit off is refused.
+    if (b.opening !== undefined || b.income !== undefined || b.spending !== undefined) {
+      if (b.opening === undefined || b.income === undefined || b.spending === undefined) throw rule("treasury_statement_incomplete", "a statement with figures names the opening, the income and the spending together");
+      if (b.opening.value + b.income.value - b.spending.value !== b.balance.value) throw rule("treasury_statement_arithmetic", `opening ${b.opening.value} + income ${b.income.value} - spending ${b.spending.value} is ${b.opening.value + b.income.value - b.spending.value}, not the closing ${b.balance.value}`);
+      const cumIn = Number((await tx.getMarker("treasury_cum_in")) ?? 0), cumOut = Number((await tx.getMarker("treasury_cum_out")) ?? 0);
+      const prev = JSON.parse((await tx.getMarker("treasury_statement_close")) ?? "null") as { closing: number; cumIn: number; cumOut: number } | null;
+      if (prev && b.opening.value !== prev.closing) throw rule("treasury_statement_opening", `the opening is the last statement's closing (${prev.closing}), not ${b.opening.value}`);
+      const wantIn = cumIn - (prev?.cumIn ?? 0), wantOut = cumOut - (prev?.cumOut ?? 0);
+      if (b.income.value !== wantIn) throw rule("treasury_statement_income", `the log moved ${wantIn} credits into the Treasury since the last statement, not ${b.income.value}`);
+      if (b.spending.value !== wantOut) throw rule("treasury_statement_spending", `the log moved ${wantOut} credits out of the Treasury since the last statement, not ${b.spending.value}`);
+      await tx.putMarker("treasury_statement_close", JSON.stringify({ closing: b.balance.value, cumIn, cumOut }));
+    }
     await tx.putMarker(`treasury_statement:${b.period}`, r.id);
   }
 
