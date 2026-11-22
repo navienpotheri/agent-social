@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -70,4 +70,37 @@ test("DK1714: a breach reported to the running service waits for the owner's key
     assert.ok(existsSync(`${tokens}.breach-pending.json`));
     assert.match(readFileSync(`${tokens}.admin-audit.jsonl`, "utf8"), /breach_ack/);
   } catch (e) { throw new Error(`${(e as Error).message}\n--- service output ---\n${svc.out()}`); } finally { svc.stop(); }
+});
+
+test("DK1714 (E10): a breach reported to a running service is mailed to the operator at once, before the owner signs anything; the mail names the unsent quarantine and the command that sends it", async () => {
+  const f = makeFixture();
+  mkdirSync(f.aspHome, { recursive: true });
+  const OP = "did:web:example.com:users:bm-operator", A = "did:web:example.com:agents:bm-agent";
+  const dir = mkdtempSync(join(tmpdir(), "asp-breach-mail-"));
+  const tokens = join(dir, "tokens.json");
+  writeFileSync(tokens, JSON.stringify([{ name: "ops", role: "admin", tokenSha256: hashToken("tok-ops") }]));
+  const svc = start(["--db", `local:${f.aspHome}`, "--tokens", tokens, "--port", "0", "--mail-from", "Agent Social <noreply@example.org>", "--mail-operator", "ops@example.org", "--mail-dry-run"], { ASP_OPERATOR_DID: OP });
+  try {
+    const url = await svc.ready;
+    const t0 = Date.now();
+    const rep = await fetch(`${url}/admin/breach`, { method: "POST", headers: { authorization: "Bearer tok-ops", "content-type": "application/json" }, body: JSON.stringify({ agent: A, cause: "exfiltration", summary: "sent a file to an unknown host" }) });
+    assert.equal(rep.status, 200);
+    const outbox = `${tokens}.outbox`;
+    let files: string[] = [];
+    for (let i = 0; i < 50 && !files.length; i++) { files = existsSync(outbox) ? readdirSync(outbox) : []; if (!files.length) await new Promise((r) => setTimeout(r, 100)); }
+    const mailMs = Date.now() - t0;
+    console.log(`breach report to the operator's mail on disk: ${mailMs} ms`);
+    assert.ok(mailMs < 5000, "the operator is mailed within five seconds of the report");
+    assert.equal(files.length, 1, "one mail, to the operator");
+    const mail = JSON.parse(readFileSync(join(outbox, files[0]), "utf8")) as { to: string; subject: string; text: string };
+    assert.equal(mail.to, "ops@example.org");
+    assert.match(mail.subject, /Breach reported: exfiltration/);
+    assert.match(mail.text, /asp breach respond --from-service/);
+    // A second report for the same agent is refused (409) and sends no second mail.
+    assert.equal((await fetch(`${url}/admin/breach`, { method: "POST", headers: { authorization: "Bearer tok-ops", "content-type": "application/json" }, body: JSON.stringify({ agent: A, cause: "loop", summary: "again" }) })).status, 409);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(readdirSync(outbox).length, 1);
+  } catch (e) { throw new Error(`${(e as Error).message}
+--- service output ---
+${svc.out()}`); } finally { svc.stop(); }
 });
