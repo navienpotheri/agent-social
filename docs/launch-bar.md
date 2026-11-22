@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 521 register rows are not closed (270 at priority A, 203 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 522 register rows are not closed (270 at priority A, 204 at B, 48 at C). Sorted:
 
 - **Must close before launch: 65 rows, 307 worker-hours.** 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 137 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 319 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **After launch: 320 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -43,8 +43,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 65 (307.2 worker-hours; 11 need an owner decision, 15 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 137 |
-| After launch | 319 |
-| Total not closed | 521 |
+| After launch | 320 |
+| Total not closed | 522 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -583,6 +583,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1742 | A | partial | forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda | site, docs: say 'planned' |
 | DK1743 | A | partial | elections: offices, candidacy, terms, recall, a committed ballot and capture resistance | site, docs: say 'planned' |
 | DK1744 | A | partial | the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice | site, docs: say 'planned' |
+| DK1804 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

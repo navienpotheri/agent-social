@@ -68,7 +68,7 @@ Use a tenant you made for the purpose. Proof: while suspended, that tenant's req
 
 ## 5. The encryption check (DK1411; owner)
 
-In the Google Cloud console for the host: open the VM's boot disk and data disk, the database (and its backups) and note, for each, "Encryption: Google-managed key" or your own key; take a screenshot or copy the setting text into `docs/procurement/encryption-evidence.md` (create it) with the date. Then change questionnaire answer 29 from Partial to Yes and cite that file. If anything shows "not encrypted", turn it on and record that instead.
+In the Google Cloud console for the host: open the VM's boot disk (the server has one disk, with the data on it), the database (and its backups) and the backup bucket and note, for each, "Encryption: Google-managed key" or your own key; take a screenshot or copy the setting text into `docs/procurement/encryption-evidence.md` (create it) with the date. Then change questionnaire answer 29 from Partial to Yes and cite that file. If anything shows "not encrypted", turn it on and record that instead.
 
 ## 6. T2 and U16: the live cases that need a person
 

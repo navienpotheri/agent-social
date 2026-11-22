@@ -34,7 +34,7 @@ Answer these before step 1. The default is what a worker will assume if you say 
 
 *Settles:* nothing on its own; every later rollback depends on it.
 
-**Do.** In the Google Cloud console, open the running instance, then Disks, and take a snapshot of the boot disk and of the data disk. On the server:
+**Do.** In the Google Cloud console, open the running instance, then Disks, and take a snapshot of its disk (the server has one boot disk of 30 GB, with the data on it). On the server:
 
 ```bash
 cat /etc/asp/deployed-commit
@@ -59,7 +59,7 @@ git push origin deployed-before-2026-11-22
 
 *Settles:* DK1411 (the questionnaire answer 29 changes from Partial to Yes).
 
-**Do.** In the console, open the boot disk, the data disk, the database (it is on the data disk) and the snapshots of step 1, and note for each "Encryption: Google-managed key" or your own key. Copy the setting text, with the date, into `docs/procurement/encryption-evidence.md` (create it), and change answer 29 of the security questionnaire as [live-check-kit.md](live-check-kit.md) section 5 says.
+**Do.** In the console, open the boot disk (the server's only disk; the database and the data are on it), the backup bucket and the snapshots of step 1, and note for each "Encryption: Google-managed key" or your own key. Copy the setting text, with the date, into `docs/procurement/encryption-evidence.md` (create it), and change answer 29 of the security questionnaire as [live-check-kit.md](live-check-kit.md) section 5 says.
 
 **Right.** Every item shows an encryption setting.
 
@@ -71,18 +71,108 @@ git push origin deployed-before-2026-11-22
 
 *Settles:* GV6 (a tested restore of the whole city, with its timing).
 
-**Do.** Follow section 3 of [owner-setup-operations.md](owner-setup-operations.md): a private bucket in the region of decision 3, versioning on, public access blocked, a lifecycle rule that deletes versions older than 35 days, a write-and-list credential for the server, a read credential kept only by you, and the encrypting copy step at the end of `/usr/local/bin/asp-backup`. Then run the drill twice: first as it stands (it restores the newest local dump into a scratch database and removes everything it made), then on a file fetched from the bucket with your read credential and decrypted by rclone, which the drill takes as its argument:
+**What is already done (yours, 2026-11-22).** The bucket `gs://agent-social-511217-asp-backups` exists in ASIA-SOUTH2 with versioning on, public access prevention enforced and a lifecycle of 30 days for live objects and 5 days for non-current ones (35 days in all, as the retention rule says). The service account `asp-backup-writer@agent-social-511217.iam.gserviceaccount.com` has a custom role (`aspBackupWriter`: `storage.objects.create`, `storage.objects.list`, `storage.buckets.get`) on that bucket only, and its key is on the server at `/etc/asp-backup/key.json` (root, mode 600). The server's own scope is read-only for storage, so that key is the only way for the server to write to the bucket.
 
-```bash
-sudo bash /opt/asp/docs/deploy/restore-drill.sh
-sudo bash /opt/asp/docs/deploy/restore-drill.sh /root/asp-YYYYMMDD-HHMM.sql.gz
+**Why `age`, and not a passphrase on the server.** A backup that the server encrypts with a passphrase needs the passphrase on the server, which defeats the point. With `age` the server holds only your **public** key (`/etc/asp-backup/age-recipient.txt`, one line starting `age1`), so it can encrypt and can never decrypt: the **private** key is yours, in your password manager, and is never on the server. The copy script refuses to run if that file holds a private key.
+
+**Do.** The five steps below, in order. Then the drill (section 3 of [owner-setup-operations.md](owner-setup-operations.md) has the same, with the reasons).
+
+**1. Make the key pair on your own machine, never on the server.** Install `age` there (from its releases page, https://github.com/FiloSottile/age/releases, or your package manager) and run:
+
+```powershell
+age-keygen -o asp-backup-key.txt
 ```
 
-**Right.** The drill ends `DRILL PASSED`, with the record count and the head of the restored copy. Write the date, the object name and the time the drill took in [live-run-checklist.md](live-run-checklist.md).
+It prints `Public key: age1...`. The file `asp-backup-key.txt` holds the private key: copy its whole content into your password manager, then delete the file. Keep the public key line for step 4.
 
-**If not.** A failed drill means that the backup cannot be trusted: read the drill's last lines, and do not go on to step 5 until it passes.
+**2. Copy the two scripts to the server** (the server still runs the old code until step 5, so they are not there yet). On your machine, from the repository folder:
 
-**Rollback.** Remove the copy step from `/usr/local/bin/asp-backup`; delete the bucket. The nightly local backup is unaffected.
+```powershell
+gcloud compute scp docs\deploy\backup-offsite.sh docs\deploy\restore-drill.sh THE-INSTANCE:/tmp/ --zone THE-ZONE
+```
+
+**3. Install the tools on the server** (a terminal on the instance):
+
+```bash
+sudo apt-get update && sudo apt-get install -y age rclone
+age --version
+rclone version
+```
+
+**4. Write the rclone configuration** (the key file is already there):
+
+```bash
+sudo install -d -m 700 /etc/asp-backup
+sudo ls -l /etc/asp-backup/key.json
+printf '[backup]\ntype = google cloud storage\nservice_account_file = /etc/asp-backup/key.json\nbucket_policy_only = true\n' | sudo tee /etc/asp-backup/rclone.conf >/dev/null
+sudo chmod 600 /etc/asp-backup/rclone.conf
+```
+
+The listing must show `-rw-------` and `root` for `key.json`. **Write the public key** (the line from step 1, starting `age1`):
+
+```bash
+echo 'THE-PUBLIC-KEY-LINE-STARTING-age1' | sudo tee /etc/asp-backup/age-recipient.txt >/dev/null
+sudo grep -c AGE-SECRET-KEY /etc/asp-backup/age-recipient.txt || true
+```
+
+The last command must print `0`.
+
+**5. Install the script, add the hook and test it once:**
+
+```bash
+sudo install -m 755 /tmp/backup-offsite.sh /usr/local/bin/asp-backup-offsite
+sudo grep -q asp-backup-offsite /usr/local/bin/asp-backup || echo '/usr/local/bin/asp-backup-offsite' | sudo tee -a /usr/local/bin/asp-backup >/dev/null
+sudo tail -3 /usr/local/bin/asp-backup
+```
+
+```bash
+sudo /usr/local/bin/asp-backup
+```
+
+The hook line is the last line of `/usr/local/bin/asp-backup`, so the nightly job copies the day's files after it has made them. The setup script of step 5 writes the same hook into `asp-backup` each time that it runs, when `/usr/local/bin/asp-backup-offsite` exists, so a later update does not lose it.
+
+Then the drill, twice. First as it stands: it restores the newest local dump into a scratch database and removes everything it made.
+
+```bash
+sudo bash /tmp/restore-drill.sh
+```
+
+Then on a file that came back from the bucket. In Cloud Shell, as yourself: fetch it, decrypt it with the private key from your password manager (pasted at the prompt, never saved), and send it to the server:
+
+```bash
+gcloud storage cp gs://agent-social-511217-asp-backups/asp-backups/asp-YYYYMMDD-HHMM.sql.gz.age .
+read -rs -p "private key: " K; printf '%s\n' "$K" > asp-key.txt; unset K
+age -d -i asp-key.txt -o asp-YYYYMMDD-HHMM.sql.gz asp-YYYYMMDD-HHMM.sql.gz.age
+shred -u asp-key.txt
+gcloud compute scp asp-YYYYMMDD-HHMM.sql.gz THE-INSTANCE:/tmp/ --zone THE-ZONE
+```
+
+On the server, run the drill on it and remove the decrypted copy, which holds every tenant's records in the clear:
+
+```bash
+sudo bash /tmp/restore-drill.sh /tmp/asp-YYYYMMDD-HHMM.sql.gz
+rm /tmp/asp-YYYYMMDD-HHMM.sql.gz
+```
+
+Back in Cloud Shell, remove your copies:
+
+```bash
+shred -u asp-YYYYMMDD-HHMM.sql.gz asp-YYYYMMDD-HHMM.sql.gz.age
+```
+
+**Right.** The test run prints one line for each file, `ok asp-... .age <n> bytes -> backup:agent-social-511217-asp-backups/asp-backups`, for the newest two database dumps and the newest two file archives of the last 26 hours (two lines on a first run, up to four later), and ends `offsite: <n> file(s) encrypted and copied`. From Cloud Shell, as yourself (your own read access, not the server's key), the bucket lists the `.age` files:
+
+```bash
+gcloud storage ls gs://agent-social-511217-asp-backups/asp-backups/
+```
+
+Both drills end `DRILL PASSED`, with the record count and the head of the restored copy. Write the date, the object name and the time the drill took in [live-run-checklist.md](live-run-checklist.md).
+
+**What the monitor does not see.** The monitor's check "Last night's backup is there" reads `/var/backups/asp` only, so it does not see the offsite copy. If the offsite copy fails, `asp-backup` exits non-zero and says why on standard error (read it in the system log with `journalctl -t CRON`), but the monitor stays green until a check for the offsite copy is built (register row DK1804). Until then, look at the bucket's listing once a week.
+
+**If not.** A failed offsite copy names its step on standard error: `could not encrypt` (age or the recipient file), `could not copy` or `is not listed` (the rclone configuration, the key, the role or the bucket name), `no database dump newer than 26 hours` (last night's backup did not run). A failed drill means that the backup cannot be trusted: read the drill's last lines, and do not go on to step 5 until it passes. The drill refuses a `.age` file: decrypt it first, on your own side; the private key never goes to the server.
+
+**Rollback.** Remove the last line of `/usr/local/bin/asp-backup` and `/usr/local/bin/asp-backup-offsite`; delete the bucket's objects if you want them gone. The nightly local backup is unaffected.
 
 ## 4. The outside monitor and the status page (45 minutes; DK1341)
 

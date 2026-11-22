@@ -3,8 +3,8 @@
  "counts": {
   "must": 65,
   "withdraw": 137,
-  "after": 319,
-  "total": 521
+  "after": 320,
+  "total": 522
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -5915,6 +5915,18 @@
    "size": "M",
    "flags": "",
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
+  },
+  {
+   "id": "DK1804",
+   "pri": "B",
+   "status": "open",
+   "gap": "The monitor's \"Last night's backup is there\" check reads only the local backup directory, so it does not see the offsite copy: if the encrypted copy to the bucket fails (docs/deploy/backup-offsite.sh…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "KO1",

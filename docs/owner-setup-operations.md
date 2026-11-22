@@ -22,15 +22,22 @@ Why: the monitor already writes `/status` and `/status.json` as static files, bu
 3. On the server, after each `asp monitor run` pass, copy the two files to the bucket (`rclone copy <the folder the monitor writes the two files to> status:<bucket>` with an rclone remote set up with that credential; the folder is the one given to `asp monitor run`; add it to the monitor's systemd unit as `ExecStartPost` or run it from a one-line timer every minute).
 4. **Check that passes:** open `https://status.<your domain>/status` with the service stopped for three minutes: it shows the outage, and after recovery shows it recovered. Record the date.
 
-## 3. A backup bucket in your own account (30 minutes)
+## 3. A backup bucket in your own account (45 minutes)
 
-Why: `/var/backups/asp` is on the machine that fails. The retention rule (docs/legal/retention-and-erasure.md) says backups clear within 35 days, so the bucket's lifecycle must say the same.
+Why: `/var/backups/asp` is on the machine that fails. The retention rule (docs/legal/retention-and-erasure.md) says backups clear within 35 days, so the bucket's lifecycle says the same (30 days for live objects, 5 for non-current ones).
 
-1. Create a private bucket in a region you choose, versioning on, public access blocked, **lifecycle: delete versions older than 35 days**.
-2. Create a credential that can only write and list this bucket (not read old objects, not delete, not touch anything else). Keep the read credential for yourself, in your password manager, never on the server.
-3. On the server, add a step at the end of `/usr/local/bin/asp-backup`: copy the day's two files to the bucket (`rclone copy /var/backups/asp/ backup:<bucket> --max-age 26h`) and fail the job if the copy fails, so the monitor's "last night's backup is there" check turns red.
-4. **Encrypt before it leaves the machine:** use rclone's `crypt` remote with a passphrase that is stored with the read credential and not on the server, so the provider holds ciphertext only (the backup holds every tenant's records and packages).
-5. **Check that passes:** the restore drill (`deploy/restore-drill.sh`) run against a file fetched from the bucket with your read credential, ending `DRILL PASSED`. Record the date and the object name.
+**What is already done (yours, 2026-11-22).** The bucket `gs://agent-social-511217-asp-backups` exists in ASIA-SOUTH2 with versioning on, public access prevention enforced and a lifecycle of 30 days for live objects and 5 days for non-current ones (35 days in all, as the retention rule says). The service account `asp-backup-writer@agent-social-511217.iam.gserviceaccount.com` has a custom role (`aspBackupWriter`: `storage.objects.create`, `storage.objects.list`, `storage.buckets.get`) on that bucket only, and its key is on the server at `/etc/asp-backup/key.json` (root, mode 600). The server's own scope is read-only for storage, so that key is the only way for the server to write to the bucket.
+
+**Why `age`, and not a passphrase on the server.** A backup that the server encrypts with a passphrase needs the passphrase on the server, which defeats the point. With `age` the server holds only your **public** key (`/etc/asp-backup/age-recipient.txt`, one line starting `age1`), so it can encrypt and can never decrypt: the **private** key is yours, in your password manager, and is never on the server. The copy script refuses to run if that file holds a private key.
+
+The exact commands, in order, are step 3 of [deployment-plan.md](deployment-plan.md) (and of [deployment-walkthrough.md](deployment-walkthrough.md)); the script is `docs/deploy/backup-offsite.sh`, tested in `packages/asp-cli/test/backup-offsite.test.ts`. In short:
+
+1. Make an `age` key pair on your own machine; the private key goes into your password manager and nowhere else.
+2. On the server, install `age` and `rclone`, write `/etc/asp-backup/rclone.conf` (the service account's key is already at `/etc/asp-backup/key.json`) and the public key into `/etc/asp-backup/age-recipient.txt`.
+3. Install `docs/deploy/backup-offsite.sh` as `/usr/local/bin/asp-backup-offsite` and add it as the last line of `/usr/local/bin/asp-backup`, so that the job fails (non-zero exit) if the offsite copy fails.
+4. **Check that passes:** the restore drill (`docs/deploy/restore-drill.sh`) run on a file that you fetched from the bucket with your own read access and decrypted with the private key, ending `DRILL PASSED`. Record the date and the object name.
+
+**What the monitor does not see.** The monitor's check "Last night's backup is there" reads `/var/backups/asp` only, so it does not see the offsite copy. If the offsite copy fails, `asp-backup` exits non-zero and says why on standard error (read it in the system log with `journalctl -t CRON`), but the monitor stays green until a check for the offsite copy is built (register row DK1804). Until then, look at the bucket's listing once a week.
 
 ## What I need from you
 
