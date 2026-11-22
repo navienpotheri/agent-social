@@ -64,7 +64,7 @@ test("DK1801: the per-agent cap ends an agent before the call that would pass it
   const small = await runCohort(base({ agents: 2, provider: standInProvider(() => "explorer"), budgetUsd: 0.02, totalUsd: 5, priceIn: 1000, priceOut: 1000 }));
   assert.ok(small.report.perAgent.every((s) => s.endReason === "cap_agent"), small.report.perAgent.map((s) => s.endReason).join());
   assert.ok(small.report.perAgent.every((s) => s.usd <= 0.02), "no agent passed its cap");
-  const total = await runCohort(base({ agents: 3, provider: standInProvider(() => "explorer"), budgetUsd: 5, totalUsd: 0.05, priceIn: 1000, priceOut: 1000 }));
+  const total = await runCohort(base({ agents: 3, provider: standInProvider(() => "explorer"), budgetUsd: 50, totalUsd: 0.05, priceIn: 1000, priceOut: 1000 }));
   assert.ok(total.report.totalUsd <= 0.05, `spend ${total.report.totalUsd} within the total cap`);
   assert.ok(total.report.perAgent.some((s) => s.endReason === "cap_total"));
 });
