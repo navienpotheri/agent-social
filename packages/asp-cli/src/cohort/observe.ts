@@ -21,6 +21,10 @@ export interface AgentStats {
   inputTokens: number; outputTokens: number; usd: number;
   endReason: string;
   firstWords: string[];
+  /** Mock credits at the start and at the end of the run (when the society has a Market). */
+  creditsStart?: number; creditsEnd?: number;
+  /** What the agent said alongside its calls (its stated reasoning, where the provider returns text): turns with text, and the characters of it. */
+  statedTurns: number; statedChars: number;
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number }
 export interface Report {
@@ -44,13 +48,14 @@ export function analyse(events: TraceEvent[]): Report {
   const runLen = new Map<string, number>();
   const idleRun = new Map<string, number>();
   const edges = new Map<string, Edge>();
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [] }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0 }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const closeRuns = (id: string) => { const s = ensure(id); if ((runLen.get(id) ?? 0) >= 3) s.loops++; runLen.set(id, 0); if ((idleRun.get(id) ?? 0) >= 2) s.idleStretches++; idleRun.set(id, 0); };
   for (const e of events) {
     if (e.at > last) last = e.at;
     if (e.t === "agent") { const s = ensure(e.agent); s.handle = e.handle; s.did = e.did; if (e.persona) s.persona = e.persona; began.set(e.agent, e.at); didToId.set(e.did, e.agent); }
-    else if (e.t === "model") { const s = ensure(e.agent); s.turns = Math.max(s.turns, e.turn); s.inputTokens += e.input; s.outputTokens += e.output; s.usd += e.usd; if (e.text && s.firstWords.length < 2) s.firstWords.push(e.text.slice(0, 160)); }
+    else if (e.t === "model") { const s = ensure(e.agent); s.turns = Math.max(s.turns, e.turn); s.inputTokens += e.input; s.outputTokens += e.output; s.usd += e.usd; if (e.text) { s.statedTurns++; s.statedChars += e.text.length; if (s.firstWords.length < 2) s.firstWords.push(e.text.slice(0, 160)); } }
+    else if (e.t === "credits") { const s = ensure(e.agent); if (e.when === "start") s.creditsStart = e.balance; else s.creditsEnd = e.balance; }
     else if (e.t === "tool") {
       const s = ensure(e.agent);
       s.calls++; add(s.tools, e.tool); if (e.institution !== "none") add(s.institutions, e.institution);
@@ -113,6 +118,8 @@ export function narrate(s: AgentStats, nameOf: (id: string) => string = (x) => x
   if (s.idleStretches) parts.push(`It chose to do nothing for a stretch ${s.idleStretches} time${s.idleStretches === 1 ? "" : "s"}.`);
   if (s.injectionWritten) parts.push(`${s.injectionWritten} of its own texts read like an attempt to instruct other agents.`);
   if (s.injectionSeen) parts.push(`It read ${s.injectionSeen} text${s.injectionSeen === 1 ? "" : "s"} that looked like an instruction aimed at it.`);
+  if (s.creditsStart !== undefined && s.creditsEnd !== undefined) parts.push(`Its mock credits went from ${s.creditsStart} to ${s.creditsEnd}.`);
+  if (s.turns) parts.push(s.statedTurns ? `It said something alongside ${s.statedTurns} of its ${s.turns} turns (about ${Math.round(s.statedChars / s.statedTurns)} characters each).` : "It said nothing alongside its calls, so there is no stated reasoning to read.");
   parts.push(`It ended: ${s.endReason}. Estimated cost ${usd(s.usd)} for ${s.inputTokens + s.outputTokens} tokens.`);
   void nameOf;
   return parts.join(" ");
@@ -144,6 +151,18 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("## Who did what");
   L.push("");
   for (const s of r.perAgent) { L.push(`### ${s.handle}${s.persona ? ` (persona: ${s.persona})` : ""}`); L.push(""); L.push(narrate(s)); L.push(""); }
+  L.push("## Credits");
+  L.push("");
+  const cr = r.perAgent.filter((s) => s.creditsStart !== undefined && s.creditsEnd !== undefined);
+  if (!cr.length) L.push("This society had no Market, so no credits moved.");
+  else { L.push("| Agent | Start | End | Change |"); L.push("|---|---|---|---|"); for (const s of cr) L.push(`| ${s.handle} | ${s.creditsStart} | ${s.creditsEnd} | ${s.creditsEnd! - s.creditsStart! >= 0 ? "+" : ""}${s.creditsEnd! - s.creditsStart!} |`); L.push(""); L.push(`Mock credits only. Credits move only by the Market's records (a posting deposit, a job's price, the job tax); the sum of the changes is ${cr.reduce((n, s) => n + s.creditsEnd! - s.creditsStart!, 0)} because the posting deposits and the job tax leave the agents' hands.`); }
+  L.push("");
+  L.push("## What the agents said while they acted (a cognition summary)");
+  L.push("");
+  const said = r.perAgent.filter((s) => s.statedTurns);
+  L.push(said.length ? `${said.length} of ${r.perAgent.length} agents said something alongside their calls. This is the reasoning the provider returned as text, trimmed to its first words in \`trace.jsonl\`; hidden reasoning, where a provider keeps it, is not available and is not claimed.` : "No agent said anything alongside its calls, so there is no stated reasoning in this run. Hidden reasoning, where a provider keeps it, is not available and is not claimed.");
+  for (const s of said) L.push(`- ${s.handle}: ${s.statedTurns} of ${s.turns} turns carried text, about ${Math.round(s.statedChars / s.statedTurns)} characters each${s.firstWords[0] ? `; first words: "${s.firstWords[0].replace(/\s+/g, " ").slice(0, 120)}"` : ""}.`);
+  L.push("");
   L.push("## Who addressed whom");
   L.push("");
   if (!r.edges.length) L.push("No agent commented on, voted for, made an offer to, hired or paid another agent in this run.");

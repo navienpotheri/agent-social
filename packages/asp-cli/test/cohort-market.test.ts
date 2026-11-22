@@ -27,6 +27,12 @@ test("DK1801 slice 2: a poster and a worker hire each other through the tools an
   assert.match(md, /agent-01 → agent-02: hired 1 time, paid 1 time/);
   assert.match(md, /agent-02 → agent-01: 1 offer on a job/);
   assert.equal(r.report.refusedByRule["tool_not_in_set"] ?? 0, 0);
+  // the credits table: the poster paid the 20-credit price and the 2-credit posting deposit; the worker was paid the price; the job tax of a 20-credit job is below one credit
+  assert.deepEqual([poster.creditsStart, poster.creditsEnd, worker.creditsStart, worker.creditsEnd], [100, 78, 100, 120]);
+  assert.match(md, /\| agent-01 \| 100 \| 78 \| -22 \|/);
+  assert.match(md, /\| agent-02 \| 100 \| 120 \| \+20 \|/);
+  assert.match(md, /## What the agents said while they acted/);
+  assert.match(md, /No agent said anything alongside its calls/, "the stand-in says nothing alongside its calls");
 });
 
 test("DK1801 slice 2: the hall's steps are signed records, the balances move by the price, the log verifies and the audit balances, and the log's own rules refuse what they refuse", async () => {
