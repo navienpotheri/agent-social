@@ -26,7 +26,7 @@ import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
-import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
+import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRUCK_SHARE_PERMILLE, AUTHOR_WINDOW_DAYS, CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
@@ -490,6 +490,7 @@ export class EventLog {
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "exam") await this.projectExam(tx, verified);
     if (type === "exam_result") await this.projectExamResult(tx, verified);
+    if (type === "exam_withdrawal") await this.projectExamWithdrawal(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
     if (type === "enrolment") await this.projectEnrolment(tx, verified);
@@ -3890,7 +3891,9 @@ export class EventLog {
     if (r.issuer !== REGISTRAR_DID) throw rule("exam_result_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar scores a sitting`);
     const defRec = await tx.getRecord(b.exam);
     if (!defRec || defRec.record.type !== "asp.exam/v0.2") throw rule("exam_unknown", `${b.exam} is not an exam definition in this log`);
-    const def = defRec.record.body as { pass_mark_permille: number; pool_size: number; max_sittings: number; window_days: number; sitting_service: string };
+    const def = defRec.record.body as { pass_mark_permille: number; pool_size: number; max_sittings: number; window_days: number; sitting_service: string; skill: string; level: number };
+    const withdrawn = await tx.getMarker(`exam_withdrawn:${b.exam}`);
+    if (withdrawn) throw rule("exam_withdrawn", `${b.exam} was withdrawn by ${withdrawn}: no new sitting of it is scored; sit the exam that replaced it`);
     if (!(await this.reputation(tx, b.holder))) throw rule("exam_not_an_agent", `${b.holder} is not an agent with a passport in this log`);
     if (b.pass_mark_permille !== def.pass_mark_permille) throw rule("exam_pass_mark_mismatch", `the result carries a pass mark of ${b.pass_mark_permille} but the exam was defined with ${def.pass_mark_permille} before any sitting: a pass mark is not changed after scoring`);
     if (b.passed !== (b.score_permille >= def.pass_mark_permille)) throw rule("exam_result_inconsistent", `a score of ${b.score_permille} against a pass mark of ${def.pass_mark_permille} is ${b.score_permille >= def.pass_mark_permille ? "a pass" : "a fail"}, not ${b.passed ? "a pass" : "a fail"}`);
@@ -3906,11 +3909,44 @@ export class EventLog {
     if (used.length >= def.pool_size) throw rule("exam_pool_exhausted", `${b.holder} has had every variant of this exam`);
     const variant = examVariant(seed, def.pool_size, used);
     if (b.variant !== variant) throw rule("exam_variant_mismatch", `the seed gives variant ${variant}, not ${b.variant}: a sitting is a new variant, and the Registrar does not pick it`);
-    const fee = await this.usePurchase(tx, b.sitting, b.holder, def.sitting_service, "an exam sitting");
-    await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
+    // A sitting is paid by a purchase of the sitting service, or it is the free re-sit that follows a certificate revoked for the Academy's own error (academy.md 6): then `sitting` is that revocation, used once.
+    const sittingRec = await tx.getRecord(b.sitting);
+    let paidAt: string;
+    if (sittingRec?.record.type === "asp.certificate_revocation/v0.2") {
+      const rv = sittingRec.record.body as { certificate: string; reason: string };
+      if (rv.reason !== "error") throw rule("resit_not_error", `the revocation ${b.sitting} is for ${rv.reason}: only a certificate revoked for the Academy's own error gives a sitting at no fee`);
+      const cert = (await tx.getRecord(rv.certificate))?.record.body as { holder: string; skill: string; level: number } | undefined;
+      if (!cert || cert.holder !== b.holder) throw rule("resit_not_holders", `the revoked certificate is not ${b.holder}'s: a free sitting is the holder's`);
+      if (cert.skill !== def.skill || cert.level !== def.level) throw rule("resit_wrong_exam", `the revoked certificate is for ${cert.skill} at level ${cert.level}, and this exam is for ${def.skill} at level ${def.level}`);
+      if (await tx.getMarker(`free_resit:${b.sitting}`)) throw rule("resit_used", `the revocation ${b.sitting} has already given its free sitting`);
+      await tx.putMarker(`free_resit:${b.sitting}`, r.id);
+      paidAt = sittingRec.record.issued_at;
+    } else {
+      paidAt = (await this.usePurchase(tx, b.sitting, b.holder, def.sitting_service, "an exam sitting")).record.issued_at;
+    }
+    await this.useRunLog(tx, b.run_log_hash, b.holder, paidAt, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
     if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
+  }
+
+  /**
+   * An exam withdrawal (DK117, S1700): the Registrar withdraws an exam that has leaked, that an agent trained to pass without the skill, or that the Academy got wrong. The exam is a definition in this log and is
+   * withdrawn once; the replacement, when named, is another definition (never the same exam). After it `projectExamResult` refuses a new sitting (`exam_withdrawn`); results and certificates already issued stand until
+   * they are revoked on their own record.
+   */
+  private async projectExamWithdrawal(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { exam: string; reason: string; replaced_by?: string };
+    if (r.prev !== null) throw rule("exam_withdrawal_not_chained", "an exam withdrawal starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("exam_withdrawal_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar withdraws an exam`);
+    const def = await tx.getRecord(b.exam);
+    if (!def || def.record.type !== "asp.exam/v0.2") throw rule("exam_withdrawal_unknown_exam", `${b.exam} is not an exam definition in this log`);
+    if (await tx.getMarker(`exam_withdrawn:${b.exam}`)) throw rule("exam_already_withdrawn", `${b.exam} is already withdrawn`);
+    if (b.replaced_by !== undefined) {
+      const next = await tx.getRecord(b.replaced_by);
+      if (!next || next.record.type !== "asp.exam/v0.2" || next.id === b.exam) throw rule("exam_withdrawal_bad_replacement", `${b.replaced_by} is not another exam definition in this log: the next season's exam is a new definition`);
+    }
+    await tx.putMarker(`exam_withdrawn:${b.exam}`, r.id);
   }
 
   /**
@@ -3953,6 +3989,8 @@ export class EventLog {
       const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((x) => `${l.id}: ${x.rule}`));
       if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
     }
+    const suspension = await this.authorSuspension(tx, r.issuer, r.issued_at);
+    if (suspension) throw rule("author_suspended", `${r.issuer} is suspended from publishing a course: ${suspension}`);
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
     const author = await this.sponsorKey(tx, r.issuer);
@@ -3970,6 +4008,25 @@ export class EventLog {
     if (!item || item.institution !== institutionDid("academy")) throw rule("course_not_priced", `${b.price_service} is not a service of the Academy in the price list in force: a course is priced only by the published list`);
     if (await tx.getMarker(`course:${b.course}`)) throw rule("course_already_published", `a course ${b.course} already exists`);
     await tx.putMarker(`course:${b.course}`, r.id);
+    await tx.putMarker(`course_author:${r.id}`, r.issuer);
+  }
+
+  /**
+   * Whether an author is suspended from publishing (DK117, S1700; the constants of academy.ts): at least AUTHOR_MIN_LEARNERS different learners completed its courses in the last AUTHOR_WINDOW_DAYS, at least
+   * AUTHOR_STRUCK_MIN of them had a blocked attempt in the AUTHOR_STRIKE_DAYS after completing, and the struck are at least AUTHOR_STRUCK_SHARE_PERMILLE of them. Returns the reason, or undefined.
+   */
+  private async authorSuspension(tx: LogTx, author: string, at: string): Promise<string | undefined> {
+    const list = JSON.parse((await tx.getMarker(`author_learners:${author}`)) ?? "[]") as { l: string; at: string }[];
+    const now = Date.parse(at);
+    const recent = new Map<string, string>();
+    for (const e of list) if (now - Date.parse(e.at) < AUTHOR_WINDOW_DAYS * 86_400_000 && now >= Date.parse(e.at) && !recent.has(e.l)) recent.set(e.l, e.at);
+    let struck = 0;
+    for (const [learner, done] of recent) {
+      const rep = await this.reputation(tx, learner);
+      if (rep?.strikeLog.some((s) => Date.parse(s.at) >= Date.parse(done) && Date.parse(s.at) - Date.parse(done) < AUTHOR_STRIKE_DAYS * 86_400_000 && Date.parse(s.at) <= now)) struck++;
+    }
+    if (recent.size >= AUTHOR_MIN_LEARNERS && struck >= AUTHOR_STRUCK_MIN && (struck * 1000) / recent.size >= AUTHOR_STRUCK_SHARE_PERMILLE) return `${struck} of its ${recent.size} learners in the last ${AUTHOR_WINDOW_DAYS} days had a blocked attempt within ${AUTHOR_STRIKE_DAYS} days of completing its course`;
+    return undefined;
   }
 
   /** An enrolment (AC-4): the holder signs; the tuition was paid by a purchase for the course's service (used once); one open enrolment per course; a level 2 course needs a valid Foundations certificate. */
@@ -4004,6 +4061,13 @@ export class EventLog {
     if (!course || b.exercises_passed !== course.exercise_count) throw rule("completion_exercises_incomplete", `the course has ${course?.exercise_count} exercises and ${b.exercises_passed} were passed: every exercise must pass`);
     await this.useRunLog(tx, b.run_log_hash, b.holder, e.record.issued_at, "a completion");
     await tx.putMarker(`enrol_done:${b.enrolment}`, r.id);
+    // The author's learners, kept for the suspension rule (DK117): who completed one of its courses, and when.
+    const courseId = (e.record.body as { course: string }).course;
+    const author = await tx.getMarker(`course_author:${courseId}`);
+    if (author) {
+      const learners = JSON.parse((await tx.getMarker(`author_learners:${author}`)) ?? "[]") as { l: string; at: string }[];
+      await tx.putMarker(`author_learners:${author}`, JSON.stringify([...learners, { l: b.holder, at: r.issued_at }].slice(-500)));
+    }
   }
 
   /** An arena season (AC-14): defined once by the Registrar, with a window and a prize split that never promises more than the whole pool. */

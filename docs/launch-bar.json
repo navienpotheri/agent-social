@@ -3,8 +3,8 @@
  "counts": {
   "must": 63,
   "withdraw": 104,
-  "after": 333,
-  "total": 500
+  "after": 332,
+  "total": 499
  },
  "mustWorkerHours": 303.2,
  "entries": [
@@ -3402,18 +3402,6 @@
    "pri": "B",
    "status": "partial",
    "gap": "The Academy has no charter, no monthly published report, no sponsor mail section and no re-marking appeal route. academy.md 8 asks for a charter, a monthly report of sittings, pass rates, certificate…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK117",
-   "pri": "B",
-   "status": "open",
-   "gap": "An exam that is leaked or passed by an Overfitter cannot be withdrawn in the log, a certificate revoked for the Academy's own error does not give a free re-sit, and an author whose learners are struc…",
    "bucket": "after",
    "hours": 0,
    "size": "",

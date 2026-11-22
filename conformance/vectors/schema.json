@@ -4273,6 +4273,77 @@
       "valid": false
     },
     {
+      "name": "valid_exam_withdrawal",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_exam_withdrawal_replaced",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "error",
+        "evidence": "a copy of the pool was posted on a public forum",
+        "replaced_by": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "exam_withdrawal_bad_reason",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "boring",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_withdrawal_no_evidence",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_withdrawal_no_exam",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "reason": "leaked",
+        "evidence": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_withdrawal_short_exam_id",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "foundations-v1",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_withdrawal_extra_field",
+      "schema": "exam_withdrawal",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum",
+        "revoke_all": true
+      },
+      "valid": false
+    },
+    {
       "name": "valid_memory_key",
       "schema": "memory_key",
       "instance": {

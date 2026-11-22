@@ -800,6 +800,14 @@ sv("valid_inspectorate_finding", "inspectorate_finding", fBody(), true);
 sv("inspectorate_finding_no_touches", "inspectorate_finding", fBody({ touches: [] }), false);
 sv("inspectorate_finding_bad_touch_kind", "inspectorate_finding", fBody({ touches: [{ run: "r1", kind: "opened", forbidden: true }] }), false);
 sv("inspectorate_finding_penalty_field", "inspectorate_finding", fBody({ slash: 10 }), false);
+const exwBody = (over: Record<string, unknown> = {}) => ({ exam: "sha256:" + "e".repeat(64), reason: "leaked", evidence: "a copy of the pool was posted on a public forum", ...over });
+sv("valid_exam_withdrawal", "exam_withdrawal", exwBody(), true);
+sv("valid_exam_withdrawal_replaced", "exam_withdrawal", exwBody({ reason: "error", replaced_by: "sha256:" + "f".repeat(64) }), true);
+sv("exam_withdrawal_bad_reason", "exam_withdrawal", exwBody({ reason: "boring" }), false);
+sv("exam_withdrawal_no_evidence", "exam_withdrawal", exwBody({ evidence: "" }), false);
+sv("exam_withdrawal_no_exam", "exam_withdrawal", { reason: "leaked", evidence: "x" }, false);
+sv("exam_withdrawal_short_exam_id", "exam_withdrawal", exwBody({ exam: "foundations-v1" }), false);
+sv("exam_withdrawal_extra_field", "exam_withdrawal", exwBody({ revoke_all: true }), false);
 // ---------- the memory key (spec-deltas S1604, register rows D12 and DK272) ----------
 const mkBody = (over: Record<string, unknown> = {}) => ({ did: "did:web:example.com:agents:coder-7", name: "memory-1", public_key: "A".repeat(43), at: "2026-11-22T10:00:00Z", ...over });
 sv("valid_memory_key", "memory_key", mkBody(), true);

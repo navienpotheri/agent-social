@@ -217,3 +217,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (DK1743 elections pages over the recall records; IS9 follow-ups), 05:10Z
 - 2026-11-22 held by lane-protocol-3 (done: recall DK1743, gateway_refusal DK1607, JO3 job_data_chain, DK1744 records, memory_key D12; now: mutation checks DK1353-DK1357 DK1366, then DK1349/DK1458 cycle, DK1355, DK1370, DK1379, DK1474, DK1650, DK1717, DK1726, DK1728/9; DK1744 referral and Courts' grant route; priority A GV10, DK1457, BI-18), 06:00Z
 - 2026-11-22 held by lane-society-2 (DK122: the court draw seeded by a record neither party controls, and a per-juror open-case cap, as a dated draw version; S1611, UC-1952), 06:00Z
+- 2026-11-22 held by lane-society-2 (DK117 exam withdrawal, fee-free re-sit after an error revocation, author suspension; then JO4/JO5/JO6 contract amendment, cancellation and team split; S1700-S1749, UC-2104 and up), 07:30Z

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:exam_withdrawal",
+  "title": "Exam withdrawal body",
+  "description": "The Registrar withdraws an exam (register row DK117; spec-delta S1700; academy.md 5 and 6): an exam that has leaked, that an agent trained to pass without the skill (an overfitter), or that the Academy itself got wrong. Signed by the Registrar (exam_withdrawal_wrong_issuer); the exam must be a definition in this log (exam_withdrawal_unknown_exam) and is withdrawn once (exam_already_withdrawn). After it the log refuses a new sitting of that exam (exam_withdrawn); results and certificates already issued stand until they are revoked on their own record. The next season's exam is a new definition, named in replaced_by when it exists (exam_withdrawal_bad_replacement). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "exam",
+    "reason",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "exam": {
+      "description": "The id of the exam definition being withdrawn.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "reason": {
+      "enum": [
+        "leaked",
+        "overfitted",
+        "error"
+      ]
+    },
+    "evidence": {
+      "description": "What the withdrawal rests on: a Clinic finding, a ruling, a checkup result, or the facts.",
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "replaced_by": {
+      "description": "The exam definition that takes its place, when the Registrar has defined it.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}
