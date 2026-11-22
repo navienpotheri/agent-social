@@ -5180,6 +5180,17 @@ export class EventLog {
   private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.gatedReputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
+  /** The records of some types, kept for the log head they were read at (DK1362, O6): the same list is served until a record is appended, so a page read does not scan the whole log each time. Callers must not change the list. */
+  private typedRecordsMemo = new Map<string, { head: string; records: AspRecord[] }>();
+  private async recordsOfTypesAtHead(types: string[]): Promise<AspRecord[]> {
+    const h = await this.store.logHead();
+    const head = `${h.seq}|${h.logHash}`, key = types.join(",");
+    const hit = this.typedRecordsMemo.get(key);
+    if (hit && hit.head === head) return hit.records;
+    const records = await this.recordsOfTypes(types);
+    this.typedRecordsMemo.set(key, { head, records });
+    return records;
+  }
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
     const want = new Set(types.map((x) => `asp.${x}/v0.2`));
     return this.recordsWhere((r) => want.has(r.type));
@@ -5762,7 +5773,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
+    const records = await this.recordsOfTypesAtHead(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
@@ -5775,7 +5786,17 @@ export class EventLog {
   }
 
   /** Every agent's facts for template-level reputation (S1412): passport fingerprint, fleet, persona, node and standing counts. */
+  /** The facts of every member, kept for the log head and the minute they were computed in (DK1362, O6): a page read of an agent in a fleet of 10,000 rebuilt them for every read (about 400 ms at 5,000 agents, 850 ms at 10,000); a new record changes the head, so a stale answer is never served. */
+  private memberFactsMemo: { key: string; value: { facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> } } | undefined;
   private async memberFacts(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
+    const head = await this.store.logHead();
+    const key = `${head.seq}|${head.logHash}|${this.now().toISOString().slice(0, 16)}`;
+    if (this.memberFactsMemo?.key === key) return this.memberFactsMemo.value;
+    const value = await this.memberFactsUncached();
+    this.memberFactsMemo = { key, value };
+    return value;
+  }
+  private async memberFactsUncached(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
     const passports = new Map<string, { fingerprint?: MemberFacts["fingerprint"]; persona?: string; kind: string }>();
     for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; fingerprint?: MemberFacts["fingerprint"]; persona?: string }; passports.set(b.did, b); }
     return this.store.transaction(async (tx) => {
@@ -5803,7 +5824,7 @@ export class EventLog {
     const t = tpl.get(did)!;
     const fleetMembers = facts.filter((f) => f.fleet === me.fleet);
     const same = (f: MemberFacts) => tpl.get(f.did)!.key === t.key;
-    const fd = await this.fleetDetails(me.fleet);
+    const fd = await this.store.transaction(async (tx) => { const f = await tx.getFleet(me.fleet!); if (!f) return undefined; const d = JSON.parse((await tx.getMarker(`fleet_decl:${me.fleet}`)) ?? "{}") as FleetDecl; return { name: f.name, org: f.org, association: d.association ?? "full" } as { name: string; org: string; association: "full" | "related_party_only" | "private" }; });
     const personas: Record<string, number> = {};
     for (const m of fleetMembers) if (m.persona) personas[m.persona] = (personas[m.persona] ?? 0) + 1;
     return {
@@ -6120,7 +6141,7 @@ export class EventLog {
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[] = [];
-    for (const r of await this.recordsOfTypes(["abuse_report"])) {
+    for (const r of await this.recordsOfTypesAtHead(["abuse_report"])) {
       const b = r.body as { accused: string; kind: string; about?: string };
       if (b.accused !== did) continue;
       // What became of it (DK350, S502): referred to a panel, and the panel's finding with what was paid. Read from the markers the rules wrote, so the page says what the ledger did.
