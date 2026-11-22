@@ -91,7 +91,7 @@ Item 4 of section 3 (one real agent sits one course) is the first step toward it
 
 ## 4. Stopping safely
 
-`npm run asp -- stop --all` ends every running session within seconds. For a `--local` run, name the local home: `npm run asp -- stop --all --home "$env:ASP_HOME\local"`. `npm run asp -- pause` holds them and `npm run asp -- resume` continues them. Closing the window leaves no key on disk: the provider key was only in that window's environment.
+`npm run asp -- stop --all` ends every running session within seconds. For a `--local` run, name the local home: `npm run asp -- stop --all --home "$env:ASP_HOME\local"`. `npm run asp -- pause` holds them and `npm run asp -- resume` continues them. On Windows, `asp stop --all` also ends the processes that the agent started, not only the agent (the whole tree is stopped; `packages/asp-cli/test/windows-readiness.test.ts`). Put a path that contains spaces, such as a folder under OneDrive, in double quotes, as in the commands above. Closing the window leaves no key on disk: the provider key was only in that window's environment.
 
 ## 5. After the run: the results template
 

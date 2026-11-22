@@ -17,7 +17,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { join, resolve } from "node:path";
 import { b64urlEncode, createRecord, didKeyFromPublicKey, publicKeyFromSeed, randomSeed, signBytes, signerFromSeed, type Signer } from "@agent-social/asp-core";
 import { makeInvitation, STARTER_PER_DID, STARTER_UPFRONT, type FleetInvitation } from "@agent-social/asp-log";
-import type { LogHandle } from "@agent-social/asp-package";
+import { readTextFile, type LogHandle } from "@agent-social/asp-package";
 
 export class FleetEnrolUsage extends Error {}
 
@@ -88,7 +88,7 @@ export interface FleetEnrolOpts {
 
 export const readManifest = (f: FleetEnrolOpts["flags"]) => {
   if (!f.manifest) throw new FleetEnrolUsage("asp fleet plan|enrol --manifest <file>");
-  return parseManifest(readFileSync(resolve(f.manifest), "utf8"));
+  return parseManifest(readTextFile(resolve(f.manifest)));
 };
 
 interface Slot { persona: string; index: number }
@@ -141,7 +141,7 @@ export async function enrol(o: FleetEnrolOpts): Promise<number> {
   if (mode !== "invite" && mode !== "bundle") throw new FleetEnrolUsage("--mode is invite or bundle");
   const out = resolve(f.out);
   mkdirSync(out, { recursive: true });
-  const manifestHash = sha(readFileSync(resolve(f.manifest!), "utf8"));
+  const manifestHash = sha(readTextFile(resolve(f.manifest!)));
   const stateFile = join(out, "fleet-state.json");
   const state: { manifest: string; mode: string; fleet: string } | undefined = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, "utf8")) : undefined;
   if (state && (state.manifest !== manifestHash || state.mode !== mode)) throw new FleetEnrolUsage(`${out} holds a run of another manifest or mode (${state.mode}); use a new --out, or the same manifest and mode to resume`);
