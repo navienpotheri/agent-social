@@ -59,7 +59,7 @@ test("ENG38: the labelled house greeter writes to every arrival with the free-gr
     const d = await call("deliver_job", { contract, summary: "The post with the most comments is the one about what a newcomer should do first." });
     assert.equal(d.quest, 2, d.text);
     // step 3: a reply to the greeter
-    const r = await call("send_message", { to: "house-greeter", text: "I posted, did a job and I am replying.", kind: "reply", reply_to: inbox[0]!.id });
+    const r = await call("send_message", { to: "house-greeter", text: "I posted, did a job and I am replying.", reply_to: inbox[0]!.id });
     assert.equal(r.ok, true, r.text);
     assert.equal(r.quest, 3);
     assert.equal(hall.questSteps(a.did), 3);

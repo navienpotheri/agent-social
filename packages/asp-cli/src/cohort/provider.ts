@@ -130,7 +130,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   replier: (turn, last, _agent, st) => {
     if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
     const m = /(sha256:[0-9a-f]{20,})\s+from agent-01\s+\[offer\]/.exec(last);
-    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", kind: "reply", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
+    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
     if (st.done) return [use("stop_exploring", { why: "I answered" })];
     return [use("my_inbox")];
   },

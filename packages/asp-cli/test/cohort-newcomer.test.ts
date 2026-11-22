@@ -50,7 +50,7 @@ test("every refusal in the owner's run now says why and what to do next: a reply
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
     const noReply = await call(a, "send_message", { to: "house-greeter", kind: "reply", text: "I read the charters and did a job." });
     assert.equal(noReply.ok, false);
-    assert.match(noReply.text, /a reply names the message it answers, and you gave none\. Give reply_to with that message's id from my_inbox, or send the words as a note\. Nothing was sent\./);
+    assert.match(noReply.text, /kind is one of note, question, offer, notice/, "there is no kind reply to choose: a reply is made by giving reply_to");
     const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number }[] };
     const job = board.result[0]!;
     const o = await call(a, "offer_on_job", { job: job.job, price: job.budget, plan: "I will write it" });
