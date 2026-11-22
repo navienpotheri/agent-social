@@ -96,3 +96,15 @@ Each row is judged by its own Done line; seen by the lead; see docs/live-run-che
 | E8 | partial | partial | The end-of-job mail is live; the end-of-Mandate mail of a settled contract and the dashboard are not shown |
 | ML2 | partial | partial | The tenant's address was set by hand; the row's Left line is untouched |
 | KO2 | partial | partial | The key-only address proof was not run |
+
+## 2026-11-23 later (launch-bar-2): step 9 on the hosted service, and the two mails reconciled
+
+Seen by the lead on the owner's screens. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1812 | open | closed | Step 9 now has the order that worked live: the institutions' keys (seq 453 to 455), the Treasury funded (seq 456), the drafts, the 14 signatures (seq 457 to 470) |
+| DK760 | partial | partial | The 2026-12 public-works line (600) is signed; the routine run with a payment recorded (step 12) is not |
+| DK1100 | open | open | The first public-works budget is signed on the hosted service; a payment and the seed postings are not |
+| DK381 | partial | partial | `treasury statement` ran live and reconciles; the monthly page with a signed copy is not shown |
+| DK1807 | closed | closed | Note: there were two end-of-job mails (11:50 PM IST for 660d3959; about 12:23 AM IST for 81af786e, seen on the owner's phone), which resolves the time difference |

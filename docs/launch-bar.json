@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 62,
+  "must": 61,
   "withdraw": 169,
   "after": 328,
-  "total": 559
+  "total": 558
  },
- "mustWorkerHours": 297.2,
+ "mustWorkerHours": 295.2,
  "entries": [
   {
    "id": "D3",
@@ -5921,17 +5921,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1812",
-   "pri": "A",
-   "status": "open",
-   "gap": "The walkthrough does not say how the institutions' keys come to be on the operator's machine and their passports in the hosted log, and several steps need them: `treasury sign`, `prices publish --pre…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "the walkthrough does not say how the institutions' keys get on the operator's machine and into the log, or that the Treasury must be funded before the drafts are signed"
   },
   {
    "id": "DK1813",

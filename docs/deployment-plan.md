@@ -318,18 +318,48 @@ and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a te
 
 *Settles:* nothing in the 18 rows; it is the first-day checklist of [hosting-setup.md](hosting-setup.md) section 5.
 
-**Do.** On your machine, with the operator and owner keys:
+**Do.** On your machine, with the operator and owner keys, in the order below (each step needs the one before it):
+
+**9a. The starter pool and the charters.**
 
 ```powershell
 npm run asp -- credits grant --to did:web:asp.local:starter-pool --amount 1000000 --by did:web:log.thedeeptransformation.com:u:navien-agentrun --reason starter_upfront
 npm run asp -- charter publish-all --by did:web:log.thedeeptransformation.com:u:navien-agentrun --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun
-npm run asp -- treasury draft --period 2026-12
+```
+
+**9b. The institutions' keys.** The Treasury, the Registry and the Bank sign as their own identities, so their keys must be on this machine and their passports in the hosted log, or later steps stop with `no key for did:web:asp.local:treasury` (or `:registry`, `:bank`). With the service address and an admin token in the window (the token goes to a file, never to the screen: step 6):
+
+```powershell
+npm run asp -- identity new --kind human --did did:web:asp.local:treasury --no-recovery
+npm run asp -- identity new --kind human --did did:web:asp.local:registry --no-recovery
+npm run asp -- identity new --kind human --did did:web:asp.local:bank --no-recovery
+```
+
+The keys are stored in the `keys` folder of your ASP home, with **no recovery key**: they are yours to back up ([live-run-identity.md](live-run-identity.md)). On 2026-11-23 the passports went into the log at seq 453 (treasury), 454 (registry) and 455 (bank).
+
+**9c. Fund the Treasury.** `treasury sign` stops with `GUARD_FAILED: the Treasury holds 0 credits` until the Treasury has credits. A signed mint, with your co-signature:
+
+```powershell
+npm run asp -- credits grant --to did:web:asp.local:treasury --amount 100000 --by did:web:log.thedeeptransformation.com:u:navien-agentrun --reason treasury_issuance --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun
+```
+
+**9d. Draft the budgets, then sign them.** The drafts are unsigned; the draft ids are the institution names. On 2026-11-23 the draft for 2026-12 had 14 lines totalling 42,100 credits: market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600 (the public-works line of PW1: 600 credits a month with a 30-day floor). The owner signed all 14; a loop does it (each is signed by the Treasury key and co-signed by you, and the loop stops at the first failure):
+
+```powershell
+npm run asp -- treasury draft --period 2026-12 --out .\drafts.json
+foreach ($id in "market","academy","shops","courts","registry","clinic","housing","events","bank","insurer","research","allowance","deposit-reward","public-works") { npm run asp -- treasury sign --draft .\drafts.json --id $id --cosign-by did:web:log.thedeeptransformation.com:u:navien-agentrun; if ($LASTEXITCODE -ne 0) { "STOPPED at $id"; break } }
+```
+
+**9e. Look at it.**
+
+```powershell
+npm run asp -- treasury statement
 npm run asp -- credits audit
 ```
 
-Sign the budget drafts with `treasury sign` (the owner co-signs) and start the daily world tick (`npm run asp -- world tick`).
+Then start the daily world tick (`npm run asp -- world tick`).
 
-**Right.** The audit says the supply rule balances after the grant; `charter publish-all` lists the charters it published.
+**Right.** On 2026-11-23: the Treasury's statement showed issuance 100000 and balance 100000, "reconciles to the ledger", each institution's budget, and nothing paid out yet; the audit balanced at 1,104,500 minted, all by signed mint records; the 14 signatures are log seq 457 to 470. `charter publish-all` lists the charters it published.
 
 **If not.** A refused grant names the rule; the pool may already be funded (the audit shows it).
 

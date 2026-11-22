@@ -254,7 +254,7 @@ test("the redeploy, the live charter index and the real end-of-job mail (seen by
   for (const id of ["DK1807", "E9", "ML1", "ML3", "DK1811"]) { assert.equal(status(row(id)), "closed", `${id} closed`); assert.match(row(id), /Closed 2026-11-23/, `${id} says when`); assert.match(row(id), /deployment-evidence\.test\.ts/, `${id} cites its test`); }
   for (const id of ["E10", "DK1810"]) assert.equal(status(row(id)), "closed", `${id} stays closed`);
   for (const id of ["E8", "ML2", "KO2"]) assert.equal(status(row(id)), "partial", `${id} stays partial`);
-  for (const frag of ["mail sent: run:sha256:98835", "Nov 22 18:53:03 UTC, which is 12:23 AM IST", "Your agent's run ended: Standing job: claude-code as my-agent (aea9f4)", "Sun Nov 22 11:50 PM IST", "The two times do not agree", "scopes repo.read, repo.write and tests.run", "2,901 tokens", "`shell.network`", "about USD 0.04, an estimate from a price table and not the provider's bill", "a stop-these-mails link", "first pass after the redeploy", "Not run:** a click on the unsubscribe link, and a bounce", "81af786e", "46 run ends"]) assert.ok(row("DK1807").includes(frag), `DK1807: ${frag}`);
+  for (const frag of ["mail sent: run:sha256:98835", "Nov 22 18:53:03 UTC, which is 12:23 AM IST", "Your agent's run ended: Standing job: claude-code as my-agent (aea9f4)", "Sun Nov 22 11:50 PM IST", "The two times are reconciled (2026-11-23)", "scopes repo.read, repo.write and tests.run", "2,901 tokens", "`shell.network`", "about USD 0.04, an estimate from a price table and not the provider's bill", "a stop-these-mails link", "first pass after the redeploy", "Not run:** a click on the unsubscribe link, and a bounce", "81af786e", "46 run ends"]) assert.ok(row("DK1807").includes(frag), `DK1807: ${frag}`);
   assert.match(row("E9"), /The first test mail still does not count as an end-of-job mail; the end-of-job mail is the second one/);
   assert.match(row("E9"), /Not run:\*\* a click on the unsubscribe link and a bounce/);
   assert.match(row("ML3"), /Not run live, and only tested against the stand-in Resend:\*\* a click on the unsubscribe link, a permanent bounce, and the List-Unsubscribe headers of the real mail/);
@@ -269,12 +269,12 @@ test("the redeploy, the live charter index and the real end-of-job mail (seen by
   assert.match(row("E8"), /Advanced 2026-11-23/);
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## The redeploy, the live charters and the end-of-job mail, 2026-11-22 night to 2026-11-23"));
-  for (const frag of ["33c73f14", "33c73f1", "13 of 13 institutions have a charter in force", "reconciles to the ledger", "the 21 read methods are live", "The two times do not agree", "DK1807, E9, ML1, ML3 and DK1811 close", "The first test mail of 8:45 PM IST is not an end-of-job mail and was never counted as one"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+  for (const frag of ["33c73f14", "33c73f1", "13 of 13 institutions have a charter in force", "reconciles to the ledger", "the 21 read methods are live", "The two times are reconciled (2026-11-23)", "DK1807, E9, ML1, ML3 and DK1811 close", "The first test mail of 8:45 PM IST is not an end-of-job mail and was never counted as one"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
   const emails = /[A-Za-z0-9._-]+@(gmail|googlemail)\.com/;
   assert.doesNotMatch(part, emails, "no personal address in the checklist");
   assert.doesNotMatch(row("DK1807"), emails, "no personal address in DK1807");
   const log = read("docs/overnight-log.md");
-  const table = log.slice(log.indexOf("## 2026-11-23 (launch-bar-2)"));
+  const table = log.slice(log.indexOf("## 2026-11-23 (launch-bar-2)"), log.indexOf("## 2026-11-23 later (launch-bar-2)"));
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 10);
   const closed: string[] = [];
@@ -282,4 +282,41 @@ test("the redeploy, the live charter index and the real end-of-job mail (seen by
   assert.deepEqual(closed.sort(), ["DK1807", "DK1811", "E9", "ML1", "ML3"], "exactly the five rows that closed");
   const plan = read("docs/deployment-plan.md");
   assert.match(plan, /E9 \(step 7; the end-of-job mail of a real governed run reached the owner's inbox after the redeploy\) and DK1811 \(step 5/);
+});
+
+test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes with the order written into the plan and the walkthrough, DK760 and DK1100 advance and stay, the two mails are reconciled, and the owner's own loop is said not to have been relayed", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  assert.equal(status(row("DK1812")), "closed");
+  for (const frag of ["Closed 2026-11-23", "seq 453, 454, 455", "no recovery key", "seq 456", "seq 457 to 470", "deployment-evidence.test.ts"]) assert.ok(row("DK1812").includes(frag), `DK1812: ${frag}`);
+  assert.equal(status(row("DK760")), "partial");
+  assert.match(row("DK760"), /public-works line \(600 credits, the draft id `public-works`\) is signed[\s\S]*the row stays partial/);
+  assert.equal(status(row("DK1100")), "open");
+  assert.match(row("DK1100"), /Still open on its Done line:\*\* a public-works payment to the house agent and the seed postings in the hosted log \(step 12\)/);
+  assert.equal(status(row("DK381")), "partial");
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md"]) {
+    const d = read(p);
+    const a = d.indexOf(p.endsWith("plan.md") ? "## 9. The first records of the city" : "## Step 9: the first records of the city");
+    const sec = d.slice(a, d.indexOf(p.endsWith("plan.md") ? "## 10. " : "## Step 10: ", a));
+    const order = ["**9a.", "**9b.", "**9c.", "**9d.", "**9e."].map((x) => sec.indexOf(x));
+    assert.ok(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1]!)), `${p}: 9a to 9e in order`);
+    assert.ok(sec.indexOf("identity new --kind human --did did:web:asp.local:treasury --no-recovery") < sec.indexOf("--reason treasury_issuance") && sec.indexOf("--reason treasury_issuance") < sec.indexOf("treasury sign --draft"), `${p}: keys, then funding, then signing`);
+    for (const frag of ["did:web:asp.local:registry --no-recovery", "did:web:asp.local:bank --no-recovery", "no key for did:web:asp.local:treasury", "GUARD_FAILED: the Treasury holds 0 credits", "seq 453 (treasury), 454 (registry) and 455 (bank)", "14 lines totalling 42,100 credits", "market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600", "the draft ids are the institution names", "STOPPED at $id", "seq 457 to 470", "1,104,500 minted", "reconciles to the ledger"]) assert.ok(sec.includes(frag), `${p}: ${frag}`);
+    const ids = /foreach \(\$id in ([^)]+)\)/.exec(sec)![1]!.split(",").map((x) => x.trim().replace(/"/g, ""));
+    assert.equal(ids.length, 14);
+    assert.equal(new Set(ids).size, 14);
+  }
+  const amounts = [1000, 5000, 1000, 2000, 1000, 2000, 1000, 3000, 2000, 1000, 2000, 20000, 500, 600];
+  assert.equal(amounts.reduce((a, b) => a + b, 0), 42100, "the 14 drafts total 42,100");
+  assert.equal(1_004_500 + 100_000, 1_104_500, "the audit after the Treasury's issuance");
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## Step 9 on the hosted service, 2026-11-23"));
+  for (const frag of ["seq 453", "(454)", "(455)", "seq 456", "seq 457 to 470", "1,104,500", "The owner's own loop was not relayed to the worker", "has not been run by a worker", "DK1812 closes"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+  assert.match(ck, /there were TWO end-of-job mails/);
+  assert.match(row("DK1807"), /The second mail is seen by the owner on his phone; the lead has not seen its text/);
+  assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|AGE-SECRET-KEY/);
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-23 later (launch-bar-2)"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 5);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
 });

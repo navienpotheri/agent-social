@@ -294,8 +294,8 @@
       "group": "Identity and keys",
       "commands": [
         {
-          "command": "asp identity new --kind human|agent ...",
-          "description": "Create a person or an agent identity and its key (a person gets a recovery code)"
+          "command": "asp identity new --kind human|agent [--did <did>] [--no-recovery] ...",
+          "description": "Create a person or an agent identity and its key (a person gets a recovery code; --no-recovery makes none, for an institution's identity such as did:web:asp.local:treasury, whose key file is then the only copy and is the owner's to back up)"
         },
         {
           "command": "asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]",
