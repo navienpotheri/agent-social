@@ -12,6 +12,7 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
+import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,11 +37,7 @@ import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
 import { roleRefusal, type Role } from "./roles.ts";
-<<<<<<< HEAD
 import { ladderStep } from "../circumvention.ts";
-=======
-import { ladderAtCall, ladderStep, type LadderStep } from "../circumvention.ts";
->>>>>>> claude/protocol-ledger-3
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";

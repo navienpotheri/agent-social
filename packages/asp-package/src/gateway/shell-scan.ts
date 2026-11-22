@@ -177,12 +177,7 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     note(ctx, "shell.network"); return seg;
   }
   const offline = lowerArgs.includes("--offline");
-<<<<<<< HEAD
-  // `bun -e "<code>"` is an interpreter reading code, not the package manager: it goes on to the interpreter branch below (found by a mutation check, 2026-11-22).
-  const bunEval = verb === "bun" && lowerArgs.some((x) => x === "-e" || x === "--eval" || x === "-p" || x === "--print");
-=======
   const bunEval = verb === "bun" && lowerArgs.some((a) => /^(-e|-p|--eval|--print)$/.test(a));
->>>>>>> claude/blissful-jang-4e324e
   if (!bunEval && (verb === "npm" || verb === "pnpm" || verb === "yarn" || verb === "bun" || verb === "npx" || verb === "pnpx" || verb === "bunx")) {
     const s = sub(true);
     if (verb === "npx" || verb === "pnpx" || verb === "bunx") { if (!offline && !lowerArgs.includes("--no-install")) note(ctx, "shell.network"); else ctx.localScopes.push("shell.exec"); return seg; }
@@ -207,12 +202,7 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   if (INTERPRETERS.has(verb.replace(/\d+(\.\d+)*$/, "")) || INTERPRETERS.has(verb) || bunEval) {
     if (lowerArgs[0] === "-m" && (lowerArgs[1] === "pip" || lowerArgs[1] === "ensurepip") && PIP_NET.has(lowerArgs.slice(2).find((a) => !a.startsWith("-")) ?? "")) { note(ctx, "shell.network"); return seg; }
     if (lowerArgs[0] === "-m" && ["http.server", "smtpd", "ftplib", "urllib.request"].includes(lowerArgs[1] ?? "")) { note(ctx, "shell.network"); return seg; }
-<<<<<<< HEAD
-    const denoEval = verb === "deno" && lowerArgs[0] === "eval" && args.length > 1; // `deno eval "<code>"`
-    const codeIdx = denoEval ? 0 : args.findIndex((a, i) => /^--?(c|e|r|eval|command|print|p)$/i.test(a) && i + 1 < args.length);
-=======
     const codeIdx = args.findIndex((a, i) => /^--?(c|e|r|p|pe|eval|print|command)$/i.test(a) && i + 1 < args.length);
->>>>>>> claude/blissful-jang-4e324e
     const code = codeIdx >= 0 ? args.slice(codeIdx + 1).join(" ") : "";
     if (code) {
       if (verb === "osascript") { scanText(code, ctx); ctx.hasNonData = true; if (ctx.scopes.length) return seg; }
