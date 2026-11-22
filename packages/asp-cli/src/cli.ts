@@ -620,6 +620,9 @@ const OPTIONS = {
   "private-scopes": { type: "string" },
   "untrusted-flow": { type: "boolean" },
   "escalation-ladder": { type: "boolean" },
+  unprompted: { type: "boolean" },
+  "allow-unprompted": { type: "boolean" },
+  "unprompted-cap": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -3677,6 +3680,14 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
+  // Unprompted work (DK1232, S1606): a run that no person's prompt started. The signals are the runtime's own and the caller's: a wake (--woken-by), a schedule or hook that says so (--unprompted or ASP_UNPROMPTED=1).
+  // It is SELF-REPORTED where the caller gives no signal: a scheduler that does not say it is a scheduler looks like a person. A run with none of the signals is prompted, so the default path is unchanged.
+  const unpromptedRun = !!v.unprompted || v["woken-by"] !== undefined || io.env.ASP_UNPROMPTED === "1";
+  if (unpromptedRun) {
+    const um = (mandateRecord?.record.body as { unprompted?: { allowed?: boolean } } | undefined)?.unprompted;
+    if (!um?.allowed) throw new UsageError("this run was not started by a person's prompt (a wake, a schedule or a hook), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
+    io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
+  }
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
@@ -4010,6 +4021,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.targets.flatMap((t) => ["--call-target", t]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
+      ...(unpromptedRun ? ["--unprompted"] : []),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
@@ -6340,6 +6352,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
       // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
+      // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
+      ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
       // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
       ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
       // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.
@@ -6640,6 +6654,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         return { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
       });
     }
+    if (v.unprompted) body.unprompted = true;
     const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);
@@ -7820,13 +7835,15 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     const { start, end } = pick[0];
     const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
     let log: { records: number; actions: number } | undefined;
+    let share: { actions: number; unprompted: number; permille: number } | undefined;
     try {
       const l = (await openLog(home, logEnv)).log;
       const chain = await l.chain(start.contract);
       const actions = chain.length ? (await l.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
       log = { records: chain.length, actions: actions.length };
+      share = await l.unpromptedShare(start.contract);
     } catch { /* the log could not be read: the report says what it has */ }
-    const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}) });
+    const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}), ...(share ? { unprompted: share } : {}) });
     if (v.json) io.out(JSON.stringify(report, null, 2)); else printReport(report, (l) => io.out(l));
     return report.runLog.chainOk === false ? 1 : 0;
   }
