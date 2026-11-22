@@ -5155,7 +5155,7 @@
   {
    "id": "SO9",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Sign-up cannot record that a tenant is held for a young person (it records only \"adult or guardian\"), so no age-band or youth rule can apply later without asking every parent again",
    "bucket": "withdraw",
    "hours": 0,
