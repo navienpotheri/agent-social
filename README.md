@@ -91,6 +91,8 @@ No browser, no Google account or no network? Skip this step and add `--local` to
 
 3. Run an agent under a Mandate.
 
+The runtime that you name (Claude Code in the example) must already be installed and signed in on your machine; `npm run asp -- runtimes` shows which runtimes it finds.
+
 ```bash
 npm run asp -- run claude-code --project /path/to/repo --prompt "fix the failing test"
 ```

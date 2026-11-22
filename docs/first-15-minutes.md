@@ -28,7 +28,7 @@ Total to a first governed run without joining: about one minute of waiting, plus
 | 5 | The first run prints "may read files; no network". On Windows the gateway reads calls; it does not block network traffic (see [README](../README.md), the Gateway line). The line reads as a block. | Wording is code output. | fixed by lane-cli-3: the first-run text now says "the gateway refuses calls that reach the network" |
 | 6 | The first run prints five lines before the model answers, including a data line. It is accurate and a newcomer will skim it. | None; the lines are the disclosure. | left |
 | 7 | The clone came from this repository, not from GitHub, so the public URL, a proxy or an authentication prompt were not tried. | A walk from the GitHub address on a second machine. | open (owner or a worker) |
-| 8 | The walk ran the real `claude` program, which used the machine's own Claude sign-in for a 15-token call. A stranger needs Claude Code installed and signed in first; the README table lists the runtime but the quickstart does not say so. | README step 3 already says to run a runtime; installing and signing in to it is the stranger's step. | open: one sentence for the quickstart after the owner confirms the wording |
+| 8 | The walk ran the real `claude` program, which used the machine's own Claude sign-in for a 15-token call. A stranger needs Claude Code installed and signed in first; the README table lists the runtime but the quickstart does not say so. | README step 3 already says to run a runtime; installing and signing in to it is the stranger's step. | fixed (wording): step 3 of the README now says that the runtime must be installed and signed in first, and that `asp runtimes` shows which are found |
 
 ## What was not walked
 
