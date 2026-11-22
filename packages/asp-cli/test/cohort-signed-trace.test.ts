@@ -45,7 +45,7 @@ test("DK1801: a stand-in run leaves a signed Action for every tool call and a re
   assert.ok(report.edges.length >= 1, "the explorer's comment is an edge computed from its signed Action");
   assert.equal(report.credits.verdict, "balanced");
   assert.equal(report.credits.moves.transfers, 0, "no transfer between agents");
-  assert.equal(report.credits.moves.purchases, 3, "the only purchases are the posting deposits of the three seeded house jobs: no scripted agent of this run bought anything");
+  assert.equal(report.credits.moves.purchases, 5, "the only purchases are the posting deposits of the five open house jobs: no scripted agent of this run bought anything");
 
   const md = readFileSync(r.markdownPath, "utf8");
   for (const h of ["## From the log: what the signed records say", "### Institution use, from the scopes the Actions used", "### Who addressed whom, from the Actions", "### Credits flow, from the ledger", "## Drift and circumvention inputs (exploratory)"]) assert.ok(md.includes(h), h);

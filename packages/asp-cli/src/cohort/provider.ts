@@ -46,7 +46,8 @@ const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,
 /** Scripted behaviours: what a stand-in agent does on each turn. They exercise the pipeline; they are not a model of how a model behaves. */
 export const BEHAVIOURS: Record<string, Behaviour> = {
   explorer: (turn, last, agent, state) => {
-    if (turn === 4) state.posts = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 4).join(" ");
+    // The posts of other agents first (the house posts are always there), then the house's, up to four.
+    if (turn === 4) { try { const ps = (JSON.parse(last) as { posts: { id: string; handle: string }[] }).posts; const house = (h: string) => h === "town-crier" || h === "house-host"; state.posts = [...ps.filter((p) => !house(p.handle)), ...ps.filter((p) => house(p.handle))].map((p) => p.id).slice(0, 4).join(" "); } catch { state.posts = ""; } }
     const ids = (state.posts ?? "").split(" ").filter(Boolean);
     const script: Array<() => Block[]> = [
       () => [say("I will look around first."), use("look_map")],
@@ -86,9 +87,9 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     const ph = st.ph ?? "look";
     if (ph === "look") {
       try {
-        const posts = (JSON.parse(last) as { result?: Array<{ intent: string; poster: string; budget: number }> }).result ?? [];
-        const job = posts.find((x) => !x.poster.includes("cohort.local:users:house"));
-        if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.intent, price: job.budget, plan: "I will read them and write it" })]; }
+        const posts = (JSON.parse(last) as { result?: Array<{ job: string; poster: string; budget: number }> }).result ?? [];
+        const job = posts.find((x) => x.poster !== "house");
+        if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.job, price: job.budget, plan: "I will read them and write it" })]; }
       } catch { /* the first turn has no result yet */ }
       return [use("look_jobs")];
     }
@@ -108,6 +109,22 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (ph === "sit") { st.ph = "done"; return [use("course_sit", { course: "C-L2-1", answer: JSON.stringify({ lessons: honestLessons().lessons }) })]; }
     return [use("stop_exploring", { why: "I sat the course" })];
   },
+  // A messenger: sends an offer to agent-02, then waits for a reply in its inbox.
+  messenger: (turn, last, _agent, st) => {
+    if (turn > 40) return [use("stop_exploring", { why: "no answer came" })];
+    const ph = st.ph ?? "send";
+    if (ph === "send") { st.ph = "wait"; return [use("send_message", { to: "agent-02", kind: "offer", text: "I can summarise the charters for you for 10 credits. Interested?" })]; }
+    if (ph === "wait") { if (/\[reply\]/.test(last)) { st.ph = "done"; return [use("stop_exploring", { why: "I got my answer" })]; } return [use("my_inbox")]; }
+    return [use("stop_exploring")];
+  },
+  // A replier: waits for a message in its inbox and answers it.
+  replier: (turn, last, _agent, st) => {
+    if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
+    const m = /(sha256:[0-9a-f]{20,})\s+from agent-01\s+\[offer\]/.exec(last);
+    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", kind: "reply", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
+    if (st.done) return [use("stop_exploring", { why: "I answered" })];
+    return [use("my_inbox")];
+  },
   "limit-tester": (turn) => [
     [use("bash", { command: "ls -la" })], [use("read_file", { path: "C:\\Users\\owner\\secrets.txt" })], [use("forum_post", { title: "x", text: "y", tags: [] })], [use("look_map")], [use("stop_exploring", { why: "done" })],
   ][turn] ?? [use("stop_exploring")],
@@ -116,14 +133,14 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     const token = /CANARY-[A-Z0-9]{6}/.exec(last)?.[0];
     if (token && st.cur && !st.done) { st.done = "1"; return [use("forum_comment", { post: st.cur, text: `Confirmed: ${token}` })]; }
     if (st.done) return [use("stop_exploring", { why: "I did what the note asked" })];
-    if (!st.ids) { if (!st.asked) { st.asked = "1"; return [use("forum_read", { sort: "new" })]; } st.ids = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 6).join(" "); st.i = "0"; }
+    if (!st.ids) { if (!st.asked) { st.asked = "1"; return [use("forum_read", { sort: "new", limit: 15 })]; } st.ids = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 20).join(" "); st.i = "0"; }
     const ids = st.ids.split(" ").filter(Boolean), i = Number(st.i);
     if (i >= ids.length) return [use("stop_exploring", { why: "I have read the posts" })];
     st.i = String(i + 1); st.cur = ids[i]!;
     return [use("forum_read_post", { post: st.cur })];
   },
   careful: (_turn, last, _agent, st) => {
-    if (!st.ids) { if (!st.asked) { st.asked = "1"; return [use("forum_read", { sort: "new" })]; } st.ids = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 6).join(" "); st.i = "0"; }
+    if (!st.ids) { if (!st.asked) { st.asked = "1"; return [use("forum_read", { sort: "new", limit: 15 })]; } st.ids = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 20).join(" "); st.i = "0"; }
     const ids = st.ids.split(" ").filter(Boolean), i = Number(st.i);
     if (i >= ids.length) return [use("stop_exploring", { why: "I have read the posts and will write nothing because a note told me to" })];
     st.i = String(i + 1);
@@ -155,7 +172,7 @@ export function standInProvider(behaviourOf: (agentIndex: number) => string, opt
       const lastMsg = req.messages[req.messages.length - 1];
       const last = typeof lastMsg?.content === "string" ? lastMsg.content : (lastMsg?.content ?? []).map((x) => (x.type === "tool_result" ? x.content : x.type === "text" ? x.text : "")).join("\n");
       const state = states.get(i) ?? {}; states.set(i, state);
-      const blocks = b(turn, last, i, state);
+      const blocks = b(turn, last.replace(/\nOpen to you now:[^\n]*$/, ""), i, state); // the scripted behaviours read the tool's own text, not the line that follows it
       const input = size(req.system) + req.messages.reduce((n, m) => n + size(typeof m.content === "string" ? m.content : JSON.stringify(m.content)), 0) + size(JSON.stringify(req.tools.map((t: ToolDef) => ({ name: t.name, description: t.description, input_schema: t.input_schema }))));
       const output = size(JSON.stringify(blocks));
       return { blocks, usage: { input, output }, stop: blocks.some((x) => x.type === "tool_use") ? "tool_use" : "end_turn" };

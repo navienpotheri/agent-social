@@ -349,6 +349,7 @@ import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
 import { verifyCmd } from "./cohort/verify.ts";
+import { planCmd } from "./cohort/plan.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -752,6 +753,11 @@ const OPTIONS = {
   context: { type: "string" },
   "quota-mb": { type: "string" },
   "token-env": { type: "string" },
+  "sim-speed": { type: "string" },
+  ticks: { type: "string" },
+  "engaged-minutes": { type: "string" },
+  arrivals: { type: "string" },
+  "no-life": { type: "boolean" },
   name: { type: "string" },
   merge: { type: "boolean" },
   "share-to-commons": { type: "boolean" },
@@ -1369,12 +1375,17 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "cohort") {
+      if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      // The journey of an agent made by `asp run --local` is in the local log (<home>/local), not on the service of a saved login.
+      const li = localIdentities(home);
+      const isLocal = !!v.local || (!!li && !!sub && [li.me, li.agent, li.bank].includes(sub));
+      const jhome = isLocal ? join(home, "local") : home;
+      try { return await journeyCommand(sub, v as never, (isLocal ? { ...io, env: localOnlyEnv(io.env) } : io) as never, async () => (await (await openLog(jhome, isLocal ? localOnlyEnv(io.env) : logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
@@ -7966,6 +7977,11 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
  * there. Found in the owner's first real run: a home that already held old sessions never looked at the local index (it was a fallback for an EMPTY home), so tonight's sessions were not listed, not found by id, and
  * \`asp live report\` showed an old run.
  */
+/** The environment for reading a --local session's records: the local log only, never the service of a saved login or of ASP_LOG_URL (a local session is recorded in <home>/local; read through a hosted login it showed no records). */
+function localOnlyEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv { const e: NodeJS.ProcessEnv = { ...env }; delete e.ASP_LOG_URL; delete e.ASP_LOG_TOKEN; return e; }
+/** The identities `asp run --local` made on this machine (<home>/local/local-identities.json), if any. */
+function localIdentities(home: string): { me: string; agent: string; bank: string } | undefined { try { return JSON.parse(readFileSync(join(home, "local", "local-identities.json"), "utf8")); } catch { return undefined; } }
+
 function sessionsAll(home: string): { start: SessionStart; end?: SessionEnd; src: string }[] {
   const mine = sessionsOf(home).map((x) => ({ ...x, src: home }));
   const isLocal = /[\\/]local[\\/]*$/.test(home);
@@ -7997,7 +8013,12 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
   for (const l of lines) io.out(l);
   // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
   try {
-    const recs = (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never[];
+    // The sessions of --local live in <home>/local and their records in its log: each home is read through its own log.
+    const homes = [...new Set(sessionsAll(home).map((x) => x.src))];
+    const recs: never[] = [];
+    for (const h of homes.length ? homes : [home]) {
+      try { recs.push(...((await (await openLog(h, h === home ? logEnv : localOnlyEnv(io.env))).log.since(0, 1_000_000)) as never[])); } catch { /* that log cannot be read now */ }
+    }
     io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
   } catch { /* the log cannot be read now: the line is left out */ }
   // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
@@ -8045,6 +8066,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
   if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
   const { start, end, src } = hit[0];
+  const localSession = src !== home;
   home = src; // the log and the run logs of a session are where its index is
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
@@ -8058,7 +8080,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   }
   // What the log itself holds for the job.
   try {
-    const log = (await openLog(home, logEnv)).log;
+    const log = (await openLog(home, localSession ? localOnlyEnv(io.env) : logEnv)).log;
     const chain = await log.chain(start.contract);
     const actions = chain.length ? (await log.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
     const sets = actions.map((a) => a.record.body as { scopes_used?: string[]; blocked_attempts?: { scope: string; count: number }[]; assurance?: string });

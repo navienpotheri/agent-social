@@ -1,75 +1,99 @@
-// Register row ENG28 (docs/agent-engagement-ideas.md): the credit economy balance. The report has a flow table for each rung with the faucets and the sinks, the credit audit balances, the median agent's figure (what the
-// doable jobs pay less what the writes they need cost) is stated, a rung whose figure is not above zero or whose flows are not built is PARTIAL, and a run in which doing nothing beats acting says so. Stand-in agents only.
-// Credits are mock accounting entries, not money.
-import { test } from "node:test";
+// ENG15 in the command: `asp society cohort plan` prints the expected and the worst-case dollars of each rung before anything is spent, a real run prints the plan for its own size, and the report says what the run
+// cost the person who pays: median tokens a tick, the cache share, tokens per useful action, cost per engaged hour. A stand-in provider that reports cache tokens. Fake key.
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNGS, economyOf, renderEconomy, type EconomyInput } from "../src/cohort/economy.ts";
-import { runCohort } from "../src/cohort/run.ts";
-import { standInProvider } from "../src/cohort/provider.ts";
+import { main, type Io } from "../src/cli.ts";
+import { economyOf, renderEconomy } from "../src/cohort/economy.ts";
+import { plan, staticPrefixTokens } from "../src/cohort/plan.ts";
 
-const zeroFlows = (over: Record<string, unknown> = {}): EconomyInput["flows"] => ({ settlements: { count: 0, escrowReleased: 0, fees: 0, bondReturned: 0, bondSlashed: 0, byBasis: {} }, purchases: { count: 0, amount: 0, provider: 0, treasury: 0, burned: 0, byService: {} }, ...over } as never);
-const audit = (over: Record<string, unknown> = {}): EconomyInput["audit"] => ({ verdict: "balanced", minted: 100, balances: 100, locked: { total: 0 }, difference: 0, problems: [], ...over } as never);
-const input = (over: Partial<EconomyInput> = {}): EconomyInput => ({ flows: zeroFlows(), audit: audit(), agents: [], startCredits: 100, jobTaxPermille: 20, depositPrice: 2, ...over });
+const servers: Server[] = [];
+after(() => { for (const s of servers) s.close(); });
+async function asp(args: string[]) {
+  const home = mkdtempSync(join(tmpdir(), "asp-eco-home-"));
+  const out: string[] = [], err: string[] = [];
+  const io: Io = { out: (l) => out.push(l), err: (l) => err.push(l), env: { ASP_HOME: home, ECO_KEY: "sk-ant-api03-FAKE-eco-0123456789abcdef" }, cwd: home };
+  const code = await main(args, io);
+  return { code, out: out.join("\n"), err: err.join("\n") };
+}
 
-test("the flow table names every faucet and sink of every rung; what is not built has no amount, and none is invented", () => {
-  const e = economyOf(input({ agents: [{ id: "a", tools: {} }, { id: "b", tools: {} }] }));
-  const rungs = new Set(e.flows.map((f) => f.rung));
-  assert.deepEqual([...rungs], RUNGS.map((r) => r.rung), "one block of rows for each rung");
-  for (const name of ["starting credits", "job pay", "job tax", "posting deposit", "tuition", "library royalties", "rent and furnishing", "first-job bonus", "tips", "long-form posts", "promotion", "stop tasks"]) assert.ok(e.flows.some((f) => f.flow === name), `${name} is in the table`);
-  assert.ok(e.flows.some((f) => f.kind === "faucet") && e.flows.some((f) => f.kind === "sink"));
-  for (const f of e.flows.filter((x) => x.rung !== "now")) { assert.equal(f.credits, null, `${f.flow} is not built`); assert.equal(f.status, "not built"); assert.match(f.note, /owner's to set/); }
-  assert.equal(e.flows.find((f) => f.flow === "starting credits")!.credits, 200, "two agents at 100 each");
+test("the planner prints, for each rung, the expected dollars (with the cache and without) and the worst case (the cap, never more than the total), with its assumptions; an unpriced model is said to be", async () => {
+  const r = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "1,3,15", "--budget-usd", "0.40", "--total-usd", "6"]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /\s1 agent :? ?expected about \$\d+\.\d\d \(about \$\d+\.\d\d without the cache\), worst case \$0\.40/);
+  assert.match(r.out, /\s3 agents: expected about .*worst case \$1\.20/);
+  assert.match(r.out, /15 agents: expected about .*worst case \$6\.00/);
+  assert.match(r.out, /the static prefix \(briefing and tools\) is [\d,]+ tokens; with the cache it is written once at 1\.25x and read at 0\.1x/);
+  const nums = [...r.out.matchAll(/expected about \$(\d+\.\d\d) \(about \$(\d+\.\d\d) without the cache\)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.equal(nums.length, 3);
+  assert.ok(nums.every(([withCache, without]) => withCache < without), "the cache is worth something in every rung");
+  const capped = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "15", "--budget-usd", "0.40", "--total-usd", "5"]);
+  assert.match(capped.out, /15 agents: expected about .*worst case \$5\.00/, "the worst case never passes the run's total cap");
+  const short = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "1", "--budget-usd", "5", "--ticks", "10"]);
+  const long = await asp(["society", "cohort", "plan", "--model", "claude-haiku-5-5", "--agents", "1", "--budget-usd", "5"]);
+  const first = (t: string) => Number(/expected about \$(\d+\.\d\d)/.exec(t)![1]);
+  assert.ok(first(long.out) > first(short.out) * 2, "the default is many more ticks than ten");
+  assert.match(long.out, /40 ticks an agent/);
+  const unpriced = await asp(["society", "cohort", "plan", "--model", "brand-new", "--agents", "1", "--budget-usd", "0.4"]);
+  assert.match(unpriced.out, /brand-new is not in the price table/);
+  assert.equal((await asp(["society", "cohort", "plan", "--budget-usd", "0.4"])).code, 2);
+  assert.ok(staticPrefixTokens() > 500, "the prefix is measured from the real tool list and briefing");
+  const p = plan({ model: "claude-haiku-5-5", rungs: [15], capPerAgent: 0.0001 });
+  assert.ok(p.rungs[0]!.expectedUsd <= 15 * 0.0001 + 1e-9, "the expected figure never passes the cap an agent has");
 });
 
-test("the median agent's figure is the board's pay share less the cost of the writes; above zero the built rung is ok, at or below zero it is partial, and every unbuilt rung is partial", () => {
-  const agents = Array.from({ length: 4 }, (_, i) => ({ id: `a${i}`, tools: {} }));
-  const ok = economyOf(input({ agents, boardBudgets: [20, 20, 20] }));
-  assert.equal(ok.median.boardPay, 60); assert.equal(ok.median.payShare, 15); assert.equal(ok.median.netPerAgent, 15);
-  assert.equal(ok.rungs.find((r) => r.rung === "now")!.row, "ok");
-  const none = economyOf(input({ agents, boardBudgets: [] }));
-  assert.equal(none.rungs.find((r) => r.rung === "now")!.row, "partial", "no job on the board: the figure is not above zero");
-  for (const r of ok.rungs.filter((x) => x.rung !== "now")) { assert.equal(r.row, "partial"); assert.equal(r.net, null); assert.match(r.why, /not built/); }
+test("a real run prints the plan of its own size, and the report says what it cost: ticks, cache share, billed-equivalent tokens, tokens per useful action", { timeout: 120_000 }, async () => {
+  let n = 0;
+  const s: Server = createServer((req, res) => {
+    const chunks: Buffer[] = []; req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      if (!/\/v1\/messages$/.test(req.url ?? "")) { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ input_tokens: 10 })); return; }
+      const k = ++n;
+      const content = k === 1 ? [{ type: "tool_use", id: "a", name: "mcp__society__forum_post", input: { title: "Hi", text: "Hello there." } }] : k === 2 ? [{ type: "tool_use", id: "b", name: "mcp__society__look_charters", input: {} }] : [{ type: "tool_use", id: "c" + k, name: "mcp__society__leave", input: { reason: "done" } }];
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ id: "m", type: "message", role: "assistant", model: "claude-haiku-5-5", stop_reason: "tool_use", usage: k === 1 ? { input_tokens: 400, output_tokens: 50, cache_creation_input_tokens: 2000 } : { input_tokens: 300, output_tokens: 50, cache_read_input_tokens: 2000 }, content }));
+    });
+  });
+  await new Promise<void>((r) => s.listen(0, "127.0.0.1", r)); servers.push(s);
+  const url = `http://127.0.0.1:${(s.address() as { port: number }).port}`;
+  const out = mkdtempSync(join(tmpdir(), "asp-eco-out-"));
+  const r = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "claude-haiku-5-5", "--api-key-env", "ECO_KEY", "--budget-usd", "0.40", "--provider-url", url, "--out", out]);
+  assert.equal(r.code, 0, r.err + r.out);
+  assert.match(r.out, /plan \(per rung; the cap is \$0\.4 an agent, \$0\.4 in all\)/);
+  const dir = join(out, readdirSync(out).find((d) => d.startsWith("cohort-"))!);
+  const md = readFileSync(join(dir, "report.md"), "utf8");
+  assert.match(md, /## What it cost the person who pays \(token economy\)/);
+  assert.match(md, /\*\*Ticks \(model calls\):\*\* 4;/);
+  assert.match(md, /\*\*Cache:\*\* 65% of the input tokens came from the provider's cache/);
+  const eco = JSON.parse(readFileSync(join(dir, "economy.json"), "utf8")) as { calls: number; usefulActions: number; billedTokensPerUsefulAction: number; cacheHitShare: number; medianInputPerCall: number };
+  assert.equal(eco.calls, 4);
+  assert.equal(eco.usefulActions, 1, "one post went through");
+  assert.ok(eco.billedTokensPerUsefulAction > 0 && eco.medianInputPerCall === 2300);
+  assert.ok(Math.abs(eco.cacheHitShare - 6000 / 9300) < 1e-9);
+  assert.equal((await asp(["society", "cohort", "verify", dir])).code, 0);
 });
 
-test("the null action: when agents that acted end with no more credits than agents that did nothing, the report says so; when acting pays, it says that; with one group empty it gives no answer", () => {
-  const act = (id: string, change: number) => ({ id, creditsStart: 100, creditsEnd: 100 + change, tools: { offer_on_job: 1 } });
-  const idle = (id: string, change: number) => ({ id, creditsStart: 100, creditsEnd: 100 + change, tools: { do_nothing: 3 } });
-  const worse = economyOf(input({ agents: [act("a", -2), act("b", -4), idle("c", 0), idle("d", 0)] }));
-  assert.equal(worse.observed.nullDominates, true);
-  assert.match(renderEconomy(worse), /the null action dominates in this run, and the row stays partial/);
-  const better = economyOf(input({ agents: [act("a", 18), act("b", 20), idle("c", 0)] }));
-  assert.equal(better.observed.nullDominates, false);
-  assert.match(renderEconomy(better), /Acting did better than doing nothing/);
-  const open = economyOf(input({ agents: [idle("c", 0)] }));
-  assert.equal(open.observed.nullDominates, null);
-  assert.match(renderEconomy(open), /no comparison in this run/);
-});
-
-test("on a real stand-in world: a poster and a worker hire each other, the report has the flow table with measured job pay and tax, the audit balances and the figure for the median agent is stated", { timeout: 300_000 }, async () => {
-  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-econ-out-")), home: mkdtempSync(join(tmpdir(), "asp-econ-home-")), agents: 3, model: "stand-in", provider: standInProvider((i) => ["hirer", "worker", "idler"][i]!, { latencyMs: 25 }), staggerMs: 150, budgetUsd: 1, totalUsd: 3, minutes: 2, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } });
-  const md = readFileSync(r.markdownPath, "utf8");
-  assert.match(md, /## The credit economy: faucets against sinks, for each rung/);
-  const e = JSON.parse(readFileSync(join(r.dir, "economy.json"), "utf8")) as ReturnType<typeof economyOf>;
-  assert.equal(e.audit.verdict, "balanced", `the books balance: ${e.audit.problems.join("; ")}`);
-  assert.equal(e.audit.difference, 0);
-  const row = (f: string) => e.flows.find((x) => x.rung === "now" && x.flow === f)!;
-  assert.ok(row("job pay").credits! > 0, "the worker was paid");
-  assert.ok(row("job tax").credits! >= 0 && row("posting deposit").credits! >= 2, "the poster's deposit was paid");
-  assert.equal(row("starting credits").credits, 300);
-  assert.ok(e.median.netPerAgent > 0 && e.rungs.find((x) => x.rung === "now")!.row === "ok");
-  assert.match(md, /The median agent, in the world as built/);
-  assert.match(md, /PARTIAL/, "the unbuilt rungs are marked partial");
-  assert.equal(e.observed.activeAgents, 2); assert.equal(e.observed.idleAgents, 1);
-  assert.equal(typeof e.observed.nullDominates, "boolean", "the run has acted and idle agents, so it answers the null-action question");
-});
-
-test("the tuition and deposit rows are measured from the purchases by service, and equal medians count as the null action not losing", () => {
-  const flows = zeroFlows({ purchases: { count: 2, amount: 32, provider: 0, treasury: 0, burned: 0, byService: { "academy.course.foundations": { count: 1, amount: 30 }, "market.posting.deposit": { count: 1, amount: 2 } } } });
-  const e = economyOf(input({ flows, agents: [{ id: "a", creditsStart: 100, creditsEnd: 100, tools: { offer_on_job: 1 } }, { id: "b", creditsStart: 100, creditsEnd: 100, tools: {} }] }));
-  const row = (f: string) => e.flows.find((x) => x.rung === "now" && x.flow === f)!.credits;
-  assert.equal(row("tuition"), 30); assert.equal(row("posting deposit"), 2);
-  assert.equal(e.observed.nullDominates, true, "acting that ends level with doing nothing is not a win");
+test("the economy of a trace: median input per tick, the largest, the cache share, billed-equivalent tokens (writes at 1.25, reads at 0.1) and the cost per engaged hour", () => {
+  const at = (m: number) => new Date(Date.UTC(2026, 10, 22, 10, m)).toISOString();
+  const ev = [
+    { t: "agent", at: at(0), agent: "a", did: "d", handle: "a" },
+    { t: "model", at: at(0), agent: "a", turn: 1, input: 100, output: 10, cacheWrite: 1000, usd: 0.01 },
+    { t: "tool", at: at(1), agent: "a", turn: 1, tool: "forum_post", input: {}, ok: true, chars: 1, institution: "forum", scope: "s", writes: true, ms: 1 },
+    { t: "model", at: at(30), agent: "a", turn: 2, input: 200, output: 20, cacheRead: 1000, usd: 0.005 },
+    { t: "tool", at: at(30), agent: "a", turn: 2, tool: "look_map", input: {}, ok: true, chars: 1, institution: "map", scope: "s", writes: false, ms: 1 },
+    { t: "end", at: at(60), agent: "a", reason: "left: x", turns: 2, usd: 0.015 },
+  ] as never[];
+  const r = economyOf(ev);
+  assert.equal(r.calls, 2);
+  assert.equal(r.medianInputPerCall, Math.round((1100 + 1200) / 2));
+  assert.equal(r.maxInputPerCall, 1200);
+  assert.equal(r.billedEquivalentTokens, Math.round(100 + 10 + 1000 * 1.25 + 200 + 20 + 1000 * 0.1));
+  assert.equal(r.usefulActions, 1);
+  assert.ok(Math.abs(r.cacheHitShare - 1000 / 2300) < 1e-9);
+  assert.equal(r.engagedHours, 1);
+  assert.equal(r.usdPerEngagedHour, 0.015);
+  assert.match(renderEconomy(r), /\$0\.0150 an agent-hour/);
 });

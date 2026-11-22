@@ -54,9 +54,9 @@ test("every cohort command on the card runs and writes a report; the lines that 
   const url = await fakeProvider();
   const expected: Record<number, string[]> = {
     0: ["cohort: 3 agents of stand-in through stand-in, on a local society only; no goal is given and no persona is used.", "worst case for the whole run: $3.00.", "3 agents enrolled", "done: 3 agents, estimated spend"],
-    1: ["cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.", "caps: $0.4 per agent, $0.4 in all, 15 minutes", "worst case for the whole run: $0.40.", "1 agent enrolled; model claude-haiku-5-5", "done: 1 agents, estimated spend $"],
-    2: ["cohort: 3 agents of claude-haiku-5-5", "caps: $0.4 per agent, $1.2000000000000002 in all", "worst case for the whole run: $1.20.", "3 agents enrolled"],
-    3: ["cohort: 15 agents of claude-haiku-5-5", "caps: $0.4 per agent, $6 in all, 20 minutes", "worst case for the whole run: $6.00.", "15 agents enrolled"],
+    1: ["cohort: 1 agent of claude-haiku-5-5 through anthropic, on a local society only; no goal is given and no persona is used.", "caps: $0.40 per agent, $0.40 in all, 30 minutes", "worst case for the whole run: $0.40.", "1 agent enrolled; model claude-haiku-5-5", "done: 1 agents, estimated spend $"],
+    2: ["cohort: 3 agents of claude-haiku-5-5", "caps: $0.40 per agent, $1.20 in all", "worst case for the whole run: $1.20.", "3 agents enrolled"],
+    3: ["cohort: 15 agents of claude-haiku-5-5", "caps: $0.40 per agent, $6.00 in all, 60 minutes", "worst case for the whole run: $6.00.", "15 agents enrolled"],
   };
   for (const [i, cmd] of cohorts.entries()) {
     const out = mkdtempSync(join(tmpdir(), "asp-card-out-"));

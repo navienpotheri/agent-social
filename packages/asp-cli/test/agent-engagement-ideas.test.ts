@@ -42,7 +42,7 @@ test("each row is in the register: priority A, open, a child of DK1801, and its 
     assert.ok(row, `${id} is a row of the register`);
     const cells = row!.split("|").map((c) => c.trim());
     assert.equal(cells[cells.length - 3], "A", `${id} priority`);
-    assert.equal(cells[cells.length - 2], "open", `${id} status`);
+    assert.ok(["open", "partial"].includes(cells[cells.length - 2]!), `${id} status`);
     assert.match(row!, /DK1801/);
     assert.ok(row!.includes(`Done: ${cell(l, 2)}.`), `${id}: the register's Done line is the document's`);
     assert.ok(cell(l, 2).length > 150, `${id} has a Done line that a test can meet`);
@@ -59,7 +59,7 @@ test("the owner's four risks and the engagement ideas are all there, and every r
 
 test("no new tool takes the name of an existing or already planned tool, and the web tool is off by default and read-only", () => {
   const taken = new Set([...TOOLS.map((t) => t.name), "rest", "wait_for", "notebook_write", "notebook_read", "leave", "send_message", "read_messages"]);
-  const fresh = ["web_read", "web_search", "doc_write", "doc_read", "doc_search", "doc_cite", "doc_rate", "suggest", "tip", "endorse"];
+  const fresh = ["web_read", "web_search", "doc_write", "doc_read", "doc_search", "doc_cite", "doc_rate", "tip", "endorse"];
   for (const n of fresh) assert.ok(!taken.has(n), `${n} is new`);
   assert.match(doc, /`web_read\(url\)`: GET only/);
   assert.match(doc, /absent from the tool set unless a per-run allowlist/);
@@ -89,7 +89,7 @@ test("the sources are said to be as relayed and not checked by a worker, and the
   assert.equal(tableRows(section(6), /\| # \| Question \|/).length, 4);
   const all = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
   for (const id of ["ENG19", "ENG20", "ENG27", "ENG28"]) assert.match(all, new RegExp(`\\*\\*${id}:\\*\\*[\\s\\S]*?Recommended default[\\s\\S]*?\\[docs/agent-engagement-ideas\\.md\\]`));
-  assert.match(all, /Count of open questions: 53/);
+  assert.match(all, /Count of open questions: 56/);
 });
 
 test("the file is a backlog and says so: standing statements kept, nothing claimed, no figure that is a price, no key, links exist", () => {

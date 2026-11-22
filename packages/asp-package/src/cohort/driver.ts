@@ -15,9 +15,41 @@ export interface SocietyTool {
   /** A JSON Schema object (type: "object"). */
   input_schema: Record<string, unknown>;
   /** Runs one call for one agent. It must not throw: a failure is { ok: false, text }. */
-  run(args: Record<string, unknown>, ctx: { agent: string; turn: number; now: () => string }): Promise<{ ok: boolean; text: string; /** The agent chose to stop: the loop ends after this turn. */ end?: boolean }>;
+  /** True for a tool that suspends the agent (rest, wait_for): it is not cut by the tool time limit, and `ctx.signal` ends it when the run stops. */
+  suspends?: boolean;
+  run(args: Record<string, unknown>, ctx: { agent: string; turn: number; now: () => string; signal: AbortSignal }): Promise<SocietyToolResult>;
 }
-export interface SocietyToolSet {
+export interface SocietyToolResult {
+  ok: boolean; text: string;
+  /** Why the tool refused (a rule name), for the trace. */
+  refused?: string;
+  /** The agent chose to stop: the loop ends after this turn. */
+  end?: boolean;
+  /** The agent woke from a suspension: the conversation so far is dropped and `text` (the delta observation) starts a new one, so a long life does not grow the context. */
+  reset?: boolean;
+  /** The agent left for good (voluntary, permanent for the run): the loop ends with the stop reason "left" and this reason. */
+  leave?: string;
+}
+/** Token economy (ENG15): what keeps a long life from costing the person who runs it more than it must. */
+export interface Economy {
+  /** Mark the static prefix (the tool list and the briefing) for the provider's prompt cache, so each turn reads it at a tenth of the price. Default true. */
+  cache: boolean;
+  /** Exchanges (a reply and its tool results) of the conversation kept; older ones are dropped and the agent's rolling summary stands in for them. Default 6. */
+  historyTurns: number;
+  /** If one request's whole input (uncached, cache read and cache write) passes this many tokens, the history is dropped to the opening and the summary before the next call. Default 24000. */
+  maxInputPerCall: number;
+}
+export const DEFAULT_ECONOMY: Economy = { cache: true, historyTurns: 6, maxInputPerCall: 24_000 };
+/** The version-0 behaviour, kept for the baseline the tests compare against: no cache marks, the whole history, no per-call ceiling. */
+export const LEGACY_ECONOMY: Economy = { cache: false, historyTurns: 1_000_000, maxInputPerCall: Number.MAX_SAFE_INTEGER };
+
+export interface SocietyToolSetExit {
+  /** A turn with text and no tool call is not an exit: if the toolset offers this, the agent rests until the next event and the text it returns (the delta observation) starts a new conversation. Returning undefined ends the agent as before. */
+  idle?(agent: string, text: string, signal: AbortSignal): Promise<string | undefined>;
+}
+export interface SocietyToolSet extends SocietyToolSetExit {
+  /** The agent's own past in a few lines (kept by the engine); put after the opening when older exchanges are dropped. */
+  summary?(agent: string): string | undefined;
   tools: SocietyTool[];
   /** The system text for this agent. No goal is given. */
   system(agent: string): string;
@@ -28,14 +60,15 @@ export interface SocietyToolSet {
 export interface AgentLimits { usd: number; maxTokens: number; maxTurns: number; wallClockMs: number; maxResultChars: number }
 export const DEFAULT_LIMITS: AgentLimits = { usd: 0.4, maxTokens: 400_000, maxTurns: 60, wallClockMs: 30 * 60_000, maxResultChars: 4000 };
 
-export type StopReason = "finished" | "usd_cap" | "token_cap" | "max_turns" | "wall_clock" | "stopped" | "provider_error" | "loop_breaker" | "gateway_stopped";
+export type StopReason = "finished" | "usd_cap" | "token_cap" | "max_turns" | "wall_clock" | "stopped" | "provider_error" | "loop_breaker" | "gateway_stopped" | "left";
 export interface AgentOutcome {
   agent: string; turns: number; toolCalls: number; refused: number;
   tokens: { input: number; output: number }; usd: number;
   stopped: StopReason; detail?: string; runLog?: string;
 }
 export type DriverEvent =
-  | { kind: "turn"; agent: string; turn: number; usd: number; tokens: number; /** This reply's own token counts. */ input?: number; output?: number }
+  | { kind: "compact"; agent: string; turn: number; why: "history" | "ceiling" }
+  | { kind: "turn"; agent: string; turn: number; usd: number; tokens: number; cacheRead?: number; cacheWrite?: number; /** This reply's own token counts. */ input?: number; output?: number }
   | { kind: "tool"; agent: string; turn: number; tool: string; ok: boolean; refused: boolean }
   | { kind: "text"; agent: string; turn: number; text: string }
   | { kind: "retry"; agent: string; status: number; waitMs: number; attempt: number }
@@ -50,6 +83,7 @@ export interface RunAgentOptions {
   model: string;
   gatewayUrl: string;
   limits?: Partial<AgentLimits>;
+  economy?: Partial<Economy>;
   signal: AbortSignal;
   observe?: () => GatewayView;
   onEvent?: (e: DriverEvent) => void;
@@ -96,10 +130,17 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
   const limits = { ...DEFAULT_LIMITS, ...(o.limits ?? {}) };
   const sleep = o.sleep ?? defaultSleep, now = o.now ?? Date.now, doFetch = o.fetchImpl ?? fetch;
   const started = now();
-  const decl = o.toolset.tools.map((t) => ({ name: PREFIX + t.name, description: t.description, input_schema: t.input_schema }));
+  const eco: Economy = { ...DEFAULT_ECONOMY, ...(o.economy ?? {}) };
+  const decl: Array<Record<string, unknown>> = o.toolset.tools.map((t) => ({ name: PREFIX + t.name, description: t.description, input_schema: t.input_schema }));
+  // The cache breakpoints: the end of the tool list and the end of the briefing, so the whole static prefix is read from the cache after the first turn.
+  if (eco.cache && decl.length) decl[decl.length - 1] = { ...decl[decl.length - 1], cache_control: { type: "ephemeral" } };
   const byName = new Map(o.toolset.tools.map((t) => [PREFIX + t.name, t]));
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: o.toolset.opening(o.agent) }];
-  const system = o.toolset.system(o.agent);
+  const opening = o.toolset.opening(o.agent);
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: opening }];
+  const systemText = o.toolset.system(o.agent);
+  const system: unknown = eco.cache ? [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }] : systemText;
+  // What the agent is told again when older exchanges are dropped: the opening and its own rolling summary.
+  const reopen = (): string => { const sm = o.toolset.summary?.(o.agent); return sm ? `${opening}\n\nWhat you have done so far (kept for you; the earlier conversation is not repeated):\n${sm}` : opening; };
   let turns = 0, toolCalls = 0, refusedSeen = 0;
   const finish = (stopped: StopReason, detail?: string): AgentOutcome => {
     const g = o.observe?.();
@@ -149,10 +190,15 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       const content = Array.isArray(reply?.content) ? reply!.content! : [];
       messages.push({ role: "assistant", content });
       const g = o.observe?.();
-      o.onEvent?.({ kind: "turn", agent: o.agent, turn: turns, usd: g?.spendUsd ?? 0, tokens: g ? g.tokens.input + g.tokens.output : 0, input: Number((reply as { usage?: { input_tokens?: number } } | undefined)?.usage?.input_tokens ?? 0), output: Number((reply as { usage?: { output_tokens?: number } } | undefined)?.usage?.output_tokens ?? 0) });
+      const use = (reply as { usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } } | undefined)?.usage;
+      const cacheRead = Number(use?.cache_read_input_tokens ?? 0), cacheWrite = Number(use?.cache_creation_input_tokens ?? 0);
+      o.onEvent?.({ kind: "turn", agent: o.agent, turn: turns, usd: g?.spendUsd ?? 0, tokens: g ? g.tokens.input + g.tokens.output : 0, input: Number(use?.input_tokens ?? 0), output: Number(use?.output_tokens ?? 0), ...(cacheRead ? { cacheRead } : {}), ...(cacheWrite ? { cacheWrite } : {}) });
+      const contextTokens = Number(use?.input_tokens ?? 0) + cacheRead + cacheWrite;
       const results: unknown[] = [];
       let refusedThisTurn = 0;
       let endedByAgent = false;
+      let leftFor: string | undefined;
+      let resetText: string | undefined;
       for (const b of content) {
         if (b.type === "text" && typeof b.text === "string" && b.text.trim()) {
           o.onEvent?.({ kind: "text", agent: o.agent, turn: turns, text: b.text });
@@ -162,30 +208,44 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
         if (b.type !== "tool_use" || !b.id || !b.name) continue;
         toolCalls++;
         const tool = byName.get(b.name);
-        let r: { ok: boolean; text: string; end?: boolean };
+        let r: SocietyToolResult;
         if (!tool) r = { ok: false, text: `there is no tool named ${b.name}` };
         else {
           const ac = new AbortController();
-          const timer = setTimeout(() => ac.abort(), o.toolTimeoutMs ?? 30_000);
+          const timer = tool.suspends ? undefined : setTimeout(() => ac.abort(), o.toolTimeoutMs ?? 30_000);
           try {
             r = await Promise.race([
-              tool.run(b.input ?? {}, { agent: o.agent, turn: turns, now: () => new Date(now()).toISOString() }).catch((e: unknown) => ({ ok: false, text: `the tool failed: ${(e as Error).message}` })),
-              new Promise<{ ok: boolean; text: string; end?: boolean }>((resolve) => ac.signal.addEventListener("abort", () => resolve({ ok: false, text: "the tool timed out" }), { once: true })),
+              tool.run(b.input ?? {}, { agent: o.agent, turn: turns, now: () => new Date(now()).toISOString(), signal: wall.signal }).catch((e: unknown) => ({ ok: false, text: `the tool failed: ${(e as Error).message}` })),
+              new Promise<SocietyToolResult>((resolve) => ac.signal.addEventListener("abort", () => resolve({ ok: false, text: "the tool timed out" }), { once: true })),
             ]);
-          } finally { clearTimeout(timer); }
+          } finally { if (timer) clearTimeout(timer); }
         }
         const text = String(r.text ?? "");
         const cut = text.length > limits.maxResultChars ? text.slice(0, limits.maxResultChars) + `\n[cut: ${text.length - limits.maxResultChars} more characters]` : text;
         o.onEvent?.({ kind: "tool", agent: o.agent, turn: turns, tool: tool?.name ?? b.name, ok: !!r.ok, refused: false });
         results.push({ type: "tool_result", tool_use_id: b.id, content: cut, ...(r.ok ? {} : { is_error: true }) });
         if (r.end) endedByAgent = true;
+        if (r.leave !== undefined) leftFor = r.leave;
+        if (r.reset) resetText = cut;
         if (o.signal.aborted) break;
       }
       // The gateway removed every call of the turn: the model is told so and may go on (the gateway's strikes and the loop breaker stop one that keeps trying).
       if (!results.length && refusedThisTurn) { messages.push({ role: "user", content: "Your call was not run: the gateway refused it (see above). Choose another action, or stop." }); continue; }
-      if (!results.length) return finish("finished", reply?.stop_reason);
+      if (!results.length) {
+        const said = content.filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text as string).join(" ").trim();
+        const woke = o.toolset.idle && !o.signal.aborted ? await o.toolset.idle(o.agent, said, wall.signal) : undefined;
+        if (woke === undefined || o.signal.aborted) return finish(o.signal.aborted ? "stopped" : "finished", reply?.stop_reason);
+        o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "history" });
+        messages.length = 0; messages.push({ role: "user", content: woke });
+        continue;
+      }
       messages.push({ role: "user", content: results });
+      // The history is bounded: a call whose whole input passed the ceiling starts again from the opening and the summary; otherwise the oldest exchanges go and the summary stands in for them.
+      if (contextTokens > eco.maxInputPerCall && messages.length > 3) { messages.length = 1; messages[0] = { role: "user", content: reopen() }; o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "ceiling" }); }
+      else if (messages.length > 1 + 2 * eco.historyTurns) { while (messages.length > 1 + 2 * eco.historyTurns) messages.splice(1, 2); messages[0] = { role: "user", content: reopen() }; o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "history" }); }
+      if (leftFor !== undefined) return finish("left", leftFor);
       if (endedByAgent) return finish("finished", "the agent chose to stop");
+      if (resetText !== undefined && !o.signal.aborted) { messages.length = 0; messages.push({ role: "user", content: resetText }); continue; }
     }
   } finally {
     clearTimeout(clock);
