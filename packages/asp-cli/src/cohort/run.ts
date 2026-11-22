@@ -18,6 +18,8 @@ import { economyOf, renderEconomy } from "./economy.ts";
 import { engagementOf, renderEngagement } from "./engagement.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
+import { parseSnapshot, snapshotOf, snapshotProblems } from "./snapshot.ts";
+import { voiceOf, voiceText } from "./voice.ts";
 import { creditEconomyOf, renderCreditEconomy, type CreditEconomy } from "./credit-economy.ts";
 import { JOB_TAX_PERMILLE, POSTING_DEPOSIT, START_CREDITS } from "./market.ts";
 
@@ -54,6 +56,12 @@ export interface CohortOptions {
   injectionScreen?: "off" | "label" | "hold";
   /** Plants the labelled test injection (rung I1) and reports who repeated it. */
   plantInjection?: boolean;
+  /** Offers each agent a voice derived from its identity (voice.ts, ENG34); off by default. */
+  voices?: boolean;
+  /** Writes a founding snapshot of the forum (snapshot.ts, ENG31) to this file when the run ends. */
+  snapshotOut?: string;
+  /** Starts the society from a founding snapshot file. */
+  fromSnapshot?: string;
   io: { out: (l: string) => void };
   now?: () => number;
 }
@@ -83,6 +91,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   let signed: SignedTraceSummary | undefined;
   let logPart: Awaited<ReturnType<typeof logReport>> | undefined;
   let creditEconomy: CreditEconomy | undefined;
+  let founding: Awaited<ReturnType<typeof snapshotOf>> | undefined;
   const stamp = () => new Date(now()).toISOString();
   const shared: Shared = { spentUsd: 0 };
 
@@ -101,14 +110,17 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   };
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
-  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
+  const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
+  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
     const agents = [];
     for (let i = 0; i < o.agents; i++) {
       const persona = o.personas?.length ? o.personas[i % o.personas.length] : undefined;
       const a = await world.enrol(i, handleOf(i), persona);
+      // An identity-derived voice (ENG34), when switched on, is offered after the persona, if there is one: one optional paragraph.
+      if (o.voices) a.persona = `${a.persona ? `${a.persona}\n\n` : ""}${voiceText(voiceOf(a.did))}`;
       agents.push(a);
       trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
     }
@@ -203,6 +215,8 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
     creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    // The founding snapshot is read while the society is still up.
+    if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });
   } finally {
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");
@@ -217,6 +231,12 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   writeFileSync(join(dir, "economy.json"), JSON.stringify(eco, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
+  if (o.snapshotOut && founding) {
+    const snap = founding;
+    writeFileSync(o.snapshotOut, JSON.stringify(snap, null, 2) + "\n");
+    const lacks = snapshotProblems(snap);
+    o.io.out(`founding snapshot: ${snap.posts.length} posts in ${snap.posts.filter((p) => p.replies.length > 0).length} threads with replies, diversity ${snap.diversity ?? "unknown"}, cost $${snap.costUsd.toFixed(4)}; written to ${o.snapshotOut}${lacks.length ? `; it does not yet meet the founding bar: ${lacks.join("; ")}` : ""}`);
+  }
   writeFileSync(join(dir, "report.json"), json);
   o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${(Math.round(o.totalUsd * 100) / 100).toFixed(2)}; report ${markdownPath}`);
   return { report, dir, markdownPath, sid };

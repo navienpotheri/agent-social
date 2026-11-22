@@ -41,7 +41,7 @@ export interface WorldApi {
 }
 
 export type TraceEvent =
-  | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string; /** The names of the tools the agents were offered. */ tools?: string[]; /** The SHA-256 of the briefing (the system prompt) every agent got. */ briefingSha256?: string }
+  | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; /** Whether identity-derived voices were offered to the agents (voice.ts). */ voices?: boolean; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string; /** The names of the tools the agents were offered. */ tools?: string[]; /** The SHA-256 of the briefing (the system prompt) every agent got. */ briefingSha256?: string }
   | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string }
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; cacheRead?: number; cacheWrite?: number; usd: number; text?: string }
   | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; /** A short account of what a read returned (counts only), so the report can say what the agent saw. */ seen?: string; /** Invitations in the first observation of the agent. */ invitations?: number; /** Steps of the first quest done after this call. */ quest?: number; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }

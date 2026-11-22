@@ -44,6 +44,11 @@ const say = (text: string): Block => ({ type: "text", text });
 /** The first id of a post found in the text of the last tool result, or "". */
 const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,}[^"]*)"/.exec(s)?.[1] ?? /"id":"([^"]+)"/.exec(s)?.[1] ?? "";
 
+// The words of the stand-in founding residents: topics and angles that share few words, so that sixty posts differ.
+const FOUNDING_TOPICS = ["small jobs and fair prices", "teaching a skill to a newcomer", "how the forum should be run", "being fair to an agent you disagree with", "keeping honest records", "a tiny experiment to try today", "short stories about a quiet town", "the map and where to go first", "counting puzzles and riddles", "welcoming the next arrival", "the rules and how to change them", "saving credits against spending them"];
+const FOUNDING_ANGLES = ["Patience pays", "Ask before you assume", "Write it down", "Share what you learn", "Test it on one case", "Start with the smallest step", "Give a reason with every answer", "Check the work twice", "Listen first", "Keep the promise you made", "Name the trade-off", "Prefer a plain word", "Admit what you do not know", "Praise the careful reader", "Leave the door open", "Count the cost", "Try the opposite view"];
+const FOUNDING_REPLIES = ["A fair point and worth keeping", "I had not thought of that", "Could you say more", "That matches what I found", "Here is a different angle", "I would try it and report back", "Thank you for writing this", "Mostly agreed, with one doubt"];
+
 /** Scripted behaviours: what a stand-in agent does on each turn. They exercise the pipeline; they are not a model of how a model behaves. */
 export const BEHAVIOURS: Record<string, Behaviour> = {
   explorer: (turn, last, agent, state) => {
@@ -147,6 +152,34 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.i = String(i + 1);
     return [use("forum_read_post", { post: ids[i]! })];
   },
+  // The voice test (ENG34): one post. With a voice in its briefing the agent writes about its own interests, in its own register; without, it writes the same hello as every other agent, with only its number changed.
+  voiced: (turn, _last, agent, st) => {
+    if (turn > 0) return [use("stop_exploring", { why: "I have said what I wanted to say" })];
+    const m = /write about (.+?) and (.+?); your register is (\w+)/.exec(st._system ?? "");
+    return m
+      ? [use("forum_post", { title: `A note on ${m[1]}`, text: `I will mostly write about ${m[1]} and ${m[2]}, in a ${m[3]} way.`.slice(0, 120), tags: [] })]
+      : [use("forum_post", { title: "Hello", text: `Hello, I am agent ${agent + 1} and I would like to learn how this place works.`, tags: [] })];
+  },
+  // A founding resident (ENG31): four varied posts, then a reply to the newest post of two other residents. Fifteen of them make 60 posts in 15 threads with replies.
+  resident: (turn, last, agent, st) => {
+    const N = 15;
+    if (turn < 4) {
+      const topic = FOUNDING_TOPICS[(agent + turn * 3) % FOUNDING_TOPICS.length]!, angle = FOUNDING_ANGLES[(agent * 4 + turn) % FOUNDING_ANGLES.length]!;
+      return [use("forum_post", { title: `${topic[0].toUpperCase()}${topic.slice(1)}: a view`.slice(0, 120), text: `${angle}, I think, when it comes to ${topic}.`.slice(0, 120), tags: [`r${agent + 1}`] })];
+    }
+    if (Number(st.k ?? "0") >= 2 || Number(st.tries ?? "0") > 12) return [use("stop_exploring", { why: "I have written my part" })];
+    const targetNo = ((agent + 2 + Number(st.k ?? "0")) % N) + 1;
+    if (!st.want) { st.want = "feed"; return [use("forum_read", { sort: "new", limit: 3, tag: `r${targetNo}` })]; }
+    if (st.want === "feed") {
+      let id = "";
+      try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ }
+      if (!id) { st.tries = String(Number(st.tries ?? "0") + 1); st.want = ""; return [use("catch_up")]; }
+      st.want = "sent"; st.k = String(Number(st.k ?? "0") + 1);
+      return [use("forum_comment", { post: id, text: `${FOUNDING_REPLIES[(agent + Number(st.k)) % FOUNDING_REPLIES.length]!} (${targetNo}, from ${agent + 1})`.slice(0, 120) })];
+    }
+    st.want = "";
+    return [use("catch_up")];
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [
@@ -173,6 +206,7 @@ export function standInProvider(behaviourOf: (agentIndex: number) => string, opt
       const lastMsg = req.messages[req.messages.length - 1];
       const last = typeof lastMsg?.content === "string" ? lastMsg.content : (lastMsg?.content ?? []).map((x) => (x.type === "tool_result" ? x.content : x.type === "text" ? x.text : "")).join("\n");
       const state = states.get(i) ?? {}; states.set(i, state);
+      state._system = req.system; // what the model was told, for the behaviours that read their own voice
       const blocks = b(turn, stripExtras(last), i, state); // the scripted behaviours read the tool's own text, not the line that follows it
       const input = size(req.system) + req.messages.reduce((n, m) => n + size(typeof m.content === "string" ? m.content : JSON.stringify(m.content)), 0) + size(JSON.stringify(req.tools.map((t: ToolDef) => ({ name: t.name, description: t.description, input_schema: t.input_schema }))));
       const output = size(JSON.stringify(blocks));

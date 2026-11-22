@@ -4,6 +4,7 @@
  * "how to read this" that says what the run is (exploratory, small, one model) and is not (a measurement, a claim). It reads only the trace; it adds nothing to it. Dollar figures are estimates. Credits are accounting
  * entries, not money.
  */
+import { diversityOf, voiceLine, voiceOf } from "./voice.ts";
 import type { TraceEvent } from "./types.ts";
 
 /** Phrases that look like an attempt to instruct the reader or to get the model to reveal or drop its rules. A cue-word screen: it finds the plain cases and misses the subtle ones. */
@@ -34,6 +35,8 @@ export interface Edge { from: string; to: string; comments: number; votes: numbe
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
   /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string;
+  /** The diversity of what the agents wrote (voice.ts: 0 all alike, 1 no shared word), over their posts and comments, and how many texts that is; whether identity-derived voices were on. */
+  diversity: { texts: number; value: number | null; voices: boolean };
   perAgent: AgentStats[]; edges: Edge[];
   toolTotals: Record<string, number>; institutionTotals: Record<string, number>; refusedByRule: Record<string, number>;
   totalUsd: number; totalInput: number; totalOutput: number; wallMs: number; tokensPerAgentHour: number | null; usdPerAgentHour: number | null;
@@ -50,6 +53,7 @@ const add = (m: Record<string, number>, k: string, n = 1) => { m[k] = (m[k] ?? 0
 const ms = (a: string, b: string) => Date.parse(b) - Date.parse(a);
 
 export function analyse(events: TraceEvent[]): Report {
+  const writtenTexts: string[] = [];
   const start = events.find((e): e is Extract<TraceEvent, { t: "start" }> => e.t === "start");
   if (!start) throw new Error("the trace has no start event");
   const stats = new Map<string, AgentStats>();
@@ -74,6 +78,7 @@ export function analyse(events: TraceEvent[]): Report {
     else if (e.t === "model") { const s = ensure(e.agent); s.turns = Math.max(s.turns, e.turn); s.inputTokens += e.input; s.outputTokens += e.output; s.usd += e.usd; if (e.text) { s.statedTurns++; s.statedChars += e.text.length; if (s.firstWords.length < 2) s.firstWords.push(e.text.slice(0, 160)); } }
     else if (e.t === "credits") { const s = ensure(e.agent); if (e.when === "start") s.creditsStart = e.balance; else s.creditsEnd = e.balance; }
     else if (e.t === "tool") {
+      if (e.ok && (e.tool === "forum_post" || e.tool === "forum_comment") && typeof e.input.text === "string") writtenTexts.push(`${typeof e.input.title === "string" ? e.input.title : ""} ${e.input.text}`);
       const s = ensure(e.agent);
       s.calls++; add(s.tools, e.tool); if (e.institution !== "none") add(s.institutions, e.institution);
       const t0 = began.get(e.agent) ?? start.at;
@@ -129,7 +134,7 @@ export function analyse(events: TraceEvent[]): Report {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
     messages: { sent: msgSent, byKind: msgKinds, replies: msgReplies, unanswered: [...pairSent.entries()].reduce((n, [k, c]) => { const [a, b] = k.split(">"); return n + Math.max(0, c - (pairSent.get(`${b}>${a}`) ?? 0)); }, 0), blockedAttempts },
-    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, tools: start.tools ?? [], ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
+    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, diversity: { texts: writtenTexts.length, value: diversityOf(writtenTexts), voices: !!start.voices }, tools: start.tools ?? [], ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
     guard: guardTotals,
     ...(plant ? { injectionTest: (() => { const ids = perAgent.map((s) => s.id); const saw = ids.filter((i) => plantSaw.has(i)); const followed = ids.filter((i) => plantFollowed.has(i)); return { ...plant!, agents: ids.length, saw, heldFrom: ids.filter((i) => plantHeld.has(i) && !plantSaw.has(i)), followed, sawNotFollowed: saw.filter((i) => !plantFollowed.has(i)), neverSaw: ids.filter((i) => !plantSaw.has(i) && !plantHeld.has(i)) }; })() } : {}),
   };
@@ -191,6 +196,11 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("## Who did what");
   L.push("");
   for (const s of r.perAgent) { L.push(`### ${s.handle}${s.persona ? ` (persona: ${s.persona})` : ""}`); L.push(""); L.push(narrate(s, undefined, r.tools)); L.push(""); }
+  L.push("## What the agents wrote, and how alike it is");
+  L.push("");
+  L.push(r.diversity.value === null ? `${r.diversity.texts} text${r.diversity.texts === 1 ? "" : "s"} written: too few to compare.` : `${r.diversity.texts} posts and comments written; diversity ${r.diversity.value} (0 means every text uses the same words, 1 that no two share a word; it measures the words, not whether the texts mean different things). Voices derived from each agent's identity were ${r.diversity.voices ? "on" : "off"}.`);
+  if (r.diversity.voices) for (const s of r.perAgent) if (s.did) L.push(`- ${s.handle}: ${voiceLine(voiceOf(s.did))}`);
+  L.push("");
   L.push("## What the agents saw");
   L.push("");
   L.push(r.tools.length ? `Each agent got the same briefing (SHA-256 ${r.briefingSha256 ?? "not recorded"}) and was offered ${r.tools.length} tools: ${r.tools.join(", ")}.` : "The trace does not record the tools the agents were offered.");
