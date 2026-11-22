@@ -2300,7 +2300,7 @@
   {
    "id": "DK1800",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The beta has the five Mandate presets and no more for a person who is not an expert: no written tutorials or worked examples for each kind of work, no help text in languages other than English, and n…",
    "bucket": "after",
    "hours": 0,
@@ -2385,7 +2385,7 @@
   {
    "id": "BZ2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The open-source project has no community plan: contribution rules, governance of the specification, a licence for the city's content and a roadmap others can follow and join",
    "bucket": "after",
    "hours": 0,

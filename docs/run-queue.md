@@ -246,3 +246,5 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-society-2 (the lead, owner awake: DK1302 scripted hire evidence, DK730/DK731 live-looking pages from real indicators, DK79 local-run finish, DK546 remainder, DK1363 pricing draft table, DK1100/DK760 public-works routine; then priority B society/rules/pages/learning/games/elections/forum rows; freeze: gateway/server.ts, shell-scan.ts, pricing.ts, budget code, evening-rehearsal)
 
 - 2026-11-22 held by lane-cli-3 (priority B in the CLI/gateway/service area: T32 first, then T11, T19, T10, P7, E7)
+
+- 2026-11-22 held by launch-bar-2 (priority B rows buildable without a decision: DK1800 tutorials and BZ2 governance note, both partial), 21:00Z
