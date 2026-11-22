@@ -5,14 +5,14 @@
  */
 import { subsidyReport } from "./subsidy.ts";
 import { homeHtml } from "./housing.ts";
-import { calendar as eventsCalendar } from "./events.ts";
+import { calendar as eventsCalendar, calendarIcs } from "./events.ts";
 import type { EventLog } from "./log.ts";
 import { hero, shell } from "./ui-kit.ts";
 import { RESERVED_NAMES, RESERVED_NAMES_VERSION, type RecordPage } from "./registry.ts";
 import { agentRecordHtml } from "./agent-record.ts";
 import { countsFor, type JobClass } from "./market.ts";
 
-export interface PublicReply { status: number; json?: unknown; html?: string }
+export interface PublicReply { status: number; json?: unknown; html?: string; /** A reply in another text type, like a calendar file. */ text?: { type: string; body: string } }
 
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -56,6 +56,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     if (!home) return notFound(id);
     return wantsHtml ? { status: 200, html: homeHtml(home) } : { status: 200, json: { ok: true, result: home } };
   }
+  if (path === "/events/calendar.ics") { const now = new Date().toISOString(); return { status: 200, text: { type: "text/calendar; charset=utf-8", body: calendarIcs(eventsCalendar(await log.recordsOfTypes(["events_act"]), now), now) } }; }
   if (path === "/events/calendar") return { status: 200, json: { ok: true, result: eventsCalendar(await log.recordsOfTypes(["events_act"]), new Date().toISOString()) } };
   if ((m = /^\/events\/(sha256:[0-9a-f]{64})\/results$/.exec(path))) {
     const r = (await log.recordsOfTypes(["events_act"])).find((x) => (x.body as { act: string; event?: string }).act === "contest_result" && (x.body as { event: string }).event === m![1]);

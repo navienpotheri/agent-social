@@ -3626,14 +3626,14 @@
   },
   {
    "id": "DK177",
-   "pri": "B",
+   "pri": "?",
    "status": "partial",
    "gap": "The Events public pages and reporting are partial: `GET /events/calendar` and `/events/<id>/results` exist, but not the event page with its rules and scorer hash, the pool page, souvenirs, an `.ics`…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
+   "why": "Priority ?: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -6062,7 +6062,7 @@
   },
   {
    "id": "DK1744",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
    "bucket": "after",

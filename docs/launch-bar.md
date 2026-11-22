@@ -5,7 +5,7 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 502 register rows are not closed (220 at priority A, 212 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 502 register rows are not closed (219 at priority A, 211 at B, 48 at C). Sorted:
 
 - **Must close before launch: 64 rows, 305 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 104 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
@@ -424,7 +424,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK174 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK175 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK176 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK177 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK177 | ? | partial | Priority ?: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK178 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK179 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK190 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
@@ -563,7 +563,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1741 | A | partial | games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators | site, docs: say 'planned' |
 | DK1742 | A | partial | forum mechanisms: ranking a farm cannot buy and the road from a thread to the Town Hall agenda | site, docs: say 'planned' |
 | DK1743 | A | partial | elections: offices, candidacy, terms, recall, a committed ballot and capture resistance | site, docs: say 'planned' |
-| DK1744 | A | partial | the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice | site, docs: say 'planned' |
+| DK1744 | ? | partial | the inspectorate: warrants with due process, a chain of custody, honeypots that do not entice | site, docs: say 'planned' |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row
