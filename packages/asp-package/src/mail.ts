@@ -148,6 +148,13 @@ const endedHow = (e: NonNullable<MandateFacts["ending"]>) => ({
   accepted: "the principal accepted the delivery", ruling: "a Court ruling decided it", revoked: "the principal revoked the Mandate", silence: "the principal did not answer in time, so the delivery was accepted",
 }[e.basis] ?? e.basis);
 
+/** The line of the end-of-Mandate mail about the token ceiling: the distinct percentages that the run reached, in ascending order, and whether a model call was then refused. */
+export function spendCeilingLine(percents: number[], stopped: boolean): string {
+  const reached = [...new Set(percents)].sort((x, y) => x - y);
+  const head = reached.length ? `the run reached ${reached.join(", ")} percent of its token ceiling` : "the run reached its token ceiling";
+  return `Model-spend ceiling: ${head}${stopped ? "; a model call was then refused, as the ceiling says" : ""}.`;
+}
+
 /** The highlights and the three renderings of the mail. */
 export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
   const a = f.activity;
@@ -222,7 +229,7 @@ export function buildMandateMail(f: MandateFacts, o: MailOptions): BuiltMail {
       check.push(`${o.runLog.head.events - a.runLogCommittedEvents} event(s) at the end of the run log came after the last report the agent could record (a job that has ended takes no more reports), so the figures above may leave them out; the run log has them.`);
     }
     check.push(o.linkBase ? "Full run log (redacted, hash-chained): open the run page below, which has a download button; it asks for your dashboard sign-in." : `Full run log: kept only on the machine that ran the job, at ${o.runLog.path}. No page is hosted for it; run \`asp dashboard\` on that machine to read it.`);
-    if (spendAlerts.length || stoppedByCeiling) check.push(`Model-spend ceiling: the run reached ${[...new Set(spendAlerts)].sort((x, y) => x - y).join(", ") || "its"} percent of its token ceiling${stoppedByCeiling ? "; a model call was then refused, as the ceiling says" : ""}.`);
+    if (spendAlerts.length || stoppedByCeiling) check.push(spendCeilingLine(spendAlerts, stoppedByCeiling));
   } else check.push("No run log was kept for this job.");
   if (o.linkBase) check.push(`Run page: ${o.linkBase.replace(/\/$/, "")}/#/job/${f.contract.id}`);
   sections.push({ title: "Check it", lines: check });

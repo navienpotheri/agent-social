@@ -22,7 +22,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writ
 import { dirname } from "node:path";
 
 /** The limits a service starts with (the operator can change them with flags); the public surface list (src/surface.ts) states these numbers. */
-export const DEFAULT_LIMITS = { tenantPerMinute: 600, appendPerMinute: 120, maxInFlight: 16, addressPerMinute: 1200, failedAuthMax: 10, failedAuthWindowSec: 300 } as const;
+export const DEFAULT_LIMITS = { tenantPerMinute: 600, appendPerMinute: 120, maxInFlight: 16, addressPerMinute: 1200, lookupPerMinute: 60, failedAuthMax: 10, failedAuthWindowSec: 300 } as const;
 
 export interface LimitOptions {
   /** Requests a tenant may make per minute (default 600; 0 turns the limit off). A tenant's own `rateLimitPerMinute` overrides it. */
@@ -33,6 +33,8 @@ export interface LimitOptions {
   maxInFlight?: number;
   /** Requests one address may make per minute, signed in or not (default 1200; 0 off). */
   addressPerMinute?: number;
+  /** Registry lookups (an agent's record page, a name, a search) one address may make per minute, on top of the address limit (default 60; 0 off; DK125, RG-14). Kept in this process only. */
+  lookupPerMinute?: number;
   /** Failed sign-ins from one address within the window before it is locked out (default 10; 0 off). */
   failedAuthMax?: number;
   /** The window, and the length of the lockout, in seconds (default 300). */
@@ -122,6 +124,7 @@ export class Limits {
   private tenant = new Map<string, Bucket>();
   private append = new Map<string, Bucket>();
   private address = new Map<string, Bucket>();
+  private lookups = new Map<string, Bucket>();
   private inFlight = new Map<string, number>();
   private failures = new Map<string, Failure>();
   private ops = 0;
@@ -129,7 +132,7 @@ export class Limits {
   constructor(o: LimitOptions = {}) {
     this.o = {
       tenantPerMinute: o.tenantPerMinute ?? DEFAULT_LIMITS.tenantPerMinute, appendPerMinute: o.appendPerMinute ?? DEFAULT_LIMITS.appendPerMinute, maxInFlight: o.maxInFlight ?? DEFAULT_LIMITS.maxInFlight,
-      addressPerMinute: o.addressPerMinute ?? DEFAULT_LIMITS.addressPerMinute, failedAuthMax: o.failedAuthMax ?? DEFAULT_LIMITS.failedAuthMax, failedAuthWindowSec: o.failedAuthWindowSec ?? DEFAULT_LIMITS.failedAuthWindowSec,
+      addressPerMinute: o.addressPerMinute ?? DEFAULT_LIMITS.addressPerMinute, lookupPerMinute: o.lookupPerMinute ?? DEFAULT_LIMITS.lookupPerMinute, failedAuthMax: o.failedAuthMax ?? DEFAULT_LIMITS.failedAuthMax, failedAuthWindowSec: o.failedAuthWindowSec ?? DEFAULT_LIMITS.failedAuthWindowSec,
     };
     this.now = o.now ?? Date.now;
     if (o.stateFile) {
@@ -229,7 +232,7 @@ export class Limits {
   private sweep(): void {
     if (++this.ops % 500 !== 0) return;
     const t = this.now();
-    for (const m of [this.tenant, this.append, this.address]) for (const [k, b] of m) if (b.idleSince(t) > 10 * 60_000) m.delete(k);
+    for (const m of [this.tenant, this.append, this.address, this.lookups]) for (const [k, b] of m) if (b.idleSince(t) > 10 * 60_000) m.delete(k);
     for (const [k, f] of this.failures) if (f.lockedUntil < t && (f.times.at(-1) ?? 0) < t - this.o.failedAuthWindowSec * 1000) this.failures.delete(k);
   }
 
@@ -247,6 +250,13 @@ export class Limits {
       this.used.set(this.shared("a", address), (this.used.get(this.shared("a", address)) ?? 0) + 1);
     }
     return OK;
+  }
+
+  /** A registry lookup from this address (DK125, RG-14): at most `lookupPerMinute` a minute, with a burst of a quarter of that. Called for the lookup routes only, after `checkAddress`. */
+  checkLookup(address: string): Verdict {
+    if (this.o.lookupPerMinute <= 0) return OK;
+    const v = this.bucket(this.lookups, this.key(address), this.o.lookupPerMinute).take(this.now());
+    return v.ok ? OK : { ...v, why: `more than ${this.o.lookupPerMinute} registry lookups a minute from this address` };
   }
 
   /** A request carried no valid token. After `failedAuthMax` of them inside the window, the address is locked out for the window. */
