@@ -5445,6 +5445,639 @@
       "valid": false
     },
     {
+      "name": "valid_exam_retirement",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_exam_retirement_replaced",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "error",
+        "evidence": "a copy of the pool was posted on a public forum",
+        "replaced_by": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "valid": true
+    },
+    {
+      "name": "exam_retirement_bad_reason",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "boring",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_retirement_no_evidence",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_retirement_no_exam",
+      "schema": "exam_retirement",
+      "instance": {
+        "reason": "leaked",
+        "evidence": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_retirement_short_exam_id",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "foundations-v1",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum"
+      },
+      "valid": false
+    },
+    {
+      "name": "exam_retirement_extra_field",
+      "schema": "exam_retirement",
+      "instance": {
+        "exam": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reason": "leaked",
+        "evidence": "a copy of the pool was posted on a public forum",
+        "revoke_all": true
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_cancellation",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_cancellation_no_fee",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_cancellation_no_reason",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_no_fee",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_fee_not_credit",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "usd"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_extra_field",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work",
+        "refund_all": true
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_short_contract",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "job-1",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_amendment",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": "Refactor the date parser and its tests"
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_amendment_criteria",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "acceptance_criteria": [
+            "all tests pass",
+            "no new dependency"
+          ]
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_amendment_no_changes",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {},
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_changes_price",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "price": {
+            "value": 99,
+            "unit": "credit"
+          }
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_changes_deadline",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "deadline": "2027-01-01T00:00:00Z"
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_empty_criteria",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "acceptance_criteria": []
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_empty_purpose",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": ""
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_no_reason",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": "x"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_team_split",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": "plans the work and reviews it"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "writes the parser"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "team_split_one_member",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 1000,
+            "part": "all of it"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_eleven_members",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:m0",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m1",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m2",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m3",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m4",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m5",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m6",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m7",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m8",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m9",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m10",
+            "share_permille": 90,
+            "part": "a part"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_zero_share",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 0,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 1000,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_share_over_1000",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 1001,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 1,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_no_part",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": ""
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_agent_not_did",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "lead",
+            "share_permille": 600,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_no_members",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_extra_field",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": "plans the work and reviews it"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "writes the parser"
+          }
+        ],
+        "blame": "split"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_failure",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": "no answer to six messages over two days after the deadline"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_failure_deadline",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "deadline_passed",
+        "evidence": "nothing was delivered by the deadline"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_failure_bad_cause",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "provider_down",
+        "evidence": "no answer to six messages over two days after the deadline"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_no_evidence",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_no_contract",
+      "schema": "contract_failure",
+      "instance": {
+        "cause": "unreachable",
+        "evidence": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_failure_extra_field",
+      "schema": "contract_failure",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "cause": "unreachable",
+        "evidence": "no answer to six messages over two days after the deadline",
+        "slash_permille": 1000
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_replaces",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "resumes": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_replaces_only",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_replaces_short_id",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "job-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_resumes_short_id",
+      "schema": "contract",
+      "instance": {
+        "principal": "did:web:example.com:users:alice",
+        "performer": "did:web:example.com:agents:coder-1",
+        "bank": "did:web:example.com:bank",
+        "purpose": "Keep the payments service test suite green without weakening any test",
+        "acceptance_criteria": [
+          "test_refund_idempotency passes 50 runs in a row",
+          "no test is skipped or deleted"
+        ],
+        "price": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "verification": "deterministic",
+        "deadline": "2026-10-03T18:00:00Z",
+        "basis": {
+          "intent": "sha256:bdad18c3328c11f73a92afa6961b6c76d626828b18d322a16377bd9246326154",
+          "offer": "sha256:1d08119670c14dde172870a5e4e6d89a182973ca82453676d05a2c00a421df91"
+        },
+        "replaces": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "resumes": "cp-1"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_memory_key",
       "schema": "memory_key",
       "instance": {

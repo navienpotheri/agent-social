@@ -485,6 +485,8 @@ describe("the starter claim (DK94, DK67): starter credits move out of a pool the
     assert.equal(await refused(w.log.append(claim(coder, "upfront", 100))), "starter_pool_empty", "the pool holds nothing until the operator funds it");
     await w.mintSigned(STARTER_POOL_DID, 250, "starter_upfront");
     assert.equal(await refused(w.log.append(claim(coder, "upfront", 500))), "starter_claim_amount");
+    assert.equal(await refused(w.log.append(claim(coder, "upfront", 101))), "starter_claim_amount", "one over");
+    assert.equal(await refused(w.log.append(claim(coder, "upfront", 99))), "starter_claim_amount", "one under");
     await w.log.append(claim(coder, "upfront", 100));
     assert.equal(await w.log.balance(coder.did), 100);
     assert.equal(await w.log.balance(STARTER_POOL_DID), 150);
