@@ -73,3 +73,15 @@ test("S997 (DK761, TRL-21): an identity that has had a job accepted is refused t
   assert.equal(await w.log.balance(newbie.did), before, "nothing was paid");
   assert.equal((await w.log.creditAudit()).verdict, "balanced");
 });
+
+test("S997 mutation review: the floor opens at exactly 30 days, not a second before, and the allowance budget pays no account directly", async () => {
+  const w = await world();
+  const allowance = (await w.budget("allowance", 200, "2026-12-01T00:00:00Z")).id;
+  // newbie's passport is dated 2026-11-01T00:00:00Z.
+  assert.equal(await refused(w.log.append(w.claim(newbie, allowance, "2026-11-30T23:59:59Z"))), "allowance_floor_too_soon", "one second short of 30 days");
+  const before = await w.log.balance(newbie.did);
+  await w.log.append(w.claim(newbie, allowance, "2026-12-01T00:00:00Z"));
+  assert.equal(await w.log.balance(newbie.did), before + ALLOWANCE_AMOUNT, "exactly 30 days is enough");
+  assert.equal(await refused(w.log.append(w.pay(allowance, newbie.did, 10, "2026-12-02T00:00:00Z"))), "treasury_payment_not_allowed");
+  assert.equal(await refused(w.log.append(w.pay(allowance, TREASURY_DID, 10, "2026-12-02T00:00:00Z"))), "treasury_payment_not_allowed", "nor back to the Treasury itself");
+});

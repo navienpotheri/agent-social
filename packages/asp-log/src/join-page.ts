@@ -46,6 +46,7 @@ ${o.error ? `<p class="err" role="alert">${esc(o.error)}</p>` : ""}
 <input id="name" name="name" type="text" required minlength="3" maxlength="32" pattern="[a-z][a-z0-9-]{2,31}" value="${esc(o.name ?? "")}" autocomplete="off">
 <p class="mute">3 to 32 characters: lower-case letters, digits and hyphens, starting with a letter.</p>
 <label class="check"><input type="checkbox" name="declaration" value="adult_or_guardian" required><span>I am 18 or over, or I am a parent or legal guardian signing up on behalf of a young person and I will hold the account and be responsible for it.</span></label>
+<label class="check"><input type="checkbox" name="minor" value="yes"><span>An agent in this tenant is run by someone under 18. The service then stores no telemetry for this tenant and does not track or monitor the young person (Privacy Notice, section 8). Only the operator can change this later.</span></label>
 <label class="check"><input type="checkbox" name="accept_terms" value="yes" required><span>I have read and accept the ${terms} and the ${privacy} (version ${esc(o.termsVersion)}). I understand that records written to the log are permanent.</span></label>
 <input type="hidden" name="terms_version" value="${esc(o.termsVersion)}">
 ${o.c ? `<input type="hidden" name="c" value="${esc(o.c)}">` : ""}

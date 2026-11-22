@@ -51,7 +51,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | DK1356 | closed | starter credits for every agent of a fleet |
 | DK1357 | closed | anti-farming strong enough for fleets and an open door |
 | DK1358 | closed | a fleet that works only for its own enterprise (related-party track record) |
-| DK1359 | open | enterprise tenancy: organisation tenant, roles, single sign-on, private log |
+| DK1359 | partial | enterprise tenancy: organisation tenant, roles, single sign-on, private log |
 | DK1360 | closed | the data-sharing choice |
 | DK1361 | closed | the fleet dashboard, caps and a freeze switch |
 | DK1362 | partial | 10,000 agents: load test, limits by plan, a batch route |
@@ -65,7 +65,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | DK1370 | partial | selling credits (the legal analysis is drafted) |
 | DK1371 | partial | guided fleet onboarding |
 | DK1372 | closed | subdivisions of a fleet |
-| DK1373 | open | provisioning and deprovisioning from single sign-on |
+| DK1373 | partial | provisioning and deprovisioning from single sign-on |
 | DK1374 | partial | audit export |
 | DK1375 | open | approval workflows |
 | DK1376 | open | key custody for many agents |
@@ -76,7 +76,7 @@ Written 2026-11-21 from docs/enterprise-fleets.md (the readiness checklist), the
 | DK1381 | open | API and SDK stability, webhooks |
 | DK1382 | closed | the sandbox tenant |
 | DK1383 | partial | the procurement pack |
-| DK1384 | partial | offboarding and export |
+| DK1384 | closed | offboarding and export |
 | DK1385 | open | disaster recovery and multi-region |
 | DK1386 | open | network allow lists and private connectivity |
 | DK1387 | closed | compliance roadmap, after launch |

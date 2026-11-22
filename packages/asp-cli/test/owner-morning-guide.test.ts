@@ -30,7 +30,9 @@ test("the guide keeps the standing statements and tells the owner what to do wit
   assert.match(guide, /no outside security review/);
   assert.match(guide, /there is no sandbox/);
   for (const w of ["DK1340", "DK1", "LW1", "DK421", "DK420", "U8", "O12", "evening-rehearsal.ps1"]) assert.ok(guide.includes(w), `${w} is named`);
-  assert.equal([...guide.matchAll(/^\| (\d+) \|/gm)].length, 10);
+  const actions = guide.slice(guide.indexOf("## 3. What waits for you"), guide.indexOf("## 4a."));
+  assert.equal([...actions.matchAll(/^\| (\d+) \|/gm)].length, 10);
+  assert.equal([...guide.slice(guide.indexOf("## 4a.")).matchAll(/^\| (\d+) \|/gm)].length >= 4, true, "the four answers needed before tonight");
 });
 
 test("the guide gives the order of signing and tonight's steps in one place", () => {

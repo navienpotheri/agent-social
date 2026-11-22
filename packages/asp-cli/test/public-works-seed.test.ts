@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { createRecord } from "@agent-social/asp-core";
 import { TREASURY_DID } from "@agent-social/asp-log";
 import { Keystore, openLog } from "@agent-social/asp-package";
-import { main, type Io } from "../src/cli.ts";
+import { main, setClock, type Io } from "../src/cli.ts";
 import { buildDrafts, PUBLIC_WORKS_LINE } from "../src/treasury.ts";
 import { makeFixture, type Fixture } from "./fixture.ts";
 
@@ -70,6 +70,48 @@ test("S997: a public-works draft exists; the line pays a house agent only and ne
     assert.ok((await (await fresh()).log.balance(HOUSE)) > 20, "the house agent was topped up from the line");
     assert.equal((await (await fresh()).log.creditAudit()).verdict, "balanced");
   } finally {
+    if (savedOp === undefined) delete process.env.ASP_OPERATOR_DID; else process.env.ASP_OPERATOR_DID = savedOp;
+    if (savedOwner === undefined) delete process.env.ASP_OWNER_DID; else process.env.ASP_OWNER_DID = savedOwner;
+  }
+});
+
+test("DK760, DK1100: the monthly routine rehearsed on a local log over two months: each month the owner's co-signed line pays the house agent what the seed jobs need, a second run in the same month pays nothing more, and nothing is paid past a month's line", async () => {
+  const f = makeFixture();
+  const savedOp = process.env.ASP_OPERATOR_DID, savedOwner = process.env.ASP_OWNER_DID;
+  process.env.ASP_OPERATOR_DID = OPERATOR; process.env.ASP_OWNER_DID = OWNER;
+  try {
+    setClock(() => new Date("2026-12-02T10:00:00Z"));
+    for (const d of [OWNER, OPERATOR, TREASURY_DID]) await ok(f, ["identity", "new", "--kind", "human", "--did", d]);
+    await ok(f, ["identity", "new", "--kind", "agent", "--did", HOUSE, "--sponsor", OPERATOR, "--purpose", "Post the seed jobs"]);
+    const log = await openLog(f.aspHome, {});
+    const head = (await log.log.passport(HOUSE))!.head;
+    await log.append(createRecord({ type: "passport", issuer: OPERATOR, subject: HOUSE, prev: head, body: { ...((await log.log.get(head))!.record.body as Record<string, unknown>), house: true }, issued_at: "2026-12-02T10:00:00Z" } as never, new Keystore(f.aspHome).forDid(OPERATOR)!));
+    await ok(f, ["credits", "grant", "--to", TREASURY_DID, "--amount", "5000", "--by", OPERATOR, "--reason", "test"]);
+    const balance = async () => (await openLog(f.aspHome, {})).log.balance(HOUSE);
+    const month = async (period: string, count: string) => {
+      const file = join(mkdtempSync(join(tmpdir(), "asp-pw-")), "drafts.json");
+      writeFileSync(file, JSON.stringify(buildDrafts(period)));
+      const signed = await ok(f, ["treasury", "sign", "--draft", file, "--id", "public-works", "--cosign-by", OWNER]);
+      const budget = /budget (sha256:[0-9a-f]+):/.exec(signed.out)![1];
+      const first = await asp(f, ["market", "seed", "--by", HOUSE, "--mandate", "sha256:" + "1".repeat(64), "--count", count, "--fund-from", budget]); // the postings themselves need a price list, which this log has not got: the payment is made before them
+      const again = await asp(f, ["market", "seed", "--by", HOUSE, "--mandate", "sha256:" + "1".repeat(64), "--count", count, "--fund-from", budget]);
+      return { budget, first: first.out, again: again.out };
+    };
+    const m1 = await month("2026-12", "2");
+    assert.match(m1.first, /public works: \d+ credits from the Treasury's public-works line/, "December: the line pays what the jobs need");
+    const afterM1 = await balance();
+    assert.ok(afterM1 > 0, "the house agent holds the credits the jobs need");
+    assert.match(m1.again, /already holds the \d+ credits the seed jobs need; nothing paid/, "a second run in the same month pays nothing more");
+    assert.equal(await balance(), afterM1, "and the house agent's balance did not move");
+    setClock(() => new Date("2027-01-04T10:00:00Z"));
+    const m2 = await month("2027-01", "2");
+    assert.notEqual(m2.budget, m1.budget, "January has its own budget");
+    assert.match(m2.first, /public works:/, "January: the new month's line is drawn on");
+    assert.equal((await (await openLog(f.aspHome, {})).log.creditAudit()).verdict, "balanced");
+    const list = (await ok(f, ["treasury", "list"])).out;
+    assert.match(list, /public_works/);
+  } finally {
+    setClock(undefined);
     if (savedOp === undefined) delete process.env.ASP_OPERATOR_DID; else process.env.ASP_OPERATOR_DID = savedOp;
     if (savedOwner === undefined) delete process.env.ASP_OWNER_DID; else process.env.ASP_OWNER_DID = savedOwner;
   }

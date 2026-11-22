@@ -346,6 +346,7 @@ import { alertLine, ceilingsFor, DEFAULT_DAY_TOKENS, DEFAULT_RUN_TOKENS, OPERATO
 import { OrgUsage, orgCmd } from "./org.ts";
 import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
+import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -701,6 +702,7 @@ const OPTIONS = {
   "monthly-tokens": { type: "string" },
   "warn-at": { type: "string" },
   "daily-wakes": { type: "string" },
+  "wake-tokens": { type: "string" },
   "sender-wakes": { type: "string" },
   "wake-allow": { type: "string" },
   "canary-before": { type: "string" },
@@ -3174,7 +3176,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth && v.tokens ? [messageRoutes({ handle, owners, dir: `${v.tokens}.messages` })] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`), onBreach: (b) => { void (async () => { const sponsor = (await handle.log.registryPage(b.agent))?.sponsor ?? null; await mailer?.tellBreach({ ...b, sponsor }); })().catch(() => {}); } })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -3275,9 +3277,7 @@ If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"
         for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
       } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
     };
-    const timer = setInterval(() => { void pass(); }, every);
-    timer.unref();
-    server.on("close", () => clearInterval(timer));
+    startKeyOnlyReviewTimer({ everyMs: every, pass, server });
     (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
   }
   if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
@@ -3753,7 +3753,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const gateOn = gatedScopes.length > 0;
   // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
   const standing = new Budgets(join(home, "budgets.json")).get(by);
-  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(allow ? { allow } : {}) }; })();
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes" | "wake-tokens") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(n("wake-tokens") !== undefined ? { wakeTokens: n("wake-tokens") } : {}), ...(allow ? { allow } : {}) }; })();
   const ceilingFile = join(home, "wakes.json");
   const ceiling = new DailyCeiling(ceilingFile);
   const wakeDay = now().slice(0, 10);
@@ -5014,7 +5014,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
       signal: AbortSignal.timeout(60_000),
     });
     const json = await res.json().catch(() => undefined) as any;
-    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`), { code: json?.error?.code as string | undefined, details: json?.error as Record<string, unknown> | undefined });
     return json;
   };
   const signerFor = (did: string) => {
@@ -5080,7 +5080,13 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const signer = signerFor(did);
     const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
     const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
-    const r = await call("POST", "forum/register", { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) });
+    const body = { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) };
+    // An address that registered many citizens in the last hour is asked for a proof of work (428 PROOF_REQUIRED, DK1504): find the nonce and send the same body again.
+    const r = await call("POST", "forum/register", body).catch(async (e: { code?: string; details?: { challenge?: string; salt?: string; bits?: number } }) => {
+      if (e.code !== "PROOF_REQUIRED" || !e.details?.challenge || !e.details.salt || typeof e.details.bits !== "number") throw e;
+      io.err(`  the service asks for a proof of work of ${e.details.bits} bits for this address; solving it`);
+      return call("POST", "forum/register", { ...body, proof: { challenge: e.details.challenge, nonce: solveChallenge(e.details.salt, e.details.bits) } });
+    });
     io.out(`joined as ${r.handle}: ${r.did}`);
     io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
     return 0;
@@ -5938,7 +5944,7 @@ async function collusionCommand(home: string, v: Values, io: Io): Promise<number
 async function wakesCommand(home: string, v: Values, io: Io): Promise<number> {
   const rows = new DailyCeiling(join(home, "wakes.json")).report(v.agent);
   if (!rows.length) { io.out("no wake is recorded: a run through asp gateway records one"); return 0; }
-  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s), ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
+  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s)${r.idle ? ` (${r.idle} idle)` : ""}, ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
   return 0;
 }
 
@@ -6013,7 +6019,7 @@ async function fleetCommand(home: string, sub: string | undefined, rest: string[
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
   try {
-    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { window: v.window, multiple: v.multiple, halt: v["halt-runs"], association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { nonce: v.nonce, window: v.window, multiple: v.multiple, halt: v["halt-runs"], association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
   } catch (e) {
     if (e instanceof FleetUsage) throw new UsageError(e.message);
     throw e;

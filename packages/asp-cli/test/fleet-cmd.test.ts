@@ -89,3 +89,21 @@ test("asp fleet template, narrow and mandate (DK1355, S1408): the organisation s
     assert.notEqual((await asp(f, ["fleet", "template", "set", "--did", FLEET, "--file", file, "--by", DEV])).code, 0, "only the organisation signs");
   } finally { setClock(undefined); }
 });
+
+test("DK1505: `asp fleet revoke <fleet> --nonce` signs the organisation's revocation of an unused invitation; a second time, a missing nonce and an unknown fleet are refused", async () => {
+  setClock(() => new Date("2026-11-21T10:00:00Z"));
+  try {
+    const f = makeFixture();
+    assert.equal((await asp(f, ["identity", "new", "--kind", "human", "--did", ORG])).code, 0);
+    assert.equal((await asp(f, ["fleet", "declare", "--org", ORG, "--name", "Coders", "--purpose", "ship code"])).code, 0);
+    const FLEET = `${ORG}:fleets:coders`;
+    const nonce = "Zr3k9QmV2xT7pL1aB4cD8e";
+    const r = await asp(f, ["fleet", "revoke", FLEET, "--nonce", nonce, "--reason", "shared by mistake"]);
+    assert.equal(r.code, 0, r.err || r.out);
+    assert.match(r.out, new RegExp(`invitation ${nonce} of ${FLEET} revoked`));
+    assert.notEqual((await asp(f, ["fleet", "revoke", FLEET, "--nonce", nonce])).code, 0, "once");
+    assert.notEqual((await asp(f, ["fleet", "revoke", FLEET])).code, 0, "the nonce is needed");
+    assert.notEqual((await asp(f, ["fleet", "revoke", `${ORG}:fleets:nowhere`, "--nonce", nonce])).code, 0, "a fleet that is not declared");
+    assert.notEqual((await asp(f, ["fleet", "revoke", FLEET, "--nonce", "short"])).code, 0, "a nonce of the wrong shape");
+  } finally { setClock(() => new Date()); }
+});

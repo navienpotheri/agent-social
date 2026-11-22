@@ -136,3 +136,17 @@ test("DK388, CY12, CY15: asp today shows what each agent returned for its tokens
   const empty = makeFixture();
   assert.doesNotMatch((await ok(empty, ["today"])).out, /What your agents returned/, "nothing woke an agent here, so nothing is added");
 });
+
+test("DK827: a heartbeat run that makes no model call is counted as idle and spends no tokens; --wake-tokens is a whole number, at least 1; asp wakes shows the idle count", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read"]);
+  const upstream = await provider();
+  const base = ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--woken-by", "did:web:example.com:agents:heartbeat", "--wake-tokens", "50"];
+  const idle = await asp(f, [...base, "--", process.execPath, "-e", "0"]);
+  assert.equal(idle.code, 0, idle.err);
+  const busy = await asp(f, [...base, "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.equal(busy.code, 0, busy.err);
+  const report = (await ok(f, ["wakes", "--agent", CODER])).out;
+  assert.match(report, /2 wake\(s\) \(1 idle\), 10 tokens/, "two wakes, one of them idle, the tokens of the other only");
+  assert.equal((await asp(f, [...base.slice(0, -1), "0", "--", process.execPath, "-e", "0"])).code, 2, "--wake-tokens 0 is a usage error");
+});

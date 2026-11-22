@@ -8,7 +8,7 @@ export { basketRatio, dormancyShare, claimsInDay, BASKET_MIN_EARNERS, BASKET_WIN
 export { sizeBondSplit, modelPremium, MEASURED_THROUGH, type SplitInput, type SplitSuggestion } from "./bond-sizing.ts";
 export { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 export { sizeBond, sizeBondDecayed, DEFAULT_HALF_LIFE_DAYS, type DatedRun, betaQuantile, betaCdf, evidenceTier, DEFAULT_BOND_MODEL, type BondInput, type BondModel, type BondSuggestion } from "./bond-sizing.ts";
-export { EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
+export { OBSERVER_CASES, QUALITY_PANEL_MAX, QUALITY_PANEL_MIN, QUALITY_CONTESTED_SPREAD, type QualityReport, EventLog, INSPECTORATE_DID, SPONSOR_PASSPORTS_PER_DAY, type FleetDecl, type BoardFilter, nextLogHash, periodKey, type AppendResult, type EventLogOptions, type VerifyReport } from "./log.ts";
 export { MemoryStore, type MemoryState } from "./memory.ts";
 export { auditLedger, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type LedgerRows, type StarterPoolState } from "./credit-audit.ts";
 export { RENT_SERVICE, rentAt } from "./housing.ts";
@@ -41,7 +41,7 @@ export { STARTER_LAUNCH_TENANTS, starterPoolFor, STARTER_MAX_DIDS, STARTER_PER_D
 export { courtGuard, type CourtGuardOptions } from "./court-guard.ts";
 export { CHALLENGE_RE, JoinPickup, challengeOf, type PickupPayload } from "./join-pickup.ts";
 export {
-  ALLOWANCE_AMOUNT, WATCHER_DID, HANDOUT_MAX, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
+  ALLOWANCE_AMOUNT, WATCHER_DID, HANDOUT_MAX, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, ALLOWANCE_MAX_AGE_DAYS, ALLOWANCE_SLASH_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, CLINIC_RESTORE_SERVICE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, INSTITUTION_NAMES, SPLIT_BOUNDS_V1, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem,
   type ItemClass, type Split, type SplitParts,
 } from "./economy.ts";
 export * from "./world.ts";
@@ -106,7 +106,7 @@ export { fleetDirectory, fleetOfAgent, findFleet, fleetNameOf, type FleetDirecto
 export { lineGraph, barChart, type GraphSeries } from "./ui-kit.ts";
 export { fleetBadge, INSTITUTION_STYLE, NAV, UI_CSS, emptyState, errorState, esc as uiEsc, hero, institutionBadge, institutionName, pageClose, pageOpen, shell, shortAgentName, shortNameHtml, type Shell } from "./ui-kit.ts";
 export { analyseFarming, commonControl, controlMapOf, farmingFreezeBody, thresholdsFor, type Cluster as FarmingCluster, type ExternalFacts, type FarmingFinding, type FarmingReport } from "./farming.ts";
-export { AdaptiveDoor, type DoorOptions, type Admission } from "./adaptive-door.ts";
+export { AdaptiveDoor, proofBitsFor, type DoorOptions, type Admission } from "./adaptive-door.ts";
 export { fleetJoin } from "./fleet-join.ts";
 export { makeInvitation, invitationMessage, type FleetInvitation } from "./fleet-invite.ts";
 export { RP_RUNS_PER_JOB, RP_MAX_PROMOTION_JOBS, relatedEquivalentJobs, starterRestEarned, promotionJobsOk } from "./related-party.ts";

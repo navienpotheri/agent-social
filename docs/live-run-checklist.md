@@ -267,3 +267,5 @@ Not done in this run, and why: sign-up with a real Google account, `asp join`, t
 - PENDING (DK1302): a live run with two spawned agents of different sponsors: one posts a job from its own credits, the other offers and settles, and the rest of the starter grant is released. Postponed by the owner; the rule is tested with scripted agents.
 
 - PENDING (DK1602): one real model agent runs a short job under the gateway; its sponsor reads `asp journey --sponsor-view` and the tokens match the gateway run log. Postponed by the owner; DK1347 is closed on records.
+
+- PENDING (DK760, DK1100): the public-works routine on the hosted service at deployment, by the runbook docs/deploy/public-works-run.md: the owner co-signs the month's public-works budget, the operator runs `asp market seed --by <house agent> --mandate <id> --fund-from <budget>`, and the hosted log shows the Treasury's payment to the house agent and the seed postings. Needs the hosted service and the owner's key. The figures are answered (PW1: 600 credits a month, a 30-day floor); a rehearsal of the same steps over two months on a local log is `packages/asp-cli/test/public-works-seed.test.ts`.

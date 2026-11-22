@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
+  "must": 63,
   "withdraw": 102,
-  "after": 325,
-  "total": 491
+  "after": 321,
+  "total": 486
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 301.2,
  "entries": [
   {
    "id": "D3",
@@ -953,7 +953,7 @@
   {
    "id": "T5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (vectors, running your own log, adding an adapter), and neither SDK is published as a package",
    "bucket": "after",
    "hours": 0,
@@ -2286,15 +2286,16 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "US7",
-   "pri": "?",
+   "id": "DK1800",
+   "pri": "B",
    "status": "partial",
-   "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
+   "gap": "The beta has the five Mandate presets and no more for a person who is not an expert: no written tutorials or worked examples for each kind of work, no help text in languages other than English, and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "safe Mandate presets for coding, research and writing"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "US8",
@@ -2348,7 +2349,7 @@
   {
    "id": "JO8",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Subjective or creative quality has no good check: a deterministic check cannot say whether writing, design or research is good, and arbiters are slow",
    "bucket": "after",
    "hours": 0,
@@ -2372,7 +2373,7 @@
   {
    "id": "BZ2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The open-source project has no community plan: contribution rules, governance of the specification, a licence for the city's content and a roadmap others can follow and join",
    "bucket": "after",
    "hours": 0,
@@ -3168,7 +3169,7 @@
   {
    "id": "DK93",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Price-list items cannot yet say who may buy (a `gate`, for example a certificate) or how many a buyer may take in a period (`max_per_buyer_period`), and the owner has not decided the split bounds (pr…",
    "bucket": "after",
    "hours": 0,
@@ -3671,18 +3672,6 @@
    "why": "no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host"
   },
   {
-   "id": "DK230",
-   "pri": "B",
-   "status": "open",
-   "gap": "The allowance refuses an agent with a slash at any age, because the reputation row carries no date for a slash; treasury.md says a slash in the last 30 days (TRL-13).",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK231",
    "pri": "B",
    "status": "open",
@@ -3697,7 +3686,7 @@
   {
    "id": "DK232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The monthly `treasury_statement` record and the reserve floor do not exist (TRL-18, TRL-19): no record says opening plus income less spending is closing, with every figure equal to the sum over the l…",
    "bucket": "after",
    "hours": 0,
@@ -4363,18 +4352,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK827",
-   "pri": "B",
-   "status": "open",
-   "gap": "Limit on self-scheduled wake-ups. extends DK388.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK828",
    "pri": "B",
    "status": "open",
@@ -4926,30 +4903,6 @@
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
   },
   {
-   "id": "DK1401",
-   "pri": "B",
-   "status": "open",
-   "gap": "The ledger of sittings (the line per sitting that limits repeats and catches a copied answer) is a JSONL file, not a signed record: on the service it sits beside the tokens file, and on an agent's ma…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1402",
-   "pri": "B",
-   "status": "open",
-   "gap": "Copy detection is exact after normalising (lesson lists compare as sets of lower-cased, whitespace-collapsed lines; other artifacts by canonical JSON): a paraphrase of another agent's answer, or the…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK1403",
    "pri": "B",
    "status": "open",
@@ -5143,7 +5096,7 @@
   {
    "id": "SO9",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Sign-up cannot record that a tenant is held for a young person (it records only \"adult or guardian\"), so no age-band or youth rule can apply later without asking every parent again",
    "bucket": "withdraw",
    "hours": 0,
@@ -5192,7 +5145,7 @@
   {
    "id": "SO13",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The terms and privacy notice do not say that the user keeps their agent's memory and packages, or what a society would hold",
    "bucket": "withdraw",
    "hours": 0,
@@ -5363,7 +5316,7 @@
   {
    "id": "DK1504",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The forum's own open registration still has hard counts: 3 an hour per address and 300 an hour in all (REGISTER_LIMITS in packages/asp-package/src/forum.ts).",
    "bucket": "withdraw",
    "hours": 0,
@@ -5372,18 +5325,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "DK1505",
-   "pri": "B",
-   "status": "open",
-   "gap": "A sponsor cannot revoke an invitation it has signed but not yet used: an invitation is valid until it expires or is used, so a leaked file of invitations is a leak until the date.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1459",
@@ -5425,7 +5366,7 @@
   },
   {
    "id": "DK1359",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Enterprise tenancy is not built (DK62): no organisation tenant, roles, single sign-on, private log or provisioning. The owner's decision (2026-11-21): enterprise tenancy is a must.",
    "bucket": "must",
@@ -5666,7 +5607,7 @@
   },
   {
    "id": "DK1603",
-   "pri": "?",
+   "pri": "A",
    "status": "open",
    "gap": "A house agent has not been run on the hosted service: the runner (DK270) is built and tested on a test ledger.",
    "bucket": "withdraw",
@@ -5797,7 +5738,7 @@
   },
   {
    "id": "DK1727",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "The documents the owner reads and the documents the public reads have not had an editorial pass. The owner (2026-11-21): they \"still need editing before they can go live, but they are ok for now, and…",
    "bucket": "must",
