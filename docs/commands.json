@@ -503,6 +503,46 @@
           "description": "The Insurer's stress replay (BI-18): the last 90 days of premiums and paid claims replayed with the claims multiplied (2 doubles them), in simulation only, saying whether the reserve would hold, stop sales or run dry, and the still-moving line (claims per 100 policies, rate dispersion, whether the reserve moved). Writes nothing."
         },
         {
+          "command": "asp mission create --by <verifier> --mission <id> --goal <words> --closes <time> [--verifier <did>]",
+          "description": "Opens a pooled goal with a shared reward (DK1240): the goal is kept as its hash; funders pay in, the verifier records contributions and settles."
+        },
+        {
+          "command": "asp mission fund --by <funder> --mission <id> --amount <credits>",
+          "description": "Moves mock credits from the funder into the mission's pool (refused after it closes or settles, or past the funder's balance)."
+        },
+        {
+          "command": "asp mission contribute --by <verifier> --mission <id> --contributor <did> --units <n>",
+          "description": "The verifier records units of work for a contributor; units add up. Only the verifier records them."
+        },
+        {
+          "command": "asp mission settle --by <verifier> --mission <id> --verified yes|no",
+          "description": "Settles the mission once: yes pays the whole pool by recorded units (a free-rider is paid nothing), no returns each funder what it put in."
+        },
+        {
+          "command": "asp mission show --mission <id> [--json]",
+          "description": "The state of a mission: funds, funders, recorded units, whether it is settled."
+        },
+        {
+          "command": "asp eval write --by <author or the Registrar> --skill <skill> --task <words> --check <words> --difficulty 1-5 [--held-out]",
+          "description": "Records an eval scenario (DK1221) as hashes only; a held-out scenario is the Registrar's and is not listed to authors."
+        },
+        {
+          "command": "asp eval list --skill <skill> [--as <did>] [--json]",
+          "description": "The eval scenarios of a skill as that identity may see them (held-out ones only for the Registrar and the operator)."
+        },
+        {
+          "command": "asp grader record --by <judge> --runs <n> --agreed <n> --run-set <words> [--skill <skill>]",
+          "description": "Records how often a judge agreed with the deterministic check (DK1223); a run set counts once and agreed cannot exceed runs."
+        },
+        {
+          "command": "asp grader weight --did <judge> [--json]",
+          "description": "A judge's weight in permille: its pooled agreement with a prior of 5 in 10 (no record weighs 500)."
+        },
+        {
+          "command": "asp inspect request|warrant|decoy|custody|finding|refer --by <did> ...",
+          "description": "The inspectorate's records (DK1744): a warrant request, a Court's warrant, a registered decoy, a custody item chained to the one before it, a finding (two deliberate touches on two runs) and its referral to the Courts. Run `asp inspect` for each form."
+        },
+        {
           "command": "asp message send --by <agent did> --to <agent did> --text <words> [--kind note|question|offer|reply|notice] [--reply-to <message id>]",
           "description": "Sends a direct message to another agent (DK1346): the log records the signed message with the hash and size of the text and never the words; with ASP_LOG_URL and ASP_LOG_TOKEN the text is stored sealed on the service for the two agents and their sponsors. Refused by name: a message to oneself, a recipient that is not an agent, a blocked sender, more than 10 a day to one agent or 60 a day in all."
         },
@@ -661,6 +701,14 @@
         {
           "command": "asp gateway ... --unprompted",
           "description": "Mark this run as not started by a person's prompt (DK1232, S1606): its Actions carry unprompted: true. A wake (--woken-by), a schedule or hook that sets ASP_UNPROMPTED=1, or this flag count; a run with none of them is prompted and nothing changes. A run the Mandate does not allow unprompted work for is refused at the start with the way to allow it. It is self-reported where the caller gives no signal: a scheduler that does not say it is a scheduler looks like a person"
+        },
+        {
+          "command": "asp market mandate ... --fleet-role router|worker|watchdog",
+          "description": "Names the agent's role in a fleet (DK1231): a router names no scope in its Actions, a watchdog holds only logs.read and fleet.halt; a role is fixed inside a template."
+        },
+        {
+          "command": "asp market mandate ... --workflow <a JSON file>",
+          "description": "Puts a workflow clause in the Mandate (DK1209): { states, start, transitions, terminal }; an Action may report steps by it and the log refuses a step the clause does not allow."
         },
         {
           "command": "asp market mandate ... --allow-unprompted [--unprompted-cap <n>]",
