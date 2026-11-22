@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 62,
+  "must": 63,
   "withdraw": 102,
   "after": 322,
-  "total": 486
+  "total": 487
  },
- "mustWorkerHours": 298.2,
+ "mustWorkerHours": 301.2,
  "entries": [
   {
    "id": "D3",
@@ -3814,6 +3814,17 @@
    "size": "M",
    "flags": "",
    "why": "what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch)"
+  },
+  {
+   "id": "DK650",
+   "pri": "A",
+   "status": "partial",
+   "gap": "The sponsor-less route is built and tested with stand-ins but never run live: the review timer is not exercised inside a running service with real slashes, `asp run` has not been run with an enrolled…",
+   "bucket": "must",
+   "hours": 3,
+   "size": "M",
+   "flags": "LO",
+   "why": "sponsor-less route never run live; the review timer is unexercised"
   },
   {
    "id": "DK662",
