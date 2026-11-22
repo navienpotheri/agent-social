@@ -16,6 +16,14 @@ export interface PanelSource {
 export const PANEL_DRAW_V2_FROM = "2026-12-15T00:00:00Z";
 /** New jurors one sponsor (or one person) may register in a day from the v2 draw date (DK365, S1012). */
 export const JUROR_NEW_PER_DAY = 3;
+/** From this time a dispute's panel is drawn by v3 (DK122, S1611; courts.md CT-5 and CT-7): the seed is made from the records of three other controllers that follow the rejection, not from the rejection the rejecting party wrote, and a juror who sat on JUROR_CASELOAD_CAP cases in the last JUROR_CASELOAD_WINDOW_DAYS is not drawn. v3 includes v2. */
+export const PANEL_DRAW_V3_FROM = "2026-12-15T00:00:00Z";
+export const panelDrawIsV3 = (from: string | undefined, issuedAt: string): boolean => Date.parse(issuedAt) >= Date.parse(from ?? PANEL_DRAW_V3_FROM);
+/** How many other controllers' records the v3 seed is made from. */
+export const SEED_CONTROLLERS = 3;
+/** The v3 caseload cap: cases a juror sat on inside the window. (A draw is lazy, so a case is not "open" until a ruling is signed; the load is what was sat on.) */
+export const JUROR_CASELOAD_CAP = 5;
+export const JUROR_CASELOAD_WINDOW_DAYS = 7;
 export const panelDrawIsV2 = (from: string | undefined, issuedAt: string): boolean => Date.parse(issuedAt) >= Date.parse(from ?? PANEL_DRAW_V2_FROM);
 /** The stake rule (DK365, S1200; owner decision DK365-stake in docs/owner-decisions.md): from the v2 draw a juror must hold at least JUROR_STAKE_PER_CASE credits of stake for every case it has sat on in the last JUROR_CASE_WINDOW_DAYS days, and one more for the case it is drawn for. */
 export const JUROR_STAKE_PER_CASE = 20;
@@ -64,6 +72,37 @@ export async function findRejection(source: PanelSource, from: string | null): P
 }
 
 /**
+ * The v3 seed of a dispute's panel (DK122, S1611): the contract and the ids of the first record from each of SEED_CONTROLLERS distinct controllers (a sponsor, or the issuer itself when it has none) that follow the
+ * rejection and are not the parties' or their sponsors'. Nothing the rejecting party writes can move it (200 variants of the rejection give the same seed), a party's own records and many records of one controller
+ * do not count, and until three other controllers have recorded something the panel is not drawn (undefined). `beforeSeq` limits the records read to those before a ruling, so the panel a ruling was checked against is
+ * the panel it is paid against. Not claimed: that a party with three controllers of its own cannot steer it (the last of them to record chooses among its own variants); the defence is that this costs three
+ * sponsored identities and shows in the log.
+ */
+export async function disputeSeedV3(source: { getRecord(id: string): Promise<StoredRecord | undefined>; getPassport(did: string): Promise<PassportRow | undefined>; recordsSince(after: number, limit: number): Promise<StoredRecord[]> }, contractId: string, rejectionId: string, parties: readonly string[], beforeSeq?: number): Promise<string | undefined> {
+  const rej = await source.getRecord(rejectionId);
+  if (!rej) return undefined;
+  const controlOf = async (did: string) => (await source.getPassport(did))?.sponsor ?? did;
+  const partyControl = new Set<string>();
+  for (const p of parties) { partyControl.add(p); partyControl.add(await controlOf(p)); }
+  const seen = new Map<string, string>();
+  let after = rej.seq;
+  for (;;) {
+    const page = await source.recordsSince(after, 200);
+    if (!page.length) break;
+    for (const r of page) {
+      after = r.seq;
+      if (beforeSeq !== undefined && r.seq >= beforeSeq) return seen.size >= SEED_CONTROLLERS ? seedOf(contractId, seen) : undefined;
+      const issuer = r.record.issuer, c = await controlOf(issuer);
+      if (partyControl.has(issuer) || partyControl.has(c) || seen.has(c)) continue;
+      seen.set(c, r.id);
+      if (seen.size >= SEED_CONTROLLERS) return seedOf(contractId, seen);
+    }
+  }
+  return undefined;
+}
+const seedOf = (contractId: string, seen: Map<string, string>): string => sha256Id(new TextEncoder().encode(`dispute-v3|${contractId}|${[...seen.values()].join("|")}`));
+
+/**
  * A deterministic, reproducible draw for a Courts ruling panel: excludes the contract's principal
  * and performer, and any juror *sponsored by* either of them (conflict-free), then picks `size`
  * DIDs from what's left of the staked jurors (see JurorRow), seeded from `seed` — normally the id
@@ -71,7 +110,7 @@ export async function findRejection(source: PanelSource, from: string | null): P
  * fixed once it does. One seat for each control: two jurors with the same sponsor never sit together (BM11). The same inputs always produce the same panel, so anyone (including
  * EventLog.verify()'s replay) can recompute and check it without the draw itself being a record.
  */
-export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; /** The time of the record that asks for the draw: the stake rule counts the cases a juror sat on before it (v2 only). */ at?: string; size?: number; also?: string[]; exclude?: string[]; /** Draw by v2: one seat for each funding source, and no juror funded by a party. */ v2?: boolean }): Promise<string[]> {
+export async function drawPanel(source: PanelSource, opts: { principal: string; performer: string; seed: string; /** The time of the record that asks for the draw: the stake rule counts the cases a juror sat on before it (v2 only). */ at?: string; size?: number; also?: string[]; exclude?: string[]; /** Draw by v2: one seat for each funding source, and no juror funded by a party. */ v2?: boolean; /** Draw by v3 (needs `at`): a juror at the caseload cap is not drawn. */ v3?: boolean }): Promise<string[]> {
   const parties = new Set([opts.principal, opts.performer, ...(opts.also ?? [])]);
   // Conflicts (courts.md 5, CT-4): a juror is out if it is a party, is sponsored by a party, IS the sponsor of a party, shares a sponsor with a party, or is in a party's fleet.
   const partySponsors = new Set<string>(), partyFleets = new Set<string>();
@@ -114,6 +153,17 @@ export async function drawPanel(source: PanelSource, opts: { principal: string; 
       const raw = await source.getMarker(casesKey(d));
       const load = (raw ? (JSON.parse(raw) as string[]) : []).filter((t) => Date.parse(t) > since && Date.parse(t) <= Date.parse(opts.at!)).length;
       if ((staked.get(d) ?? 0) >= JUROR_STAKE_PER_CASE * (1 + load)) kept.push(d);
+    }
+    remaining.splice(0, remaining.length, ...kept);
+  }
+  // v3 caseload cap (DK122): a juror who sat on JUROR_CASELOAD_CAP cases inside the window is not drawn.
+  if (opts.v3 && source.getMarker && opts.at) {
+    const since = Date.parse(opts.at) - JUROR_CASELOAD_WINDOW_DAYS * 86_400_000;
+    const kept: string[] = [];
+    for (const d of remaining) {
+      const raw = await source.getMarker(casesKey(d));
+      const load = (raw ? (JSON.parse(raw) as string[]) : []).filter((t) => Date.parse(t) > since && Date.parse(t) <= Date.parse(opts.at!)).length;
+      if (load < JUROR_CASELOAD_CAP) kept.push(d);
     }
     remaining.splice(0, remaining.length, ...kept);
   }

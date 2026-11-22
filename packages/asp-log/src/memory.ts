@@ -141,6 +141,8 @@ class MemoryTx implements LogTx {
 
   private get b() { return this.store.base(); }
 
+  async recordsSince(afterSeq: number, limit: number) { const base = await this.store.since(afterSeq, limit); const extra = this.newRecords.filter((r) => r.seq > afterSeq).map(copy); return [...base, ...extra].sort((x, y) => x.seq - y.seq).slice(0, limit); }
+
   private read<K extends keyof Tables>(name: K, key: string) {
     const v = (this.staged[name] as Map<string, unknown>).get(key) ?? (this.b.tables[name] as Map<string, unknown>).get(key);
     return v === undefined ? undefined : copy(v);

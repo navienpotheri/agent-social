@@ -83,7 +83,7 @@ import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultipl
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { PRICE_MULTIPLIER_MAX, PRICE_MULTIPLIER_MIN, RESUME_OWNER_AFTER_HOURS, checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 const SEEDED_ENTRY_KINDS = new Set(["shock", "drill", "experiment"]);
-import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
+import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, disputeSeedV3, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2, panelDrawIsV3 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
@@ -184,6 +184,8 @@ export interface EventLogOptions {
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
   panelV2From?: string;
+  /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
+  panelV3From?: string;
   /**
    * The operator's DID (credits.md 5.1, CR-2): the only issuer of a signed `mint` record. With none set, every `mint` record is refused (`mint_unauthorised`).
    * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
@@ -304,6 +306,7 @@ export class EventLog {
   private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
+  private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
   private readonly owner?: string;
@@ -324,6 +327,8 @@ export class EventLog {
     if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
+    if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
+    this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
     this.floorMeasuredFrom = opts.floorMeasuredFrom;
     this.operator = opts.operator;
@@ -503,7 +508,7 @@ export class EventLog {
     if (type === "market_act") await projectMarketAct(tx, verified, this.marketEnv());
     if (type === "support") await projectSupport(tx, verified, { operator: this.operator });
     if (type === "court_act") {
-      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}) });
+      await projectCourtAct(tx, verified, { operator: this.operator, panelSize: this.panelSize, ...(this.panelV2From ? { panelV2From: this.panelV2From } : {}), ...(this.panelV3From ? { panelV3From: this.panelV3From } : {}) });
       const ca = verified.body as { act?: string; contest?: string; case?: string };
       if (ca.act === "contest_answer" && ca.contest) await this.reverseContested(tx, ca.contest, verified.issued_at);
       else if (ca.act === "contest_ruling" && ca.case) { const c = JSON.parse((await tx.getMarker(`contest_case:${ca.case}`)) || "null") as { contest?: string } | null; if (c?.contest) await this.reverseContested(tx, c.contest, verified.issued_at); }
@@ -1832,8 +1837,10 @@ export class EventLog {
       const croutes = await charterIn(tx, ruling?.record.issued_at ?? r.issued_at);
       const route = croutes ? routeFor(price, croutes) : null;
       const fee = route?.flatFee ?? Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
-      const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
-      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, at: ruling?.record.issued_at ?? r.issued_at, v2: panelDrawIsV2(this.panelV2From, ruling?.record.issued_at ?? r.issued_at) }) : [];
+      const rejection = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
+      const draw = rejection ? await this.disputeDraw(tx, contract!.id, rejection, [cbody.principal, cbody.performer], ruling?.record.issued_at ?? r.issued_at, ruling?.seq) : undefined;
+      const seed = draw?.seed;
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, at: ruling?.record.issued_at ?? r.issued_at, v2: draw?.v2 ?? false, v3: draw?.v3 ?? false }) : [];
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
@@ -2061,11 +2068,16 @@ export class EventLog {
     const contract = await tx.getRecord(body.about);
     if (!contract) return; // the lifecycle's own about_contract guard already rejects this
     const cbody = contract.record.body as { principal: string; performer: string };
-    const seed = await findRejection(tx, r.prev);
-    if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
+    const rejection = await findRejection(tx, r.prev);
+    if (!rejection) return; // defensive; the lifecycle's own guards already require a prior rejection
+    const draw = await this.disputeDraw(tx, contract.id, rejection, [cbody.principal, cbody.performer], r.issued_at);
+    if (draw.v3 && !draw.seed) {
+      if ((await tx.activeJurors()).length === 0) return; // no Courts bootstrapped: the pre-Courts fallback below
+      throw rule("panel_not_drawn", "the panel of this dispute is not drawn yet: from the v3 draw its seed is made from the records of three other controllers that follow the rejection, and fewer than three have recorded anything");
+    }
     const croutes = await charterIn(tx, r.issued_at);
     const cprice = (contract.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, at: r.issued_at, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: draw.seed ?? rejection, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, at: r.issued_at, v2: draw.v2, v3: draw.v3 });
     // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
     // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
     // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
@@ -5207,6 +5219,106 @@ export class EventLog {
   }
 
   /**
+   * The Academy's report for a calendar month (academy.md AC-22, DK116), computed from the records: courses published, enrolments and completions, exams defined and sat and how many sittings passed, certificates issued
+   * and revoked (by reason). A month is `YYYY-MM` (UTC); a record counts in the month it was issued. Counts only: no holder and no score. Reads only.
+   */
+  async academyReport(month: string): Promise<{ month: string; from: string; to: string; coursesPublished: number; enrolments: number; completions: number; examsDefined: number; sittings: number; sittingsPassed: number; passShare: number | null; certificatesIssued: number; certificatesRevoked: number; revokedByReason: Record<string, number> }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const recs = (await this.recordsOfTypes(["course", "enrolment", "completion", "exam", "exam_result", "certificate", "certificate_revocation"])).filter(inMonth);
+    const of = (t: string) => recs.filter((r) => r.type === `asp.${t}/v0.2`);
+    const results = of("exam_result");
+    const passed = results.filter((r) => (r.body as { passed?: boolean }).passed === true).length;
+    const revokedByReason: Record<string, number> = {};
+    for (const r of of("certificate_revocation")) { const k = (r.body as { reason: string }).reason; revokedByReason[k] = (revokedByReason[k] ?? 0) + 1; }
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), coursesPublished: of("course").length, enrolments: of("enrolment").length, completions: of("completion").length, examsDefined: of("exam").length, sittings: results.length, sittingsPassed: passed, passShare: results.length ? Math.round((passed * 1000) / results.length) : null, certificatesIssued: of("certificate").length, certificatesRevoked: of("certificate_revocation").length, revokedByReason };
+  }
+
+  /**
+   * The Registry's report for a calendar month (registry.md RG-16, DK125), computed from the records: identities first seen, names claimed and released, impersonation reports filed, names taken down and reports
+   * dismissed, suspensions made and lifted, renewals and retirements. A month is `YYYY-MM` (UTC); an act counts in the month it was issued. Counts only: no name and no holder. Reads only.
+   */
+  async registryReport(month: string): Promise<{ month: string; from: string; to: string; newIdentities: number; namesClaimed: number; namesReleased: number; reportsFiled: number; namesTakenDown: number; reportsDismissed: number; suspensions: number; suspensionsLifted: number; renewals: number; retirements: number }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const seen = new Set<string>();
+    let newIdentities = 0;
+    for (const r of await this.recordsOfTypes(["passport"])) { const did = (r.body as { did: string }).did; if (seen.has(did)) continue; seen.add(did); if (inMonth(r)) newIdentities++; }
+    const acts = (await this.recordsOfTypes(["registry_act"])).filter(inMonth);
+    const n = (a: string) => acts.filter((r) => (r.body as { act: string }).act === a).length;
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), newIdentities, namesClaimed: n("name_claim"), namesReleased: n("name_release"), reportsFiled: n("impersonation_report"), namesTakenDown: n("name_takedown") + n("court_takedown"), reportsDismissed: n("takedown_dismissal"), suspensions: n("identity_suspension"), suspensionsLifted: n("suspension_lift"), renewals: n("identity_renewal"), retirements: n("identity_retirement") };
+  }
+
+  /**
+   * The Courts' report for a calendar month (courts.md CT-20, DK123), computed from the records: disputes opened (a delivery rejected), rulings made and for whom, the days a ruling took, appeals filed and how they
+   * were decided, the share of decided appeals that reversed or varied, and the disputes still open at the month's end. A month is `YYYY-MM` (UTC); a ruling, appeal or rejection counts in the month it was issued.
+   * Counts only: no name, no amount. Reads only.
+   */
+  async courtReport(month: string): Promise<{ month: string; from: string; to: string; disputesOpened: number; rulings: number; forPrincipal: number; forPerformer: number; medianDaysToRuling: number | null; appealsFiled: number; appealsDecided: number; appealsAffirmed: number; appealsReversed: number; appealsVaried: number; reversedShare: number | null; openAtEnd: number }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const recs = await this.recordsOfTypes(["attestation", "court_act"]);
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const rejections = new Map<string, number>();
+    for (const r of recs) { const b = r.body as { kind?: string; verdict?: string }; if (r.type === "asp.attestation/v0.2" && b.kind === "acceptance" && b.verdict === "rejected" && r.subject && !rejections.has(r.subject)) rejections.set(r.subject, Date.parse(r.issued_at)); }
+    const rulings = recs.filter((r) => r.type === "asp.attestation/v0.2" && (r.body as { kind?: string }).kind === "ruling" && r.subject);
+    const rulingOf = new Map<string, number>();
+    for (const r of rulings) if (!rulingOf.has(r.subject!)) rulingOf.set(r.subject!, Date.parse(r.issued_at));
+    const month_rulings = rulings.filter(inMonth);
+    const days = month_rulings.filter((r) => rejections.has(r.subject!)).map((r) => (Date.parse(r.issued_at) - rejections.get(r.subject!)!) / 86_400_000).sort((x, y) => x - y);
+    const median = days.length ? (days.length % 2 ? days[(days.length - 1) / 2] : (days[days.length / 2 - 1] + days[days.length / 2]) / 2) : null;
+    const appeals = recs.filter((r) => r.type === "asp.court_act/v0.2" && (r.body as { act?: string }).act === "appeal");
+    const decided = recs.filter((r) => r.type === "asp.court_act/v0.2" && (r.body as { act?: string }).act === "appeal_ruling" && inMonth(r));
+    const count = (o: string) => decided.filter((r) => (r.body as { outcome?: string }).outcome === o).length;
+    const forPrincipal = month_rulings.filter((r) => (r.body as { verdict?: string }).verdict === "for_principal").length;
+    const open = [...rejections].filter(([c, at]) => at < to && !(rulingOf.has(c) && rulingOf.get(c)! < to)).length;
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), disputesOpened: [...rejections.values()].filter((at) => at >= from && at < to).length, rulings: month_rulings.length, forPrincipal, forPerformer: month_rulings.length - forPrincipal, medianDaysToRuling: median === null ? null : Math.round(median * 10) / 10, appealsFiled: appeals.filter(inMonth).length, appealsDecided: decided.length, appealsAffirmed: count("affirmed"), appealsReversed: count("reversed"), appealsVaried: count("varied"), reversedShare: decided.length ? Math.round(((count("reversed") + count("varied")) * 1000) / decided.length) : null, openAtEnd: open };
+  }
+
+  /**
+   * A principal's record as a poster of work (AG5): of the jobs it commissioned, how many it accepted and rejected, how each rejection fared before a Court (a ruling that put the greater share of the fault on
+   * the principal means the rejection was not justified, on the fault map the ruling stands on after any appeal), the rejections no Court has ruled on, and how long it took to review a delivery. Built from the
+   * records; a count is not a verdict, and a principal with fewer than five rejections has no share stated. Reads only.
+   */
+  async principalRecord(did: string): Promise<{ did: string; jobs: number; accepted: number; rejected: number; rejectedUnjustified: number; rejectedJustified: number; rejectedUnruled: number; unjustifiedShare: number | null; medianReviewHours: number | null; slowestReviewHours: number | null }> {
+    const recs = await this.recordsOfTypes(["contract", "delivery", "attestation"]);
+    const mine = new Set(recs.filter((r) => r.type === "asp.contract/v0.2" && (r.body as { principal: string }).principal === did).map((r) => r.id));
+    const deliveredAt = new Map<string, number>();
+    for (const r of recs) if (r.type === "asp.delivery/v0.2" && r.subject && mine.has(r.subject) && !deliveredAt.has(r.subject)) deliveredAt.set(r.subject, Date.parse(r.issued_at));
+    let accepted = 0, rejected = 0, unjustified = 0, justified = 0, unruled = 0;
+    const hours: number[] = [];
+    const rejectedContracts = new Set<string>();
+    for (const r of recs) {
+      if (r.type !== "asp.attestation/v0.2" || !r.subject || !mine.has(r.subject) || r.issuer !== did) continue;
+      const b = r.body as { kind: string; verdict?: string };
+      if (b.kind !== "acceptance") continue;
+      const sent = deliveredAt.get(r.subject);
+      if (sent !== undefined) hours.push((Date.parse(r.issued_at) - sent) / 3_600_000);
+      if (b.verdict === "accepted") accepted++;
+      else if (b.verdict === "rejected" && !rejectedContracts.has(r.subject)) { rejected++; rejectedContracts.add(r.subject); }
+    }
+    for (const c of rejectedContracts) {
+      const ruling = recs.filter((r) => r.type === "asp.attestation/v0.2" && r.subject === c && (r.body as { kind: string }).kind === "ruling").at(-1);
+      if (!ruling) { unruled++; continue; }
+      const fault = await this.store.transaction((tx) => effectiveFault(tx, ruling.id));
+      const mineFault = fault?.[did] ?? 0, others = Object.entries(fault ?? {}).filter(([k]) => k !== did).reduce((n, [, v]) => n + v, 0);
+      if (mineFault > others) unjustified++; else justified++;
+    }
+    hours.sort((x, y) => x - y);
+    const round = (x: number) => Math.round(x * 10) / 10;
+    const median = hours.length ? (hours.length % 2 ? hours[(hours.length - 1) / 2] : (hours[hours.length / 2 - 1] + hours[hours.length / 2]) / 2) : null;
+    return { did, jobs: mine.size, accepted, rejected, rejectedUnjustified: unjustified, rejectedJustified: justified, rejectedUnruled: unruled, unjustifiedShare: rejected >= 5 ? Math.round((unjustified * 1000) / rejected) : null, medianReviewHours: median === null ? null : round(median), slowestReviewHours: hours.length ? round(hours[hours.length - 1]) : null };
+  }
+
+  /**
    * The Courts' jurors as the public page reads them (courts.md CT-20, DK123): each registered, staked juror with its stake and the open cases whose panel it sits on, and the totals. Built from the juror registrations
    * and the docket's drawn panels; a view, with no names beyond the DIDs the log already shows. The caseload limit of the design is a proposal and is not enforced, so none is stated here.
    */
@@ -5676,9 +5788,24 @@ export class EventLog {
     if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
     const croutes = await this.charterRoutes();
     const price = (contractRec.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const v2 = panelDrawIsV2(this.panelV2From, new Date().toISOString());
+    const at = new Date().toISOString();
+    const v3 = panelDrawIsV3(this.panelV3From, at), v2 = v3 || panelDrawIsV2(this.panelV2From, at);
     const opts = { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? (croutes ? routeFor(price, croutes).panel : this.panelSize), v2 };
+    if (v3) return this.store.transaction(async (tx) => {
+      const draw = await this.disputeDraw(tx, contract, seed, [cbody.principal, cbody.performer], at);
+      if (!draw.seed) throw rule("panel_not_drawn", "the panel of this dispute is not drawn yet: fewer than three other controllers have recorded anything since the rejection");
+      return drawPanel(tx, { ...opts, seed: draw.seed, at, v3: true });
+    });
     return v2 ? this.store.transaction((tx) => drawPanel(tx, opts)) : drawPanel(this.store, opts); // markers are read in a transaction
+  }
+
+  /**
+   * How a dispute's panel is drawn at time `at` (DK122, S1611): v3 makes the seed from the records of three other controllers after the rejection (undefined until they exist) and caps a juror's caseload; before it
+   * the seed is the rejection's id (v2 or v1). `beforeSeq` reads only the records before a ruling, so the check and the payment of a ruling agree.
+   */
+  private async disputeDraw(tx: LogTx, contract: string, rejection: string, parties: string[], at: string, beforeSeq?: number): Promise<{ seed: string | undefined; v2: boolean; v3: boolean }> {
+    const v3 = panelDrawIsV3(this.panelV3From, at);
+    return { seed: v3 ? await disputeSeedV3(tx, contract, rejection, parties, beforeSeq) : rejection, v2: v3 || panelDrawIsV2(this.panelV2From, at), v3 };
   }
 
   /** The panel a report's ruling would draw (excludes the principal, performer, reporter and anyone they sponsor). */

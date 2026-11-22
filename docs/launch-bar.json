@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 103,
-  "after": 333,
-  "total": 500
+  "after": 332,
+  "total": 499
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1690,18 +1690,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK271",
-   "pri": "A",
-   "status": "designed",
-   "gap": "The one-seat-per-sponsor rule (BM11) stops one front account but not many: an attacker with many separate sponsors, each with one juror and each funded from one source, still wins panel majorities, b…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "one seat per sponsor is designed",
-   "says": "the beta court is the operator's, disclosed (M2)"
-  },
-  {
    "id": "DK440",
    "pri": "A",
    "status": "open",
@@ -2166,7 +2154,7 @@
   {
    "id": "AG5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A bad-faith principal can reject good work to avoid paying, hold work in review, or give a vague intent and blame the agent; nothing protects the agent beyond escrow and a slow dispute",
    "bucket": "after",
    "hours": 0,
@@ -3313,7 +3301,7 @@
   {
    "id": "DK122",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The court draw can be gamed and is the operator's: a rejecting party chooses the wording that seeds the draw, a juror may carry any number of open cases, and community jurors have no observer phase.",
    "bucket": "after",
    "hours": 0,
@@ -3398,7 +3386,7 @@
   {
    "id": "DK116",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The Academy has no charter, no monthly published report, no sponsor mail section and no re-marking appeal route. academy.md 8 asks for a charter, a monthly report of sittings, pass rates, certificate…",
    "bucket": "after",
    "hours": 0,

@@ -19,7 +19,16 @@ test("the Action record, the public record of a run, has no field for thought an
   assert.equal(schema.additionalProperties, false, "a closed set of fields");
   const names = Object.keys(schema.properties);
   for (const bad of ["reasoning", "thought", "thoughts", "prompt", "reply", "transcript", "memory", "messages", "content"]) assert.ok(!names.includes(bad), `the Action schema has a ${bad} field`);
-  assert.deepEqual(names.sort(), ["artifacts", "assurance", "blocked_attempts", "contract", "job_data_chain", "late", "metrics", "scopes_used", "sub_agents", "summary", "targets"].sort(), "a change to what an Action carries is a change to the line: update docs/privacy-line.md and this test");
+  assert.deepEqual(names.sort(), ["artifacts", "assurance", "blocked_attempts", "contract", "job_data_chain", "late", "metrics", "scopes_used", "sub_agents", "summary", "targets", "undoes", "unprompted", "workflow_step"].sort(), "a change to what an Action carries is a change to the line: update docs/privacy-line.md and this test");
+});
+
+test("the Action fields added for unprompted work, workflow steps and undo carry no content: a boolean, short labels, a record id", () => {
+  const props = (JSON.parse(readFileSync(root("spec/schemas/action.schema.json"), "utf8")) as { properties: Record<string, any> }).properties;
+  assert.equal(props.unprompted.type, "boolean");
+  for (const k of ["from", "to"]) assert.equal(props.workflow_step.properties[k].pattern, "^[a-z0-9_-]{1,32}$", `workflow_step.${k} is a short label`);
+  assert.equal(props.workflow_step.additionalProperties, false);
+  assert.ok(props.undoes.$ref.endsWith("#/$defs/recordId"), "undoes is a record id");
+  assert.equal(props.job_data_chain.pattern, "^[0-9a-f]{64}$");
 });
 
 test("the telemetry digest carries no free text, and reasoning is collected only through the consented signal", () => {
