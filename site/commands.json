@@ -1011,6 +1011,10 @@
           "description": "A sponsor's view of its agents: for each, its level and what needs doing (a renewal inside 30 or 7 days, a lapsed identity, a suspension, a takedown it may appeal, an abuse report not yet ruled)"
         },
         {
+          "command": "asp registry path <did> [--json]",
+          "description": "An agent's way up: its tier, what the next tier allows, and each condition of the next promotion with what the agent has and needs and how to get it"
+        },
+        {
           "command": "asp registry search <text>",
           "description": "Search live names and DIDs"
         },

@@ -5,14 +5,14 @@
  */
 import { subsidyReport } from "./subsidy.ts";
 import { homeHtml } from "./housing.ts";
-import { calendar as eventsCalendar } from "./events.ts";
+import { calendar as eventsCalendar, calendarIcs } from "./events.ts";
 import type { EventLog } from "./log.ts";
 import { hero, shell } from "./ui-kit.ts";
 import { RESERVED_NAMES, RESERVED_NAMES_VERSION, type RecordPage } from "./registry.ts";
 import { agentRecordHtml } from "./agent-record.ts";
 import { countsFor, type JobClass } from "./market.ts";
 
-export interface PublicReply { status: number; json?: unknown; html?: string }
+export interface PublicReply { status: number; json?: unknown; html?: string; /** A reply in another text type, like a calendar file. */ text?: { type: string; body: string } }
 
 const esc = (s: unknown): string => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -32,6 +32,15 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   const path = url.pathname.replace(/\/+$/, "");
   const notFound = (what: string): PublicReply => ({ status: 404, json: { ok: false, error: { code: "NOT_FOUND", message: `${what} is not in the register` } } });
   let m: RegExpExecArray | null;
+  if ((m = /^\/registry\/agents\/(.+)\/path$/.exec(path))) {
+    const id = decodeURIComponent(m[1]);
+    const at = url.searchParams.get("at");
+    if (at !== null && Number.isNaN(Date.parse(at))) return { status: 400, json: { ok: false, error: "at is a time, like 2026-11-21T12:00:00Z" } };
+    const page = await log.registryPage(id);
+    const way = page ? await log.careerPath(page.did, at ?? undefined) : null;
+    if (!way) return notFound(id);
+    return { status: 200, json: { ok: true, result: way } };
+  }
   if ((m = /^\/registry\/agents\/(.+)\/record$/.exec(path))) {
     const id = decodeURIComponent(m[1]);
     const rec = await log.agentRecord(id, url.searchParams.get("at") ?? undefined);
@@ -56,6 +65,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
     if (!home) return notFound(id);
     return wantsHtml ? { status: 200, html: homeHtml(home) } : { status: 200, json: { ok: true, result: home } };
   }
+  if (path === "/events/calendar.ics") { const now = new Date().toISOString(); return { status: 200, text: { type: "text/calendar; charset=utf-8", body: calendarIcs(eventsCalendar(await log.recordsOfTypes(["events_act"]), now), now) } }; }
   if (path === "/events/calendar") return { status: 200, json: { ok: true, result: eventsCalendar(await log.recordsOfTypes(["events_act"]), new Date().toISOString()) } };
   if ((m = /^\/events\/(sha256:[0-9a-f]{64})\/results$/.exec(path))) {
     const r = (await log.recordsOfTypes(["events_act"])).find((x) => (x.body as { act: string; event?: string }).act === "contest_result" && (x.body as { event: string }).event === m![1]);
@@ -104,6 +114,7 @@ export async function publicReply(log: EventLog, rawUrl: string, wantsHtml: bool
   if (path === "/courts/precedents") { const q = url.searchParams; return { status: 200, json: { ok: true, result: await log.precedentSearch({ article: q.get("article") ?? undefined, verdict: q.get("verdict") ?? undefined, band: q.get("band") ?? undefined, route: q.get("route") ?? undefined }) } }; }
   if (path === "/courts/charter") return { status: 200, json: { ok: true, result: { in_force: await log.charterRoutes(), versions: await log.charters() } } };
   if (path.startsWith("/registry/principals/")) { const did = decodeURIComponent(path.slice("/registry/principals/".length)); if (!did) return { status: 404, json: { ok: false, error: "no principal named" } }; return { status: 200, json: { ok: true, result: await log.principalRecord(did) } }; }
+  { const m = /^\/institutions\/([a-z]+)\/report$/.exec(path); if (m) { const month = url.searchParams.get("month") ?? new Date().toISOString().slice(0, 7); if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { status: 400, json: { ok: false, error: "month is YYYY-MM, like 2026-11" } }; try { return { status: 200, json: { ok: true, result: await log.institutionReport(m[1], month) } }; } catch (e) { if ((e as { code?: string; detail?: string }).detail?.includes("not an institution") || String(e).includes("not an institution")) return { status: 404, json: { ok: false, error: `${m[1]} is not an institution of the city` } }; throw e; } } }
   if (path === "/academy/report") { const month = url.searchParams.get("month") ?? new Date().toISOString().slice(0, 7); if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { status: 400, json: { ok: false, error: "month is YYYY-MM, like 2026-11" } }; return { status: 200, json: { ok: true, result: await log.academyReport(month) } }; }
   if (path === "/registry/report") { const month = url.searchParams.get("month") ?? new Date().toISOString().slice(0, 7); if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { status: 400, json: { ok: false, error: "month is YYYY-MM, like 2026-11" } }; return { status: 200, json: { ok: true, result: await log.registryReport(month) } }; }
   if (path === "/courts/report") { const month = url.searchParams.get("month") ?? new Date().toISOString().slice(0, 7); if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { status: 400, json: { ok: false, error: "month is YYYY-MM, like 2026-11" } }; return { status: 200, json: { ok: true, result: await log.courtReport(month) } }; }

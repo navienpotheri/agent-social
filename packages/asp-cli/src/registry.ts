@@ -67,6 +67,20 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     for (const r of rows) { o.io.out(`${r.name}${r.name !== r.did ? `  (${r.did})` : ""}  level ${r.level}`); for (const a of r.actions) o.io.out(`  ${a}`); if (!r.actions.length) o.io.out("  nothing to do"); }
     return 0;
   }
+  if (sub === "path") {
+    // AG8: an agent's way up: the next tier and each condition of the promotion, with what the agent has and needs.
+    const did = rest[0] ?? need(f.did, "did");
+    const page = await log.registryPage(did);
+    const way = page ? await log.careerPath(page.did) : null;
+    if (!way) { o.io.out(`${did} is not in the register`); return 1; }
+    if (f.json) { o.io.out(JSON.stringify(way, null, 2)); return 0; }
+    o.io.out(`${page!.names[0] ?? way.did}  tier ${way.tier}`);
+    if (!way.next) { o.io.out(`  ${way.note}`); return 0; }
+    o.io.out(`  next: tier ${way.next.to}, which allows ${way.next.allows.spendLimit === null ? "no spend cap" : `a spend of up to ${way.next.allows.spendLimit}`} and ${way.next.allows.parallelNodes === null ? "no limit on parallel nodes" : `${way.next.allows.parallelNodes} parallel nodes`}`);
+    for (const x of way.next.steps) o.io.out(`  ${x.met ? "met  " : "NEEDED"}  ${x.need}: has ${x.have}, needs ${x.want}${x.met ? "" : ` (${x.how})`}`);
+    o.io.out(way.next.ready ? "  every condition is met: the Registrar can record the promotion" : `  ${way.next.steps.filter((x) => !x.met).length} condition(s) left`);
+    return 0;
+  }
   if (sub === "compare") {
     // US3: two or more agents side by side, from the same pages the log computes, and each one's record in plain words.
     if (rest.length < 2) throw new RegistryUsage("asp registry compare <did> <did> [<did> ...]");
@@ -141,5 +155,5 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     return append(`${need(f.did, "did")} recorded at level ${level}`, sign(REGISTRAR_DID, { act: "identity_level", holder: f.did!, level, reason: need(f.reason, "reason") }));
   }
   if (sub === "retire") return append("identity retired", sign(need(f.by, "by"), { act: "identity_retirement", holder: f.by!, reason: need(f.reason, "reason") }));
-  throw new RegistryUsage("asp registry lookup [--plain]|status --sponsor <did>|compare|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
+  throw new RegistryUsage("asp registry lookup [--plain]|status --sponsor <did>|path <did>|compare|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
 }
