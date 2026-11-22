@@ -12,3 +12,5 @@
 - 2026-11-22 11:05 push: gate green on tip a9029d9c (cli 1207/1208 with 0 failed, core 1334, log 1171, package 604, python 1470) after one stale regex in containment-classes.test.ts was updated to the formal README wording.
 
 - 2026-11-22 11:45 IST keeper: window 20 percent; lanes society-2, cli-3, launch-bar-2 resumed (protocol-3 running). Merge round hit conflict markers in two source files, repaired (201ab86a); the first gate on it was invalid and stalled; clean gate (gate2.log) started 11:44. Last push still 2356c362.
+
+- 2026-11-22 12:17 push: tip 34603749. Full run: core 1334, log 1176, Python ok, package 629/629 after the fix, cli 1208/1218 with 9 load failures and 1 import failure all passing alone (45/45 plus live-scripts 6/6). Gateway repaired (ladderAtCall import). Not in this push: tips after 0ee462b9 (cli-3), de1cb432+ (society-2), latest protocol-3 and launch-bar-2.
