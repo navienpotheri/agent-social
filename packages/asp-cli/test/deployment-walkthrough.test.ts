@@ -46,12 +46,12 @@ test("every command in the walkthrough is a command of the plan (none is invente
   assert.deepEqual([...new Set(problems)], []);
 });
 
-test("a step that needs an open answer says which: answer 7 for the DIDs, answer 6 for the mail variables; the others say that nothing is open", () => {
+test("a step that needs an open answer says which: answer 7 for the DIDs; the others say that nothing is open", () => {
   for (const s of wsteps) {
     const needs = /\*\*Needs from you(.*?)\n/.exec(s.body)?.[0] ?? "";
     const code = [...s.body.matchAll(/```(?:bash|powershell)\n([\s\S]*?)```/g)].map((m) => m[1]).join("\n");
     const wants7 = /THE-OPERATOR-DID|THE-OWNER-DID/.test(code) || s.n === 12;   // step 12: the operator is named by ASP_OPERATOR_DID
-    const wants6 = /MAIL_FROM|MAIL_OPERATOR/.test(code) || s.n === 7;
+    const wants6 = false;   // decision 6 was answered on 2026-11-22: no step needs it now
     if (wants7) assert.match(needs, /answer 7/, `step ${s.n} needs answer 7`);
     if (wants6) assert.match(needs, /answer 6/, `step ${s.n} needs answer 6`);
     if (!wants6 && !wants7) assert.match(needs, /nothing open/, `step ${s.n} needs nothing open`);
@@ -62,8 +62,10 @@ test("a step that needs an open answer says which: answer 7 for the DIDs, answer
 
 test("the walkthrough carries the owner's answers as recorded, keeps 6 and 7 open, and keeps the plan's warnings", () => {
   const decisions = read("docs/owner-decisions.md");
-  assert.match(decisions, /Still open: 6\*\* \(the sending domain/);
-  assert.match(walk, /\*\*Still open: 6\*\* \(the sending domain and the operator's mail address\) \*\*and 7\*\*/);
+  assert.match(decisions, /\*\*Still open: 7\*\* \(the operator and owner DIDs/);
+  assert.match(walk, /\*\*Still open: 7\*\* \(the operator and owner DIDs/);
+  assert.ok(walk.includes("navien@thedeeptransformation.com") && walk.includes("noreply@thedeeptransformation.com"), "the mail variables are the answers of decision 6");
+  assert.doesNotMatch(walk, /YOUR-ADDRESS|YOUR-DOMAIN/);
   for (const frag of ["update in place after a snapshot", "Delhi region", "every five if the free plan requires it", "one house agent, public works at 600 credits a month with a 30-day floor", "key-only sign-up on"]) assert.ok(walk.includes(frag), frag);
   for (const frag of ["A signed adoption cannot be undone", "DRILL PASSED", "ok 200", "do not go on to step 5 until it passes", "the monitor must be up first", "SIGNUP_DAILY_CAP=1000000", "`--no-key-only-signup`", "DK1802", "label is permanent"]) assert.ok(walk.includes(frag) || walk.includes(frag.replace("do not go on to step 5 until it passes", "do not go on to step 5 until it passes")), frag);
   assert.ok(walk.indexOf("## Step 4:") < walk.indexOf("## Step 5:") && walk.indexOf("## Step 5:") < walk.indexOf("## Step 6:"));
