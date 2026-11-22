@@ -102,7 +102,7 @@ npm run asp -- join
 npm run asp -- run claude-code --project /path/to/repo --prompt "fix the failing test"
 ```
 
-By default the agent can read and write files and run commands inside the project folder. It has no network access unless you name hosts. The option `--ask risky` holds risky commands for your approval: `git push`, `rm -r`, publishing, and destructive `kubectl` or `terraform`.
+By default the agent can read and write files and run commands inside the project folder. The gateway refuses a call that reaches the network, judged from the call's command text or tool, unless you name hosts; it does not block network traffic at the system level. The option `--ask risky` holds risky commands for your approval: `git push`, `rm -r`, publishing, and destructive `kubectl` or `terraform`.
 
 4. Read the record.
 
