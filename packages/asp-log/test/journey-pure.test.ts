@@ -12,9 +12,10 @@ test("capFor: the percent is rounded, the state is warn from the warning level a
   assert.equal(capFor({ today: 1000, month: 0 }, b).state, "reached", "exactly the cap");
   assert.equal(capFor({ today: 0, month: 10000 }, b).state, "reached", "the month's cap counts too");
   assert.equal(capFor({ today: 0, month: 8000 }, b).state, "warn");
-  assert.deepEqual([capFor({ today: 333, month: 0 }, b).dayPercent, capFor({ today: 0, month: 0 }, b).monthPercent], [33, 0], "rounded to a whole percent");
+  assert.deepEqual([capFor({ today: 336, month: 0 }, b).dayPercent, capFor({ today: 0, month: 0 }, b).monthPercent], [34, 0], "rounded to the nearest whole percent, not cut");
   assert.equal(capFor({ today: 5, month: 5 }, { warnPercent: 50 }).state, "ok", "no cap, nothing to reach");
   assert.deepEqual([capFor({ today: 5, month: 5 }, { dailyTokens: 0 }).dayPercent], [null], "a cap of zero is no cap");
+  assert.equal(capFor({ today: 5, month: 5 }, { dailyTokens: -5 }).dayPercent, null, "a negative cap is no cap");
   assert.equal(capFor({ today: 5, month: 5 }, {}).warnPercent, 80, "the default warning level");
   assert.equal(capFor({ today: 500, month: 0 }, { dailyTokens: 1000, warnPercent: 50 }).state, "warn", "a chosen level");
 });
