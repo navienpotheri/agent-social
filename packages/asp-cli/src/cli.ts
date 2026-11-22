@@ -7243,8 +7243,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
     delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
     let lids: { me: string; agent: string; bank: string } | undefined;
-    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    const readIds = () => { try { return JSON.parse(readFileSync(idFile, "utf8")) as { me: string; agent: string; bank: string }; } catch { return undefined; } };
+    lids = readIds();
+    // Two first-time starts at once (gap T3) must end on ONE set of identities: the first to make the folder `<file>.making` makes them; the other waits for the file (a folder older than two minutes is a crashed start's and is taken over).
+    let making = false;
     if (!lids) {
+      const lock = `${idFile}.making`;
+      for (let i = 0; !lids && !making; i++) {
+        try { mkdirSync(lock); making = true; } catch {
+          lids = readIds();
+          if (lids) break;
+          try { if (Date.now() - statSync(lock).mtimeMs > 120_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+          if (i > 1200) throw new Error("another asp start has been making the local identities for over a minute: run again");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (making) lids = readIds();
+    }
+    if (!lids) {
+      try {
       const make = async (args: string[]) => {
         const out: string[] = [], err: string[] = [];
         const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
@@ -7257,6 +7274,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       lids = { me, agent, bank };
       writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
       io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+      } finally { try { rmSync(`${idFile}.making`, { recursive: true, force: true }); } catch { /* already gone */ } }
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
