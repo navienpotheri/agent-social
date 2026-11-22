@@ -59,7 +59,7 @@ The drafts are in docs/legal/ and the questions for a lawyer are in [legal/lawye
 Drafts and the questions for you are in [legal/rights-charter-draft.md](legal/rights-charter-draft.md) and [legal/job-data-handling-draft.md](legal/job-data-handling-draft.md). **Recommendation:** launch with the shorter charter (rights 1, 2, 4, 5, 6), and decide right 8's commitment only if you will keep it; settle the job-data wording with the lawyer, then I build the contract field.
 
 ### B7. The Code of the City (gate #17, LW1)
-Read [law/code.md](law/code.md) (draft 0.3). When you are content, the lawyer reads Article 11, I set version 1.0, and you sign it: `asp law sign --by <your did>` with your own key. I do not run that command.
+Read [law/code.md](law/code.md) (draft 0.5). When you are content, the lawyer reads Article 11, I set version 1.0, and you sign it: `asp law sign --by <your did>` with your own key. I do not run that command.
 
 ## C. What I do next, without waiting for you
 

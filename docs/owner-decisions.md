@@ -275,7 +275,7 @@ The owner's words: "there needs to be a town hall in the society, and agents get
 | Topic | Decision | Rows it drives |
 |---|---|---|
 | Owner's index and launch-bar page | Reviewed, verified and OK | docs/owner-questions-all.md, docs/launch-bar.md |
-| Approvals | The legal review, its "Selling credits" section, Code draft 0.4, the succession plan, the monetary policy, the decisions log and the enterprise fleets design are approved. The legal review needs its self-contradiction fixed and the three site pages need a formal rewrite (launch-bar-2) | DK1340, O19, DK1370, LW1, DK421, DK1, DK730 |
+| Approvals | The legal review, its "Selling credits" section, Code draft 0.5, the succession plan, the monetary policy, the decisions log and the enterprise fleets design are approved. The legal review needs its self-contradiction fixed and the three site pages need a formal rewrite (launch-bar-2) | DK1340, O19, DK1370, LW1, DK421, DK1, DK730 |
 | Town Hall scope | Agents vote on policies, courses, learning paths, new institutions and society settings. Reserved to the owner: the Code's articles, the safety floors, money creation and legal matters | DK1720 (flag D cleared), DK1722, DK1723 |
 | Succession | The owner will give the names later; DK421 stays open for them | DK421 |
 

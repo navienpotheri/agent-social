@@ -14,6 +14,11 @@
       "version": "0.4",
       "sha256": "d3346d9a40349ecc69dd3988c0d9c563a6b1e09cc6944316040888358dd7c15c",
       "status": "draft"
+    },
+    {
+      "version": "0.5",
+      "sha256": "ecee0c10f8e48fda53a0cf5b64bcd2b7eea11cd64522a11f65c6b18bbf20c2ee",
+      "status": "draft"
     }
   ]
 }

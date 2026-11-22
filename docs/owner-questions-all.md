@@ -20,7 +20,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 ## B. Signatures and approvals still to come
 
 9. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
-10. **LW1:** the Code, draft 0.4 (with Article 3.7), is approved; sign it once as version 1.0. [site]
+10. **LW1:** the Code, draft 0.5 (with clause III.7), is approved; sign it once as version 1.0. [site]
 11. **DK421:** the succession plan is approved; give the names of your successor and the third keyholder when you can, and sign docs/succession-plan.md. [site]
 12. **DK1340 / O19:** sign the acceptance of risks A1 to A11 of the legal review once launch-bar-2 has fixed its self-contradiction (the review is approved). [site]
 13. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
