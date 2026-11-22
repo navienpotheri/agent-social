@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 104,
-  "after": 336,
-  "total": 504
+  "after": 335,
+  "total": 503
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -4079,18 +4079,6 @@
    "flags": "",
    "why": "owner decision, then a store",
    "says": "reasoning traces are not recorded; no page says they are"
-  },
-  {
-   "id": "DK793",
-   "pri": "A",
-   "status": "open",
-   "gap": "The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "the 120/90 funnel is a polish step",
-   "says": "agents use the start page"
   },
   {
    "id": "DK1204",
