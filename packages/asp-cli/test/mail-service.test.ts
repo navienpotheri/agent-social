@@ -95,12 +95,15 @@ test("service mail: the end-of-Mandate mail goes to the principal's verified add
     // A dispute opens: the operator is told, once, with no unsubscribe footer.
     const disputed = await start("A job that goes wrong");
     await job(["market", "reject", "--contract", disputed, "--by", ALICE, "--reasons", "not good enough"]);
-    await until("the operator's note", () => sent.some((m) => m.body.to[0] === "ops@example.org"));
-    const note = sent.find((m) => m.body.to[0] === "ops@example.org")!;
+    // The operator also gets the quarterly stress replay line (BI-18, UC-1960) once a quarter, so the dispute note is the one with the dispute subject.
+    const isDispute = (m: { body: { to: string[]; subject: string } }) => m.body.to[0] === "ops@example.org" && /A dispute is open/.test(m.body.subject);
+    await until("the operator's note", () => sent.some(isDispute));
+    const note = sent.find(isDispute)!;
     assert.match(note.body.subject, /A dispute is open: A job that goes wrong/);
     assert.ok(note.body.text.includes(disputed) && note.body.text.includes("asp court docket") && !note.body.headers, "operator notes carry no unsubscribe");
     await new Promise((r) => setTimeout(r, 2500));
-    assert.equal(sent.filter((m) => m.body.to[0] === "ops@example.org").length, 1);
+    assert.equal(sent.filter(isDispute).length, 1);
+    assert.ok(sent.filter((m) => m.body.to[0] === "ops@example.org" && /Insurer stress replay/.test(m.body.subject)).length <= 1, "the stress replay line is sent at most once in a quarter");
 
     // The provider's webhook: a forged call is refused, a signed bounce suppresses the address, a soft bounce does not.
     const hook = async (event: unknown, headers: Record<string, string>) => fetch(`${url}/mail/webhook/resend`, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(event) });
