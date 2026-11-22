@@ -159,8 +159,8 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 321 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
-<details><summary>Everyday (33)</summary><pre>Most people use only these.
+  <p class="small">The page is generated from the repository, so it matches the 322 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+<details><summary>Everyday (34)</summary><pre>Most people use only these.
 
 asp
     A short home screen: the everyday commands and what to do next
@@ -194,6 +194,8 @@ asp live preflight [--local] [--port &lt;n&gt;] [--runtime &lt;name&gt;] [--api-
     Check this machine before a live run with a real model and print a green/amber/red table; exit 1 when anything is red. Checks Node and git, that the ASP home is writable, that the runtime is installed (--runtime), that a local port opens (and that --port, if given, is free), that the machine will not sleep or act on the lid during the run (a read-only powercfg query on Windows; nothing is changed), that the key is set in its environment variable (it prints only that it is set and how long it is, never the key), that a gateway starts and answers, that the log service answers, that your identities and the Mandate are loaded, that a hard dollar cap is set and how the model is priced, and that asp stop --all stops a running session (on a throwaway home). Nothing is sent to a model provider
 asp live report [--session &lt;id&gt;] [--json]
     Summarise what a live session proved, from its own hash-checked run log and the session index: calls allowed and refused and why, the estimated spend against the cap, the identities used, what was held (outbound scan, untrusted text and flow, injection, circumvention), and the records the log holds for the job. It says what it could not read; dollar figures are estimates, not the provider's bill
+asp live verify-local [--session &lt;id&gt;] [--log &lt;dir&gt;] [--expect-assurance &lt;level&gt;] [--no-starter] [--json]
+    Check a run against the LOCAL service's own log and the session's run log (DK650, T15, E5): replays the log from the first record; reads the agent's passport (and that its key is the key its did:key names), its contract and Mandate, the signed Action reports and the assurance each carries, the refusal records against the run log's refused calls, the starter claim and the ledger; checks the run log's hash chain and that each Action's commitment matches it; prints a PASS or FAIL line for each of nine checks and exits 1 if any fails. --log is the local service's log folder (its --db local:&lt;dir&gt;), default the ASP home; --expect-assurance makes a weaker level a FAIL. A local check: it says nothing about the hosted service
 asp gateway ... --budget-usd &lt;n&gt; [--price-in &lt;n&gt; --price-out &lt;n&gt;]
     A hard cap in US dollars for a run (also asp run --budget-usd): the spend is estimated from the tokens each reply reports and a price table (dollars per million tokens; a model not in the table is priced high, and --price-in and --price-out override), and once it reaches the cap, or the next call could pass it (its whole request plus the largest reply it allows), no call is made to the provider and the run stops. An estimate for stopping, not the provider's bill
 asp gateway ... --ladder-file &lt;path&gt;

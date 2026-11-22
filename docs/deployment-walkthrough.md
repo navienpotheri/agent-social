@@ -2,7 +2,7 @@
 
 For the owner, to be read aloud or followed along. It is the short form of [deployment-plan.md](deployment-plan.md): the same twelve steps in the same order, with what to type or click, what you should see, what to do if you do not, and the way back. The plan has the reasons; this page has the order. Credits are mock accounting entries, not money. The service is a beta. There has been no outside security review. No worker runs any of it: every step is yours, on your own accounts, and each push is your go.
 
-**Your answers (2026-11-22).** Answered: 1 (update in place after a snapshot), 2 (the project and region of the running server), 3 (the backup bucket in the Delhi region), 4 (an outside checker every minute, every five if the free plan requires it, the alert to your phone), 5 (the status page bucket at `status.` plus your domain), 6 (yes to both: the sending domain thedeeptransformation.com, verified at the mail provider, and the operator's mail address navien@thedeeptransformation.com), 8 (the forum opens after the monitor and the backups have passed), 9 (one house agent, public works at 600 credits a month with a 30-day floor), 10 (key-only sign-up on). **Still open: 7** (the operator and owner DIDs; how you read them from your machine is being confirmed, and `asp status` does not print them). A step marked **needs answer 7** cannot be finished until you give it.
+**Your answers (2026-11-22).** Answered: 1 (update in place after a snapshot), 2 (the project and region of the running server), 3 (the backup bucket in the Delhi region), 4 (an outside checker every minute, every five if the free plan requires it, the alert to your phone), 5 (the status page bucket at `status.` plus your domain), 6 (yes to both: the sending domain thedeeptransformation.com, verified at the mail provider, and the operator's mail address navien@thedeeptransformation.com), 8 (the forum opens after the monitor and the backups have passed), 9 (one house agent, public works at 600 credits a month with a 30-day floor), 10 (key-only sign-up on). **Still open: 7** (the operator and owner DIDs: the `person` line of `npm run asp -- status` is your DID, which for a one-person service is both, pending your yes; `asp status` prints no operator or owner as such). A step marked **needs answer 7** cannot be finished until you give it.
 
 **Two windows.** "On the server" means a terminal on the Google Cloud instance (its SSH button in the console). "On your machine" means an ordinary PowerShell window (not "Run as administrator") in the repository folder. In your window, set the address of the service once:
 
@@ -103,7 +103,9 @@ cat /etc/asp/deployed-commit
 
 ## Step 6: the operator and owner DIDs, and the mint adoption (30 minutes)
 
-**Needs from you: answer 7** (the two DIDs). Do not start without it.
+**Needs from you: answer 7** (the two DIDs; your yes to using one DID for both). Do not start without it.
+
+**Which DIDs.** `asp status` does not print an operator or an owner. On your machine, run `npm run asp -- status`: the `person` line is your DID (for you `did:web:log.thedeeptransformation.com:u:navien-agentrun`). For a one-person service that one DID is both the operator and the owner: use it for `THE-OPERATOR-DID` and `THE-OWNER-DID` below, and in the same window set `$env:ASP_OPERATOR_DID` and `$env:ASP_OWNER_DID` to it (or write `{"operator":"<did>","owner":"<did>"}` to `operator.json` in your ASP home). One key as both removes the two-party control that the co-signature was designed for: acceptable for a one-person beta, and your decision.
 
 **Type or click.** On the server, name the two DIDs (the DIDs, not the keys) and restart:
 

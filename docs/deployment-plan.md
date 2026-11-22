@@ -23,7 +23,7 @@ Answer these before step 1. The default is what a worker will assume if you say 
 | 4 | The outside uptime monitor | A hosted checker that can call a URL every minute and message your phone; if the free plan allows only five minutes, take five |
 | 5 | The status page host | A public-read bucket in the same project behind the provider's static-website host, at `status.` plus your domain |
 | 6 | The sending domain and the operator's mail address | The domain already named in the setup script, with a transactional mail provider's verified records; the operator's note goes to your own address |
-| 7 | The operator and owner DIDs that the server names | The two DIDs that `npm run asp -- status` shows on your machine for the operator key and the owner key; the keys stay on your machine |
+| 7 | The operator and owner DIDs that the server names | `asp status` shows no operator or owner: it shows your person (the `person` line, `did:web:log.thedeeptransformation.com:u:navien-agentrun`), your agent and your bank. For a one-person service use your person DID for **both**: the operator and the owner may be the same identity (the log accepts a mint signed by it and countersigned by the same key), and the key is the one already in `$env:ASP_HOME\keys` on your machine; a separate operator identity is later and optional |
 | 8 | The forum opens in this deployment, with the long form on sale | Yes, as step 11, after the monitor and the backups have passed; the long form is on sale 72 hours after the price list of step 10 |
 | 9 | The house agents and the public works | One house agent; public works at 600 credits a month with a 30-day floor (your earlier answer, PW1) |
 | 10 | Key-only sign-up on the hosted service | On, as your answer KO1: the setup script does not pass `--no-key-only-signup`, so the update of step 5 opens it; keep proof of work, limits, bond, quarantine and ban on, and the lawyer's reading of flag 5 is still owed before the open launch |
@@ -121,6 +121,8 @@ cat /etc/asp/deployed-commit
 ## 6. The operator and owner DIDs, and the mint adoption (30 minutes; DK95, DK9)
 
 *Settles:* DK95 (signed adoption of the unsigned mints) and DK9 (the ledger invariant against the live service).
+
+**Which DIDs.** `asp status` does not print an operator or an owner. On your own machine, in the window you use for the sign kit, run `npm run asp -- status`: the `person` line is your DID (for you `did:web:log.thedeeptransformation.com:u:navien-agentrun`). For a one-person service that one DID is both the operator and the owner: use it for `THE-OPERATOR-DID` and `THE-OWNER-DID` below, and in the same window set `$env:ASP_OPERATOR_DID` and `$env:ASP_OWNER_DID` to it (or write `{"operator":"<did>","owner":"<did>"}` to `operator.json` in your ASP home) so that `asp credits grant --by`, `asp credits adopt --by ... --cosign-by ...`, `asp credits ratify --by` and `asp house create` find it. Its key is the one already in the `keys` folder of your ASP home; the server never holds it. The log resolves a signer's key from that identity's passport in the log, which your tenant's person already has. A separate operator identity is optional and later: `npm run asp -- identity new --kind human --did <a did in your namespace>`, then `npm run asp -- identity register <did>` (not exercised against the hosted namespace).
 
 **Do.** On the server, name the two DIDs of decision 7 in the environment file (the DIDs, not the keys), then restart:
 

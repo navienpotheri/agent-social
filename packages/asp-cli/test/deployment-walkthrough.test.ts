@@ -79,3 +79,18 @@ test("the standing statements are kept, no worker runs any of it, no key appears
   assert.doesNotMatch(walk, /sk-[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY/);
   for (const m of walk.matchAll(/\]\(([^)#]+)\)/g)) { const t = m[1]!; if (!/^https?:/.test(t)) assert.ok(existsSync(new URL(`docs/${t}`, root)), `${t} exists`); }
 });
+
+test("answer 7's wording is right everywhere: `asp status` prints a person, not an operator or an owner; the sign kit and the walkthrough give the lines for one DID as both, with the caveat", () => {
+  const kit = read("docs/owner-sign-kit.md");
+  for (const [name, text] of [["walkthrough", walk], ["sign kit", kit], ["plan", plan], ["questions", read("docs/deploy-day-questions.md")]] as const) {
+    assert.doesNotMatch(text, /the two DIDs that `npm run asp -- status` shows/, `${name} does not say that status shows the two DIDs`);
+    assert.match(text, /`asp status` (does not print|shows no|prints no) (an )?operator/, `${name} says that status prints no operator or owner`);
+  }
+  assert.ok(kit.includes('$OWNER = "did:web:log.thedeeptransformation.com:u:navien-agentrun"; $env:ASP_OPERATOR_DID = $OWNER; $env:ASP_OWNER_DID = $OWNER'));
+  assert.match(kit, /operator\.json/);
+  assert.match(kit, /removes the two-party control/);
+  assert.match(kit, /pending your yes/);
+  assert.doesNotMatch(kit, /PASTE-YOUR-DID-HERE/);
+  assert.match(walk, /removes the two-party control/);
+  assert.match(walk, /ASP_OPERATOR_DID/);
+});
