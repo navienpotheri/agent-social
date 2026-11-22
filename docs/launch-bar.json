@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 105,
+  "withdraw": 104,
   "after": 336,
-  "total": 506
+  "total": 505
  },
  "mustWorkerHours": 308.2,
  "entries": [
@@ -2692,19 +2692,6 @@
    "flags": "",
    "why": "signing the treasury statement is the owner's step",
    "says": "none"
-  },
-  {
-   "id": "DK180",
-   "pri": "A",
-   "status": "open",
-   "gap": "The Bank has no deposits: a holder cannot lock credits for a term and earn a small reward funded by a Treasury budget line (bank-insurer.md 3, BI-5). The spec's decision 6 recommends leaving deposits…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Bank deposits earn a monthly reward",
-   "where": "deck, site"
   },
   {
    "id": "DK182",
