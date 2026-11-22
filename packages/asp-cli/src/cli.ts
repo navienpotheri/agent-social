@@ -427,7 +427,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -1162,6 +1162,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
+    if (cmd === "keys" && sub === "memory") return await keysMemoryCmd(home, rest[0], rest[1], v, io);
     if (cmd === "keys") return keysCmd(home, sub, io);
     if (cmd === "law") return lawCmd(home, sub, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
@@ -1409,7 +1410,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
-    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
+    if (process.env.ASP_DEBUG_STACK) io.err(String((e as Error).stack)); io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
     return e instanceof UsageError ? 2 : 1;
   }
 }
@@ -2301,6 +2302,41 @@ function codeCitation(articles: string | undefined, version: string | undefined,
   const pin = info.pin && info.pin.version === v ? info.pin : v === info.version ? undefined : undefined;
   const sha256 = v === info.version ? info.sha256 : pin?.sha256;
   return { code: { version: v, ...(sha256 ? { sha256 } : {}), articles: list } };
+}
+
+/**
+ * asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did> (rows D12 and DK272; spec-delta S1604): an identity publishes the PUBLIC half of its X25519 memory key in the log, signed with its own
+ * signing key, so a pair can seal a private scope from a second machine. A principal publishes its own key (kept in <home>/keys); an agent publishes the key of its package (--package, sealed to --principal's key).
+ * Only the raw 32-byte public key goes in the log, never private material. A changed key is a rotation: the record names the live one it replaces.
+ */
+async function keysMemoryCmd(home: string, what: string | undefined, arg: string | undefined, v: Values, io: Io): Promise<number> {
+  const handle = await openLog(home, logEnv);
+  const lg = handle.log;
+  if (what === "show") {
+    const did = arg ?? v.by;
+    if (!did) throw new UsageError("asp keys memory show <did>");
+    const k = await lg.memoryKey(did);
+    io.out(k ? `${did}: live memory key ${k.name} (${k.public_key}), record ${k.record}` : `${did}: no memory key is published`);
+    return 0;
+  }
+  if (what !== "publish") throw new UsageError("asp keys memory publish --by <did> [--package <dir> --principal <did>]  |  asp keys memory show <did>");
+  const did = v.by;
+  if (!did) throw new UsageError("--by <did>: the identity that publishes its key");
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new UsageError(`no signing key for ${did} in ${join(home, "keys")}: only the identity itself publishes its memory key`);
+  let spki: string;
+  if (v.package) {
+    if (!v.principal) throw new UsageError("an agent's key is sealed to its principal: --principal <did>");
+    const pk = principalMemoryKey(home, v.principal, passphraseFrom(io.env));
+    spki = ensureAgentMemoryKey(resolve(io.cwd, v.package), pk.publicKey).publicKey;
+  } else spki = principalMemoryKey(home, did, passphraseFrom(io.env)).publicKey;
+  const raw = rawPublicKeyOf(spki);
+  const live = await lg.memoryKey(did);
+  if (live && live.public_key === raw) { io.out(`${did}: this memory key is already published (${live.name}, record ${live.record})`); return 0; }
+  const n = live ? Number(/(\d+)$/.exec(live.name)?.[1] ?? 0) + 1 : 1;
+  const res = await handle.append(createRecord({ type: "memory_key" as never, issuer: did, subject: null, prev: null, body: { did, name: `memory-${n}`, public_key: raw, at: now(), ...(live ? { revokes: live.record } : {}) }, issued_at: now() }, signer));
+  io.out(`${did}: published memory key memory-${n} (${raw})${live ? `, replacing ${live.name}` : ""}; record ${res.id}. Only the public half is in the log.`);
+  return 0;
 }
 
 /** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */

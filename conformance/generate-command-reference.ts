@@ -99,6 +99,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
   { group: "Run logs and evidence", rows: [
     ["asp run-log show [<log>]", "Print a session's run log as a timeline"],
     ["asp run-log verify [<log>] [--contract <id>]", "Check a run log's hash chain and what the Actions committed to"],
+    ["asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did>", "Publish the PUBLIC half of an identity's memory key in the log (signed with its own signing key; only the raw 32-byte public key is recorded, never private material), so a principal-agent pair can seal a private memory scope to each other from a second machine; a changed key is a rotation that names the live one it replaces. show prints the live key (D12, DK272)"],
     ["asp run-log retention [--days <n>|off]", "Keep a retention period for the run logs on this machine: every asp run and asp gateway then deletes the logs older than n days when it starts and says so in one line; with no argument it shows the period (ASP_RUN_LOG_DAYS overrides it). A sealed copy kept on the service is not touched, and an Action that committed to a deleted log keeps its hash"],
     ["asp run-log prune --days <n> [--yes]", "Delete run logs on this machine older than n days (a plan without --yes)"],
     ["asp run-log keep [<log>]", "Seal a copy on the service: encrypted to your keys, unreadable by the service"],
