@@ -194,6 +194,8 @@ export interface EventLogOptions {
   panelV2From?: string;
   /** The time from which a new budget must leave the Treasury's uncommitted balance at or above one month of approved budgets (the total of the latest earlier month with budgets; DK232, TRL-19, guard G6). Off when unset. */
   treasuryReserveFloorFrom?: string;
+  /** The time from which a Treasury budget for an institution needs that institution's published charter in force (DK231, TRL-16). Off when unset. */
+  charterRequiredFrom?: string;
   /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
   panelV3From?: string;
   /**
@@ -317,6 +319,7 @@ export class EventLog {
   private configLoaded = false;
   private readonly panelV2From?: string;
   private readonly reserveFloorFrom?: string;
+  private readonly charterRequiredFrom?: string;
   private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -340,6 +343,8 @@ export class EventLog {
     this.panelV2From = opts.panelV2From;
     if (opts.treasuryReserveFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.treasuryReserveFloorFrom))) throw new Error(`treasuryReserveFloorFrom must be an ISO time, got ${opts.treasuryReserveFloorFrom}`);
     this.reserveFloorFrom = opts.treasuryReserveFloorFrom;
+    if (opts.charterRequiredFrom !== undefined && !Number.isFinite(Date.parse(opts.charterRequiredFrom))) throw new Error(`charterRequiredFrom must be an ISO time, got ${opts.charterRequiredFrom}`);
+    this.charterRequiredFrom = opts.charterRequiredFrom;
     if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
     this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -3919,6 +3924,13 @@ export class EventLog {
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
     if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
+    // A budget for an institution needs its published charter in force (DK231, TRL-16): from the cutover, an institution with no charter record has no budget.
+    if (this.charterRequiredFrom && !allowanceLine && Date.parse(r.issued_at) >= Date.parse(this.charterRequiredFrom)) {
+      const head = Number((await tx.getMarker(`charter_head:${b.institution}`)) ?? 0);
+      let inForce: Awaited<ReturnType<typeof readCharter>> = null;
+      for (let v = head; v >= 1 && !inForce; v--) { const c = await readCharter(tx, b.institution, v); if (c && Date.parse(c.effective_from) <= Date.parse(r.issued_at)) inForce = c; }
+      if (!inForce) throw rule("budget_no_charter", `${b.institution} has no published charter in force: the Treasury sets no budget for an institution with no charter (publish it with asp charter publish)`);
+    }
     const lastKey = `budget_last:${line}`;
     const last = await tx.getMarker(lastKey);
     if (!this.cosignedBy(r, this.owner)) {
