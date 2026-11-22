@@ -82,7 +82,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   }
   return r;
 }
-const MARKET_WRITES = new Set(["post_job", "offer_on_job", "deliver_job", "accept_offer", "accept_delivery"]);
+export const MARKET_WRITES = new Set(["post_job", "offer_on_job", "deliver_job", "accept_offer", "accept_delivery"]);
 
 async function runToolRaw(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
   const t = BY_NAME.get(name);

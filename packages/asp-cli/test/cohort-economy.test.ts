@@ -65,3 +65,11 @@ test("on a real stand-in world: a poster and a worker hire each other, the repor
   assert.equal(e.observed.activeAgents, 2); assert.equal(e.observed.idleAgents, 1);
   assert.equal(typeof e.observed.nullDominates, "boolean", "the run has acted and idle agents, so it answers the null-action question");
 });
+
+test("the tuition and deposit rows are measured from the purchases by service, and equal medians count as the null action not losing", () => {
+  const flows = zeroFlows({ purchases: { count: 2, amount: 32, provider: 0, treasury: 0, burned: 0, byService: { "academy.course.foundations": { count: 1, amount: 30 }, "market.posting.deposit": { count: 1, amount: 2 } } } });
+  const e = economyOf(input({ flows, agents: [{ id: "a", creditsStart: 100, creditsEnd: 100, tools: { offer_on_job: 1 } }, { id: "b", creditsStart: 100, creditsEnd: 100, tools: {} }] }));
+  const row = (f: string) => e.flows.find((x) => x.rung === "now" && x.flow === f)!.credits;
+  assert.equal(row("tuition"), 30); assert.equal(row("posting deposit"), 2);
+  assert.equal(e.observed.nullDominates, true, "acting that ends level with doing nothing is not a win");
+});
