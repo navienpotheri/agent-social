@@ -68,6 +68,18 @@ const committedOf = (tx: LogTx) => num(tx, "bank_committed");
 /** What can be paid out now without touching a credit line the Bank has promised. */
 const freeOf = async (tx: LogTx) => Math.max(0, (await bal(tx, BANK)) - (await num(tx, "bank_committed")));
 
+/**
+ * The halt of an institution at a time (DK1229, S1653): `live` while its sunset is ahead and it was not lifted; `endedUnsettled` once it has ended and the queue has not yet been paid in proportion. Read from the
+ * marker the `credit_halt` rule wrote.
+ */
+export async function haltState(tx: Pick<LogTx, "getMarker">, institution: "bank" | "insurer", at: string): Promise<{ live: boolean; endedUnsettled: boolean; id?: string; until?: string; reason?: string }> {
+  const raw = await tx.getMarker(`credit_halt:${institution}`);
+  if (!raw) return { live: false, endedUnsettled: false };
+  const h = JSON.parse(raw) as { id: string; until: string; reason: string; settled: boolean };
+  const live = Date.parse(h.until) > Date.parse(at);
+  return { live, endedUnsettled: !live && !h.settled, id: h.id, until: h.until, reason: h.reason };
+}
+
 export const bankIsActive = async (tx: Pick<LogTx, "getMarker">) => (await tx.getMarker("bank_active")) === "1";
 
 /** The Bank's lending ceiling once it is active (70 % of what it holds): a credit line or a Treasury loan that would take the lent total above it is refused. */
@@ -84,6 +96,22 @@ export async function noteLent(tx: LogTx, delta: number): Promise<void> { await 
 export async function serveQueue(tx: LogTx, env: BankEnv, at: string): Promise<void> {
   if (!(await bankIsActive(tx))) return;
   const queue = JSON.parse((await tx.getMarker("bank_queue")) ?? "[]") as { holder: string; amount: number; id: string }[];
+  const halt = await haltState(tx, "bank", at);
+  if (halt.live) return; // a halt on the Bank: nothing is paid until it ends
+  if (halt.endedUnsettled) {
+    // The halt has ended: the queue is paid at once in proportion to what each holder asked, so being first to ask gives no advantage (DK1229).
+    await tx.putMarker("credit_halt:bank", JSON.stringify({ ...JSON.parse((await tx.getMarker("credit_halt:bank"))!), settled: true }));
+    if (!queue.length) return;
+    const free0 = await freeOf(tx), total = queue.reduce((n, q) => n + q.amount, 0);
+    const rest0: typeof queue = [];
+    for (const q of queue) {
+      const pay = free0 >= total ? q.amount : Math.floor((q.amount * free0) / total);
+      if (pay > 0) await pay_(tx, env, q.holder, pay, at);
+      if (q.amount - pay > 0) rest0.push({ ...q, amount: q.amount - pay });
+    }
+    await tx.putMarker("bank_queue", JSON.stringify(rest0));
+    return;
+  }
   if (!queue.length) return;
   let free = await freeOf(tx);
   const rest: typeof queue = [];
@@ -158,12 +186,14 @@ export async function projectBankAct(tx: LogTx, r: AspRecord, env: BankEnv): Pro
     const h = await bankHolding(tx, b.holder!);
     if (n > h.deposit - h.waiting) throw rule("withdraw_exceeds_deposit", `${b.holder} holds ${h.deposit} at the Bank and ${h.waiting} of it is already waiting to be paid: ${n} is more than is left`);
     const waitingQueue = JSON.parse((await tx.getMarker("bank_queue")) ?? "[]") as unknown[];
-    const pay = waitingQueue.length ? 0 : Math.min(n, await freeOf(tx)); // in the order asked: nobody is paid ahead of someone already waiting
+    const halted = (await haltState(tx, "bank", at)).live;
+    const pay = waitingQueue.length || halted ? 0 : Math.min(n, await freeOf(tx)); // in the order asked: nobody is paid ahead of someone already waiting; nothing is paid during a halt
     if (pay > 0) { await env.debit(tx, BANK, pay); await env.credit(tx, b.holder!, pay); await tx.putMarker(`bankdep:${b.holder}`, String(h.deposit - pay)); await ledgerEvent(b.holder!, -pay); }
     if (n - pay > 0) {
       const queue = JSON.parse((await tx.getMarker("bank_queue")) ?? "[]");
       await tx.putMarker("bank_queue", JSON.stringify([...queue, { holder: b.holder, amount: n - pay, id: r.id }]));
     }
+    if ((await haltState(tx, "bank", at)).endedUnsettled) await serveQueue(tx, env, at);
     return;
   }
 
@@ -174,6 +204,7 @@ export async function projectBankAct(tx: LogTx, r: AspRecord, env: BankEnv): Pro
     const n = b.amount!.value;
     if (n < 1) throw rule("amount_not_positive", "a loan is at least 1 credit");
     if (!(await bankIsActive(tx))) throw rule("bank_not_active", "the Bank holds no deposit yet: there is nothing for it to lend to the Treasury");
+    if ((await haltState(tx, "bank", at)).live) throw rule("bank_halted", "the Bank is under a halt (credit_halt): it lends nothing until the halt ends");
     const principal = await num(tx, "tr_principal"), holds = await holdsOf(tx);
     if ((principal + n) * 1000 > holds * BANK_NUMBERS.maxTreasuryPermille) throw rule("treasury_borrow_cap", `the Treasury may owe the Bank at most ${BANK_NUMBERS.maxTreasuryPermille / 10} % of what it holds (${holds}); it owes ${principal} and asks ${n} more`);
     await checkLendingCeiling(tx, n);
