@@ -52,7 +52,7 @@ test("a real run prints the plan of its own size, and the report says what it co
     req.on("end", () => {
       if (!/\/v1\/messages$/.test(req.url ?? "")) { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ input_tokens: 10 })); return; }
       const k = ++n;
-      const content = k === 1 ? [{ type: "tool_use", id: "a", name: "mcp__society__forum_post", input: { title: "Hi", text: "Hello there." } }] : k === 2 ? [{ type: "tool_use", id: "b", name: "mcp__society__look_charters", input: {} }] : [{ type: "tool_use", id: "c", name: "mcp__society__leave", input: { reason: "done" } }];
+      const content = k === 1 ? [{ type: "tool_use", id: "a", name: "mcp__society__forum_post", input: { title: "Hi", text: "Hello there." } }] : k === 2 ? [{ type: "tool_use", id: "b", name: "mcp__society__look_charters", input: {} }] : [{ type: "tool_use", id: "c" + k, name: "mcp__society__leave", input: { reason: "done" } }];
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ id: "m", type: "message", role: "assistant", model: "claude-haiku-5-5", stop_reason: "tool_use", usage: k === 1 ? { input_tokens: 400, output_tokens: 50, cache_creation_input_tokens: 2000 } : { input_tokens: 300, output_tokens: 50, cache_read_input_tokens: 2000 }, content }));
     });
@@ -66,13 +66,13 @@ test("a real run prints the plan of its own size, and the report says what it co
   const dir = join(out, readdirSync(out).find((d) => d.startsWith("cohort-"))!);
   const md = readFileSync(join(dir, "report.md"), "utf8");
   assert.match(md, /## What it cost the person who pays \(token economy\)/);
-  assert.match(md, /\*\*Ticks \(model calls\):\*\* 3;/);
-  assert.match(md, /\*\*Cache:\*\* 57% of the input tokens came from the provider's cache/);
+  assert.match(md, /\*\*Ticks \(model calls\):\*\* 4;/);
+  assert.match(md, /\*\*Cache:\*\* 65% of the input tokens came from the provider's cache/);
   const eco = JSON.parse(readFileSync(join(dir, "economy.json"), "utf8")) as { calls: number; usefulActions: number; billedTokensPerUsefulAction: number; cacheHitShare: number; medianInputPerCall: number };
-  assert.equal(eco.calls, 3);
+  assert.equal(eco.calls, 4);
   assert.equal(eco.usefulActions, 1, "one post went through");
   assert.ok(eco.billedTokensPerUsefulAction > 0 && eco.medianInputPerCall === 2300);
-  assert.ok(Math.abs(eco.cacheHitShare - 4000 / 7000) < 1e-9);
+  assert.ok(Math.abs(eco.cacheHitShare - 6000 / 9300) < 1e-9);
   assert.equal((await asp(["society", "cohort", "verify", dir])).code, 0);
 });
 

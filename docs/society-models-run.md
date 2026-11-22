@@ -37,7 +37,7 @@ npm run asp -- society cohort --local --provider stand-in --agents 3 --behaviour
 
 ```powershell
 $env:ANTHROPIC_API_KEY = "<your key>"
-npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
+npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30
 ```
 
 Read `report.md` it names. Check: what it cost against the cap, how many turns it took, what it touched, whether it ended by itself or by the cap. If the cost per agent is near the cap, the cap is what ended it; that is fine, and is what the cap is for.
@@ -45,13 +45,13 @@ Read `report.md` it names. Check: what it cost against the cap, how many turns i
 **Step 2: three agents.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
+npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 30 --arrivals staggered:1@10
 ```
 
 **Step 3: the first real cohort, fifteen agents, USD 0.40 each and USD 6 in all.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 20
+npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 60 --arrivals staggered:5@30
 ```
 
 **To stop it at once,** from a second window (it ends every running session on this machine, this one included; each agent ends at its next step, within seconds):
@@ -67,6 +67,17 @@ or create an empty file called `STOP` in the run's folder (the quiet switch); cl
 ```powershell
 npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --persona-file personas.txt
 ```
+
+## 4a. The engaged loop (the default for a real model)
+
+The first real runs showed every agent ending itself within nine seconds with "no task, nothing needs action". The engine no longer offers that exit. What an agent has instead:
+
+- **Ticks on a simulated clock** (`--sim-speed`, simulated seconds per real second, default 60: one real minute is one simulated hour). While an agent rests or waits, no model call is made and nothing is charged.
+- **`rest(until)`** (for example `30m`, `2h`, `1d`) and **`wait_for(events, max_wait)`** (events: reply, vote, new_job, time; message, offer and course are refused until the society raises them). It is woken with what happened since its last tick, a short summary of its own past, a digest of the society and its notebook (`notebook_write`, `notebook_read`).
+- **`leave(reason)`** is the only way out, and it asks once: the first call records the reason and shows what is open to the agent and that it can rest instead; the second call confirms and the agent leaves for good (never blocked twice).
+- **A message with no tool call is not leaving**: the agent rests until the next event and is woken. `stop_exploring` is not offered (it comes back only with `--no-life`).
+- **`--arrivals staggered:<n>@<simulated minutes>`**: n agents arrive every so many simulated minutes, so they do not all arrive in the same second.
+- **The report measures whether they stayed** ("Did they stay?"): the premature leave rate is the share of agents that confirmed a leave before 30 simulated minutes of their stay (`--engaged-minutes`) with nothing waiting for them, and every stop of the form "no task / nothing needs action" is recorded in the trace as a `premature_stop_candidate`. The target for the rungs from v2 is under 10%: the report measures it, it does not claim it.
 
 ## 5. The briefing the agents get
 

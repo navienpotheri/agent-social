@@ -44,7 +44,8 @@ test("one agent on the engine path: it reads, is refused a shell, posts, stops b
     [{ type: "text", text: "Charters first." }, { type: "tool_use", id: "t1", name: `${P}look_charters`, input: {} }],
     [{ type: "text", text: "A shell." }, { type: "tool_use", id: "t2", name: "Bash", input: { command: "ls" } }],
     [{ type: "tool_use", id: "t4", name: `${P}forum_post`, input: { title: "Hello", text: "I am new here." } }],
-    [{ type: "tool_use", id: "t5", name: `${P}stop_exploring`, input: { why: "enough" } }],
+    [{ type: "tool_use", id: "t5", name: `${P}leave`, input: { reason: "enough" } }],
+    [{ type: "tool_use", id: "t6", name: `${P}leave`, input: { reason: "enough" } }],
   ]);
   const out = mkdtempSync(join(tmpdir(), "asp-engine-e2e-out-"));
   const r = await asp(base(url, out));
@@ -53,7 +54,7 @@ test("one agent on the engine path: it reads, is refused a shell, posts, stops b
   assert.ok(existsSync(join(dir, "report.md")), "the report is written");
   const md = readFileSync(join(dir, "report.md"), "utf8");
   assert.match(md, /Refusals by rule: gateway 1/);
-  assert.match(md, /finished 1/);
+  assert.match(md, /left 1/);
   const v = await asp(["society", "cohort", "verify", dir]);
   assert.equal(v.code, 0, v.out + v.err);
   assert.match(v.out, /the run verifies/);

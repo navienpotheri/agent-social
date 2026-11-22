@@ -14,6 +14,7 @@ import { analyse, injectionIn, renderReport, type Report } from "./observe.ts";
 import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
 import { economyOf, renderEconomy } from "./economy.ts";
+import { engagementOf, renderEngagement } from "./engagement.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 
@@ -29,7 +30,7 @@ export interface CohortOptions {
   /** A real model: one gateway for each agent (the key lives only there), the loop of packages/asp-package/src/cohort. */
   engine?: { price?: { inPerM?: number; outPerM?: number }; keyEnv: string; env: Record<string, string | undefined>; upstream?: string; parallel?: number };
   /** Real-model runs keep ticks (docs/agent-engagement.md): the simulated clock, the arrivals and the wake limits. Absent: no rest, wait_for, notebook or leave. */
-  life?: { speed: number; arrivals?: string; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
+  life?: { speed: number; arrivals?: string; /** Simulated minutes an agent must have stayed for its leave not to count as premature (default 30). */ engagedMinutes?: number; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -52,6 +53,8 @@ export interface CohortOptions {
 
 export interface CohortResult { report: Report; dir: string; markdownPath: string; sid: string }
 
+/** What the briefing says about stopping when the run keeps ticks: there is no one-call exit; resting and waiting keep the agent in the society, and leaving asks for a confirmation. */
+const ENGAGED_ENDING = "When you have done enough for now, rest or wait for something to happen (rest, wait_for): you stay in the society and nothing is asked of you meanwhile. You may leave for good (leave), but you will be asked to confirm once.";
 const handleOf = (i: number) => `agent-${String(i + 1).padStart(2, "0")}`;
 
 export async function runCohort(o: CohortOptions): Promise<CohortResult> {
@@ -114,18 +117,23 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const allow = new Set([...TOOLS, ...LIFE_DEFS].map((t) => t.scope));
         const clock = o.life ? new SimClock({ speed: o.life.speed, now }) : undefined;
         const arrivals = o.life?.arrivals ? parseArrivals(o.life.arrivals) : undefined;
-        const life = o.life && clock ? new Life({ clock, source: societySource({ world: world.api, didOf: (id) => byId.get(id)?.did, clock }), ...(o.life.limits ? { limits: o.life.limits } : {}), notebookDir: join(dir, "notebooks"), digest: () => societyDigest(world.api), ...(o.life.sleep ? { sleep: o.life.sleep } : {}) }) : undefined;
+        const life = o.life && clock ? new Life({ clock, source: societySource({ world: world.api, didOf: (id) => byId.get(id)?.did, clock }), ...(o.life.limits ? { limits: o.life.limits } : {}), notebookDir: join(dir, "notebooks"), digest: () => societyDigest(world.api),
+          onNote: (n) => {
+            if (n.kind === "premature_stop_candidate") trace({ t: "premature_stop_candidate", at: stamp(), agent: n.agent, via: n.via, text: n.text, simMs: Math.round(n.simAt) });
+            else trace({ t: "leave", at: stamp(), agent: n.agent, simMs: Math.round(n.simAt), sinceArrivalMs: Math.round(n.sinceArrivalSimMs), pending: n.pending, afterCheck: n.afterCheck, reason: n.reason });
+          }, ...(o.life.sleep ? { sleep: o.life.sleep } : {}) }) : undefined;
         await life?.refreshDigest(true);
         const deadline = setTimeout(() => { shared.stopped ??= `the run's ${o.minutes} minutes are up`; trace({ t: "stop", at: stamp(), reason: shared.stopped }); ac.abort(); }, o.minutes * 60_000);
         deadline.unref?.();
         const toolsetFor = (id: string) => {
           const a = byId.get(id)!;
-          const tools: SocietyTool[] = TOOLS.map((t) => ({
+          const tools: SocietyTool[] = TOOLS.filter((t) => !(life && t.name === "stop_exploring")).map((t) => ({
             name: t.name, description: t.description, input_schema: t.input_schema as unknown as Record<string, unknown>,
             run: async (args, ctx) => {
               const t0 = now();
               flush(id);
               const r = await runTool(world.api, a, allow, t.name, args);
+              if (t.name === "stop_exploring") trace({ t: "premature_stop_candidate", at: stamp(), agent: id, via: "stop_exploring", text: String(args.why ?? "").slice(0, 200) });
               life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ms: now() - t0 } as TraceEvent);
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
@@ -143,7 +151,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               return r;
             },
           })) : [];
-          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), system: () => BRIEFING + (a.persona ? `
+          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (a.persona ? `
 
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };
@@ -188,7 +196,9 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const { markdown, json } = renderReport(report);
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
-  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}`);
+  const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
+  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (o.life ? `\n${renderEngagement(eng)}` : ""));
+  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify(eng, null, 2) + "\n");
   writeFileSync(join(dir, "economy.json"), JSON.stringify(eco, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   writeFileSync(join(dir, "report.json"), json);

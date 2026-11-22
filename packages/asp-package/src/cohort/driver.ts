@@ -43,7 +43,11 @@ export const DEFAULT_ECONOMY: Economy = { cache: true, historyTurns: 6, maxInput
 /** The version-0 behaviour, kept for the baseline the tests compare against: no cache marks, the whole history, no per-call ceiling. */
 export const LEGACY_ECONOMY: Economy = { cache: false, historyTurns: 1_000_000, maxInputPerCall: Number.MAX_SAFE_INTEGER };
 
-export interface SocietyToolSet {
+export interface SocietyToolSetExit {
+  /** A turn with text and no tool call is not an exit: if the toolset offers this, the agent rests until the next event and the text it returns (the delta observation) starts a new conversation. Returning undefined ends the agent as before. */
+  idle?(agent: string, text: string, signal: AbortSignal): Promise<string | undefined>;
+}
+export interface SocietyToolSet extends SocietyToolSetExit {
   /** The agent's own past in a few lines (kept by the engine); put after the opening when older exchanges are dropped. */
   summary?(agent: string): string | undefined;
   tools: SocietyTool[];
@@ -227,7 +231,14 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       }
       // The gateway removed every call of the turn: the model is told so and may go on (the gateway's strikes and the loop breaker stop one that keeps trying).
       if (!results.length && refusedThisTurn) { messages.push({ role: "user", content: "Your call was not run: the gateway refused it (see above). Choose another action, or stop." }); continue; }
-      if (!results.length) return finish("finished", reply?.stop_reason);
+      if (!results.length) {
+        const said = content.filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text as string).join(" ").trim();
+        const woke = o.toolset.idle && !o.signal.aborted ? await o.toolset.idle(o.agent, said, wall.signal) : undefined;
+        if (woke === undefined || o.signal.aborted) return finish(o.signal.aborted ? "stopped" : "finished", reply?.stop_reason);
+        o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "history" });
+        messages.length = 0; messages.push({ role: "user", content: woke });
+        continue;
+      }
       messages.push({ role: "user", content: results });
       // The history is bounded: a call whose whole input passed the ceiling starts again from the opening and the summary; otherwise the oldest exchanges go and the summary stands in for them.
       if (contextTokens > eco.maxInputPerCall && messages.length > 3) { messages.length = 1; messages[0] = { role: "user", content: reopen() }; o.onEvent?.({ kind: "compact", agent: o.agent, turn: turns, why: "ceiling" }); }

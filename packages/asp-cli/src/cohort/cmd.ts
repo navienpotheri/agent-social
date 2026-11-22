@@ -13,10 +13,10 @@ export class CohortUsage extends Error {}
 
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
-  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean;
+  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string;
 }
 
-const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
+const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--engaged-minutes <n, default 30>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
 const num = (name: string, v: string | undefined, dflt?: number): number => {
   if (v === undefined) { if (dflt === undefined) throw new CohortUsage(`${name} is needed: ${USAGE}`); return dflt; }
   const n = Number(v);
@@ -52,7 +52,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   const maxTokens = 600;
   if (f.arrivals) { try { parseArrivals(f.arrivals); } catch (e) { throw new CohortUsage((e as Error).message); } }
   if (kind === "stand-in" && (f.arrivals || f["sim-speed"])) throw new CohortUsage("--arrivals and --sim-speed belong to a real-model run (the stand-in dry run has no simulated clock)");
-  const life = kind === "anthropic" && !f["no-life"] ? { speed: num("--sim-speed", f["sim-speed"], 60), ...(f.arrivals ? { arrivals: f.arrivals } : {}) } : undefined;
+  const life = kind === "anthropic" && !f["no-life"] ? { speed: num("--sim-speed", f["sim-speed"], 60), engagedMinutes: num("--engaged-minutes", f["engaged-minutes"], 30), ...(f.arrivals ? { arrivals: f.arrivals } : {}) } : undefined;
   if (f.arrivals && !life) throw new CohortUsage("--arrivals needs the engagement ticks: drop --no-life");
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
   o.io.out(`cohort: ${agents} agent${agents === 1 ? "" : "s"} of ${model} through ${kind}, on a local society only; no goal is given and ${personas ? `${personas.length} persona(s) from ${f["persona-file"]} are used in rotation` : "no persona is used"}.`);

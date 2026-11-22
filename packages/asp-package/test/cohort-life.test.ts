@@ -123,6 +123,10 @@ test("the notebook is capped, persisted in the run folder, and kept across wakes
   // the notebook comes back with every wake, and a new Life over the same folder loads it
   assert.match((await t("rest").run({ until: "10m" }, ctx())).text, /Your notebook \(\d+ of 50 characters\):\nmet bo/);
   assert.match(new Life({ clock: f.clock, notebookDir: dir, limits: { notebookChars: 50 } }).agent("agent-01").notebookText(), /met bo/);
+  const check = await t("leave").run({ reason: "I have what I came for" }, ctx());
+  assert.equal(check.ok, true); assert.notEqual(check.end, true, "the first leave does not leave: it is an exit check");
+  assert.match(check.text, /Exit check\. Your reason is recorded: "I have what I came for"/);
+  assert.match(check.text, /you can rest \(rest, wait_for\) and be woken when something happens/);
   const left = await t("leave").run({ reason: "I have what I came for" }, ctx());
   assert.equal(left.end, true); assert.equal(left.leave, "I have what I came for");
   assert.notEqual(left.reset, true);

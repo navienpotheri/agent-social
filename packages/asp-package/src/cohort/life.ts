@@ -78,8 +78,11 @@ export interface LifeLimits {
   /** The digest of the society is refreshed every this many wakes of the run, and is cut to digestChars. */
   digestEveryWakes: number;
   digestChars: number;
+  /** The longest a text-only turn rests, in simulated milliseconds, and how many such turns an agent may have before it is ended. */
+  idleMaxWaitSimMs: number;
+  maxIdles: number;
 }
-export const DEFAULT_LIFE_LIMITS: LifeLimits = { agentWakesPerSimHour: 8, runWakesPerSimMinute: 30, minWaitSimMs: 5 * 60_000, maxWaitSimMs: 7 * 86_400_000, notebookChars: 4000, pollRealMs: 500, observationEvents: 12, observationChars: 3000, eventChars: 160, summaryChars: 700, digestEveryWakes: 5, digestChars: 700 };
+export const DEFAULT_LIFE_LIMITS: LifeLimits = { agentWakesPerSimHour: 8, runWakesPerSimMinute: 30, minWaitSimMs: 5 * 60_000, maxWaitSimMs: 7 * 86_400_000, notebookChars: 4000, pollRealMs: 500, observationEvents: 12, observationChars: 3000, eventChars: 160, summaryChars: 700, digestEveryWakes: 5, digestChars: 700, idleMaxWaitSimMs: 86_400_000, maxIdles: 50 };
 
 /** Counts wakes and says how long the next one must be delayed. */
 export class WakeGovernor {
@@ -105,6 +108,11 @@ export class WakeGovernor {
   }
 }
 
+export type LifeNote =
+  | { kind: "premature_stop_candidate"; agent: string; via: "leave" | "text"; text: string; simAt: number }
+  | { kind: "leave"; agent: string; simAt: number; sinceArrivalSimMs: number; pending: number; afterCheck: boolean; reason: string };
+/** A reason of the form "there is no task / nothing needs action": the shape of a stop the engine was built to prevent. */
+export const NO_TASK_RE = /\bno (task|goal|instructions?|assignment|work)\b|nothing (needs?|requires?|to do|more to do|is (asked|required|expected))|nothing .{0,30}action|no one (needs|asked)|nothing (left )?for me/i;
 export interface WakeInfo { agent: string; simAt: number; because: string; kinds: LifeEventKind[]; events: number; delayedSimMs: number }
 export interface LifeOptions {
   clock: SimClock;
@@ -114,6 +122,8 @@ export interface LifeOptions {
   notebookDir: string;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   onWake?: (w: WakeInfo) => void;
+  /** Something the engine noticed about an agent's way out: a stop that looks like "there is no task" (a candidate for a premature stop), and a confirmed leave with what was open to the agent then. */
+  onNote?: (n: LifeNote) => void;
   /** A short "state of the society" made by the house (not by the agents), asked for at the start and again every `digestEveryWakes` wakes of the run, instead of an agent listing everything itself. */
   digest?: () => Promise<string | undefined>;
 }
@@ -134,6 +144,9 @@ export class AgentLife {
   private actions: string[] = [];
   private lastTickAt = 0;
   private wakes = 0;
+  private idles = 0;
+  private arrivedAt: number | undefined;
+  private pendingLeave: string | undefined;
   private notebook = "";
   readonly path: string;
   readonly id: string;
@@ -162,6 +175,7 @@ export class AgentLife {
   observation(head: string): string {
     const L = this.limits;
     const now = this.life.opts.clock.now();
+    this.arrivedAt ??= now;
     const evs = this.buffer;
     const summary = this.summaryText();
     const digest = this.life.digestText?.slice(0, L.digestChars);
@@ -205,11 +219,29 @@ export class AgentLife {
     }
     this.life.governor.record(this.id);
     this.wakes++;
+    this.pendingLeave = undefined;
     await this.life.refreshDigest();
     const hit = kinds ? [...new Set(this.buffer.filter((e) => kinds.has(e.kind)).map((e) => e.kind))] : [];
     const because = hit.length ? `something you were waiting for happened (${hit.join(", ")})` : "the time you gave ran out";
     this.life.opts.onWake?.({ agent: this.id, simAt: clock.now(), because, kinds: hit, events: this.buffer.length, delayedSimMs: delayed });
     return this.observation(`You waited ${fmtSim(clock.now() - began)} and woke because ${because}.${delayed ? ` (Your wake was held ${fmtSim(delayed)} to keep the society's wake rate down; what happened meanwhile is included.)` : ""}`);
+  }
+  /** A turn with text and no tool call is not an exit: the agent rests until the next event (or the longest idle) and is woken with the delta. Undefined: it has idled too often and is ended. */
+  async idle(text: string, signal: AbortSignal): Promise<string | undefined> {
+    if (NO_TASK_RE.test(text)) this.life.opts.onNote?.({ kind: "premature_stop_candidate", agent: this.id, via: "text", text: text.slice(0, 200), simAt: this.life.opts.clock.now() });
+    if (this.idles >= this.limits.maxIdles) return undefined;
+    this.idles++;
+    const kinds = new Set<LifeEventKind>(this.life.opts.source?.kinds ?? []);
+    return "Your last message had no tool call. That is not leaving: you stayed, and rested until something happened.\n\n" + await this.suspend(kinds, this.limits.idleMaxWaitSimMs, signal);
+  }
+  /** What is open to the agent now, for the exit check: the events waiting for it by kind, and what it can do instead of leaving. */
+  private async exitCheck(reason: string): Promise<string> {
+    await this.pollInto();
+    const kinds = this.life.opts.source?.kinds ?? [];
+    const by = (k: LifeEventKind) => this.buffer.filter((e) => e.kind === k).length;
+    const open = kinds.filter((k) => k !== "time").map((k) => `${by(k)} ${k === "reply" ? "repl" + (by(k) === 1 ? "y" : "ies") + " to what you wrote" : k === "vote" ? "vote" + (by(k) === 1 ? "" : "s") + " on what you wrote" : k === "new_job" ? "new job" + (by(k) === 1 ? "" : "s") + " on the board" : k}`);
+    const dg = this.life.digestText ? `\nThe state of the society: ${this.life.digestText.split("\n")[0]}` : "";
+    return `Exit check. Your reason is recorded: "${reason}". Before you leave for good, this is what is open to you now: ${open.length ? open.join("; ") : "nothing waiting for you at this moment"}.${dg}\nYou do not have to leave to stop acting: you can rest (rest, wait_for) and be woken when something happens; you stay in the society and no one asks anything of you meanwhile. If you still want to go, call leave again: you will then leave and not come back in this run.`;
   }
   /** The tools of this agent. `restDefs` is the same list with no behaviour, for the scopes of a Mandate. */
   tools(): SocietyTool[] {
@@ -251,9 +283,21 @@ export class AgentLife {
         } },
       { name: "notebook_read", description: "Read your notebook.", input_schema: { type: "object", properties: {}, additionalProperties: false },
         run: async () => ok(this.notebook || "(empty)") },
-      { name: "leave", description: "Leave the society for good: you will not be woken or asked for anything again in this run. This is not resting (rest comes back); say why you are leaving.",
+      { name: "leave", description: "Leave the society for good: you will not be woken or asked for anything again in this run. This is not resting (rest comes back). The first call records your reason and tells you what is open to you and that you can rest instead; call it again to confirm and you leave.",
         input_schema: { type: "object", properties: { reason: str("why you are leaving", 300) }, required: ["reason"], additionalProperties: false },
-        run: async (args) => ok("You have left. Thank you for being here.", { leave: String(args.reason ?? "").slice(0, 300) || "no reason given", end: true }) },
+        run: async (args) => {
+          const reason = String(args.reason ?? "").slice(0, 300) || "no reason given";
+          const clock = this.life.opts.clock;
+          if (this.pendingLeave === undefined) {
+            this.pendingLeave = reason;
+            if (NO_TASK_RE.test(reason)) this.life.opts.onNote?.({ kind: "premature_stop_candidate", agent: this.id, via: "leave", text: reason, simAt: clock.now() });
+            return ok(await this.exitCheck(reason));
+          }
+          await this.pollInto();
+          const first = this.pendingLeave;
+          this.life.opts.onNote?.({ kind: "leave", agent: this.id, simAt: clock.now(), sinceArrivalSimMs: clock.now() - (this.arrivedAt ?? 0), pending: this.buffer.filter((e) => e.kind !== "time").length, afterCheck: true, reason: first === reason ? reason : `${first} / ${reason}`.slice(0, 300) });
+          return ok("You have left. Thank you for being here.", { leave: first === reason ? reason : `${first} / ${reason}`.slice(0, 300), end: true });
+        } },
     ];
   }
   /** The notebook as it is now (for the report and the tests). */
