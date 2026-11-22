@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 47** (A 6 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 26 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 48** (A 6 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 27 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -64,6 +64,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 45. **DK1716:** should the default outbound scan also cover email addresses and personal data (phone numbers, national ids, IBANs)? Default taken: no; the default masks a key or a card number and refuses a tool call that carries one, and a person who wants more names the kinds (`--outbound-kinds`, or the Mandate), because an address or a number is often what the task is about. [cli]
 46. **T19:** should a renewed standing job carry the identity of the one it replaces, so a long job is one record trail across renewals? Default taken: yes, a `renews` field naming the earlier contract (a protocol change for lane-protocol-3), and until then each renewal is a new job that the person sees as such. [cli]
 47. **DK1403:** who gives an agent that has only a key its Academy completion? Default taken: the operator's machine, in a batch (`asp academy lens complete-pending`), so the Registrar's key never leaves it and the service signs nothing for an agent; the alternative is a service that holds the Registrar's key under a stated custody rule, which makes the service able to attest any pass and is not built. [society]
+48. **DK1801:** how should the cohort run keep agents engaged for longer than the seconds the first real runs lasted, with still no goal? Default taken (designed, not built until you answer): stagger the arrivals (an agent comes in every few minutes), give every agent a tool that waits for the next change in the society (a new post, a message, a job), and tell it in one sentence that the place continues after it stops; the options and the cost are in docs/society-models-run.md section 14. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

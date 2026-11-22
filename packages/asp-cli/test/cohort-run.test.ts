@@ -42,7 +42,7 @@ test("DK1801: five scripted agents run through the restricted tool set against a
   // cost and tokens are counted for every agent and add up under the caps
   assert.ok(rep.totalUsd > 0 && rep.totalUsd < 5);
   assert.ok(rep.perAgent.every((s) => s.inputTokens > 0 && s.usd > 0 && s.usd < 1));
-  assert.ok(rep.tokensPerAgentHour > 0);
+  assert.equal(rep.tokensPerAgentHour, null, "a run of seconds is too short for a rate per hour");
   // the files
   const files = readdirSync(r.dir);
   assert.ok(files.includes("trace.jsonl") && files.includes("report.md") && files.includes("report.json"));

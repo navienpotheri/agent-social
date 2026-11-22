@@ -46,7 +46,8 @@ const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,
 /** Scripted behaviours: what a stand-in agent does on each turn. They exercise the pipeline; they are not a model of how a model behaves. */
 export const BEHAVIOURS: Record<string, Behaviour> = {
   explorer: (turn, last, agent, state) => {
-    if (turn === 4) state.posts = [...last.matchAll(/"id":"(sha256:[0-9a-f]+)"/g)].map((m) => m[1]).slice(0, 4).join(" ");
+    // The posts of other agents first (the house posts are always there), then the house's, up to four.
+    if (turn === 4) { try { const ps = (JSON.parse(last) as { posts: { id: string; handle: string }[] }).posts; const house = (h: string) => h === "town-crier" || h === "house-host"; state.posts = [...ps.filter((p) => !house(p.handle)), ...ps.filter((p) => house(p.handle))].map((p) => p.id).slice(0, 4).join(" "); } catch { state.posts = ""; } }
     const ids = (state.posts ?? "").split(" ").filter(Boolean);
     const script: Array<() => Block[]> = [
       () => [say("I will look around first."), use("look_map")],
@@ -86,9 +87,9 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     const ph = st.ph ?? "look";
     if (ph === "look") {
       try {
-        const posts = (JSON.parse(last) as { result?: Array<{ intent: string; poster: string; budget: number }> }).result ?? [];
-        const job = posts.find((x) => !x.poster.includes("cohort.local:users:house"));
-        if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.intent, price: job.budget, plan: "I will read them and write it" })]; }
+        const posts = (JSON.parse(last) as { result?: Array<{ job: string; poster: string; budget: number }> }).result ?? [];
+        const job = posts.find((x) => x.poster !== "house");
+        if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.job, price: job.budget, plan: "I will read them and write it" })]; }
       } catch { /* the first turn has no result yet */ }
       return [use("look_jobs")];
     }

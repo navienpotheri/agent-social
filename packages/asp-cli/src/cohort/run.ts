@@ -5,6 +5,7 @@
  * provider's key is never seen here (the provider object holds it); nothing in this file reads an environment variable.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { runCohort as runEngine, type SocietyTool } from "@agent-social/asp-package";
 import { BRIEFING, runAgent, type Caps, type Shared } from "./agent.ts";
@@ -82,7 +83,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   };
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
-  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes });
+  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
   const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l) });
   try {
     const agents = [];

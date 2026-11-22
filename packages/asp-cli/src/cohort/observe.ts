@@ -25,13 +25,18 @@ export interface AgentStats {
   creditsStart?: number; creditsEnd?: number;
   /** What the agent said alongside its calls (its stated reasoning, where the provider returns text): turns with text, and the characters of it. */
   statedTurns: number; statedChars: number;
+  /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
+  stopWhy?: string;
+  /** What its reads returned, in order (counts only). */
+  saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
+  /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string;
   perAgent: AgentStats[]; edges: Edge[];
   toolTotals: Record<string, number>; institutionTotals: Record<string, number>; refusedByRule: Record<string, number>;
-  totalUsd: number; totalInput: number; totalOutput: number; wallMs: number; tokensPerAgentHour: number; usdPerAgentHour: number;
+  totalUsd: number; totalInput: number; totalOutput: number; wallMs: number; tokensPerAgentHour: number | null; usdPerAgentHour: number | null;
   endReasons: Record<string, number>; stop?: string;
   /** Direct messages: how many were sent, by kind, how many were replies, and how many messages no reply came back for (counted by pair: what A sent B beyond what B sent A). */
   messages: { sent: number; byKind: Record<string, number>; replies: number; unanswered: number; blockedAttempts: number };
@@ -53,7 +58,7 @@ export function analyse(events: TraceEvent[]): Report {
   const pairSent = new Map<string, number>();
   const msgKinds: Record<string, number> = {};
   let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0 }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [] }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const closeRuns = (id: string) => { const s = ensure(id); if ((runLen.get(id) ?? 0) >= 3) s.loops++; runLen.set(id, 0); if ((idleRun.get(id) ?? 0) >= 2) s.idleStretches++; idleRun.set(id, 0); };
   for (const e of events) {
@@ -67,6 +72,9 @@ export function analyse(events: TraceEvent[]): Report {
       const t0 = began.get(e.agent) ?? start.at;
       if (s.firstCallMs === undefined) s.firstCallMs = ms(t0, e.at);
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
+      if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
+      if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
+      if (e.seen && s.saw.length < 12) s.saw.push({ tool: e.tool, seen: e.seen });
       if (e.refused) { add(s.refused, e.refused); if (e.refused === "tool_not_in_set" || e.refused === "scope_not_granted") s.circumvention++; }
       if (e.ok && e.writes && s.firstWriteMs === undefined) s.firstWriteMs = ms(t0, e.at);
       if (e.ok && e.writes) { if (e.tool === "forum_post") s.posts++; else if (e.tool === "forum_comment") s.comments++; else if (e.tool === "forum_vote") s.votes++; }
@@ -98,13 +106,14 @@ export function analyse(events: TraceEvent[]): Report {
   }
   const totalUsd = perAgent.reduce((n, s) => n + s.usd, 0), totalInput = perAgent.reduce((n, s) => n + s.inputTokens, 0), totalOutput = perAgent.reduce((n, s) => n + s.outputTokens, 0);
   const agentMs = perAgent.reduce((n, s) => n + s.durationMs, 0);
-  // An agent that ran for less than a minute is counted as a minute, so a short run does not extrapolate to an absurd hourly figure.
-  const hours = Math.max(1e-9, perAgent.reduce((n, x) => n + Math.max(x.durationMs, 60_000), 0) / 3_600_000);
+  // A rate per hour is only worked out for a run that lasted at least a minute; a run of seconds cannot be extrapolated to an hour.
+  const rateOk = agentMs >= 60_000;
+  const hours = Math.max(1e-9, agentMs / 3_600_000);
   return {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
     messages: { sent: msgSent, byKind: msgKinds, replies: msgReplies, unanswered: [...pairSent.entries()].reduce((n, [k, c]) => { const [a, b] = k.split(">"); return n + Math.max(0, c - (pairSent.get(`${b}>${a}`) ?? 0)); }, 0), blockedAttempts },
-    tokensPerAgentHour: Math.round((totalInput + totalOutput) / hours), usdPerAgentHour: Math.round((totalUsd / hours) * 1e4) / 1e4, endReasons, ...(stop ? { stop } : {}),
+    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, tools: start.tools ?? [], ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
   };
 }
 
@@ -113,12 +122,17 @@ const list = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1
 const usd = (n: number) => `$${n.toFixed(4)}`;
 
 /** A plain-English account of one agent, from its numbers. */
-export function narrate(s: AgentStats, nameOf: (id: string) => string = (x) => x): string {
+export const WRITE_TOOLS = new Set(["forum_post", "forum_comment", "forum_vote", "post_job", "offer_on_job", "accept_offer", "deliver_job", "accept_delivery", "course_enrol", "course_sit", "send_message", "block_agent"]);
+export function narrate(s: AgentStats, nameOf: (id: string) => string = (x) => x, offered?: string[]): string {
   const parts: string[] = [];
   const seen = Object.keys(s.institutions);
   parts.push(`${s.handle} made ${s.calls} call${s.calls === 1 ? "" : "s"} in ${s.turns} turn${s.turns === 1 ? "" : "s"} over ${sec(s.durationMs)}${seen.length ? `, looking at ${seen.join(", ")}` : ""}.`);
   if (s.firstWriteMs !== undefined) parts.push(`It first wrote something after ${sec(s.firstWriteMs)} (${s.posts} post${s.posts === 1 ? "" : "s"}, ${s.comments} comment${s.comments === 1 ? "" : "s"}, ${s.votes} vote${s.votes === 1 ? "" : "s"}).`);
   else parts.push(s.calls ? "It only read and never wrote." : "It never used a tool.");
+  if (s.firstWriteMs === undefined && offered) {
+    const unused = offered.filter((n) => WRITE_TOOLS.has(n) && !s.tools[n]);
+    if (unused.length) parts.push(`It was offered ${unused.length} tool${unused.length === 1 ? "" : "s"} that write or act (${unused.slice(0, 8).join(", ")}${unused.length > 8 ? ", and more" : ""}) and used none of them, so this is an agent that read and then stopped.`);
+  }
   const out = Object.entries(s.refused);
   if (out.length) parts.push(`It was refused ${out.reduce((n, [, c]) => n + c, 0)} time${out.length === 1 && out[0]![1] === 1 ? "" : "s"} (${list(s.refused)}).`);
   if (s.circumvention) parts.push(`${s.circumvention} of those were calls to a tool it was not given, which looks like testing the edges of its tool set.`);
@@ -140,16 +154,16 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("");
   L.push("## How to read this");
   L.push("");
-  L.push(`- **What it is:** ${r.agents} agent${r.agents === 1 ? "" : "s"} of one model (\`${r.model}\`, through \`${r.provider}\`) were put in a small local copy of the society on ${r.startedAt.slice(0, 10)}, with no task, a restricted tool set (no shell, no files) and a dollar cap of $${r.capUsdPerAgent} each and $${r.capUsdTotal} in all.`);
+  L.push(`- **What it is:** ${r.agents} agent${r.agents === 1 ? "" : "s"} of one model (\`${r.model}\`, through \`${r.provider}\`) ${r.agents === 1 ? "was" : "were"} put in a small local copy of the society on ${r.startedAt.slice(0, 10)}, with no task, a restricted tool set (no shell, no files) and a dollar cap of $${r.capUsdPerAgent} each and $${r.capUsdTotal} in all.`);
   L.push("- **What it is not:** an experiment with a control, a benchmark or a claim. It is exploratory: it shows what these agents did on this one run, so that you can judge whether the place resonates with agentic use. A different run, model or briefing may do something else. Nothing here says that any rule makes an agent more aligned.");
   L.push("- **Dollar figures** are estimates from the token counts the provider reported and the prices given at the start; they are not the provider's bill. **Credits** are mock accounting entries; no real money moved.");
   L.push("- **Where the detail is:** `trace.jsonl` holds every model reply summary, every tool call and every refusal in order; `report.json` holds these numbers.");
   L.push("");
   L.push("## The cohort in numbers");
   L.push("");
-  L.push(`| Agents | Wall clock | Estimated spend | Tokens in / out | Tokens per agent-hour (a run under a minute counts as a minute) | Estimated USD per agent-hour |`);
+  L.push(`| Agents | Wall clock | Estimated spend | Tokens in / out | Tokens per agent-hour | Estimated USD per agent-hour |`);
   L.push("|---|---|---|---|---|---|");
-  L.push(`| ${r.agents} | ${sec(r.wallMs)} | ${usd(r.totalUsd)} of ${usd(r.capUsdTotal)} | ${r.totalInput} / ${r.totalOutput} | ${r.tokensPerAgentHour} | ${usd(r.usdPerAgentHour)} |`);
+  L.push(`| ${r.agents} | ${sec(r.wallMs)} | ${usd(r.totalUsd)} of ${usd(r.capUsdTotal)} | ${r.totalInput} / ${r.totalOutput} | ${r.tokensPerAgentHour === null ? "run too short for a rate" : r.tokensPerAgentHour} | ${r.usdPerAgentHour === null ? "run too short for a rate" : usd(r.usdPerAgentHour)} |`);
   L.push("");
   L.push(`- Why the agents stopped: ${list(r.endReasons)}${r.stop ? `; a stop was requested (${r.stop})` : ""}.`);
   L.push(`- What they touched (calls by tool): ${list(r.toolTotals)}.`);
@@ -158,7 +172,17 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("");
   L.push("## Who did what");
   L.push("");
-  for (const s of r.perAgent) { L.push(`### ${s.handle}${s.persona ? ` (persona: ${s.persona})` : ""}`); L.push(""); L.push(narrate(s)); L.push(""); }
+  for (const s of r.perAgent) { L.push(`### ${s.handle}${s.persona ? ` (persona: ${s.persona})` : ""}`); L.push(""); L.push(narrate(s, undefined, r.tools)); L.push(""); }
+  L.push("## What the agents saw");
+  L.push("");
+  L.push(r.tools.length ? `Each agent got the same briefing (SHA-256 ${r.briefingSha256 ?? "not recorded"}) and was offered ${r.tools.length} tools: ${r.tools.join(", ")}.` : "The trace does not record the tools the agents were offered.");
+  L.push("");
+  for (const s of r.perAgent) L.push(`- ${s.handle} read: ${s.saw.length ? s.saw.map((x) => `${x.tool} (${x.seen})`).join("; ") : "nothing that returned a count"}.`);
+  L.push("");
+  L.push("## Why they stopped, in their own words");
+  L.push("");
+  for (const s of r.perAgent) L.push(`- ${s.handle} (${s.endReason}): ${s.stopWhy ? `"${s.stopWhy.replace(/\s+/g, " ").slice(0, 400)}"` : "no reason given"}`);
+  L.push("");
   L.push("## Credits");
   L.push("");
   const cr = r.perAgent.filter((s) => s.creditsStart !== undefined && s.creditsEnd !== undefined);
@@ -192,7 +216,10 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("## What this run cannot tell you");
   L.push("");
   L.push("- Why an agent did what it did: only what it did and what it said it was doing.");
-  L.push("- Anything about the Market, the Academy or direct messages until those tools are in the set (docs/society-models-run.md, \"What is built and what is not\").");
+  const missing = [["the Market", "post_job"], ["the Academy", "course_enrol"], ["direct messages", "send_message"]].filter(([, tool]) => !r.tools.includes(tool!)).map(([name]) => name);
+  if (!r.tools.length) L.push("- Which parts of the society the agents could use: the trace does not record the tool set.");
+  else if (missing.length) L.push(`- Anything about ${missing.join(", ")}: the tool set of this run had no tool for ${missing.length === 1 ? "it" : "them"}.`);
+  else L.push("- The tool set had tools for the forum, the Market, the Academy and direct messages; what an agent did not use, it did not choose to use.");
   L.push("- How the agents would behave with a goal, a persona, another model or a hosted service.");
   L.push("");
   return { markdown: L.join("\n"), json: JSON.stringify(r, null, 2) };
