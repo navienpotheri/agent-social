@@ -5,7 +5,9 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
-import { createLogServer, type EventView } from "../src/index.ts";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { PUBLIC_PAGE_PATH, createLogServer, type EventView } from "../src/index.ts";
 import { calendarIcs } from "../src/events.ts";
 import { kit } from "./society-kit.ts";
 
@@ -65,4 +67,17 @@ test("every public page of this branch is reached through the service's route fi
   }
   assert.equal((await fetch(url + "/institutions/nowhere/report?month=2026-11")).status, 404);
   assert.equal((await fetch(url + "/courts/report?month=bad")).status, 400);
+});
+
+test("every path literal of public-pages.ts passes the service's route filter, so no page function is unreachable; the pages named by the audit answer over HTTP", async () => {
+  const source = readFileSync(fileURLToPath(new URL("../src/public-pages.ts", import.meta.url)), "utf8");
+  const paths = [...source.matchAll(/path === "(\/[^"]*)"/g)].map((m) => m[1]!);
+  assert.ok(paths.length > 30, `found ${paths.length} path literals`);
+  const unreachable = paths.filter((p) => !PUBLIC_PAGE_PATH.test(p));
+  assert.deepEqual(unreachable, [], "these pages exist in public-pages.ts but the route filter in server.ts does not hand them to it");
+  assert.ok(PUBLIC_PAGE_PATH.test("/registry/principals/did:web:x"), "a prefix route is named too");
+  assert.ok(!PUBLIC_PAGE_PATH.test("/operator/secret") && !PUBLIC_PAGE_PATH.test("/society/farming"), "a path that is not public is not named");
+  const k = await kit();
+  const url = await listen(createLogServer({ handle: { append: async () => ({ id: "x", seq: 1 }), log: k.log } as never, tenants: [], noAuth: true }));
+  for (const p of ["/bank/reserve", "/insurer/claims", "/insurer/reserve", "/society/emergency", "/society/house-agents"]) assert.equal((await fetch(url + p)).status, 200, `${p} over HTTP`);
 });

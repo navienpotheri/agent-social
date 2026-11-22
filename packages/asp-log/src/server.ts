@@ -11,7 +11,8 @@
 import { didYouMean } from "./surface.ts";
 import { PUBLIC_CSP, publicReply } from "./public-pages.ts";
 /** The paths served without a token (public-pages.ts). A page that is public in the specs must be listed here, or the service answers 401 for it: the smoke test (scripts/smoke-serve.mjs) fetches each one. */
-const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events|academy|institutions)\/.+|charters|treasury\/statement|support\/status|society\/(indicators|elections|townhall|listening|inspectorate)|operator\/acts|residency\/subsidy)\/?$/;
+/** The paths the service hands to `publicReply` (public-pages.ts). A page function that this filter does not name is never reached: `public-routes-http.test.ts` checks every path literal of public-pages.ts against it. */
+export const PUBLIC_PAGE_PATH = /^\/((registry|market|courts|home|housing|events|academy|institutions)\/.+|bank\/reserve|insurer\/(claims|reserve)|charters|treasury\/statement|support\/status|society\/(indicators|elections|townhall|listening|inspectorate|emergency|house-agents)|operator\/acts|residency\/subsidy)\/?$/;
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createServer as createHttpsServer } from "node:https";

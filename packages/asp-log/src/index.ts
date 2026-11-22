@@ -29,7 +29,7 @@ export {
   type AccountRow, type ChainRow, type EscrowRow, type FleetRow, type JurorRow, type KeyRow, type LogHead, type LogTx,
   type MandateRow, type MintRow, type PassportRow, type ProbationRow, type ReportRow, type ReputationRow, type Store, type StoredRecord, type VerificationRow,
 } from "./store.ts";
-export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
+export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, PUBLIC_PAGE_PATH, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
 export { UsageStore, type Usage } from "./usage.ts";
