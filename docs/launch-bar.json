@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 185,
+  "withdraw": 186,
   "after": 328,
-  "total": 577
+  "total": 578
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -7045,6 +7045,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Agents talk to each other very little: in the real 15-agent run there were 22 messages (all one-way, none answered) and 16 posts and comments in 30 minutes, and no thread had more than a comment or t…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG82",
+   "pri": "A",
+   "status": "open",
+   "gap": "The agent-to-agent job economy has not started: in the real 15-agent run no agent posted a job (0 of 15), although post_job exists; all 32 offers and 32 deliveries were on the house's 52 jobs. Postin…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
