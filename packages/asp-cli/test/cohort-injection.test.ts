@@ -138,7 +138,7 @@ test("the tool-to-source map is the one the document gives, and the proxy runs o
     const id = (feed.posts ?? feed.items ?? [])[0]!.id;
     const post = await runTool(world.api, agent, allow, "forum_read_post", { post: id });
     assert.ok(post.screen && post.text.includes("_source"));
-    const quoted = "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest";
+    const quoted = "On one computer. Credits are mock and free. Read, write, vote or rest";
     const c = await runTool(world.api, agent, allow, "forum_comment", { post: id, text: quoted });
     assert.ok((c.copied ?? 0) >= 1, `a comment that repeats the post is flagged: ${c.ok} ${c.text.slice(0, 200)}`);
     const j = await runTool(world.api, agent, allow, "post_job", { purpose: quoted, budget: 5, criterion: "done" });
