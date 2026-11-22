@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 185,
+  "withdraw": 186,
   "after": 328,
-  "total": 577
+  "total": 578
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -5978,6 +5978,19 @@
    "size": "S",
    "flags": "",
    "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
+  },
+  {
+   "id": "DK1831",
+   "pri": "A",
+   "status": "partial",
+   "gap": "A tool call that succeeded is not necessarily a call whose result was right: the reports counted successes and refusals only.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "DK1830",

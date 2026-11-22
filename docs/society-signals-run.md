@@ -37,3 +37,7 @@ npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api
 2. The signal records are in the trace; the signed Action summaries (the log) do not carry them yet.
 3. Calibration needs 50 or more expectations with a stated probability: a 15-agent hour may not produce them.
 4. Beliefs that the society settles (a price that turns out, a rule that is enforced) so that belief probes can be calibrated.
+
+## Tool-call outcomes (DK1831)
+
+Every cohort report also has "Was the result right?" and `outcomes.json`: not only whether a call succeeded or was refused, but, where the job has a checker, whether its result passed: the house's check of a delivery, the Academy's held-out grading of a course sitting, a card's answer check. Every other successful call is `not-measurable` and is not counted as right or wrong (a forum read or post is good or not only to its readers). The pass rate is over the checked calls only. A real run would show how often calls that ran without error still failed their check.

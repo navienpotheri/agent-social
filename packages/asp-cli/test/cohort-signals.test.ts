@@ -186,6 +186,9 @@ test("a run with --signals: records in the trace as numbers and hashes, the repo
   const cfg = parseSignals("plans,rules,predictions,beliefs,worldmodel,modes")!;
   assert.deepEqual(lensSignals(events, cfg), rep, "the lens reproduces the measures from the records in the trace");
   assert.ok(events.find((e) => e.t === "start").briefingSha256, "the briefing hash is recorded, including the signals paragraph");
+  const oc = JSON.parse(readFileSync(join(dir, "outcomes.json"), "utf8"));
+  assert.equal(oc.total.calls, events.filter((e) => e.t === "tool").length, "the outcome report counts every call");
+  assert.match(readFileSync(join(dir, "report.md"), "utf8"), /## Was the result right\? \(tool-call outcomes\)/);
   assert.equal((await mainVerify(dir)).code, 0);
   for (const f of [...filesUnder(out), ...filesUnder(home)]) assert.ok(!readFileSync(f).includes(SECRET), `${f} holds the key`);
 });
