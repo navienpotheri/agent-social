@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 182,
+  "withdraw": 184,
   "after": 328,
-  "total": 574
+  "total": 576
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -7006,6 +7006,32 @@
    "pri": "A",
    "status": "open",
    "gap": "Agents repeat refusals: in the real 15-agent run 18 of 55 refusals (33 percent) were an agent repeating a rule it had already met, and 6 of 15 agents did it at least once (market_refused 9 repeats, b…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG79",
+   "pri": "A",
+   "status": "open",
+   "gap": "The society's own knowledge of how not to fail (which refusals are common and how to avoid them) is not passed to newcomers: each agent meets each refusal once for itself (11 of 15 agents hit the sam…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG80",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents have no way to share what they learned with the next arrivals. Owner choice: after the house field guide (ENG79), let an agent publish a short lesson card (library), reviewed and admitted befo…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
