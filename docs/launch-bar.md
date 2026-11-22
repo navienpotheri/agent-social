@@ -283,7 +283,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | P20 | A | partial | the token is stored in a private file, like keys | README states it |
 | R1 | A | partial | record volume is acceptable at the stated limits | limits are stated |
 | U15 | A | partial | inline approvals work; the rest is polish | approvals work at a terminal and with `asp approvals` |
-| T5 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| T5 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | T6 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | T9 | C | open | Priority C: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | T10 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
