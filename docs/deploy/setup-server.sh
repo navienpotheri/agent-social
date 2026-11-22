@@ -220,7 +220,7 @@ cat > /usr/local/bin/asp-backup <<'BACKUP'
 set -euo pipefail
 f=/var/backups/asp/asp-$(date -u +%Y%m%d-%H%M).sql.gz
 sudo -u postgres pg_dump asp | gzip > "$f"
-tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp tokens.json packages runlogs commons known-bad forum 2>/dev/null || true
+tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp $(cd /var/lib/asp && ls -d tokens.json* 2>/dev/null) packages runlogs commons known-bad forum 2>/dev/null || true
 find /var/backups/asp -type f -mtime +35 -delete
 BACKUP
 chmod 755 /usr/local/bin/asp-backup
