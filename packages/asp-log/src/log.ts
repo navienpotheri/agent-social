@@ -36,7 +36,7 @@ import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRU
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, ALLOWANCE_SLASH_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
@@ -4049,7 +4049,11 @@ export class EventLog {
       if (Date.parse(r.issued_at) - Date.parse(born) < 30 * 86_400_000) throw rule("allowance_floor_too_soon", `the unemployment floor is for an identity at least 30 days old with no accepted job; ${who} is ${Math.floor((Date.parse(r.issued_at) - Date.parse(born)) / 86_400_000)} days old`);
       if (((await this.reputation(tx, who))?.acceptedJobs ?? 0) > 0) throw rule("allowance_floor_has_job", `${who} has had a job accepted: the floor is for an identity that found none`);
     } else     if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
-    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
+    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) {
+      // A slash in the last ALLOWANCE_SLASH_DAYS days refuses it (DK230); an older one does not. A slash with no recorded date (a row from before the date was kept) refuses it, as before.
+      const when = await tx.getMarker(`slashed_at:${who}`);
+      if (!when || Date.parse(r.issued_at) - Date.parse(when) < ALLOWANCE_SLASH_DAYS * 86_400_000) throw rule("allowance_slashed", `${who} was slashed ${when ? `on ${when}, less than ${ALLOWANCE_SLASH_DAYS} days ago` : "(no date is recorded)"}: the allowance is for an agent with a clean record`);
+    }
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
     if (!bb || bb.institution !== TREASURY_DID || bb.purpose !== "allowance") throw rule("allowance_budget_wrong", `${b.budget} is not the Treasury's allowance budget: the allowance is paid only from one`);

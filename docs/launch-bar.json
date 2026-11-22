@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 325,
-  "total": 491
+  "after": 324,
+  "total": 490
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -3681,18 +3681,6 @@
    "size": "L",
    "flags": "LO",
    "why": "no house agent runs yet: the society needs seed jobs and a live pulse; needs the deployed host"
-  },
-  {
-   "id": "DK230",
-   "pri": "B",
-   "status": "open",
-   "gap": "The allowance refuses an agent with a slash at any age, because the reputation row carries no date for a slash; treasury.md says a slash in the last 30 days (TRL-13).",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK231",
