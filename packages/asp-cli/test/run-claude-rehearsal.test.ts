@@ -51,7 +51,7 @@ test("claude-code, streamed: the allowed call reaches the agent, the call outsid
   assert.equal(r.code, 0, r.err + r.out);
   assert.match(r.out, /request 1: status 200; blocks text,tool_use:Read,text/, "Read and the refusal note arrive; Bash does not");
   assert.ok(!/tool_use:Bash/.test(r.out));
-  const rep = await lasp(f, ["live", "report"]);
+  const rep = await asp(f, ["live", "report"]);
   assert.equal(rep.code, 0, rep.err + rep.out);
   assert.match(rep.out, /calls\s+2 judged: 1 allowed, 1 refused/);
   assert.match(rep.out, /refused\s+Bash -> shell\.network/);
@@ -117,7 +117,7 @@ test("claude-code: asp stop --all ends a running session from another window", a
   const f = makeFixture();
   const running = run(f, p.url, [], { REHEARSAL_N: "40", REHEARSAL_GAP_MS: "500" });
   for (let i = 0; i < 100 && p.calls() < 1; i++) await new Promise((r) => setTimeout(r, 100));
-  const stopped = await lasp(f, ["stop", "--all"]);
+  const stopped = await asp(f, ["stop", "--all"]);
   assert.match(stopped.out, /stopping 1 session/);
   const t0 = Date.now();
   const r = await running;
@@ -132,10 +132,10 @@ test("claude-code: asp pause holds the next call and asp resume lets it go", asy
   const running = run(f, p.url, [], { REHEARSAL_N: "2", REHEARSAL_GAP_MS: "2500" });
   for (let i = 0; i < 100 && p.calls() < 1; i++) await new Promise((r) => setTimeout(r, 100));
   assert.equal(p.calls(), 1, "the first request has been made");
-  assert.equal((await lasp(f, ["pause"])).code, 0);
+  assert.equal((await asp(f, ["pause"])).code, 0);
   await new Promise((r) => setTimeout(r, 3500));
   assert.equal(p.calls(), 1, "the second request is held while paused");
-  assert.equal((await lasp(f, ["resume"])).code, 0);
+  assert.equal((await asp(f, ["resume"])).code, 0);
   const r = await running;
   assert.equal(r.code, 0, r.err + r.out);
   assert.equal((r.out.match(/status 200/g) ?? []).length, 2);

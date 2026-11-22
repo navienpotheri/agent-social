@@ -2,7 +2,7 @@
  * Private memory in a run (register rows DK272 and D12; docs/private-memory-run-design.md). The sealing is private-memory.ts; this is the custody and the run: where the two memory keys live, how the agent's key
  * is sealed to the principal, and the store the gateway opens for the length of a run, so that the agent reads and writes a scope through tools and never sees a key or the sealed file.
  *
- *   principal's key  <home>/keys/<did>.memory.json         sealed with the key passphrase when one is set (the same scrypt seal as the signing keys), mode 0600
+ *   principal's key  <home>/memory-keys/<did>.json           sealed with the key passphrase when one is set (the same scrypt seal as the signing keys), mode 0600
  *   agent's key      <package>/keys/memory.json            the private half sealed to the principal's PUBLIC memory key, so a host that holds only the node key cannot read it
  *   a scope          <package>/memory/private/<scope>.sealed.json   replaced atomically; limits 256 KiB, 16 scopes, names a-z 0-9 - _ (1 to 64)
  *
@@ -23,8 +23,9 @@ const slug = (s: string) => s.replace(/[^A-Za-z0-9._-]+/g, "_");
 
 /** The principal's memory key, made on first use and kept beside the signing keys. Sealed with the passphrase when one is given. */
 export function principalMemoryKey(home: string, did: string, passphrase?: string): MemoryKey {
-  const dir = join(home, "keys");
-  const file = join(dir, `${slug(did)}.memory.json`);
+  // Not in <home>/keys: the keystore reads every .json file there as a signing key and a memory key has none of its fields.
+  const dir = join(home, "memory-keys");
+  const file = join(dir, `${slug(did)}.json`);
   if (existsSync(file)) {
     const raw = JSON.parse(readFileSync(file, "utf8")) as { sealed?: unknown; key?: MemoryKey };
     if (isSealed(raw.sealed)) { if (!passphrase) throw new Error("the principal's memory key is protected with a passphrase: set ASP_KEY_PASSPHRASE to it (not on a command line) and try again"); return JSON.parse(openSeal(raw.sealed as Sealed, passphrase)) as MemoryKey; }

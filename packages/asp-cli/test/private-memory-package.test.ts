@@ -49,6 +49,7 @@ test("a package with a private scope verifies, exports sealed (no plaintext), an
   const home2 = mkdtempSync(join(tmpdir(), "asp-home2-"));
   mkdirSync(join(home2, "keys"), { recursive: true });
   cpSync(join(f.aspHome, "keys"), join(home2, "keys"), { recursive: true });
+  cpSync(join(f.aspHome, "memory-keys"), join(home2, "memory-keys"), { recursive: true });
   const pk2 = principalMemoryKey(home2, ALICE);
   const run2 = new PrivateMemoryRun({ dir: join(fresh, "memory", "private"), pair: { principal: ALICE, agent: CODER }, agentKey: unsealAgentMemoryKey(fresh, pk2.privateKey), principalPublic: pk2.publicKey, allowed: ["notes"] });
   assert.equal(run2.read("notes"), PLAIN);
@@ -57,4 +58,38 @@ test("a package with a private scope verifies, exports sealed (no plaintext), an
   const home3 = mkdtempSync(join(tmpdir(), "asp-home3-"));
   const stranger = principalMemoryKey(home3, ALICE);
   assert.throws(() => unsealAgentMemoryKey(fresh, stranger.privateKey), /cannot be opened/);
+});
+
+test("the pair publishes the public halves of its memory keys in the log (S1604): the principal's own, the agent's from its package; show reads them; a second publish is a no-op; only public bytes are recorded", async () => {
+  const f = makeFixture();
+  await ok(f, ["identity", "new", "--kind", "human", "--did", ALICE]);
+  await ok(f, ["identity", "new", "--kind", "agent", "--did", CODER, "--sponsor", ALICE, "--purpose", "Keeps a secret"]);
+  const pkg = join(f.root, "coder.aspkg");
+  await ok(f, ["pack", "--runtime", "claude-code", "--agent", CODER, "--project", f.project, "--user-home", f.home, "--out", pkg]);
+  assert.match((await ok(f, ["keys", "memory", "show", ALICE])).out, /no memory key is published/);
+  const p = await ok(f, ["keys", "memory", "publish", "--by", ALICE]);
+  assert.match(p.out, /published memory key memory-1/);
+  const a = await ok(f, ["keys", "memory", "publish", "--by", CODER, "--package", pkg, "--principal", ALICE]);
+  assert.match(a.out, /published memory key memory-1/);
+  const shownP = (await ok(f, ["keys", "memory", "show", ALICE])).out;
+  const shownA = (await ok(f, ["keys", "memory", "show", CODER])).out;
+  assert.match(shownP, /live memory key memory-1 \(([A-Za-z0-9_-]{43})\)/);
+  assert.match(shownA, /live memory key memory-1 \(([A-Za-z0-9_-]{43})\)/);
+  assert.notEqual(/\(([A-Za-z0-9_-]{43})\)/.exec(shownP)![1], /\(([A-Za-z0-9_-]{43})\)/.exec(shownA)![1], "two different keys");
+  // the published halves are the real public halves: the pair can seal and open with them
+  const { principalMemoryKey, unsealAgentMemoryKey, spkiOfRawPublicKey, sealPrivateScope, openPrivateScope } = await import("@agent-social/asp-package");
+  const pk = principalMemoryKey(f.aspHome, ALICE);
+  const agentKey = unsealAgentMemoryKey(pkg, pk.privateKey);
+  const pubA = spkiOfRawPublicKey(/\(([A-Za-z0-9_-]{43})\)/.exec(shownA)![1]);
+  const pubP = spkiOfRawPublicKey(/\(([A-Za-z0-9_-]{43})\)/.exec(shownP)![1]);
+  assert.equal(pubA, agentKey.publicKey);
+  assert.equal(pubP, pk.publicKey);
+  const sealed = sealPrivateScope(PLAIN, pk.privateKey, pubA, { principal: ALICE, agent: CODER }, "notes");
+  assert.equal(openPrivateScope(sealed, agentKey.privateKey, pubP, { principal: ALICE, agent: CODER }, "notes").toString("utf8"), PLAIN);
+  // a second publish of the same key changes nothing
+  assert.match((await ok(f, ["keys", "memory", "publish", "--by", ALICE])).out, /already published/);
+  // nobody publishes for another identity: no signing key, no record
+  const lone = await asp(f, ["keys", "memory", "publish", "--by", "did:web:example.com:agents:stranger"]);
+  assert.notEqual(lone.code, 0);
+  assert.match(lone.err + lone.out, /only the identity itself publishes/);
 });

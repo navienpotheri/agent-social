@@ -20,7 +20,7 @@ import { homedir } from "node:os";
 import { basename, delimiter, join, resolve } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import { codexActionParser } from "./codex-actions.ts";
-import { copyInto, listFiles, sha256File, toPosix, writeJson } from "../files.ts";
+import { copyInto, listFiles, readTextFile, sha256File, toPosix, writeJson } from "../files.ts";
 import { asList, frontmatter } from "../frontmatter.ts";
 import type { Capture, Component, Harness, LaunchPlan, McpServer, RuntimeAdapter, SessionSummary } from "../harness.ts";
 import { resolveSecrets, stripSecrets, type Env } from "../secrets.ts";
@@ -55,7 +55,7 @@ interface CodexConfig {
 }
 
 function readToml(path: string): CodexConfig | undefined {
-  return existsSync(path) ? (parseToml(readFileSync(path, "utf8")) as CodexConfig) : undefined;
+  return existsSync(path) ? (parseToml(readTextFile(path)) as CodexConfig) : undefined;
 }
 
 function readHooks(dir: string, cfg: CodexConfig | undefined): Record<string, unknown[]> {
