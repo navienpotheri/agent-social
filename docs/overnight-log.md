@@ -20,3 +20,30 @@
 - 2026-11-22 13:50 IST keeper: window 62 percent. Lanes cli-3, protocol-3, launch-bar-2 resumed (society-2 running). Lead tip 0419b981+deployment plan merge is FROZEN for the owner live run tonight (no merges into this folder until he is done). Last push still 4b4ccd61; later lane tips (cli-3 bf0be93e, society-2, protocol-3, launch-bar-2) wait for a post-run merge and full gate.
 
 - 2026-11-22 14:42 IST keeper: window 90 percent (resets 15:00 IST), weekly 59 percent; lane-society-2 paused itself near 95 percent, launch-bar-2 idle with nothing buildable; nobody resumed now (window nearly spent), resume after the reset. Pushed aa1779b2 earlier (all four lanes merged, CLI per-test limit added). Owner live run in progress (Claude Code haiku item 1 proven; Codex item 5 refusal proven, key variables were swapped and fixed). lane-cli-3 session-listing fix applied to the owner folder as 9e879252.
+
+## 2026-11-22 evening (launch-bar-2): rows moved by the owner's deployment evidence
+
+Each row is judged by its own Done line. "Closed" means that the Done line is met; "advanced" means that evidence was added and the row stays partial, with what is missing named in the row. The evidence is as relayed by the lead; the sections of docs/live-run-checklist.md give each fact. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1411 | open | closed | The VM disk `asp-log` and its snapshot use Google-managed encryption (step 2); docs/procurement/encryption-evidence.md; answer 29 reads Yes |
+| DK95 | partial | closed | The live audit passes `--require-signed`: 4500 minted, 4500 signed, 0 unsigned, balanced, log seq 413 after nine adoptions of 500 (step 6) |
+| DK1503 | open | closed | A second outside monitor, the status copy and the outage test on the public status page (14:30:30 to 14:35:21Z); the Up mails are to be confirmed |
+| GV6 | partial | partial | The database restore drill passed twice on the server (404 records); the whole-city restore, the emergency stop on the live service and the incident process remain |
+| DK1802 | open | partial | Deployed (bbfa5af), key-only open, and the account routes work with the current client; an enrolment and two runs through the service are still to be run |
+| DK1803 | open | partial | `/health` carries a build block with schema fingerprints; the client's preflight and the plain SCHEMA_INVALID message are not shown |
+| DK9 | partial | partial | The credit audit run on the live service before and after the adoptions; the daily run for the first week continues |
+| DK546 | partial | partial | Key-only sign-up is open on the hosted service; a key-only enrolment through it is still to be run |
+| DK650 | partial | partial | The update that unblocks both ways in is deployed; both runs are still to be done |
+| U1 | partial | partial | A real Google sign-up at `/join` on the hosted service; the hosted dashboard and the parent check remain |
+| U9 | partial | partial | `asp account show`, `export` and `close` ran on the hosted service with a deletion receipt; the page and a way to hide a record remain |
+| O19 | partial | partial | Google sign-up works on the hosted service; the command-line route, the verified-contact tier and the waiting list are not shown |
+| E9 | partial | partial | Mail through Resend, the domain verified, a direct send owner-reported (not seen); the end-of-job mail from a real job is not shown |
+| E8 | partial | partial | Mail now sends on the hosted service; the end-of-Mandate mail and the dashboard are not shown |
+| O18 | partial | partial | The admin token used on the live service (audit, adoptions, smoke); the suspend, resume, block and unblock run with the audit trail is not shown |
+| DK52 | partial | partial | `/watch/findings` answers 401 on the hosted service because `--watch-interval` is not on the unit; not advanced |
+| T4 | partial | partial | The owner's wifi-off run ended with a plain message and a summary; not on a clean machine |
+| KO2 | partial | partial | Mail is live, but a key-only tenant's alert address and recovery-key reading were not run; not advanced |
+| O6 | partial | partial | No new load evidence this evening; not advanced |
+| DK1204 | partial | partial | Waits for step 10 (the forum price list), which was not run |

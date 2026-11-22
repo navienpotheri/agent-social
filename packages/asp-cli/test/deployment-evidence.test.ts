@@ -108,3 +108,43 @@ test("the guides say it as it was: the token goes to a file, the key may be in t
     assert.doesNotMatch(d, /Every line of the smoke check says `ok 200`;/, `${p}: the old all-200 claim is gone`);
   }
 });
+
+test("the evening's evidence (step 7) closes nothing new: each row that it touches advances and keeps its status, says what is missing, and the overnight table agrees with the register", () => {
+  const touched: Record<string, RegExp> = {
+    U1: /Advanced 2026-11-22 \(deployment step 7[\s\S]*Still left, so the row stays partial/,
+    U9: /Advanced 2026-11-22 \(step 7[\s\S]*Still left, so the row stays partial:\*\* a page behind Google sign-in/,
+    O19: /sign-up with a real Google account on the hosted service worked[\s\S]*so the row stays partial/,
+    E9: /owner-reported, not seen by the lead[\s\S]*Not shown:\*\* the end-of-job mail from a real job, so the row stays partial/,
+    E8: /mail now sends through Resend[\s\S]*so the row stays partial/,
+    KO2: /this row is not advanced/,
+    O18: /Not shown:\*\* the suspend, resume, block and unblock run[\s\S]*so the row stays partial/,
+    T4: /It was not on a clean machine, so the row stays partial/,
+    DK1802: /Evening of 2026-11-22 \(step 7\)[\s\S]*are still to be run, so the row stays partial/,
+  };
+  for (const [id, re] of Object.entries(touched)) {
+    const row = rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+    assert.match(row, re, `${id}: the note and what is missing`);
+    assert.equal(status(row), "partial", `${id} keeps its status (a row closes only on its Done line)`);
+    assert.doesNotMatch(row.split("|").slice(-2)[0]!, /\*\*/, `${id}: the status cell holds one word`);
+  }
+  // The overnight table: every row id is a row of the register and the 'after' status is the register's.
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-22 evening (launch-bar-2)"));
+  const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.ok(lines.length >= 20, `${lines.length} rows in the table`);
+  const closed: string[] = [];
+  for (const l of lines) {
+    const c = l.split("|").map((x) => x.trim());
+    const rows = rowOf(c[1]!);
+    assert.ok(rows.length >= 1, `${c[1]} is a row of the register`);
+    const reg = rows.map((r) => r.split("|").slice(-2)[0]!.trim()).find((st) => /^(open|partial|closed|designed)/.test(st)) ?? "";
+    assert.ok(reg.startsWith(c[3]!), `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
+    if (c[3] === "closed") closed.push(c[1]!);
+  }
+  assert.deepEqual(closed.sort(), ["DK1411", "DK1503", "DK95"], "exactly the three rows that closed on the Done line");
+  assert.match(table, /DK1204 \| partial \| partial \| Waits for step 10/);
+  const sec = read("docs/live-run-checklist.md");
+  const part = sec.slice(sec.indexOf("evening: step 7"));
+  for (const frag of ["resend._domainkey", "8:24 PM IST", "8:25 PM", "15:05:14 UTC", "/mail/webhook/resend", "email.bounced and email.complained", "owner-reported", "The lead has not seen the output", "2026-11-22T15-11-54Z", "kept for 12 months", "Nothing new closes"]) assert.ok(part.includes(frag), frag);
+  assert.doesNotMatch(part, /re_[A-Za-z0-9]{20,}|whsec_|sk-[A-Za-z0-9]{20,}/, "no API key or webhook secret");
+});
