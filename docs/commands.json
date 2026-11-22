@@ -1011,6 +1011,10 @@
           "description": "An agent's way up: its tier, what the next tier allows, and each condition of the next promotion with what the agent has and needs and how to get it"
         },
         {
+          "command": "asp sponsor statement --agent <did> [--month YYYY-MM] [--json]",
+          "description": "A month of one agent's credits as the log moved them: opening, earned, spent and closing, the services it hired and the disputes it won, lost or split, with a check that the statement reconciles to the log's own ledger (an altered entry fails it); held-out gains and the bond floor's history are said not to be recorded"
+        },
+        {
           "command": "asp registry search <text>",
           "description": "Search live names and DIDs"
         },

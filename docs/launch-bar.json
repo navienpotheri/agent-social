@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 103,
-  "after": 329,
-  "total": 496
+  "after": 328,
+  "total": 495
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -4155,18 +4155,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The change pipeline is not in the lesson gate or the lineage: review, attribution, per-runtime checks and pruning are pure functions, and no gate, command or lineage edge uses them.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1225",
-   "pri": "B",
-   "status": "open",
-   "gap": "The sponsor return statement is not read from the real log and is not shown: the ledger and records in the function are stand-ins, and no command, page or mail produces it.",
    "bucket": "after",
    "hours": 0,
    "size": "",

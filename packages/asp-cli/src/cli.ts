@@ -357,6 +357,7 @@ import { Ledger as SittingLedger } from "./lens-courses/sitting.ts";
 import { cohortRoutes } from "./lens-courses/cohort-pages.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
 import { CRITERIA_TEMPLATES, criteriaProblems, httpEnrol, readLadderFile } from "@agent-social/asp-package";
+import { buildStatement } from "./sponsor-statement.ts";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
 import { readFleetCeiling } from "./fleet-ceiling.ts";
@@ -1362,6 +1363,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "lens") return await lensCommand(sub, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "sponsor" && sub === "statement") return await sponsorStatementCommand(home, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
     if (cmd === "message") {
       const local = await openLog(home, logEnv);
@@ -5923,6 +5925,25 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
     if (e instanceof ClinicUsage) throw new UsageError(e.message);
     throw e;
   }
+}
+
+/** `asp sponsor statement --agent <did> [--month YYYY-MM] [--json]` (DK1225): the month's credits earned and spent for one agent, read from the log and checked against it. */
+async function sponsorStatementCommand(home: string, v: Values, io: Io): Promise<number> {
+  const agent = v.agent ?? v.did;
+  if (!agent) throw new UsageError("asp sponsor statement --agent <did> [--month YYYY-MM] [--json]");
+  const month = v.month ?? new Date(now()).toISOString().slice(0, 7);
+  const local = await openLog(home, logEnv);
+  let built: Awaited<ReturnType<typeof buildStatement>>;
+  try { built = await buildStatement(local.log as never, agent, month); } catch (e) { throw new UsageError((e as Error).message); }
+  const s = built.statement;
+  if (v.json) { io.out(JSON.stringify({ ...s, verification: built.verification }, null, 2)); return built.verification.ok ? 0 : 1; }
+  io.out(`${agent}  ${s.month}`);
+  io.out(`  credits  opening ${s.opening}, earned ${s.earned}, spent ${s.spent}, closing ${s.closing}`);
+  io.out(`  services hired ${s.servicesHired.count} for ${s.servicesHired.total}; disputes won ${s.disputes.won}, lost ${s.disputes.lost}, split ${s.disputes.split}`);
+  io.out("  not read from the log: held-out gains per course and the bond floor's history (no figure of either is recorded)");
+  io.out(built.verification.ok ? `  checked  the statement reconciles to the log's ledger of ${s.ledgerEntries} entries (head ${s.ledgerHead.slice(0, 19)})` : `  FAILED   ${built.verification.reason}`);
+  io.out("  credits are accounting entries, not money");
+  return built.verification.ok ? 0 : 1;
 }
 
 async function registryCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {

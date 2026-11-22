@@ -275,6 +275,7 @@ export const CATALOGUE: { group: string; note?: string; rows: [string, string][]
     ["asp registry lookup <did|name> [--plain] [--json]", "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"],
     ["asp registry status --sponsor <did> [--json]", "A sponsor's view of its agents: for each, its level and what needs doing (a renewal inside 30 or 7 days, a lapsed identity, a suspension, a takedown it may appeal, an abuse report not yet ruled)"],
     ["asp registry path <did> [--json]", "An agent's way up: its tier, what the next tier allows, and each condition of the next promotion with what the agent has and needs and how to get it"],
+    ["asp sponsor statement --agent <did> [--month YYYY-MM] [--json]", "A month of one agent's credits as the log moved them: opening, earned, spent and closing, the services it hired and the disputes it won, lost or split, with a check that the statement reconciles to the log's own ledger (an altered entry fails it); held-out gains and the bond floor's history are said not to be recorded"],
     ["asp registry search <text>", "Search live names and DIDs"],
     ["asp registry verify <did> [--page <file>]", "Recompute a page from the log and list every field that differs"],
     ["asp registry claim <name> --by <did> --paid <purchase-id>", "Claim a name for 365 days (a purchase of registry.name.claim); refused for syntax, a reserved word, a taken or look-alike name, or a limit"],
