@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 104,
-  "after": 335,
-  "total": 503
+  "after": 334,
+  "total": 502
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1688,18 +1688,6 @@
    "flags": "",
    "why": "Priority C: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK271",
-   "pri": "A",
-   "status": "designed",
-   "gap": "The one-seat-per-sponsor rule (BM11) stops one front account but not many: an attacker with many separate sponsors, each with one juror and each funded from one source, still wins panel majorities, b…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "one seat per sponsor is designed",
-   "says": "the beta court is the operator's, disclosed (M2)"
   },
   {
    "id": "DK440",
