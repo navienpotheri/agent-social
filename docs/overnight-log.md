@@ -18,3 +18,5 @@
 - 2026-11-22 12:41 IST keeper: window 38 percent; lane-cli-3 resumed (others running). Gate3 on 2ebc0da8 (merge of all four lanes incl. scanner fix, JO8, DK1345/1371/1379) running; last push 4b4ccd61.
 
 - 2026-11-22 13:50 IST keeper: window 62 percent. Lanes cli-3, protocol-3, launch-bar-2 resumed (society-2 running). Lead tip 0419b981+deployment plan merge is FROZEN for the owner live run tonight (no merges into this folder until he is done). Last push still 4b4ccd61; later lane tips (cli-3 bf0be93e, society-2, protocol-3, launch-bar-2) wait for a post-run merge and full gate.
+
+- 2026-11-22 14:42 IST keeper: window 90 percent (resets 15:00 IST), weekly 59 percent; lane-society-2 paused itself near 95 percent, launch-bar-2 idle with nothing buildable; nobody resumed now (window nearly spent), resume after the reset. Pushed aa1779b2 earlier (all four lanes merged, CLI per-test limit added). Owner live run in progress (Claude Code haiku item 1 proven; Codex item 5 refusal proven, key variables were swapped and fixed). lane-cli-3 session-listing fix applied to the owner folder as 9e879252.
