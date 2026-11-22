@@ -43,6 +43,11 @@ test("the files, scripts, units and flags that the plan names exist", () => {
   const setup = read("docs/deploy/setup-server.sh");
   for (const piece of ["asp-log.service", "asp-monitor.service", "/usr/local/bin/asp-backup", "$ETC/deployed-commit", "--forum-open", "BRANCH", "DOMAIN", "asp.env", "is-active asp-log asp-monitor postgresql caddy"]) assert.ok(setup.includes(piece), `setup-server.sh has ${piece}`);
   assert.ok(existsSync(new URL("docs/deploy/restore-drill.sh", root)));
+  // The traps of step 5 are real variables of the script, and the drill takes a file as its argument.
+  for (const v of ["SIGNUP_DAILY_CAP", "MAIL_FROM", "MAIL_OPERATOR", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "DOMAIN", "BRANCH"]) { assert.ok(setup.includes(v), `setup-server.sh has ${v}`); assert.ok(plan.includes(v), `the plan names ${v}`); }
+  assert.match(setup, /SIGNUP_DAILY_CAP:-100/, "the script's default cap is the 100 that the plan warns about");
+  assert.match(read("docs/deploy/restore-drill.sh"), /restore-drill\.sh \[backup-file\]/);
+  assert.match(plan, /restore-drill\.sh \/root\/asp-/);
   assert.match(read("docs/deploy/restore-drill.sh"), /DRILL PASSED/);
   assert.match(read("docs/deploy/README.md"), /sending through Resend/);
   assert.match(read("docs/live-check-kit.md"), /asp-run-v0\.1/);
