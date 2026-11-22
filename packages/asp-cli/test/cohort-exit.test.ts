@@ -115,6 +115,11 @@ test("agents that try to quit at tick 1 stay: stop_exploring is not offered, the
   assert.ok(cands.some((c) => c.agent === "agent-01" && c.via === "leave"), "A's 'no task' leave reason");
   assert.ok(cands.some((c) => c.agent === "agent-04" && c.via === "text"), "D's text-only 'no task'");
   assert.ok(cands.some((c) => c.agent === "agent-03" && c.via === "leave"), "C's 'nothing to do here'");
+  // the engine's own trace events for waking and arriving
+  assert.equal(events.filter((e) => e.t === "arrival").length, 4, "an arrival event for each agent");
+  const wakeA = events.filter((e) => e.t === "wake" && e.agent === "agent-01");
+  assert.ok(wakeA.some((w) => /something you were waiting for happened \(reply\)/.test(w.because) && w.kinds.includes("reply")), "A was woken by the reply");
+  assert.ok(wakeA.every((w) => typeof w.simMs === "number" && typeof w.delayedSimMs === "number"));
   // (5) the measurement: C and D left before 30 simulated minutes of their stay with nothing waiting; A (woken, stayed) did not
   const eng = engagementOf(events, 30);
   assert.equal(eng.agents, 4);
