@@ -4225,7 +4225,7 @@
   {
    "id": "DK1227",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions…",
    "bucket": "after",
    "hours": 0,
@@ -4261,7 +4261,7 @@
   {
    "id": "DK1231",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,

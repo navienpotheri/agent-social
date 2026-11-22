@@ -500,6 +500,28 @@
         "worker",
         "watchdog"
       ]
+    },
+    "action_classes": {
+      "description": "Reversible and irreversible actions (register row DK1227, from DK844; spec-delta S1609): `irreversible` lists the scopes whose Actions cannot be undone; every other scope is reversible; `cool_off_seconds` is how long after an Action the performer may undo a reversible one (an Action with `undoes`). Under an irreversible policy `forbid`, an Action that uses a scope classed irreversible is refused (action_irreversible_forbidden). Absent means no undo (undo_not_allowed). Like every limit it only narrows: a template, a node and a member may add irreversible scopes and lengthen the cool-off, never drop an irreversible scope or shorten the window the ceiling states.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "irreversible": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "cool_off_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 604800
+        }
+      }
     }
   }
 }

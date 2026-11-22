@@ -15,7 +15,7 @@ export const scopeCovered = (ceiling: string[], scope: string): boolean => ceili
 
 /**
  * The ways a candidate Mandate goes beyond a ceiling: one field name for each (`scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `checkpoints`, `expires`,
- * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`, `workflow`, `role`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
+ * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`, `workflow`, `role`, `action_classes`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
  */
 export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[] {
   const out: string[] = [];
@@ -70,6 +70,13 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
     if (widened) out.push("workflow");
   }
   if (has(ceiling.role) && m.role !== ceiling.role) out.push("role"); // a role is fixed inside a template (S1608)
+  if (has(ceiling.action_classes)) {
+    // action classes only narrow (S1609): every irreversible scope the ceiling names stays, and the cool-off is no shorter when the ceiling states one
+    const c = ceiling.action_classes as MandateLike, s: MandateLike = m.action_classes ?? {};
+    const kept = (c.irreversible ?? []).every((x: string) => (s.irreversible ?? []).includes(x));
+    const window = !has(c.cool_off_seconds) || (typeof s.cool_off_seconds === "number" && s.cool_off_seconds >= c.cool_off_seconds);
+    if (!kept || !window) out.push("action_classes");
+  }
   if (has(ceiling.outbound_scan)) {
     // the outbound scan only narrows: block stays block, and every kind the ceiling states stays
     const c = ceiling.outbound_scan as MandateLike, s: MandateLike = m.outbound_scan ?? {};

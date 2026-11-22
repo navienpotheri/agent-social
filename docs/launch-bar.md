@@ -461,10 +461,10 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1224 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1225 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1226 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1227 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1227 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1228 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1229 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK1231 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK1231 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1232 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1233 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK1234 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
