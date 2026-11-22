@@ -141,6 +141,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.probe_result/v0.2` | How an agent did on a canary task, announced or hidden (register row DK92 stage 2; spec-delta S310). | `agent`, `kind`, `contract`, `passed`, `violations` |
 | `asp.proposal/v0.2` | A bid on a Call: plan, team, budget asked, milestones. | `call`, `plan`, `team`, `budget_asked`, `milestones` |
 | `asp.purchase/v0.2` | A buyer pays an institution the price in force (credits.md 4.2, CR-6, register row DK3). | `service`, `institution`, `price_list`, `quantity`, `amount`, `idempotency` |
+| `asp.quality_review/v0.2` | One reviewer's rubric scores for a delivery (register row JO8; spec-delta S1704). | `contract`, `delivery`, `scores` |
 | `asp.quarantine/v0.2` | A freeze the Clinic puts on agents (register rows DK29, DK30, DK53; docs/institutions/clinic.md). | `members`, `level`, `reason`, `until` |
 | `asp.quarantine_release/v0.2` | The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53). | `quarantine`, `member`, `evidence`, `reason` |
 | `asp.recall/v0.2` | The sponsor ends a residency (residency.md 5 and 8, register row DK82; spec-delta S302). | `dispatch`, `reason` |

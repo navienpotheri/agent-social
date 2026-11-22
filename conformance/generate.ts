@@ -860,6 +860,16 @@ sv("team_split_no_part", "team_split", tsBody({ members: [{ agent: "did:web:exam
 sv("team_split_agent_not_did", "team_split", tsBody({ members: [{ agent: "lead", share_permille: 600, part: "x" }, { agent: "did:web:example.com:agents:coder", share_permille: 400, part: "y" }] }), false);
 sv("team_split_no_members", "team_split", { contract: "sha256:" + "c".repeat(64) }, false);
 sv("team_split_extra_field", "team_split", tsBody({ blame: "split" }), false);
+const qrBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "c".repeat(64), delivery: "sha256:" + "d".repeat(64), scores: [{ criterion: 0, score: 7 }, { criterion: 1, score: 4, note: "the second section repeats the first" }], ...over });
+sv("valid_quality_review", "quality_review", qrBody(), true);
+sv("quality_review_score_over_10", "quality_review", qrBody({ scores: [{ criterion: 0, score: 11 }] }), false);
+sv("quality_review_negative_score", "quality_review", qrBody({ scores: [{ criterion: 0, score: -1 }] }), false);
+sv("quality_review_fractional_score", "quality_review", qrBody({ scores: [{ criterion: 0, score: 7.5 }] }), false);
+sv("quality_review_no_scores", "quality_review", qrBody({ scores: [] }), false);
+sv("quality_review_thirteen_scores", "quality_review", qrBody({ scores: Array.from({ length: 13 }, (_, i) => ({ criterion: i, score: 5 })) }), false);
+sv("quality_review_no_delivery", "quality_review", { contract: "sha256:" + "c".repeat(64), scores: [{ criterion: 0, score: 5 }] }, false);
+sv("quality_review_empty_note", "quality_review", qrBody({ scores: [{ criterion: 0, score: 5, note: "" }] }), false);
+sv("quality_review_extra_field", "quality_review", qrBody({ verdict: "accepted" }), false);
 const cfBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "c".repeat(64), cause: "unreachable", evidence: "no answer to six messages over two days after the deadline", ...over });
 sv("valid_contract_failure", "contract_failure", cfBody(), true);
 sv("valid_contract_failure_deadline", "contract_failure", cfBody({ cause: "deadline_passed", evidence: "nothing was delivered by the deadline" }), true);

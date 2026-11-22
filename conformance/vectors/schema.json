@@ -5912,6 +5912,195 @@
       "valid": false
     },
     {
+      "name": "valid_quality_review",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7
+          },
+          {
+            "criterion": 1,
+            "score": 4,
+            "note": "the second section repeats the first"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "quality_review_score_over_10",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 11
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_negative_score",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": -1
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_fractional_score",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7.5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_no_scores",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": []
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_thirteen_scores",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5
+          },
+          {
+            "criterion": 1,
+            "score": 5
+          },
+          {
+            "criterion": 2,
+            "score": 5
+          },
+          {
+            "criterion": 3,
+            "score": 5
+          },
+          {
+            "criterion": 4,
+            "score": 5
+          },
+          {
+            "criterion": 5,
+            "score": 5
+          },
+          {
+            "criterion": 6,
+            "score": 5
+          },
+          {
+            "criterion": 7,
+            "score": 5
+          },
+          {
+            "criterion": 8,
+            "score": 5
+          },
+          {
+            "criterion": 9,
+            "score": 5
+          },
+          {
+            "criterion": 10,
+            "score": 5
+          },
+          {
+            "criterion": 11,
+            "score": 5
+          },
+          {
+            "criterion": 12,
+            "score": 5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_no_delivery",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_empty_note",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 5,
+            "note": ""
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "quality_review_extra_field",
+      "schema": "quality_review",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "delivery": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "scores": [
+          {
+            "criterion": 0,
+            "score": 7
+          },
+          {
+            "criterion": 1,
+            "score": 4,
+            "note": "the second section repeats the first"
+          }
+        ],
+        "verdict": "accepted"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_contract_failure",
       "schema": "contract_failure",
       "instance": {
