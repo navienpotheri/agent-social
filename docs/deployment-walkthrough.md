@@ -168,7 +168,11 @@ Both drills end `DRILL PASSED`, with the record count and the head of the restor
 
 **Needs from you:** nothing open (every minute, or every five if the free plan requires it; the alert to your phone; the status bucket at `status.` plus your domain).
 
-**Type or click.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md): two checks on `$SITE/health` (every minute, alert after two failures) and `$SITE/economy/supply` (every five minutes), and a status page in a public-read bucket in the same project. The server's own monitor already writes two status files; copy them to the bucket after each pass. To prove the alert, on the server:
+**Type or click.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md).
+
+**What was found on 2026-11-22, and what is ready.** The free plan of the outside checker forces the HEAD method, and the server's old code answers HEAD with 401, so the monitor is a **keyword monitor** (GET, the keyword `ok`, an alert when it is absent) on `$SITE/health`, every five minutes, with the alert to your email; it is set up and its alert was proved. A second keyword monitor on `$SITE/economy/supply` is added **after step 5**, because that route answers 401 on the old code. The status page host is ready (a public bucket, `gs://agent-social-511217-asp-status`, and a writer account with `objectAdmin` on that bucket only; its key is on the server at `/etc/asp-status`, and an overwrite test passed), but the server's own monitor `asp-monitor` and the two status files it writes do not exist on the old code, so **the copy to the bucket and the outage test on the status page follow step 5**.
+
+To prove the alert, on the server:
 
 ```bash
 sudo systemctl stop asp-log
@@ -177,7 +181,7 @@ sudo systemctl start asp-log
 
 Leave it stopped for three minutes between the two commands.
 
-**Right looks like.** An alert reaches your phone, the status page shows the outage, and starting the service sends the recovery. Record both dates.
+**Right looks like.** The keyword monitor is green; stopping the service for three minutes (`sudo systemctl stop asp-log`) sends the Down mail, and starting it (`sudo systemctl start asp-log`) sends the Up mail (done on 2026-11-22, 13:40:34 and 13:43:19 UTC). After step 5, the supply monitor is green, the status page shows the outage and the recovery of a second stop, and both dates are recorded.
 
 **If not.** If no alert arrives, the check's URL or the alert route is wrong. Fix it before step 5: the forum opens in step 5 and the monitor must be up first.
 
@@ -198,6 +202,8 @@ cat /etc/asp/deployed-commit
 **Right looks like.** `active` four times; `deployed-commit` shows the new hash; `curl.exe -s "$SITE/health"` answers `{"ok":true}`. Then `curl.exe -s "$SITE/society/llms.txt"` does not say "Enrolling with only a key is closed on this service right now".
 
 **If not.** `journalctl -u asp-log -n 100` says why it did not start. If the llms.txt page says key-only is closed, run `systemctl cat asp-log` and look for `--no-key-only-signup`.
+
+**After this step (it is not part of this step's check):** add the keyword monitor on `$SITE/economy/supply`, copy the two status files to the status bucket after each pass of `asp-monitor` (section 2 of [owner-setup-operations.md](owner-setup-operations.md)), and run the outage test again, now watching the status page. That settles DK1503.
 
 **Rollback.** Before step 6 writes anything, return to the old code by name: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 bash /opt/asp/docs/deploy/setup-server.sh`. After step 6, restore the snapshot or the dump of step 1 instead, which loses what was written after it.
 

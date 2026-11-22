@@ -1,6 +1,6 @@
 # Owner setup: an outside monitor, a status page host and an off-machine backup bucket (a proposal for you to approve)
 
-**Status: a proposal. Nothing here is set up, and no page, README line or mail may say it is until each step's check below has passed and been recorded in docs/live-run-checklist.md (DK1341, DK293).** It needs your accounts, so it is written as steps for you, in the order to do them. Credits and every figure in this repository are mock accounting entries; the only money here is what the cloud provider charges your account, which the steps keep to a few dollars a month (check your provider's price list: no price is stated here because none was measured).
+**Status (updated 2026-11-22): section 1 (the health monitor) and section 3 (the offsite backup) are set up and their checks recorded in docs/live-run-checklist.md; section 2 (the status page) has its bucket and writer ready but waits for step 5 of the deployment plan, and the second monitor of section 1 (`/economy/supply`) follows step 5. What is not recorded as passed must not be claimed.** The rest of this page was a proposal. Nothing that is not recorded as passed is set up, and no page, README line or mail may say it is until each step's check below has passed and been recorded in docs/live-run-checklist.md (DK1341, DK293).** It needs your accounts, so it is written as steps for you, in the order to do them. Credits and every figure in this repository are mock accounting entries; the only money here is what the cloud provider charges your account, which the steps keep to a few dollars a month (check your provider's price list: no price is stated here because none was measured).
 
 What exists already (built, tested on stand-ins, not yet pointed at your accounts): `asp monitor check|run` (up, the credit ledger balances, society health alarms quiet, last night's backup is there, the company compute ceiling), the status page as two static files the monitor writes, the nightly `asp-backup` job that keeps 35 days on the server's own disk, and the restore drill (docs/operator-runbook.md section 5). What is missing is what survives the server: a monitor that is not on the server, a status page that is up when the server is down, and a copy of the backup somewhere else.
 
@@ -9,13 +9,15 @@ What exists already (built, tested on stand-ins, not yet pointed at your account
 Why: a monitor running on the same machine goes down with it.
 
 1. Pick any hosted uptime checker that can call a URL every minute and message you (UptimeRobot, Better Stack, a cloud provider's own). Make an account with an address you read on your phone.
-2. Add an HTTPS check on `https://<your service host>/health` (it answers `{"ok":true}`) every 1 minute, alert after 2 failures, to your phone and email.
-3. Add a second check on `https://<your service host>/economy/supply` (public, shows the credit supply audit) every 5 minutes, expecting an answer 200.
+2. Add a **keyword monitor** on `https://<your service host>/health` (it answers `{"ok":true}`): the method GET, the keyword `ok`, an alert when the word is **absent**, every 1 minute if your plan allows it (the free plan of the checker used on 2026-11-22 allows 5 minutes), alert to your phone and email. **Do not use a plain HTTP check on the free plan:** it forces the HEAD method, and the server answers HEAD with 401, so it would report an outage that is not one.
+3. Add a second keyword monitor on `https://<your service host>/economy/supply` (public on the current code, shows the credit supply audit) every 5 minutes, **after step 5 of the deployment plan**: the route answers 401 on the old code that the server ran on 2026-11-22.
 4. **Check that passes:** stop the service on purpose for three minutes (`sudo systemctl stop asp-log`), see the alert arrive, start it, see the recovery message. Write the date in docs/live-run-checklist.md. Nothing may be claimed before this.
 
 ## 2. A status page that survives the server (20 minutes)
 
 Why: the monitor already writes `/status` and `/status.json` as static files, but they are served by the same Caddy, so they vanish in an outage.
+
+(Ready on 2026-11-22: the bucket `gs://agent-social-511217-asp-status`, public read, and a writer account with `objectAdmin` on that bucket only, its key on the server at `/etc/asp-status`; an overwrite test passed. The copy below and its check wait for step 5, because the monitor and the status files do not exist on the old server code.)
 
 1. Create a storage bucket for static files at your cloud provider (public read for this one bucket only, no write for the public), and put it behind a CDN or the provider's static-website host on a name such as `status.<your domain>` (one CNAME record).
 2. Give the monitor a credential that can write only to this bucket (not your account).

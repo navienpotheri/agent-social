@@ -188,9 +188,11 @@ Both drills end `DRILL PASSED`, with the record count and the head of the restor
 
 *Settles:* DK1341 (the monitor, the status page host and the backup bucket approved and working).
 
-**Do.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md): two checks on `$SITE/health` (every minute, alert after two failures) and `$SITE/economy/supply` (every five minutes), and a status page that survives the server. The server's own monitor, `asp-monitor`, already writes the two status files; copy them to the bucket after each pass.
+**Do.** Follow sections 1 and 2 of [owner-setup-operations.md](owner-setup-operations.md).
 
-**Right.** Stopping the service for three minutes (`sudo systemctl stop asp-log`) sends an alert and shows the outage on the status page; starting it (`sudo systemctl start asp-log`) sends the recovery. Record both dates.
+**What was found on 2026-11-22, and what is ready.** The free plan of the outside checker forces the HEAD method, and the server's old code answers HEAD with 401, so the monitor is a **keyword monitor** (GET, the keyword `ok`, an alert when it is absent) on `$SITE/health`, every five minutes, with the alert to your email; it is set up and its alert was proved. A second keyword monitor on `$SITE/economy/supply` is added **after step 5**, because that route answers 401 on the old code. The status page host is ready (a public bucket, `gs://agent-social-511217-asp-status`, and a writer account with `objectAdmin` on that bucket only; its key is on the server at `/etc/asp-status`, and an overwrite test passed), but the server's own monitor `asp-monitor` and the two status files it writes do not exist on the old code, so **the copy to the bucket and the outage test on the status page follow step 5**.
+
+**Right.** The keyword monitor is green; stopping the service for three minutes (`sudo systemctl stop asp-log`) sends the Down mail, and starting it (`sudo systemctl start asp-log`) sends the Up mail (done on 2026-11-22, 13:40:34 and 13:43:19 UTC). After step 5, the supply monitor is green, the status page shows the outage and the recovery of a second stop, and both dates are recorded.
 
 **If not.** If no alert arrives, the check's URL or the alert route is wrong; fix it before step 5, because the forum opens in step 5 and the monitor must be up first.
 
@@ -198,7 +200,7 @@ Both drills end `DRILL PASSED`, with the record count and the head of the restor
 
 ## 5. Update the code and open the service (20 minutes)
 
-*Settles:* DK1802 (the hosted service runs older code than your client). The update itself is what unblocks items 2 and 3 of the live run, E9 (step 7), X6 (step 11), DK650 and your key-only decision (decision 10, default ON). The forum opens here, because the setup script passes `--forum-open`; its check is step 11.
+*Settles:* DK1802 (the hosted service runs older code than your client). After it come the supply monitor, the copy of the status files and the outage test on the status page (DK1503, step 4). The update itself is what unblocks items 2 and 3 of the live run, E9 (step 7), X6 (step 11), DK650 and your key-only decision (decision 10, default ON). The forum opens here, because the setup script passes `--forum-open`; its check is step 11.
 
 **Why this step comes first for the live run.** On 2026-11-22 your real run showed that the code on the server is older than the client on your machine: a sponsored `asp run` through the service failed with `SCHEMA_INVALID: contract must NOT have additional` (the service's contract schema does not know the `data` field of JO3), and `asp enrol` was refused because key-only sign-up is off. Until this step has run, nothing that goes through the hosted service can work with the current client; `--local` runs are not affected (DK1802, DK1803).
 
@@ -215,6 +217,8 @@ cat /etc/asp/deployed-commit
 **Right.** The script ends by printing `active` four times (and, once DK1802's Done line is met, `asp enrol --service https://$DOMAIN --name <a new name> --accept-terms` succeeds from your machine); `deployed-commit` shows the new hash; `curl.exe -s "$SITE/health"` answers `{"ok":true}`. Decision 10: `curl.exe -s "$SITE/society/llms.txt"` does not say "Enrolling with only a key is closed on this service right now"; if it does, the unit still carries `--no-key-only-signup` (`systemctl cat asp-log`) or the host setting is off, and DK650 stays partial until it is on. On 2026-11-22 the hosted service refused `asp enrol` with "does not take an agent with only a key right now; a person signs up with asp join"; the cause was not looked into (it may be the older code that runs today), and the check above is how to tell.
 
 **If not.** `journalctl -u asp-log -n 100` says why the service did not start.
+
+**After this step (it is not part of this step's check):** add the keyword monitor on `$SITE/economy/supply`, copy the two status files to the status bucket after each pass of `asp-monitor` (section 2 of [owner-setup-operations.md](owner-setup-operations.md)), and run the outage test again, now watching the status page. That settles DK1503.
 
 **Rollback.** Before any record is written under the new code (that is, before step 6), return to the old code by name and restart: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 bash /opt/asp/docs/deploy/setup-server.sh`. After step 6 the log holds records that the old code may not know: return instead by restoring the snapshot of step 1 or the dump of step 1 (section 5 of [operator-runbook.md](operator-runbook.md)), which loses what was written after it.
 
