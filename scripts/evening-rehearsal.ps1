@@ -89,7 +89,9 @@ $st = (npm run asp -- stop --all 2>$null) -join "`n"
 Step "asp stop --all" ($st -match "nothing is running|stopping") "no session is left running"
 
 # Codex, when it is installed: the same governed run on the OpenAI wire (Responses API), against a stand-in that needs no key
+$skipped = @()
 $codex = Get-Command codex -ErrorAction SilentlyContinue
+if (-not $codex) { Start-Sleep -Seconds 2; $codex = Get-Command codex -ErrorAction SilentlyContinue }  # one retry: a PATH lookup that fails once is not proof that Codex is missing
 if ($codex) {
   $l2 = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0); $l2.Start(); $port2 = $l2.LocalEndpoint.Port; $l2.Stop()
   $stand2 = Start-Process -FilePath "node" -ArgumentList @("scripts\standin-openai.mjs", "$port2") -PassThru -WindowStyle Hidden -RedirectStandardOutput "$work\standin2.log" -RedirectStandardError "$work\standin2.err"
@@ -100,7 +102,7 @@ if ($codex) {
   Step "codex: governed run, one call refused" ($cx -match "1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
   if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue
-} else { Write-Host "SKIP codex: not installed here" }
+} else { $skipped += "codex"; Write-Host "SKIP codex: not installed here (PATH: $($env:PATH.Split([IO.Path]::PathSeparator).Count) entries)" }
 
 # clean up the throwaway pieces
 if ($stand -and -not $stand.HasExited) { Stop-Process -Id $stand.Id -Force -ErrorAction SilentlyContinue }
@@ -111,4 +113,4 @@ if ($Clone) { Remove-Item -Recurse -Force $repo -ErrorAction SilentlyContinue }
 
 $failed = @($results | Where-Object { $_.Result -eq "FAIL" })
 Write-Host ""
-if ($failed.Count -eq 0) { Write-Host "REHEARSAL PASSED: $($results.Count) steps." ; exit 0 } else { Write-Host "REHEARSAL FAILED: $($failed.Count) of $($results.Count) steps."; exit 1 }
+if ($failed.Count -eq 0) { Write-Host "REHEARSAL PASSED: $($results.Count) steps.$(if ($skipped.Count) { " SKIPPED: $($skipped -join ", ") (a run with the real program installed is 15 steps; fewer means a step did not run)" })" ; exit 0 } else { Write-Host "REHEARSAL FAILED: $($failed.Count) of $($results.Count) steps."; exit 1 }
