@@ -28,10 +28,9 @@ export interface World {
 export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
-  // The log needs the operator's and owner's DIDs when it is opened (for mints); the keys behind them live in this process only.
+  // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
   const parties = makeParties();
   mkdirSync(join(o.dir, "log"), { recursive: true });
-  writeFileSync(join(o.dir, "log", "operator.json"), JSON.stringify({ operator: parties.operator.did, owner: parties.owner.did }));
   const handle = await LocalLog.open(join(o.dir, "log"), {});
   const hall = new MarketHall({ log: handle, parties, now });
   await hall.init(3);
@@ -67,7 +66,6 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     }
     if (r.status !== 201) throw new Error(`could not enrol ${handleName}: ${r.json?.error?.message ?? r.status}`);
     const agent: AgentCtx = { n, id: handleName, did, kid: `${did}#key-1`, seed, handle: handleName, ...(persona ? { persona } : {}) };
-    if (n >= 0) await hall.enrol(agent);
     return agent;
   };
   // Two house posts so the forum is not empty: a welcome and a pointer to the charters. They are written by a house citizen like any other and say nothing that gives an agent a task.

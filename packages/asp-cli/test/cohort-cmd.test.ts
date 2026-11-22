@@ -74,14 +74,14 @@ test("DK1801: the persona file is read, one persona to each agent in rotation, a
   const md = readFileSync(join(dir, "o", run, "report.md"), "utf8");
   assert.match(md, /persona: You are curious/);
   assert.match(md, /persona: You look for work/);
+  assert.match(md, /3 of 3 agents said something alongside their calls/, "the cognition summary counts the text the provider returned");
+  assert.match(md, /first words: "I will look at the charters\."/);
   // the real-model path runs through the gateway engine: the tool calls, the model turns and the ends are in the trace
   const trace = readFileSync(join(dir, "o", run, "trace.jsonl"), "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l));
   assert.ok(trace.some((e) => e.t === "tool" && e.tool === "look_charters" && e.ok), "a tool call is traced");
   assert.ok(trace.some((e) => e.t === "model" && e.input > 0), "a model turn with its tokens is traced");
   assert.equal(trace.filter((e) => e.t === "end").length, 3, "each agent ends");
   assert.ok(existsSync(join(dir, "o", run, "agents", "agent-01", "run-log.ndjson")), "each agent has a gateway run log");
-  assert.match(md, /3 of 3 agents said something alongside their calls/, "the cognition summary counts the text the provider returned");
-  assert.match(md, /first words: "I will look at the charters\."/);
 });
 
 test("DK1801: a run without --local, without a cap, without the variable or with the variable unset is refused with a reason, and the key is never taken as a flag", async () => {

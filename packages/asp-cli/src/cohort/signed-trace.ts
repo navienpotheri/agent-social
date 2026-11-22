@@ -68,6 +68,9 @@ export class SignedTrace {
     return t;
   }
 
+  /** The sponsor (did and signer) of an agent of the run, for a part of the society that needs to act as that sponsor (the Market's standing Mandate). */
+  sponsorOf(agentId: string): { did: string; signer: Signer } | undefined { return this.states.get(agentId)?.sponsor; }
+
   private stamp(at?: string): string {
     const want = at && Number.isFinite(Date.parse(at)) ? Date.parse(at) : this.now();
     this.last = Math.max(this.last, Math.floor(want / 1000) * 1000);

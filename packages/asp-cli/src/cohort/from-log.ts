@@ -97,7 +97,7 @@ export function renderLogSections(r: LogReport, extra?: { perAgent: { id: string
   L.push("### Credits flow, from the ledger", "");
   const c = r.credits;
   L.push(`Credits minted for the run: ${c.minted} (${c.mintedSigned} by signed mints, ${c.mintedUnsigned} by the local unsigned mint); in circulation now: ${c.circulating}; the supply audit is **${c.verdict}**${c.problems.length ? ` (${c.problems.join("; ")})` : ""}.`);
-  L.push(`Credits moved between agents: ${c.moves.purchases + c.moves.transfers === 0 ? "none (no purchase and no transfer in the log; the Market is not in the tool set yet)" : `${c.moves.purchases} purchase(s), ${c.moves.transfers} transfer(s)`}. Contracts settled at the end of the run (what was locked came back): ${c.moves.settlements}.`, "");
+  L.push(`Credits moved between agents: ${c.moves.purchases + c.moves.transfers === 0 ? "none (no purchase and no transfer in the log)" : `${c.moves.purchases} purchase(s), ${c.moves.transfers} transfer(s)`}. Contracts settled at the end of the run (what was locked came back): ${c.moves.settlements}.`, "");
   L.push(table(["agent", "balance now"], c.balances.map((b) => [b.id, b.balance])), "");
   L.push("### Refusals by rule, from the Actions", "");
   const rr = Object.entries(r.refusedByRule).sort((a, b) => b[1] - a[1]);

@@ -40,6 +40,7 @@ test("DK1801 slice 2: the hall's steps are signed records, the balances move by 
   try {
     const a = await w.enrol(0, "agent-01"), b = await w.enrol(1, "agent-02"), c = await w.enrol(2, "agent-03");
     const hall = w.api.market!;
+    for (const x of [a, b, c]) await hall.enrolStandalone(x);
     assert.deepEqual([await hall.balance(a), await hall.balance(b)], [100, 100]);
     const call = (agent: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, agent, all, name, input);
     const posted = await call(a, "post_job", { purpose: "Check the README for broken links", budget: 20, criterion: "a list of broken links" });
@@ -70,6 +71,7 @@ test("DK1801 slice 2: the hall's steps are signed records, the balances move by 
     const wrongPoster = await call(b, "accept_delivery", { contract });
     assert.match(wrongPoster.text, /not the principal/);
     const d = await w.enrol(3, "agent-04");
+    await hall.enrolStandalone(d);
     const second = await call(d, "offer_on_job", { job: intent, price: 15, plan: "me too" });
     const secondOffer = /sha256:[0-9a-f]+/.exec(second.text)![0];
     assert.match((await call(a, "accept_offer", { offer: secondOffer })).text, /already has a contract/);
