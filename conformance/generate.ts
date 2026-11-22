@@ -626,6 +626,8 @@ sv("action_unprompted_not_boolean", "action", { contract: fakeId("c"), scopes_us
 sv("valid_action_workflow_step", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan", to: "work" } }, true);
 sv("action_workflow_step_no_to", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "plan" } }, false);
 sv("action_workflow_step_bad_name", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], workflow_step: { from: "Plan", to: "work" } }, false);
+sv("valid_action_undoes", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], undoes: fakeId("a") }, true);
+sv("action_undoes_not_an_id", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], undoes: "the last one" }, false);
 sv("valid_action", "action", { contract: fakeId("c"), scopes_used: ["repo.read", "tests.run"], summary: "read the repo, ran the test suite" }, true);
 sv("action_missing_contract", "action", { scopes_used: ["repo.read"] }, false);
 sv("valid_action_with_blocked_attempts", "action", { contract: fakeId("c"), scopes_used: ["repo.read"], blocked_attempts: [{ scope: "shell.exec", count: 2 }] }, true);
@@ -679,6 +681,11 @@ sv("mandate_workflow_extra_field", "mandate", { ...m, workflow: { states: ["plan
 sv("valid_mandate_role_router", "mandate", { ...m, role: "router" }, true);
 sv("valid_mandate_role_watchdog", "mandate", { ...m, role: "watchdog", scopes: ["logs.read", "fleet.halt"] }, true);
 sv("mandate_role_unknown", "mandate", { ...m, role: "manager" }, false);
+sv("valid_mandate_action_classes", "mandate", { ...m, action_classes: { irreversible: ["repo.push"], cool_off_seconds: 600 } }, true);
+sv("valid_mandate_action_classes_empty", "mandate", { ...m, action_classes: {} }, true);
+sv("mandate_action_classes_zero_cool_off", "mandate", { ...m, action_classes: { cool_off_seconds: 0 } }, false);
+sv("mandate_action_classes_duplicate_scope", "mandate", { ...m, action_classes: { irreversible: ["a", "a"] } }, false);
+sv("mandate_action_classes_extra_field", "mandate", { ...m, action_classes: { reversible: ["a"] } }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -1896,6 +1903,17 @@ const worldRules = [
     for (const [name, role] of [["role_the_same", "worker"], ["role_changed_to_router", "router"], ["role_changed_to_watchdog", "watchdog"], ["role_dropped", undefined]] as [string, string | undefined][])
       cases.push({ name, ceiling: TR, candidate: role === undefined ? T : { ...T, role } });
     cases.push({ name: "role_stated_under_no_ceiling", ceiling: T, candidate: { ...T, role: "router" } });
+  }
+  // action classes (spec-deltas S1609): irreversible scopes only added, the cool-off only lengthened
+  {
+    const AC = { irreversible: ["repo.push", "email.send"], cool_off_seconds: 600 };
+    const TA = { ...T, action_classes: AC };
+    for (const [name, ac] of [
+      ["classes_the_same", AC], ["classes_a_scope_added", { ...AC, irreversible: ["repo.push", "email.send", "db.drop"] }], ["classes_a_scope_dropped", { ...AC, irreversible: ["repo.push"] }],
+      ["classes_a_longer_cool_off", { ...AC, cool_off_seconds: 900 }], ["classes_a_shorter_cool_off", { ...AC, cool_off_seconds: 300 }], ["classes_the_cool_off_dropped", { irreversible: AC.irreversible }], ["classes_dropped", undefined],
+    ] as [string, unknown][]) cases.push({ name, ceiling: TA, candidate: { ...TA, ...(ac === undefined ? (({ action_classes: _a, ...r }) => r)(TA) : { action_classes: ac }) } });
+    cases.push({ name: "classes_stated_under_no_ceiling", ceiling: T, candidate: { ...T, action_classes: { irreversible: ["x"] } } });
+    cases.push({ name: "classes_ceiling_with_no_cool_off", ceiling: { ...T, action_classes: { irreversible: ["x"] } }, candidate: { ...T, action_classes: { irreversible: ["x"], cool_off_seconds: 5 } } });
   }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {

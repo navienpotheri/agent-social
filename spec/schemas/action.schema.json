@@ -191,6 +191,10 @@
           "pattern": "^[a-z0-9_-]{1,32}$"
         }
       }
+    },
+    "undoes": {
+      "description": "The Action of this contract this one undoes (register row DK1227; spec-delta S1609): the compensating Action a gateway records when the performer reverses a reversible action inside the Mandate's cool-off window. The log refuses an unknown Action or one of another contract or performer (undo_unknown_action, undo_other_contract), a Mandate with no cool-off (undo_not_allowed), a window that has closed (undo_window), a target that used an irreversible scope (undo_irreversible) and a second undo of one Action (undo_done).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }
 }

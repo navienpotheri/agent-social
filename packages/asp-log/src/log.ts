@@ -1545,6 +1545,8 @@ export class EventLog {
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
     const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    const ac = (r.body as { action_classes?: { irreversible?: string[]; cool_off_seconds?: number }; irreversible?: { policy?: string } }).action_classes;
+    if (ac) await tx.putMarker(`action_classes:${body.contract}`, JSON.stringify({ irreversible: ac.irreversible ?? [], cool_off: ac.cool_off_seconds ?? 0, policy: (r.body as { irreversible?: { policy?: string } }).irreversible?.policy ?? "checkpoint" }));
     const role = (r.body as { role?: string }).role;
     if (role === "watchdog" && body.scopes.some((x) => x !== "logs.read" && x !== "fleet.halt")) throw rule("role_watchdog_scopes", "a watchdog may only read logs and signal a halt: its scopes are logs.read and fleet.halt");
     if (role) await tx.putMarker(`mandate_role:${body.contract}`, role);
@@ -1602,6 +1604,23 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // Reversible and irreversible actions (S1609, DK1227): an irreversible scope is refused under a forbid policy; an Action may undo an earlier reversible one of the same contract inside the cool-off window, once.
+    {
+      const classes = JSON.parse((await tx.getMarker(`action_classes:${body.contract}`)) ?? "null") as { irreversible: string[]; cool_off: number; policy: string } | null;
+      if (classes?.policy === "forbid" && body.scopes_used.some((x) => classes.irreversible.includes(x))) throw rule("action_irreversible_forbidden", `the Mandate forbids irreversible actions and ${body.scopes_used.filter((x) => classes.irreversible.includes(x)).join(", ")} is classed irreversible`);
+      const undoes = (r.body as { undoes?: string }).undoes;
+      if (undoes) {
+        const target = await tx.getRecord(undoes);
+        if (!target || target.record.type !== "asp.action/v0.2") throw rule("undo_unknown_action", `${undoes} is not an Action in this log`);
+        const tb = target.record.body as { contract: string; scopes_used: string[] };
+        if (tb.contract !== body.contract || target.record.issuer !== r.issuer) throw rule("undo_other_contract", "an Action undoes an Action of its own contract, by the same performer");
+        if (!classes?.cool_off) throw rule("undo_not_allowed", `the Mandate of ${body.contract} states no cool-off window: nothing may be undone`);
+        if (Date.parse(r.issued_at) - Date.parse(target.record.issued_at) > classes.cool_off * 1000) throw rule("undo_window", `the cool-off of ${classes.cool_off} seconds has passed`);
+        if (tb.scopes_used.some((x) => classes.irreversible.includes(x))) throw rule("undo_irreversible", "that Action used an irreversible scope: it cannot be undone");
+        if (await tx.getMarker(`undone:${undoes}`)) throw rule("undo_done", "that Action was undone already");
+        await tx.putMarker(`undone:${undoes}`, r.id);
+      }
+    }
     // A router dispatches and never executes (S1608, DK1231): an Action under a router Mandate names no scope.
     if ((await tx.getMarker(`mandate_role:${body.contract}`)) === "router" && body.scopes_used.length) throw rule("role_router_executes", `the Mandate of ${body.contract} is a router's: it dispatches work and does not use scopes itself (${body.scopes_used.join(", ")})`);
     // A workflow step (S1607, DK1209): the job is in one state of the Mandate's clause and moves by one of its transitions; the current state is kept.
@@ -1878,6 +1897,11 @@ export class EventLog {
     await noteLock(tx, escrow.backer, body.contract, null);
     // Job data (S1602, JO3): a contract whose data_handling retention is delete_at_settlement (the default) with no chain head cited by now is marked data_unconfirmed; never a refusal, the performer may be offline.
     if (readDataHandling((contract!.record.body as { data_handling?: DataHandling }).data_handling).retention === "delete_at_settlement" && !(await tx.getMarker(`job_data:${body.contract}`))) await tx.putMarker(`data_unconfirmed:${body.contract}`, "1");
+  }
+
+  /** The Action that undid another (S1609, DK1227), or null. Reads only. */
+  async undoneBy(action: string): Promise<string | null> {
+    return this.store.transaction(async (tx) => (await tx.getMarker(`undone:${action}`)) || null);
   }
 
   /** The state of a contract's workflow clause (S1607, DK1209): its current state, whether it is terminal, or null when the Mandate has no clause. Reads only. */
