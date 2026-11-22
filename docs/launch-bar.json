@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 169,
-  "after": 324,
-  "total": 557
+  "withdraw": 170,
+  "after": 327,
+  "total": 561
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -5848,37 +5848,53 @@
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
   },
   {
+   "id": "DK1804",
+   "pri": "B",
+   "status": "open",
+   "gap": "The monitor's \"Last night's backup is there\" check reads only the local backup directory, so it does not see the offsite copy: if the encrypted copy to the bucket fails (docs/deploy/backup-offsite.sh…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
    "id": "DK1805",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Twenty-one more read methods of the log, called by operator commands, are not on the service's list of callable reads (LOG_METHODS) and so fail over the service with `log.<method> is not available`:…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "LO",
-   "why": "twenty-one read methods used by operator commands (charter index and check, the Bank, the Treasury statement, the registry, abuse) are not callable over the service until it is redeployed from this build"
+   "pri": "B",
+   "status": "open",
+   "gap": "The status page reads \"Partly degraded\" in quiet times: the society-health `QUIET` alarm (a quiet society, no service fault) counts as degraded, so the public page says that the platform is partly de…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1806",
    "pri": "B",
    "status": "open",
    "gap": "On a default Windows PowerShell, `npm run asp -- ...` fails at the first command: `npm.ps1` cannot be loaded because the execution policy blocks scripts, and nothing in the cards or in the CLI says w…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "the walkthrough does not say how the institutions' keys get on the operator's machine and into the log, or that the Treasury must be funded before the drafts are signed"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1807",
    "pri": "A",
    "status": "open",
    "gap": "A governed `asp run` session through the hosted service ends with no end-of-job mail: it creates a standing job but no settled contract that `asp mail pending` lists, so the end mail and the alerts a…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "KO1",
@@ -5929,6 +5945,39 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "DK1811",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Twenty-one more read methods of the log, called by operator commands, are not on the service's list of callable reads (LOG_METHODS) and so fail over the service with `log.<method> is not available`:…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "LO",
+   "why": "twenty-one read methods used by operator commands (charter index and check, the Bank, the Treasury statement, the registry, abuse) are not callable over the service until it is redeployed from this build"
+  },
+  {
+   "id": "DK1812",
+   "pri": "A",
+   "status": "open",
+   "gap": "The walkthrough does not say how the institutions' keys come to be on the operator's machine and their passports in the hosted log, and several steps need them: `treasury sign`, `prices publish --pre…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "the walkthrough does not say how the institutions' keys get on the operator's machine and into the log, or that the Treasury must be funded before the drafts are signed"
+  },
+  {
+   "id": "DK1813",
+   "pri": "A",
+   "status": "open",
+   "gap": "Two steps of the walkthrough are in an order that fails: step 11 runs `forum checkpoint` before any forum act exists (`usage: the forum has no acts yet: nothing to checkpoint`), and step 12 `house ru…",
+   "bucket": "must",
+   "hours": 2,
+   "size": "S",
+   "flags": "",
+   "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
   },
   {
    "id": "ENG1",
