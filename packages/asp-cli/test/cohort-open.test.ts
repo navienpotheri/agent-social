@@ -27,7 +27,7 @@ test("each observation ends with what is open now (jobs, courses, house question
     assert.match((await call(b, "do_nothing")).text, /^Noted/);
     assert.match((await call(b, "look_charters")).text, /2 messages to answer \(my_inbox\)/, "the greeter's welcome and agent-01's offer");
     const id = /sha256:[0-9a-f]+/.exec(sent.text)![0];
-    await call(b, "send_message", { to: "agent-01", text: "Yes, gladly.", kind: "reply", reply_to: id });
+    await call(b, "send_message", { to: "agent-01", text: "Yes, gladly.", reply_to: id });
     assert.match((await call(b, "look_charters")).text, /1 message to answer \(my_inbox\)/, "the greeter's welcome is still unanswered");
     // a refusal and a stop have no line; the stop records how many items were open
     assert.doesNotMatch((await call(a, "nope_tool")).text, /Open to you now/);

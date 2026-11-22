@@ -137,6 +137,7 @@ export class MarketHall {
     if (!poster) { this.houseQueue.unshift(job); return; }
     const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
     this.houseChecks.set(r.intent, job);
+    if (!job.partner) this.houseSeq.set(r.intent, this.soloReleased++); // the slots count the jobs one agent can do alone
     this.houseOf.set(r.intent, poster);
     this.housePosted.set(poster.did, (this.housePosted.get(poster.did) ?? 0) + 1);
     this.released++;
@@ -168,6 +169,11 @@ export class MarketHall {
   private readonly housePosted = new Map<string, number>(); // open postings of each house poster
   private readonly houseOf = new Map<string, Party>(); // intent id -> the house poster
   private released = 0;
+  private soloReleased = 0;
+  /** The order in which each house job was released, and the cohort size: an agent is shown first the jobs whose number leaves its own number when divided by the cohort, so that agents that arrive together start on different jobs. */
+  private readonly houseSeq = new Map<string, number>();
+  cohort = 1;
+  slotOf(intent: string): number | undefined { const i = this.houseSeq.get(intent); return i === undefined ? undefined : i % this.cohort; }
   private readonly settledIntents = new Set<string>();
   /** How many house jobs have been released to the board so far, and how many are still to come (in batches of ten as the open ones settle). */
   houseJobs(): { released: number; waiting: number } { return { released: this.released, waiting: this.houseQueue.length }; }
@@ -181,6 +187,8 @@ export class MarketHall {
   private greeter?: AgentCtx;
   /** Whether the run has the orientation tour (the greeter offers it in one line) and a games hall to name. */
   tourOn = false; gamesHallOn = false;
+  /** Whether this agent is offered the house field guide (named once, in the greeter's welcome). */
+  guideFor?: (agent: AgentCtx) => boolean;
   /** Whether each arrival is offered a question chosen from its identity-derived interests (ENG55; on with the voices). */
   seedQuestions = false;
   /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
@@ -229,7 +237,7 @@ export class MarketHall {
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
-    await this.sendMessage(this.greeter, agent.handle, `${text}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
+    await this.sendMessage(this.greeter, agent.handle, `${text}${this.guideFor?.(agent) ? " The house has a field guide to the refusals newcomers meet most (inspect research-commons, or the reading room: unlock)." : ""}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
     if (this.seedQuestions) await this.sendMessage(this.greeter, agent.handle, `A question you might like, chosen from your interests (${voiceOf(agent.did).interests[0]}) and nobody else's: ${SEED_QUESTIONS[voiceOf(agent.did).interests[0]] ?? "what would you like to find out here?"} Answer it in the forum, in a message, or not at all.`, "note");
     if (this.event && !this.event.seededTo) {
       this.event.seededTo = agent.handle;
@@ -515,6 +523,30 @@ export class MarketHall {
   /** The sittings of an agent in a course, in order: the held-out mean and its error bar (in per cent) and whether it passed. */
   sittingsOf(did: string, course: string): { mean: number; err: number; passed: boolean }[] { return this.sittings.get(did)?.get(course) ?? []; }
   courseTitle(course: string): string { return this.courses.find((c) => c.id === course)?.title ?? course; }
+  /** For each job with offers on it, how many offers it has (the board shows the number, so agents spread out instead of all rushing the same first jobs). */
+  async offerCounts(): Promise<Map<string, number>> {
+    const m = new Map<string, number>();
+    for (const r of await this.records(["offer"])) { const i = (r.body as { intent: string }).intent; m.set(i, (m.get(i) ?? 0) + 1); }
+    return m;
+  }
+  /**
+   * Sizes the board for a cohort that arrives together (ENG77): the house keeps at least as many jobs open as there are agents (a poster below tier 2 may have five open, so a poster is added for each five), and a market
+   * hour releases a batch that grows with the cohort. Called once, before the agents arrive.
+   */
+  async scaleFor(agents: number): Promise<void> {
+    this.cohort = Math.max(1, agents);
+    const target = Math.max(HOUSE_BATCH, agents + 5); // a few more than the agents, because some of the jobs are partner jobs that need two
+    while (this.housePosters.length * HOUSE_OPEN < target) {
+      const k = this.housePosters.length + 1;
+      const p = newParty(`did:web:cohort.local:users:house-${k}`);
+      await this.put(this.mk("passport", p, { did: p.did, kind: "human", keys: keysOf(p) }, null, p.did));
+      await this.mint(p.did, 1600);
+      this.housePosters.push(p);
+    }
+    const open = (): number => [...this.housePosted.values()].reduce((a, b) => a + b, 0);
+    while (open() < target && this.houseQueue.length) await this.postNextHouseJob();
+    this.batchSize = Math.max(this.batchSize, Math.ceil(agents / 3));
+  }
   /** House jobs by category: how many are open and how many are settled. */
   houseJobCounts(): Record<string, { open: number; settled: number }> {
     const out: Record<string, { open: number; settled: number }> = {};

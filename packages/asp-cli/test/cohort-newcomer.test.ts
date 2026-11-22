@@ -50,14 +50,14 @@ test("every refusal in the owner's run now says why and what to do next: a reply
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
     const noReply = await call(a, "send_message", { to: "house-greeter", kind: "reply", text: "I read the charters and did a job." });
     assert.equal(noReply.ok, false);
-    assert.match(noReply.text, /a reply names the message it answers, and you gave none\. Give reply_to with that message's id from my_inbox, or send the words as a note\. Nothing was sent\./);
+    assert.match(noReply.text, /kind is one of note, question, offer, notice/, "there is no kind reply to choose: a reply is made by giving reply_to");
     const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number }[] };
     const job = board.result[0]!;
     const o = await call(a, "offer_on_job", { job: job.job, price: job.budget, plan: "I will write it" });
     assert.equal(o.ok, true, o.text);
     const taken = await call(b, "offer_on_job", { job: job.job, price: job.budget, plan: "me too" });
     assert.equal(taken.ok, false);
-    assert.match(taken.text, /already taken by another agent\. Another job on the board is free: look_jobs\./);
+    assert.match(taken.text, /already taken by another agent\. Two others open now that you can do: /);
     const long = await call(a, "forum_comment", { post: "sha256:" + "1".repeat(64), text: "x".repeat(300) });
     assert.match(long.text, /The limits of forum_comment: .*Nothing was done; try again within them\./);
     // wait_for a kind the world can raise is no longer refused as not available in a society with a Market

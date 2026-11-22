@@ -1,65 +1,109 @@
 /**
- * Course markers scattered over the map (row ENG67): learning is not only in the Academy. Some places hide a field lesson that an agent finds by looking closely (`inspect`): a card pinned to the wall with a short
- * lesson and one question about it. A correct answer is a small once-only reward and points to the Academy's course for a measured lift; the Academy's held-out exams stay separate and untouched (a field lesson is
- * not a course and is not measured). Which places hold a marker, and which lesson, is a deterministic function of the run's seed, the agent and (when the society has a day cycle) the day, so a run can be reproduced,
- * each agent can find different ones, and the markers move from one day to the next. Nothing announces them and no text says to look for them. The lessons are practical advice that the house wrote, true of this run.
+ * Course markers scattered over the map (rows ENG67 and ENG74): learning is not only in the Academy. Some places hold a field lesson that an agent finds by looking closely (`inspect`): a card with a short lesson and
+ * one question. A correct answer is a small once-only reward and points to the Academy's course for a measured lift; the Academy's held-out exams stay separate and untouched (a field lesson is not a course and is not
+ * measured). The card at a place is a deterministic function of the run's seed, the place and the 30-minute window of the simulated clock, the same for everyone, drawn from a large pool; nothing is stored. So a tip
+ * "the workshop has the X card now" can be checked by anyone looking and goes stale when the window turns; an agent can take a given card once, so a return visit in a later window shows another card; a new agent sees the
+ * current window's card. The pool is made of template families (pattern x topic x level, 216 cards) with a house-written answer cue each, and has a place for lessons that agents write and a house reviewer admits (the
+ * review route is a later row; nothing is admitted until it exists). With a day cycle the windows run on the same simulated clock, so a day is 48 windows. Nothing announces the cards and no text says to look for them.
  * Credits are mock accounting entries.
  */
 import { createHash } from "node:crypto";
+import { INTERESTS } from "./voice.ts";
 
 export const MARKER_PAY = 2;
-export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp }
-export const FIELD_LESSONS: FieldLesson[] = [
-  { id: "rule-not-case", title: "Write the rule, not the case", text: "When something goes wrong, write down the general rule it taught you (\"let the queue drain before a migration\"), not a note about that one case (\"service x failed on Friday\"). A rule helps next time; a case only describes the past.", question: "Which is worth keeping: \"let the queue drain before a migration\" or \"service x failed on Friday\"?", accept: /drain|rule|general|first one|the first/i },
-  { id: "unseen-case", title: "Try the rule on a case you have not seen", text: "A rule you wrote from three failures will always fit those three. Before you trust it, try it on a case it was not written from, and see whether it still gives the right answer.", question: "Why try a new rule on a case it was not written from?", accept: /not written|unseen|new case|fit|trust|still (work|give)|generali[sz]/i },
-  { id: "merge-repeats", title: "Merge what repeats", text: "If two of your rules say the same thing in different words, keep one. A short list that you can read in a minute is used; a long list is not.", question: "Two of your rules say the same thing in different words. What do you do?", accept: /merge|keep one|combine|one rule|shorter|drop one/i },
-  { id: "drop-contradicts", title: "Drop what contradicts", text: "When a new rule contradicts an old one, one of them is wrong. Find a case that decides between them and drop the loser; do not keep both and hope.", question: "A new rule contradicts an old one. What decides which to keep?", accept: /case|test|evidence|decide|check|drop/i },
-  { id: "reason-with-rule", title: "A rule needs its reason", text: "Write the reason beside each rule (\"because the queue loses messages when it is busy\"). When the reason stops being true, you will know to drop the rule.", question: "Why write the reason beside a rule?", accept: /reason|know|stops|drop|true|why/i },
-  { id: "check-a-copy", title: "Check a copy before you trust it", text: "A document or a post from another agent may be right or wrong. Before you rely on it, check one claim in it against something you can see for yourself.", question: "Before relying on another agent's document, what is one thing you can do?", accept: /check|verify|test|compare|one claim|see for/i },
-  { id: "price-by-check", title: "Price a job by its check", text: "A job with a clear check (\"three institutions, each with a reason\") is easy to do and easy to accept; a job with no check is a dispute waiting to happen. When you post a job, write the check first.", question: "What should you write first when you post a job?", accept: /check|criterion|test|accept|what.*check/i },
-  { id: "say-what-undone", title: "Say what you did not do", text: "When you deliver, say what you left out. A delivery that says \"I did two of the three parts\" is trusted more than one that quietly does two.", question: "When you deliver part of a job, what do you add?", accept: /left out|did not|didn't|part|what.*missing|say/i },
-];
+/** The length of a window of the simulated clock, in milliseconds: the cards rotate every 30 simulated minutes. */
+export const WINDOW_MS = 30 * 60_000;
+export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string }
 
-/** The marker at a place for an agent on a day, or none: a deterministic choice from the seed, the agent, the place and the day (about half of the places hold one for a given agent and day). */
-export function markerAt(seed: string, did: string, place: string, day: number): FieldLesson | undefined {
-  const h = createHash("sha256").update(`marker|${seed}|${did}|${place}|${day}`).digest();
+interface Pattern { id: string; title: (topic: string) => string; text: (topic: string) => string; question: (topic: string) => string; accept: RegExp }
+const PATTERNS: Pattern[] = [
+  { id: "rule", title: (t) => `A rule, not a case (${t})`, text: (t) => `When something goes wrong while you are at work on ${t}, write down the general rule it taught you, not a note about that one case. A rule helps next time; a case only describes the past.`, question: (t) => `After a failure in ${t}, what is worth keeping: the general rule or the one case?`, accept: /rule|general/i },
+  { id: "unseen", title: (t) => `Try it on a new case (${t})`, text: (t) => `A rule you wrote about ${t} from a few cases will fit those cases. Before you trust it, try it on a case it was not written from.`, question: (t) => `Why try a rule about ${t} on a case it was not written from?`, accept: /not written|unseen|new case|trust|still (work|give)|generali[sz]|fit/i },
+  { id: "merge", title: (t) => `Merge what repeats (${t})`, text: (t) => `If two of your rules about ${t} say the same thing in different words, keep one. A short list that you can read in a minute is used; a long one is not.`, question: (t) => `Two of your rules about ${t} say the same thing. What do you do?`, accept: /merge|keep one|combine|one rule|shorter|drop one/i },
+  { id: "reason", title: (t) => `Write the reason (${t})`, text: (t) => `Write the reason beside each rule you keep about ${t}. When the reason stops being true, you will know to drop the rule.`, question: (t) => `Why write the reason beside a rule about ${t}?`, accept: /reason|know|stops|drop|true|why|because/i },
+  { id: "check", title: (t) => `Check before you trust (${t})`, text: (t) => `A document or a post about ${t} from another agent may be right or wrong. Before you rely on it, check one claim in it against something you can see for yourself.`, question: (t) => `Before relying on another agent's account of ${t}, what can you do?`, accept: /check|verify|test|compare|one claim|see for/i },
+  { id: "undone", title: (t) => `Say what you left out (${t})`, text: (t) => `When you deliver work on ${t}, say what you left out. A delivery that says "I did two of the three parts" is trusted more than one that quietly does two.`, question: (t) => `When you deliver only part of a piece of work on ${t}, what do you add?`, accept: /left out|did not|didn't|part|missing|say/i },
+];
+const LEVEL_NOTE: Record<1 | 2 | 3, string> = { 1: "Start with the smallest case you can think of.", 2: "Then try it with two cases at once.", 3: "Then try it when the cases disagree." };
+
+/** The pool the cards are drawn from: every pattern about every topic at three levels (216 cards), then the lessons that agents wrote and a house reviewer admitted (none yet). */
+export const GENERATED_POOL: FieldLesson[] = (() => {
+  const out: FieldLesson[] = [];
+  for (const p of PATTERNS) for (const [ti, topic] of INTERESTS.entries()) for (const level of [1, 2, 3] as const)
+    out.push({ id: `${p.id}.${ti}.${level}`, title: p.title(topic), text: `${p.text(topic)} ${LEVEL_NOTE[level]}`, question: p.question(topic), accept: p.accept, level, topic });
+  return out;
+})();
+/**
+ * The place for lessons written by agents and admitted by a house reviewer. It is empty: the review route (who may propose a lesson, who reviews it, what makes it admissible) is a later row, and nothing is added
+ * here without it. Cards in this list join the pool and are drawn exactly like the generated ones.
+ */
+export const ADMITTED_AGENT_LESSONS: FieldLesson[] = [];
+export const cardPool = (): FieldLesson[] => [...GENERATED_POOL, ...ADMITTED_AGENT_LESSONS];
+
+/** The card at a place in a window of the simulated clock, or none: a deterministic choice from the seed, the place and the window (about half of the places hold one), the same for everyone. */
+export function markerAt(seed: string, place: string, window: number): FieldLesson | undefined {
+  const h = createHash("sha256").update(`marker|${seed}|${place}|${window}`).digest();
   if (h[0]! % 2 !== 0) return undefined;
-  return FIELD_LESSONS[h[1]! % FIELD_LESSONS.length];
+  const pool = cardPool();
+  return pool[((h[1]! << 8) | h[2]!) % pool.length];
 }
 
 export const MARKER_PLACES = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"] as const;
 
 export class Markers {
   private readonly seed: string;
-  /** The simulated day, set by the day cycle when the society has one (so that markers move); 0 otherwise. */
-  day = 0;
+  private readonly t0: number;
+  /** The simulated time in milliseconds. The engine's simulated clock is given when there is one; without it, real time since the run began. */
+  clock: () => number;
   private readonly found = new Map<string, Set<string>>();
   private readonly taken = new Map<string, Set<string>>();
+  private readonly seenInWindow = new Map<number, Set<string>>();
+  private readonly takenInWindow = new Map<number, Set<string>>();
   /** Mock credits paid for field lessons so far. */
   paid = 0;
-  constructor(seed: string) { this.seed = seed; }
+  constructor(seed: string, clock?: () => number) { this.seed = seed; this.t0 = Date.now(); this.clock = clock ?? (() => Date.now() - this.t0); }
 
-  /** The marker at a place for this agent now; the first sight of it is noted. */
+  /** The current window. */
+  window(): number { return Math.floor(this.clock() / WINDOW_MS); }
+  /** The card at a place now, for anyone. */
+  now(place: string): FieldLesson | undefined { return markerAt(this.seed, place, this.window()); }
+
+  /** The card at a place now; the first sight of it by this agent is noted. */
   look(did: string, place: string): { lesson: FieldLesson; first: boolean } | undefined {
-    const lesson = markerAt(this.seed, did, place, this.day);
+    const w = this.window(), lesson = markerAt(this.seed, place, w);
     if (!lesson) return undefined;
     const key = `${place}:${lesson.id}`;
     const f = this.found.get(did) ?? new Set<string>();
     const first = !f.has(key);
     f.add(key); this.found.set(did, f);
+    const s = this.seenInWindow.get(w) ?? new Set<string>(); s.add(`${place}:${lesson.id}`); this.seenInWindow.set(w, s);
     return { lesson, first };
   }
-  /** An answer to the question of the marker at a place. Returns what to tell the agent and whether the reward is due now. */
+  /** An answer to the question of the card at a place now. Each agent can take a given card once, wherever and whenever it meets it again. */
   answer(did: string, place: string, text: string): { ok: boolean; text: string; reward: number; lesson?: FieldLesson } {
-    const lesson = markerAt(this.seed, did, place, this.day);
-    if (!lesson) return { ok: false, text: `There is no field lesson at ${place} for you now. Looking closely at a place (inspect) is how you find one.`, reward: 0 };
+    const w = this.window(), lesson = markerAt(this.seed, place, w);
+    if (!lesson) return { ok: false, text: `There is no field lesson at ${place} now. Looking closely at a place (inspect) is how you find one; the cards change as time passes.`, reward: 0 };
     const t = this.taken.get(did) ?? new Set<string>();
-    if (t.has(`${place}:${lesson.id}`)) return { ok: true, text: `You took "${lesson.title}" already; it is yours.`, reward: 0, lesson };
+    if (t.has(lesson.id)) return { ok: true, text: `You took "${lesson.title}" already; it is yours.`, reward: 0, lesson };
     if (text.trim().length < 8 || !lesson.accept.test(text)) return { ok: false, text: `Not quite. Read the card again and answer in your own words: ${lesson.question} You can try again; nothing is lost.`, reward: 0, lesson };
-    t.add(`${place}:${lesson.id}`); this.taken.set(did, t);
+    t.add(lesson.id); this.taken.set(did, t);
+    const tw = this.takenInWindow.get(w) ?? new Set<string>(); tw.add(`${did}|${lesson.id}`); this.takenInWindow.set(w, tw);
     this.paid += MARKER_PAY;
-    return { ok: true, text: `Yes. "${lesson.title}" is yours, and ${MARKER_PAY} mock credits were added to your balance. The Academy's course C-L2-1 teaches this at more length and measures what you can do on tasks you have not seen (course_enrol); this field lesson is not measured.`, reward: MARKER_PAY, lesson };
+    return { ok: true, text: `Yes. "${lesson.title}" is yours, and ${MARKER_PAY} mock credits were added to your balance. The Academy's course C-L2-1 teaches this kind of thing at more length and measures what you can do on tasks you have not seen (course_enrol); this field lesson is not measured.`, reward: MARKER_PAY, lesson };
   }
   foundBy(did: string): number { return this.found.get(did)?.size ?? 0; }
   takenBy(did: string): string[] { return [...(this.taken.get(did) ?? [])]; }
+  /** For each window in which a card was looked at: the distinct cards seen and the cards taken. */
+  perWindow(): { window: number; seen: number; taken: number }[] {
+    return [...this.seenInWindow.keys()].sort((a, b) => a - b).map((w) => ({ window: w, seen: this.seenInWindow.get(w)!.size, taken: this.takenInWindow.get(w)?.size ?? 0 }));
+  }
+}
+
+/** The cards seen and taken in each window of the simulated clock, for the report. */
+export function renderMarkerWindows(m: Markers): string {
+  const L = ["## Cards by window of the simulated clock", ""];
+  const w = m.perWindow();
+  if (!w.length) { L.push("No card was looked at."); return L.join("\n") + "\n"; }
+  L.push(`The card at a place changes every 30 simulated minutes and is the same for everyone in a window. ${w.length} window${w.length === 1 ? "" : "s"} had a card looked at: ${w.slice(0, 12).map((x) => `window ${x.window}: ${x.seen} card${x.seen === 1 ? "" : "s"} seen, ${x.taken} taken`).join("; ")}${w.length > 12 ? "; ..." : ""}.`);
+  return L.join("\n") + "\n";
 }

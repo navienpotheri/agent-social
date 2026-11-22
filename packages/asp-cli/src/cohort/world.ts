@@ -13,7 +13,8 @@ import { MarketHall, makeParties } from "./market.ts";
 import { Library } from "./library.ts";
 import { Expedition } from "./expedition.ts";
 import { GameHall } from "./games.ts";
-import { DAY, DayCycle } from "./day-cycle.ts";
+import { DayCycle } from "./day-cycle.ts";
+import { Tips } from "./finds.ts";
 import { Markers } from "./markers.ts";
 import { TownHall } from "./town.ts";
 /** The words that identify the house event in a message (matched without regard to case). */
@@ -98,7 +99,6 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     api.dayCycle = d;
     hall.refillOnSettle = false; // the market hour releases the jobs instead
     d.onFire = async (e) => {
-      if (api.markers) api.markers.day = Math.floor(e.at / DAY); // the markers move with the day
       if (e.id === "market_hour") await hall.releaseHouseJobs(hall.batchSize);
       if (e.id === "town_meeting" && api.town) await api.town.decide();
     };
@@ -155,7 +155,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     const r = await api.postJson("/forum/posts", doc);
     if (r.status !== 201) throw new Error(`could not seed the forum: ${r.json?.error?.message ?? r.status}`);
     prevOf.set(who.did, r.json.id as string);
-    if (title === "Finds: what have you come across?") api.findsThread = r.json.id as string;
+    if (title === "Finds: what have you come across?") { api.findsThread = r.json.id as string; api.tips = new Tips(); }
     if (title === "Rumour" && api.expedition) api.expedition.rumourPost = r.json.id as string;
     if (title === "Open mic night" && api.dayCycle) api.dayCycle.openMicPost = r.json.id as string;
     if (title === "Open mic night" && o.event) { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }
