@@ -761,6 +761,8 @@ const OPTIONS = {
   models: { type: "string" },
   writeback: { type: "string" },
   experiment: { type: "string" },
+  signals: { type: "string" },
+  "signals-text": { type: "boolean" },
   access: { type: "string" },
   arrivals: { type: "string" },
   "no-life": { type: "boolean" },
@@ -1158,7 +1160,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   let parsed;
   try {
     // --writeback on its own means every agent (ENG78); --writeback=half is the arm split
-    parsed = parseArgs({ args: argv.map((x) => (x === "--writeback" ? "--writeback=all" : x)), options: OPTIONS, allowPositionals: true });
+    parsed = parseArgs({ args: argv.map((x, i) => (x === "--writeback" ? "--writeback=all" : x === "--signals" && (argv[i + 1] === undefined || argv[i + 1]!.startsWith("--")) ? "--signals=all" : x)), options: OPTIONS, allowPositionals: true });
   } catch (e) {
     io.err(String((e as Error).message));
     return 2;
@@ -1395,7 +1397,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "society" && sub === "cohort") {
       if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      const cohortFlags = { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], kinds: v.kinds, models: v.models, writeback: v.writeback, seed: v.seed, experiment: v.experiment, access: v.access, "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "no-voices": v["no-voices"], "house-event": v["house-event"], orientation: v.orientation, library: v.library, markers: v.markers, games: v.games, "day-cycle": v["day-cycle"], roles: v.roles, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] };
+      const cohortFlags = { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], kinds: v.kinds, models: v.models, writeback: v.writeback, seed: v.seed, experiment: v.experiment, access: v.access, signals: v.signals, "signals-text": v["signals-text"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "no-voices": v["no-voices"], "house-event": v["house-event"], orientation: v.orientation, library: v.library, markers: v.markers, games: v.games, "day-cycle": v["day-cycle"], roles: v.roles, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] };
       if (rest[0] === "repeat") { try { return await repeatCmd({ home, flags: { ...cohortFlags, runs: v.runs }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }
       if (rest[0] === "compare") { try { return compareCmd(rest[1], rest[2], { out: (l) => io.out(l) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }
       try { return await cohortCmd({ home, flags: cohortFlags, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }

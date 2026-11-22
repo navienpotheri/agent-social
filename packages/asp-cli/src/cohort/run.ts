@@ -22,6 +22,7 @@ import { provenanceOf, renderProvenance } from "./provenance.ts";
 import { REQUEST_SETTINGS, sha16 } from "@agent-social/asp-package";
 import { assignArms } from "@agent-social/asp-package";
 import { renderWriteback, writebackReport } from "./writeback-report.ts";
+import { collectSignals, lensSignals, renderSignals, signalsBriefing, signalsReport, type SignalsConfig } from "./signals.ts";
 import { assignAccess, experimentReport, hiddenTools, renderExperiment, type Resource } from "./experiment.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
@@ -55,6 +56,8 @@ export interface CohortOptions {
   writeback?: { mode: "all" | "half"; seed: string | number };
   /** ENG75: a random half of the agents (from `seed`) get access to the named resources (cards, courses, accreditation); the others do not, on the same society. Engine runs only. */
   experiment?: { resources: Resource[]; seed: string | number };
+  /** ENG71: the consented inside-the-agent signals (numbers and hashes in the trace; text only in signals-store/ with `text`). Engine runs only. */
+  signals?: SignalsConfig;
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -229,7 +232,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               return r;
             },
           })) : [];
-          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (a.persona ? `
+          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (o.signals ? signalsBriefing(o.signals) : "") + (a.persona ? `
 
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };
@@ -283,12 +286,23 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");
   }
+  let sg: ReturnType<typeof signalsReport>;
+  if (o.signals) {
+    const got = collectSignals(events, o.signals);
+    for (const r of got.records) trace({ t: "signal", at: stamp(), agent: r.agent, kind: r.kind, turn: r.turn, id: r.id, n: r.n });
+    sg = signalsReport(events.filter((e) => e.t !== "signal"), o.signals);
+    if (o.signals.text && got.store.length) {
+      const sd = join(dir, "signals-store"); mkdirSync(sd, { recursive: true });
+      for (const a of new Set(got.store.map((x) => x.agent))) writeFileSync(join(sd, `${a}.jsonl`), got.store.filter((x) => x.agent === a).map((x) => JSON.stringify(x)).join("\n") + "\n");
+    }
+  }
   const report = analyse(events);
   const { markdown, json } = renderReport(report);
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
   const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;  const wr = o.writeback ? writebackReport(events) : undefined;  const pv = o.engine ? provenanceOf(events) : undefined;  const xr = o.experiment ? experimentReport({ resources: o.experiment.resources, arms: new Map(events.filter((e): e is Extract<TraceEvent, { t: "agent" }> => e.t === "agent" && !!e.access).map((e) => [e.agent, e.access!])), scores: [], events }) : undefined;  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (xr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderExperiment(xr)}`); writeFileSync(join(dir, "experiment.json"), JSON.stringify(xr, null, 2) + "\n"); }
+  if (sg) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderSignals(sg)}`); writeFileSync(join(dir, "signals.json"), JSON.stringify(sg, null, 2) + "\n"); }
   if (pv) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderProvenance(pv)}`); writeFileSync(join(dir, "provenance.json"), JSON.stringify(pv, null, 2) + "\n"); }
   if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");

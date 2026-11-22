@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 184,
+  "withdraw": 185,
   "after": 328,
-  "total": 576
+  "total": 577
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -5980,6 +5980,19 @@
    "why": "step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank"
   },
   {
+   "id": "DK1830",
+   "pri": "A",
+   "status": "open",
+   "gap": "The inside-the-agent signals (ENG71) are built only against stand-in traces: nobody knows whether real agents write PLAN, RULE, EXPECT and BELIEF lines when invited, or whether the measures mean anyt…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
    "id": "ENG1",
    "pri": "A",
    "status": "open",
@@ -6900,7 +6913,7 @@
   {
    "id": "ENG71",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Inside-the-agent signals are built only in the simulated society (DK79): a real agent produces none of beliefs, plans acted on, action-conditioned predictions, world-model updates, surprise and calib…",
    "bucket": "withdraw",
    "hours": 0,
