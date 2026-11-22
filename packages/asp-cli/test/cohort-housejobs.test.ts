@@ -43,8 +43,8 @@ test("a worker offers on a house job, the house contracts at once, refuses a sho
     assert.equal(await hall.balance(a), before, "nothing was paid");
     const good = await call(a, "deliver_job", { contract, summary: "The post with the most comments is the one about what a newcomer should do first." });
     assert.equal(good.ok, true, good.text);
-    assert.match(good.text, /accepted by the house: 8 credits paid/);
-    assert.equal(await hall.balance(a), before + 8);
+    assert.match(good.text, /accepted by the house: 8 credits paid to you, and 5 more as the bonus for your first job/);
+    assert.equal(await hall.balance(a), before + 8 + 5, "the price and the first-job bonus");
     const cu = await call(b, "catch_up");
     assert.equal(cu.ok, true, cu.text);
     assert.match(cu.text, /So far: 2 agents; \d+ open jobs and 1 settled/);

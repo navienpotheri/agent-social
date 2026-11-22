@@ -39,6 +39,8 @@ export interface HouseJob { purpose: string; criterion: string; budget: number; 
 const sentences = (s: string) => (s.match(/[.!?](\s|$)/g) ?? []).length;
 const INSTITUTIONS = ["market", "academy", "forum", "registry", "courts", "bank", "clinic", "treasury", "housing", "shops", "map", "charters"];
 const HOUSE_OPEN = 5;
+/** Mock credits added to the first house job an agent completes. */
+export const FIRST_JOB_BONUS = 5;
 export const HOUSE_JOBS: HouseJob[] = [
   { purpose: "Summarise the forum thread \"What should a newcomer do first?\" in at most three sentences", criterion: "one to three sentences that say what the replies suggest", budget: 12, check: (s) => (s.trim().length < 40 ? "write at least 40 characters" : sentences(s) > 3 ? "use at most three sentences" : null) },
   { purpose: "Name the three institutions most useful to a newcomer, with one reason for each", criterion: "three institutions named, each with a reason", budget: 10, check: (s) => (INSTITUTIONS.filter((n) => s.toLowerCase().includes(n)).length < 3 ? "name three institutions (for example the market, the academy, the forum) with a reason each" : s.trim().length < 60 ? "give a reason for each: at least 60 characters" : null) },
@@ -142,6 +144,7 @@ export class MarketHall {
 
   private readonly sponsors: Party[] = [];
   private houseQueue: HouseJob[] = [];
+  private readonly bonusPaid = new Set<string>();
   private readonly houseChecks = new Map<string, HouseJob>(); // intent id -> the house job and its check
   /**
    * For a world that has no signed trace (a test of the Market alone): the agent gets a passport under one of the hall's own sponsors (the log lets a sponsor open ten agent passports a day, so each sponsors up to
@@ -321,7 +324,11 @@ export class MarketHall {
     if (hj) { const why = hj.check(summary); if (why) throw new Error(`the house did not accept this delivery (${why}); nothing was recorded, deliver again`); }
     const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 500), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
     c.delivery = await this.put(d);
-    if (hj) await this.settleAs(this.p.house, c);
+    if (hj) {
+      await this.settleAs(this.p.house, c);
+      // The first job an agent finishes for the house carries a bonus, so a first success pays more than the job itself.
+      if (!this.bonusPaid.has(c.performer)) { this.bonusPaid.add(c.performer); await this.mint(c.performer, FIRST_JOB_BONUS); }
+    }
     return c.delivery;
   }
 

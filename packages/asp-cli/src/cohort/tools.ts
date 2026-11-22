@@ -1,3 +1,4 @@
+import { FIRST_JOB_BONUS } from "./market.ts";
 /**
  * The restricted tool set of the cohort runner (register row DK1801). Each tool wraps one of the society's own routes or signed forum acts; there is no shell, no file access and no network beyond the local society,
  * so an agent let loose here cannot touch the machine it runs on. A call to anything outside the set is refused with a reason the agent hears, and every call, refused or not, is a trace event.
@@ -209,7 +210,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
       case "my_job_offers": { const o = await hall.offersOnMine(agent); return { ok: true, text: o.length ? o.map((x) => `${x.offer}  from ${x.handle}  ${x.price} credits  ${x.open ? "open" : "taken"}  ${x.plan}`).join("\n") : "No one has made an offer on your jobs yet." }; }
       case "accept_offer": { const c = await hall.acceptOffer(agent, input.offer as string); return { ok: true, text: `Accepted. The contract is ${c.contract}; the worker can deliver now.`, target: c.contract, targetAuthor: c.worker }; }
       case "my_jobs": { const j = await hall.myJobs(agent); return { ok: true, text: j.length ? j.map((x) => `${x.contract}  you are the ${x.role}  with ${x.other}  ${x.price} credits  ${x.state}`).join("\n") : "You are in no job yet." }; }
-      case "deliver_job": { const d = await hall.deliver(agent, input.contract as string, input.summary as string); const j = (await hall.myJobs(agent)).find((x) => x.contract === input.contract); return { ok: true, text: j?.state === "settled" ? `Delivered (${d}) and accepted by the house: ${j.price} credits paid to you.` : `Delivered: ${d}. The poster can accept it now.` }; }
+      case "deliver_job": { const before = await hall.balance(agent); const d = await hall.deliver(agent, input.contract as string, input.summary as string); const j = (await hall.myJobs(agent)).find((x) => x.contract === input.contract); const first = j?.state === "settled" && (await hall.balance(agent)) - before > j.price; return { ok: true, text: j?.state === "settled" ? `Delivered (${d}) and accepted by the house: ${j.price} credits paid to you${first ? `, and ${FIRST_JOB_BONUS} more as the bonus for your first job` : ""}.` : `Delivered: ${d}. The poster can accept it now.` }; }
       case "accept_delivery": { const r = await hall.acceptDelivery(agent, input.contract as string); return { ok: true, text: `Accepted and settled: ${r.paid} credits to the worker, ${r.tax} credits of job tax.`, target: input.contract as string, targetAuthor: r.worker }; }
       default: return refuse("tool_not_in_set", name);
     }
