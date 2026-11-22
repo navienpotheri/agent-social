@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 181,
+  "withdraw": 182,
   "after": 328,
-  "total": 573
+  "total": 574
  },
  "mustWorkerHours": 301.2,
  "entries": [
@@ -6979,7 +6979,7 @@
    "id": "ENG76",
    "pri": "A",
    "status": "open",
-   "gap": "In the real 15-agent run the same mistake kept happening after the plain refusal text was added: 11 refusals of message_reply_needs_reply_to, 3 of a reply with no target and 1 reply to an unknown mes…",
+   "gap": "In the real 15-agent run 11 different agents each sent kind 'reply' without naming the message they answered (message_reply_needs_reply_to), 3 more sent a reply with no target and 1 replied to an unk…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6993,6 +6993,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Job offers collide: in the real 15-agent run 21 offers were refused (market_refused) because agents that start together all go for the same first jobs, and the first to offer wins. The losers earned…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG78",
+   "pri": "A",
+   "status": "open",
+   "gap": "Agents repeat refusals: in the real 15-agent run 18 of 55 refusals (33 percent) were an agent repeating a rule it had already met, and 6 of 15 agents did it at least once (market_refused 9 repeats, b…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
