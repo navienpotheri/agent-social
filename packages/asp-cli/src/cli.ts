@@ -683,6 +683,9 @@ const OPTIONS = {
   "token-cap": { type: "string" },
   "budget-usd": { type: "string" },
   session: { type: "string" },
+  log: { type: "string" },
+  "expect-assurance": { type: "string" },
+  "no-starter": { type: "boolean" },
   "price-in": { type: "string" },
   "price-out": { type: "string" },
   "daily-tokens": { type: "string" },
@@ -8056,7 +8059,13 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     if (v.json) io.out(JSON.stringify(report, null, 2)); else { if (!v.session) io.out(`reporting the newest session, ${start.sid} (asp runs lists the others; asp live report --session <id> reports one of them)`); printReport(report, (l) => io.out(l)); }
     return report.runLog.chainOk === false ? 1 : 0;
   }
-  throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json]");
+  if (sub === "verify-local") {
+    const { verifyLocal, printVerify } = await import("./live-verify.ts");
+    const r = await verifyLocal({ sessions: sessionsAll(home) as never, ...(v.session ? { session: v.session } : {}), ...(v.log ? { logDir: resolve(io.cwd, v.log) } : {}), ...(v["expect-assurance"] ? { expectAssurance: v["expect-assurance"] } : {}), ...(v["no-starter"] ? { noStarter: true } : {}), findRunLog });
+    if (v.json) io.out(JSON.stringify(r, null, 2)); else printVerify(r, (l) => io.out(l));
+    return r.ok ? 0 : 1;
+  }
+  throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json], or asp live verify-local [--session <id>] [--log <dir>] [--expect-assurance <level>] [--no-starter] [--json]");
 }
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
