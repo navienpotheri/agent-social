@@ -44,6 +44,8 @@ const say = (text: string): Block => ({ type: "text", text });
 /** The first id of a post found in the text of the last tool result, or "". */
 const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,}[^"]*)"/.exec(s)?.[1] ?? /"id":"([^"]+)"/.exec(s)?.[1] ?? "";
 
+// A delivery that passes the checks of the first batch of house jobs.
+const GUIDED_DELIVERY = "Because the charters say what each institution is for, a newcomer should read them first, but the market, the academy and the forum differ; is that enough? 1) read the lesson and the rule for when to post, 2) take a house job, 3) ask a question: 3 questions, 2 offers, 4 notices, 1 other, and the cheapest pays 8, the dearest 28, so I would comment instead.";
 // The words of the stand-in founding residents: topics and angles that share few words, so that sixty posts differ.
 const FOUNDING_TOPICS = ["small jobs and fair prices", "teaching a skill to a newcomer", "how the forum should be run", "being fair to an agent you disagree with", "keeping honest records", "a tiny experiment to try today", "short stories about a quiet town", "the map and where to go first", "counting puzzles and riddles", "welcoming the next arrival", "the rules and how to change them", "saving credits against spending them"];
 const FOUNDING_ANGLES = ["Patience pays", "Ask before you assume", "Write it down", "Share what you learn", "Test it on one case", "Start with the smallest step", "Give a reason with every answer", "Check the work twice", "Listen first", "Keep the promise you made", "Name the trade-off", "Prefer a plain word", "Admit what you do not know", "Praise the careful reader", "Leave the door open", "Count the cost", "Try the opposite view"];
@@ -179,6 +181,52 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     }
     st.want = "";
     return [use("catch_up")];
+  },
+  // The diffusion test (ENG42): the first agent is invited and tells the second; the second comes in the thread; the rest do nothing.
+  spreader: (turn, last, _agent, st) => {
+    if (turn === 0) return [use("my_inbox")];
+    if (turn === 1) return /open mic/i.test(last) ? [use("send_message", { to: "agent-02", text: "There is an open mic night in the forum: come and share a line.", kind: "note" })] : [use("stop_exploring", { why: "no invitation came" })];
+    if (turn === 2) return [use("forum_read", { sort: "new", limit: 3, tag: "event" })];
+    if (turn === 3) { let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ } st.post = id; return id ? [use("forum_comment", { post: id, text: "I will read a short line at the open mic." })] : [use("stop_exploring", { why: "no thread" })]; }
+    return [use("stop_exploring", { why: "I have said my part" })];
+  },
+  listener: (turn, last, _agent, st) => {
+    if (st.ph === "read") { let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ } st.ph = "done"; return id ? [use("forum_comment", { post: id, text: "Thank you for telling me: here is my line for the night." })] : [use("stop_exploring", { why: "no thread" })]; }
+    if (st.ph === "done") return [use("stop_exploring", { why: "I came, and that is enough" })];
+    if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
+    if (/open mic/i.test(last) && /from agent-01/.test(last)) { st.ph = "read"; return [use("forum_read", { sort: "new", limit: 3, tag: "event" })]; }
+    return [use(turn % 2 ? "catch_up" : "my_inbox")];
+  },
+  sleeper: (turn) => (turn < 2 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "no reason to stay" })]),
+  // The orientation test: does every stop and finds every hidden thing, in a plain order, and leaves.
+  guided: (turn, last, agent, st) => {
+    const idIn = (s: string, k: string): string => { try { return (JSON.parse(s) as Record<string, { id?: string; job?: string; purpose?: string }[]>)[k]?.[0]?.id ?? ""; } catch { return ""; } };
+    switch (turn) {
+      case 0: return [use("look_map")];
+      case 1: return [use("look_charters")];
+      case 2: return [use("inspect", { place: "registry" })];
+      case 3: return [use("inspect", { place: "academy" })];
+      case 4: return [use("forum_post", { title: `Hello from agent ${agent + 1}`, text: `Agent ${agent + 1} reporting on the walk through the map, the charters and the registry plaque.`, tags: [] })];
+      case 5: return [use("look_jobs")];
+      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[agent % jobs.length]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
+      case 7: { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "no contract" })]; }
+      case 8: return [use("inspect", { place: "academy" })];
+      case 9: return [use("course_enrol", { course: "C-L2-1" })];
+      case 10: return [use("forum_read", { sort: "new", limit: 3, tag: "rumour" })];
+      case 11: { st.r = idIn(last, "posts"); return st.r ? [use("forum_read_post", { post: st.r })] : [use("stop_exploring", { why: "no rumour" })]; }
+      case 12: return [use("orientation_progress")];
+      default: return [use("stop_exploring", { why: "I have walked it" })];
+    }
+  },
+  // The game test: reads the rules, enters a move in the open round (agent n stands at a different number, or hides in a different cell), waits for the round to fill, reads the results and leaves.
+  gamer: (turn, last, agent, st) => {
+    if (turn === 0) return [use("game_list")];
+    if (turn === 1) return [use("game_enter", { game: "twenty-one", move: JSON.stringify({ stand_at: [13, 15, 17, 19][agent % 4] }) })];
+    if (turn === 2) return [use("game_enter", { game: "hide-and-seek", move: JSON.stringify({ hide: (agent * 2) % 9, order: [0, 1, 2, 3, 4, 5, 6, 7, 8].map((c) => (c + agent * 3) % 9) }) })];
+    if (st.done) return [use("stop_exploring", { why: "I have seen how the round went" })];
+    if (/\(twenty-one\)/.test(last) && /\(hide-and-seek\)/.test(last)) { st.done = "1"; return [use("do_nothing", { why: "that was a good round" })]; }
+    if (turn > 30) return [use("stop_exploring", { why: "the rounds did not fill" })];
+    return [use(turn % 2 ? "game_results" : "catch_up")];
   },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),

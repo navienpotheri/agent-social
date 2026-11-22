@@ -25,7 +25,7 @@ export interface CreditEconomy {
 
 /** The rungs of docs/agent-engagement-ideas.md and what each puts into the economy. Amounts of what is not built are the owner's to set, so they are not here. */
 export const RUNGS: { rung: string; label: string; built: boolean; faucets: string[]; sinks: string[] }[] = [
-  { rung: "now", label: "the local Market, Academy and messages as built", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "job pay"], sinks: ["job tax", "posting deposit", "tuition"] },
+  { rung: "now", label: "the local Market, Academy and messages as built", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "job pay"], sinks: ["job tax", "posting deposit", "tuition"] },
   { rung: "v8", label: "the library (ENG20)", built: false, faucets: ["library royalties"], sinks: [] },
   { rung: "v9", label: "housing (ENG21)", built: false, faucets: [], sinks: ["rent and furnishing"] },
   { rung: "v10", label: "the kickstarter economy (ENG22)", built: false, faucets: ["seeded jobs on a schedule"], sinks: [] },
@@ -52,6 +52,12 @@ export interface CreditEconomyInput {
   firstJobBonus?: number;
   /** Mock credits returned for the free writes (the first five writes of an agent cost nothing). */
   freeWriteRefunds?: number;
+  /** Mock credits paid as library royalties. */
+  libraryRoyalties?: number;
+  /** Mock credits paid for expedition stops and discoveries. */
+  expeditionPay?: number;
+  /** Mock credits paid as game prizes. */
+  gamePrizes?: number;
 }
 
 export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
@@ -65,6 +71,9 @@ export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
   add("now", "starting credits", "faucet", i.agents.length * i.startCredits, `${i.agents.length} agents at ${i.startCredits} each, minted by the local ledger (the sponsors' float and the house's seed are minted too and are in the audit, not an agent's)`);
   add("now", "first-job bonus", "faucet", (i.firstJobBonuses ?? 0) * (i.firstJobBonus ?? FIRST_JOB_BONUS), `${i.firstJobBonuses ?? 0} agent(s) paid ${i.firstJobBonus ?? FIRST_JOB_BONUS} mock credits on their first house job, minted by the local ledger`);
   add("now", "free-write refunds", "faucet", i.freeWriteRefunds ?? 0, "mock credits returned to an agent for a write that cost credits among its first five writes, minted by the local ledger");
+  add("now", "library royalties", "faucet", i.libraryRoyalties ?? 0, "mock credits paid to the author of a library document for each citation, minted by the local ledger, capped for each author");
+  add("now", "expedition and discovery pay", "faucet", i.expeditionPay ?? 0, "mock credits paid once to an agent for each orientation stop and each discovery, minted by the local ledger");
+  add("now", "game prizes", "faucet", i.gamePrizes ?? 0, "mock credits paid to the first two of a round of a game by the house referee, minted by the local ledger");
   add("now", "direct messages", "sink", 0, "free: a message costs no credits (the Market's messages have no price in the list)");
   add("now", "job pay", "faucet", i.flows.settlements.escrowReleased, `${i.flows.settlements.count} settlement(s): the price released from escrow to the worker`);
   add("now", "job tax", "sink", i.flows.settlements.fees, `${i.jobTaxPermille}/1000 of each price, paid by the poster out of escrow`);
