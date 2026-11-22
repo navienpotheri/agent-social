@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RunRecorder } from "@agent-social/asp-package";
 import { main, type Io } from "../src/cli.ts";
-import { buildToday, buildTrend, periodOf, renderToday, renderTrend, splitReason, type DayEvent, type DaySession } from "../src/today.ts";
+import { approvalTimes, buildToday, buildTrend, periodOf, renderApprovalTimes, renderToday, renderTrend, splitReason, type DayEvent, type DaySession } from "../src/today.ts";
 
 // UC-228 and UC-229, gaps T14 and D8: every number in the day's tables is counted independently below from the data the day was built from.
 const agent = (n: string) => `did:web:example.com:agents:${n}`;
@@ -177,4 +177,44 @@ test("the trend is the days' own numbers laid side by side: each day equals buil
   assert.match(text, /not whether its work was good/);
   assert.throws(() => buildTrend(week, () => undefined, 0, now), /1 to 366/);
   assert.deepEqual(renderTrend(buildTrend([], () => undefined, 7, now)).slice(1), ["nothing ran in this period (asp runs lists every session)"]);
+});
+
+// T32: the provider errors counted from the run logs, and how long approvals took to answer, from the signed Checkpoints and their resolutions.
+test("T32: provider errors are counted by status from the run logs' model_error events, and the line says what a 429 is", () => {
+  const s = session("e1", "2026-10-13T05:28:00Z", "my-agent", "x", { at: "2026-10-13T05:28:10Z", state: "ended", calls: 0, refused: [], tokens: 0, exitCode: 0, runLog: "e1" });
+  const ev: DayEvent[] = [
+    { at: "2026-10-13T05:28:01Z", kind: "model_error", data: { status: 429 } }, { at: "2026-10-13T05:28:02Z", kind: "model_error", data: { status: 429 } },
+    { at: "2026-10-13T05:28:03Z", kind: "model_error", data: { status: 529 } }, { at: "2026-10-13T05:28:04Z", kind: "model_error", data: { status: 0 } }, { at: "2026-10-13T05:28:05Z", kind: "model_request", data: {} },
+  ];
+  const period = { from: Date.parse("2026-10-13T00:00:00Z"), to: Date.parse("2026-10-14T00:00:00Z") };
+  const t = buildToday([s], () => ev, period);
+  assert.deepEqual(t.providerErrors, [{ status: 429, count: 2 }, { status: 0, count: 1 }, { status: 529, count: 1 }]);
+  const text = renderToday(t, { ...period, label: "Oct 13", all: false, utc: true }).join("\n");
+  assert.match(text, /Provider errors: 2 x HTTP 429 · 1 x no connection · 1 x HTTP 529 \(from the run logs; a 429 is the provider's own rate limit\)/);
+  const none = renderToday(buildToday([s], () => [], period), { ...period, label: "Oct 13", all: false, utc: true }).join("\n");
+  assert.match(none, /Provider errors: none in the run logs/);
+});
+
+test("T32: approval answers: the median and the slowest from each Checkpoint's raise to its resolution; an unanswered one is counted apart; another job's and another day's are left out", () => {
+  const C = "sha256:" + "c".repeat(64), OTHER = "sha256:" + "d".repeat(64);
+  const rec = (id: string, type: string, at: string, body: Record<string, unknown>) => ({ id, record: { type, issued_at: at, body } });
+  const records = [
+    rec("cp1", "asp.checkpoint/v0.2", "2026-10-13T05:00:00Z", { contract: C }), rec("r1", "asp.transition/v0.2", "2026-10-13T05:00:10Z", { contract: C, kind: "checkpoint_resolution", about: "cp1" }),
+    rec("cp2", "asp.checkpoint/v0.2", "2026-10-13T05:10:00Z", { contract: C }), rec("r2", "asp.transition/v0.2", "2026-10-13T05:11:00Z", { contract: C, kind: "checkpoint_resolution", about: "cp2" }),
+    rec("cp3", "asp.checkpoint/v0.2", "2026-10-13T05:20:00Z", { contract: C }), rec("r3", "asp.transition/v0.2", "2026-10-13T05:20:30Z", { contract: C, kind: "checkpoint_resolution", about: "cp3" }),
+    rec("cp4", "asp.checkpoint/v0.2", "2026-10-13T05:30:00Z", { contract: C }),
+    rec("cp5", "asp.checkpoint/v0.2", "2026-10-13T05:40:00Z", { contract: OTHER }), rec("r5", "asp.transition/v0.2", "2026-10-13T05:50:00Z", { contract: OTHER, kind: "checkpoint_resolution", about: "cp5" }),
+    rec("cp6", "asp.checkpoint/v0.2", "2026-10-12T05:00:00Z", { contract: C }), rec("r6", "asp.transition/v0.2", "2026-10-12T05:30:00Z", { contract: C, kind: "checkpoint_resolution", about: "cp6" }),
+  ];
+  const from = Date.parse("2026-10-13T00:00:00Z"), to = Date.parse("2026-10-14T00:00:00Z");
+  const a = approvalTimes(records, from, to, new Set([C]));
+  assert.deepEqual(a, { answered: 3, unanswered: 1, medianSeconds: 30, slowestSeconds: 60 }, "10 s, 60 s and 30 s answered; cp4 not answered; the other job's and yesterday's left out");
+  assert.match(renderApprovalTimes(a), /3 answered \(median 30s, slowest 60s\), 1 not answered/);
+  const all = approvalTimes(records, from, to);
+  assert.equal(all.answered, 4, "without a job filter the other job's answer counts too");
+  assert.deepEqual(approvalTimes(records, from, to, new Set(["sha256:" + "e".repeat(64)])), { answered: 0, unanswered: 0, medianSeconds: null, slowestSeconds: null });
+  assert.match(renderApprovalTimes(approvalTimes([], from, to)), /none in this period/);
+  // an even count takes the middle two
+  const two = approvalTimes(records.filter((r) => ["cp1", "r1", "cp2", "r2"].includes(r.id)), from, to);
+  assert.equal(two.medianSeconds, 35);
 });

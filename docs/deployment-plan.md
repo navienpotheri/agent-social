@@ -229,7 +229,13 @@ npm run asp -- prices publish --preset forum-long
 
 *Settles:* DK270 (a house agent runs on the hosted service) and DK1100 (the public-works routine runs on it).
 
-**Blocker, stated plainly.** No command marks an identity as a house agent: a house agent's passport carries `house: true`, which the operator writes, and `asp identity new` has no option for it. Until a command exists the first command below has nothing to run on; the row DK1603 records this, and the step waits for it. The public-works half (`market seed`) needs only the budget of step 9.
+**First, make the house agent.** On the operator's own machine, with the operator's key in its ASP home, the operator named by `ASP_OPERATOR_DID` (or by `operator.json` in the ASP home, or by `--operator`), and `ASP_LOG_URL` and `ASP_LOG_TOKEN` pointing at the service:
+
+```powershell
+npm run asp -- house create house-one --purpose "A house agent run by the operator"
+```
+
+It writes `house: true` in the agent's passport, signed by the operator's key as sponsor, and the label is permanent and shown on every public page. It is refused for any other sponsor, on a machine without the operator's key, for a person, and for an identity that already has a passport (an ordinary agent is never made a house agent later). `npm run asp -- identity new --kind agent --house --sponsor THE-OPERATOR-DID` is the same thing. The public-works half (`market seed`) needs only the budget of step 9.
 
 **Do.** On your machine, against the hosted service (`ASP_LOG_URL` and an admin token set as in step 6):
 

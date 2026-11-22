@@ -98,3 +98,12 @@ test("the decisions are also questions for the owner, with the plan named as the
   const questions = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
   assert.match(questions, /Deployment: nine decisions[\s\S]*deployment-plan\.md/);
 });
+
+test("step 12 makes the house agent with the command that exists, and says who may make one", () => {
+  const step = plan.slice(plan.indexOf("## 12. "), plan.indexOf("## 13. "));
+  assert.ok(step.includes('npm run asp -- house create house-one --purpose'), "the command");
+  assert.match(step, /signed by the operator's key as sponsor/);
+  assert.match(step, /label is permanent/);
+  assert.doesNotMatch(step, /No command marks an identity as a house agent/);
+  assert.match(read("docs/commands.md"), /`asp house create <name>/);
+});
