@@ -58,3 +58,14 @@ test("DK390: at most twenty standing orders for one buyer in all", async () => {
   for (let i = 0; i < 20; i++) await k.log.append(mk("standing_order", buyer, { act: "order", service: item.service, institution: item.institution, quantity: 1 + (i % 5), period: i % 2 ? "week" : "day", until: new Date(Date.parse(until) + i * 1000).toISOString().replace(/\.\d{3}Z$/, "Z") }, null, { subject: null }));
   assert.equal(await refusedBy(k.log.append(mk("standing_order", buyer, { act: "order", service: item.service, institution: item.institution, quantity: 1, period: "month", until }, null, { subject: null }))), "standing_orders_full");
 });
+
+test("DK390: an order has ended at the very moment of its end date", async () => {
+  const k = await kit();
+  const listId = await k.withPrices();
+  const item = PRICES.find((i) => i.service === "registry.name.renew")!;
+  const buyer = await k.person("so-edge", 200);
+  const end = new Date(Date.parse(nowIso()) + 3 * DAY).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const so = await k.log.append(mk("standing_order", buyer, { act: "order", service: item.service, institution: item.institution, quantity: 1, period: "week", until: end }, null, { subject: null }));
+  const atEnd = mk("purchase", buyer, { service: item.service, institution: item.institution, price_list: listId, quantity: 1, amount: credit(item.price), idempotency: "edge", standing_order: so.id }, null, { subject: null, at: end });
+  assert.equal(await refusedBy(k.log.append(atEnd)), "standing_order_expired", "at the end date the order is over");
+});
