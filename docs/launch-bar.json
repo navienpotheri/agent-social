@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 323,
-  "total": 489
+  "after": 322,
+  "total": 488
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -4918,18 +4918,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The ledger of sittings (the line per sitting that limits repeats and catches a copied answer) is a JSONL file, not a signed record: on the service it sits beside the tokens file, and on an agent's ma…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1402",
-   "pri": "B",
-   "status": "open",
-   "gap": "Copy detection is exact after normalising (lesson lists compare as sets of lower-cased, whitespace-collapsed lines; other artifacts by canonical JSON): a paraphrase of another agent's answer, or the…",
    "bucket": "after",
    "hours": 0,
    "size": "",
