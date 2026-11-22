@@ -57,7 +57,7 @@ test("every refusal in the owner's run now says why and what to do next: a reply
     assert.equal(o.ok, true, o.text);
     const taken = await call(b, "offer_on_job", { job: job.job, price: job.budget, plan: "me too" });
     assert.equal(taken.ok, false);
-    assert.match(taken.text, /already taken by another agent\. Another job on the board is free: look_jobs\./);
+    assert.match(taken.text, /already taken by another agent\. Two others open now that you can do: /);
     const long = await call(a, "forum_comment", { post: "sha256:" + "1".repeat(64), text: "x".repeat(300) });
     assert.match(long.text, /The limits of forum_comment: .*Nothing was done; try again within them\./);
     // wait_for a kind the world can raise is no longer refused as not available in a society with a Market

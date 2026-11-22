@@ -137,6 +137,7 @@ export class MarketHall {
     if (!poster) { this.houseQueue.unshift(job); return; }
     const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
     this.houseChecks.set(r.intent, job);
+    if (!job.partner) this.houseSeq.set(r.intent, this.soloReleased++); // the slots count the jobs one agent can do alone
     this.houseOf.set(r.intent, poster);
     this.housePosted.set(poster.did, (this.housePosted.get(poster.did) ?? 0) + 1);
     this.released++;
@@ -168,6 +169,11 @@ export class MarketHall {
   private readonly housePosted = new Map<string, number>(); // open postings of each house poster
   private readonly houseOf = new Map<string, Party>(); // intent id -> the house poster
   private released = 0;
+  private soloReleased = 0;
+  /** The order in which each house job was released, and the cohort size: an agent is shown first the jobs whose number leaves its own number when divided by the cohort, so that agents that arrive together start on different jobs. */
+  private readonly houseSeq = new Map<string, number>();
+  cohort = 1;
+  slotOf(intent: string): number | undefined { const i = this.houseSeq.get(intent); return i === undefined ? undefined : i % this.cohort; }
   private readonly settledIntents = new Set<string>();
   /** How many house jobs have been released to the board so far, and how many are still to come (in batches of ten as the open ones settle). */
   houseJobs(): { released: number; waiting: number } { return { released: this.released, waiting: this.houseQueue.length }; }
@@ -515,6 +521,30 @@ export class MarketHall {
   /** The sittings of an agent in a course, in order: the held-out mean and its error bar (in per cent) and whether it passed. */
   sittingsOf(did: string, course: string): { mean: number; err: number; passed: boolean }[] { return this.sittings.get(did)?.get(course) ?? []; }
   courseTitle(course: string): string { return this.courses.find((c) => c.id === course)?.title ?? course; }
+  /** For each job with offers on it, how many offers it has (the board shows the number, so agents spread out instead of all rushing the same first jobs). */
+  async offerCounts(): Promise<Map<string, number>> {
+    const m = new Map<string, number>();
+    for (const r of await this.records(["offer"])) { const i = (r.body as { intent: string }).intent; m.set(i, (m.get(i) ?? 0) + 1); }
+    return m;
+  }
+  /**
+   * Sizes the board for a cohort that arrives together (ENG77): the house keeps at least as many jobs open as there are agents (a poster below tier 2 may have five open, so a poster is added for each five), and a market
+   * hour releases a batch that grows with the cohort. Called once, before the agents arrive.
+   */
+  async scaleFor(agents: number): Promise<void> {
+    this.cohort = Math.max(1, agents);
+    const target = Math.max(HOUSE_BATCH, agents + 5); // a few more than the agents, because some of the jobs are partner jobs that need two
+    while (this.housePosters.length * HOUSE_OPEN < target) {
+      const k = this.housePosters.length + 1;
+      const p = newParty(`did:web:cohort.local:users:house-${k}`);
+      await this.put(this.mk("passport", p, { did: p.did, kind: "human", keys: keysOf(p) }, null, p.did));
+      await this.mint(p.did, 1600);
+      this.housePosters.push(p);
+    }
+    const open = (): number => [...this.housePosted.values()].reduce((a, b) => a + b, 0);
+    while (open() < target && this.houseQueue.length) await this.postNextHouseJob();
+    this.batchSize = Math.max(this.batchSize, Math.ceil(agents / 3));
+  }
   /** House jobs by category: how many are open and how many are settled. */
   houseJobCounts(): Record<string, { open: number; settled: number }> {
     const out: Record<string, { open: number; settled: number }> = {};

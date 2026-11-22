@@ -329,12 +329,20 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       const raw = await world.get("/market/board").catch(() => undefined);
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        const offers = world.market ? await world.market.offerCounts() : new Map<string, number>();
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
-        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: rows });
+        // Agents that arrive together do not all see the same first ten: the house's jobs are listed from a place that depends on the agent, so the rush spreads over the board.
+        const mine = rows.filter((x) => !String(x.poster).startsWith("house")), houseAll = rows.filter((x) => String(x.poster).startsWith("house")), partnerRows = houseAll.filter((x) => /^Partner job/.test(x.purpose)), houseRows = houseAll.filter((x) => !/^Partner job/.test(x.purpose));
+        const cohort = world.market?.cohort ?? 1, slot = Math.max(0, agent.n) % cohort;
+        // The house's jobs are listed from the agent's own slot of the board round to the others (job number modulo the cohort), so agents that arrive together start on different jobs.
+        const distance = (x: { job: string }): number => (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort;
+        const ordered = [...mine, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRows];
+        const shown = ordered.slice(0, 10), more = ordered.length - shown.length;
+        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
-        return { ok: true, text: cut(text, 3600), seen: seenOf("look_jobs", text)! };
+        return { ok: true, text: cut(text, 4200), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
     }
     case "look_courses": return get("/society/courses?format=json");
@@ -544,8 +552,12 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   } catch (e) {
     const err = e as Error & { detail?: string };
     // Every refusal says why in plain words and what to do next, never only a code.
+    let others = "";
+    if (name === "offer_on_job" && /already taken|already has a contract/.test(err.message)) {
+      try { const free = (await hall.openJobList(agent, 8)).filter((j) => j.job !== input.job && !j.partner).slice(0, 2); if (free.length) others = ` Two others open now that you can do: ${free.map((j) => `"${j.purpose.slice(0, 60)}" pays ${j.budget} (offer_on_job ${j.job})`).join("; ")}.`; } catch { /* no list */ }
+    }
     const next = err.detail === "bond_below_risk_floor" ? " The jobs the house posts are staked by the house, with no limit of this kind: look_jobs lists them (the ones from poster house)." : /already taken|already has a contract/.test(err.message) ? " Another job on the board is free: look_jobs." : "";
-    return refuse(`market_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${next}`);
+    return refuse(`market_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${others || next}`);
   }
 }
 

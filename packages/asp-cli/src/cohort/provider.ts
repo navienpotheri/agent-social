@@ -301,6 +301,24 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.i = String(i + 1); st.at = places[i]!;
     return [use("inspect", { place: places[i]! })];
   },
+  // Agents that arrive together (ENG77): each takes the first job on the board that has no offer yet, and after a refusal takes one of the two jobs the refusal names.
+  rusher: (turn, last, agent, st) => {
+    if (turn === 0) return [use("look_jobs")];
+    if (st.ph === "done") return [use("stop_exploring", { why: "I did a job" })];
+    if (st.ph === "offered") {
+      const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1];
+      if (c) { st.ph = "done"; return [use("deliver_job", { contract: c, summary: WORKER_RICH })]; }
+      const m = /pays (\d+) \(offer_on_job (sha256:[0-9a-f]{64})\)/.exec(last);
+      st.tries = String(Number(st.tries ?? "0") + 1);
+      if (!m || Number(st.tries) > 4) return [use("stop_exploring", { why: "nothing to take" })];
+      return [use("offer_on_job", { job: m[2]!, price: Number(m[1]), plan: "I will write it" })];
+    }
+    let pick = "", price = 8;
+    try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; offers: number; purpose: string }[] }).result.filter((j) => !/partner/i.test(j.purpose)); const free = jobs.filter((x) => x.offers === 0); const j = free[0] ?? jobs[0]; pick = j?.job ?? ""; price = j?.budget ?? 8; } catch { /* no board */ }
+    if (!pick) return [use("stop_exploring", { why: "no job" })];
+    st.ph = "offered";
+    return [use("offer_on_job", { job: pick, price, plan: "I will write it" })];
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [
