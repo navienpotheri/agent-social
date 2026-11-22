@@ -19,8 +19,8 @@ test("each observation ends with what is open now (jobs, courses, house question
     for (const x of [a, b]) await w.api.market!.enrolStandalone(x);
     const call = (agent: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, agent, all, name, input);
     const first = await call(a, "look_map");
-    assert.match(first.text, /\nOpen to you now: 1 message to answer \(my_inbox\); 5 open jobs \(look_jobs\); 1 course \(look_courses\); 6 forum questions with no reply \(forum_read, tag house-question\)\.$/);
-    assert.deepEqual(await openItems(w.api, a), ["1 message to answer (my_inbox)", "5 open jobs (look_jobs)", "1 course (look_courses)", "6 forum questions with no reply (forum_read, tag house-question)"]);
+    assert.match(first.text, /\nOpen to you now: 1 message to answer \(my_inbox\); 10 open jobs \(look_jobs\); 1 course \(look_courses\); 6 forum questions with no reply \(forum_read, tag house-question\)\.$/);
+    assert.deepEqual(await openItems(w.api, a), ["1 message to answer (my_inbox)", "10 open jobs (look_jobs)", "1 course (look_courses)", "6 forum questions with no reply (forum_read, tag house-question)"]);
     // a message to agent-02 appears for it, and goes once answered
     const sent = await call(a, "send_message", { to: "agent-02", text: "Hello, would you like to do a job together?", kind: "offer" });
     assert.equal(sent.ok, true, sent.text);

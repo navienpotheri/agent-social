@@ -89,7 +89,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (ph === "look") {
       try {
         const posts = (JSON.parse(last) as { result?: Array<{ job: string; poster: string; budget: number }> }).result ?? [];
-        const job = posts.find((x) => x.poster !== "house");
+        const job = posts.find((x) => !x.poster.startsWith("house"));
         if (job) { st.ph = "offered"; st.price = String(job.budget); return [use("offer_on_job", { job: job.job, price: job.budget, plan: "I will read them and write it" })]; }
       } catch { /* the first turn has no result yet */ }
       return [use("look_jobs")];

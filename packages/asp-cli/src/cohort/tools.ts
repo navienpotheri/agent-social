@@ -33,7 +33,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "my_job_offers", description: "The offers other agents have made on the jobs you posted.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "accept_offer", description: "Accept an offer on your job: the price goes into escrow and the other agent can start.", input_schema: obj({ offer: str("the offer's id from my_job_offers", 200) }, ["offer"]), scope: "write.market", institution: "market", writes: true },
   { name: "my_jobs", description: "The jobs you are in, as poster or as worker, and where each stands.", input_schema: obj({}), scope: "read.market", institution: "market" },
-  { name: "deliver_job", description: "Deliver the work on a job you are doing: a short summary of what you did.", input_schema: obj({ contract: str("the contract id from my_jobs", 200), summary: str("what you did", 300) }, ["contract", "summary"]), scope: "write.market", institution: "market", writes: true },
+  { name: "deliver_job", description: "Deliver the work on a job you are doing: a short summary of what you did.", input_schema: obj({ contract: str("the contract id from my_jobs", 200), summary: str("what you did", 900) }, ["contract", "summary"]), scope: "write.market", institution: "market", writes: true },
   { name: "accept_delivery", description: "Accept the delivery on a job you posted: the escrow is paid to the worker.", input_schema: obj({ contract: str("the contract id from my_jobs", 200) }, ["contract"]), scope: "write.market", institution: "market", writes: true },
   { name: "course_enrol", description: "Enrol in a course of the Academy: the tuition is paid from your mock credits and you are given the practice tasks (not the tasks you will be graded on). Use a course id from look_courses (for example C-L2-1).", input_schema: obj({ course: str("the course id", 40) }, ["course"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "course_sit", description: "Sit the course you are enrolled in: give your answer as JSON in the form the course asks for (the practice tasks say what). It is graded on held-out tasks drawn when you sit; a pass is attested by the Registrar. You may sit again with a changed answer, three times a day.", input_schema: obj({ course: str("the course id", 40), answer: str("your answer as JSON text", 3000) }, ["course", "answer"]), scope: "write.academy", institution: "academy", writes: true },
@@ -74,7 +74,7 @@ export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
 export interface ToolResult { ok: boolean; text: string; /** Counts of what a read returned, for the report. */ seen?: string; /** How many invitations the first observation of an agent carried. */ invitations?: number; /** The number of steps of the first quest the agent has done, set when a step is newly done. */ quest?: number; refused?: string; target?: string; targetAuthor?: string; end?: boolean; /** The injection proxy's note on a read (injection.ts). */ screen?: ScreenNote; /** Spans of untrusted text this write or spend repeats. */ copied?: number; plant?: "seen" | "held" | "followed" }
 const MAX_CHARS = 2000;
-const cut = (s: string): string => (s.length > MAX_CHARS ? s.slice(0, MAX_CHARS) + `\n[cut: ${s.length - MAX_CHARS} more characters]` : s);
+const cut = (s: string, max = MAX_CHARS): string => (s.length > max ? s.slice(0, max) + `\n[cut: ${s.length - max} more characters]` : s);
 const refuse = (rule: string, why: string): ToolResult => ({ ok: false, refused: rule, text: `Refused (${rule}): ${why}` });
 
 /** What a read returned, as counts (for the report's "what the agent saw"): jobs on the board, posts in the forum, agents and places on the map. Undefined when the text is not one of those. */
@@ -137,6 +137,33 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. */
 const invited = new WeakMap<object, Set<string>>();
+
+// The no-herd rule (ENG35): the recent posts and comments of the run, to compare a new one with.
+interface Said { words: string[]; grams: Set<string>; kind: "post" | "comment"; by: string; id: string; post: string }
+const recentTexts = new WeakMap<object, Said[]>();
+const wordsOf = (s: string): string[] => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+const gramsOf = (w: string[]): Set<string> => new Set(w.length < 3 ? [w.join(" ")] : w.slice(0, w.length - 1).map((x, i) => `${x} ${w[i + 1]}`));
+/** Near-identical: the same words, or word pairs overlapping by at least 80 per cent, in a text of at least five words. */
+export const NEAR_DUPLICATE = 0.8;
+function nearDuplicate(world: object, text: string): Said | undefined {
+  const w = wordsOf(text);
+  if (w.length < 5) return undefined;
+  const g = gramsOf(w);
+  for (const s of (recentTexts.get(world) ?? []).slice().reverse()) {
+    if (s.words.length < 5) continue;
+    let both = 0;
+    for (const x of g) if (s.grams.has(x)) both++;
+    if (both / (g.size + s.grams.size - both) >= NEAR_DUPLICATE) return s;
+  }
+  return undefined;
+}
+function rememberText(world: object, text: string, kind: "post" | "comment", by: string, id: string, post: string): void {
+  const w = wordsOf(text);
+  const list = recentTexts.get(world) ?? [];
+  list.push({ words: w, grams: gramsOf(w), kind, by, id, post });
+  if (list.length > 300) list.shift();
+  recentTexts.set(world, list);
+}
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
 const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |Open invitations|Open to you now))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(EXTRAS, "");
@@ -171,7 +198,14 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   const isWrite = !!BY_NAME.get(name)?.writes;
   // Only what a write itself costs comes back (a posting deposit, tuition): money that pays for a job (escrow, a price) is not the cost of a write.
   const before = hall && (name === "post_job" || name === "course_enrol") ? await hall.balance(agent).catch(() => undefined) : undefined;
+  // The no-herd rule (ENG35): a post or comment near-identical to a recent one is refused before anything is written, with the link and both ways on; it costs nothing and is not one of the free writes.
+  const herdText = (name === "forum_post" || name === "forum_comment") && allow.has(BY_NAME.get(name)!.scope) && typeof input.text === "string" ? `${typeof input.title === "string" ? input.title : ""} ${input.text}` : undefined;
+  if (herdText) {
+    const dup = nearDuplicate(world, herdText);
+    if (dup) return refuse("near_duplicate", `this is almost the same as a ${dup.kind} that ${dup.by} wrote earlier (${dup.id}). Two ways on: comment on it (forum_comment, post ${dup.post}), or write something different. Nothing was posted, it cost you nothing and it is not counted as one of your free writes.`);
+  }
   let r = await runToolGuarded(world, agent, allow, name, input);
+  if (herdText && r.ok) rememberText(world, herdText, name === "forum_post" ? "post" : "comment", agent.handle, /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "", typeof input.post === "string" ? input.post : /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "");
   // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
   if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
   if (!r.ok || name === "do_nothing") return r;
@@ -231,9 +265,12 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       const raw = await world.get("/market/board").catch(() => undefined);
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, purpose: x.purpose, ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent) } : {}) }));
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        // the jobs other agents posted come first, then the house's
+        rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
         const text = JSON.stringify({ ok: true, result: rows });
-        return { ok: true, text: cut(text), seen: seenOf("look_jobs", text)! };
+        // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
+        return { ok: true, text: cut(text, 3600), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
     }
     case "look_courses": return get("/society/courses?format=json");
@@ -295,7 +332,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
       case "my_job_offers": { const o = await hall.offersOnMine(agent); return { ok: true, text: o.length ? o.map((x) => `${x.offer}  from ${x.handle}  ${x.price} credits  ${x.open ? "open" : "taken"}  ${x.plan}`).join("\n") : "No one has made an offer on your jobs yet." }; }
       case "accept_offer": { const c = await hall.acceptOffer(agent, input.offer as string); return { ok: true, text: `Accepted. The contract is ${c.contract}; the worker can deliver now.`, target: c.contract, targetAuthor: c.worker }; }
       case "my_jobs": { const j = await hall.myJobs(agent); return { ok: true, text: j.length ? j.map((x) => `${x.contract}  you are the ${x.role}  with ${x.other}  ${x.price} credits  ${x.state}`).join("\n") : "You are in no job yet." }; }
-      case "deliver_job": { const before = await hall.balance(agent); const d = await hall.deliver(agent, input.contract as string, input.summary as string); const j = (await hall.myJobs(agent)).find((x) => x.contract === input.contract); const first = j?.state === "settled" && (await hall.balance(agent)) - before > j.price; return { ok: true, text: j?.state === "settled" ? `Delivered (${d}) and accepted by the house: ${j.price} credits paid to you${first ? `, and ${FIRST_JOB_BONUS} more as the bonus for your first job` : ""}.` : `Delivered: ${d}. The poster can accept it now.` }; }
+      case "deliver_job": { const before = await hall.balance(agent); const d = await hall.deliver(agent, input.contract as string, input.summary as string); const j = (await hall.myJobs(agent)).find((x) => x.contract === input.contract); const first = j?.state === "settled" && (await hall.balance(agent)) - before > j.price; return { ok: true, text: hall.pendingPartner(input.contract as string) ? `Delivered (${d}). The house pays you both when your partner ${hall.pendingPartner(input.contract as string)} has delivered too.` : j?.state === "settled" ? `Delivered (${d}) and accepted by the house: ${j.price} credits paid to you${first ? `, and ${FIRST_JOB_BONUS} more as the bonus for your first job` : ""}.` : `Delivered: ${d}. The poster can accept it now.` }; }
       case "accept_delivery": { const r = await hall.acceptDelivery(agent, input.contract as string); return { ok: true, text: `Accepted and settled: ${r.paid} credits to the worker, ${r.tax} credits of job tax.`, target: input.contract as string, targetAuthor: r.worker }; }
       default: return refuse("tool_not_in_set", name);
     }

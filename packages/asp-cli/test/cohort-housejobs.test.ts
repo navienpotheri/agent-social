@@ -6,6 +6,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HOUSE_JOBS } from "../src/cohort/market.ts";
+import { PRICE_RANGE } from "../src/cohort/house-jobs.ts";
 import { runTool, stripExtras, TOOLS } from "../src/cohort/tools.ts";
 import { bootWorld } from "../src/cohort/world.ts";
 
@@ -13,7 +14,7 @@ const all = new Set(TOOLS.map((t) => t.scope));
 
 test("the house jobs are text-doable, priced in a range that matters, and each has a check that refuses an empty answer", () => {
   assert.ok(HOUSE_JOBS.length >= 6);
-  for (const j of HOUSE_JOBS) { assert.ok(j.budget >= 8 && j.budget <= 25, j.purpose); assert.ok(j.check("") !== null, `${j.purpose}: an empty delivery is refused`); }
+  for (const j of HOUSE_JOBS) { assert.ok(j.budget >= PRICE_RANGE[j.level][0] && j.budget <= PRICE_RANGE[j.level][1], `${j.purpose}: ${j.budget} is in the range of level ${j.level}`); assert.ok(j.check("") !== null, `${j.purpose}: an empty delivery is refused`); }
 });
 
 test("a worker offers on a house job, the house contracts at once, refuses a short delivery with the reason, pays a good one, and refuses a second taker", async () => {

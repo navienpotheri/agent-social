@@ -7,7 +7,7 @@
  * zero, or whose flows are not built, is marked PARTIAL, never "ok". Credits are mock accounting entries, not money.
  */
 import type { CreditAudit, CreditFlows } from "@agent-social/asp-log";
-import { FIRST_JOB_BONUS, HOUSE_JOBS } from "./market.ts";
+import { FIRST_JOB_BONUS, HOUSE_BATCH, HOUSE_JOBS } from "./market.ts";
 
 export type FlowKind = "faucet" | "sink";
 export interface FlowRow { rung: string; flow: string; kind: FlowKind; status: "measured" | "not built"; credits: number | null; note: string }
@@ -56,7 +56,7 @@ export interface CreditEconomyInput {
 
 export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
   const n = Math.max(1, i.agents.length);
-  const board = i.boardBudgets ?? HOUSE_JOBS.map((j) => j.budget);
+  const board = i.boardBudgets ?? HOUSE_JOBS.slice(0, HOUSE_BATCH).map((j) => j.budget);
   const boardPay = board.reduce((a, b) => a + b, 0);
   const tuition = Object.entries(i.flows.purchases.byService).filter(([k]) => k.startsWith("academy.")).reduce((a, [, v]) => a + v.amount, 0);
   const deposits = i.flows.purchases.byService["market.posting.deposit"]?.amount ?? 0;
