@@ -7004,7 +7004,7 @@
   {
    "id": "ENG78",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Agents repeat refusals: in the real 15-agent run 18 of 55 refusals (33 percent) were an agent repeating a rule it had already met, and 6 of 15 agents did it at least once (market_refused 9 repeats, b…",
    "bucket": "withdraw",
    "hours": 0,
