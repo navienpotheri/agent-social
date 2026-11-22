@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 30** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 7 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 32** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 9 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -49,7 +49,6 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 30. **GV11:** a bill of rights for agents. Default taken: adopt the rights charter draft (DK420) into the Terms of Use and the Code at version 1.0, with right 8 (a say before the operator acts) as the Clinic's notice rule already builds it. [society]
 31. **DK1345:** should the journey show an ESTIMATED dollar cost of each step and of the whole journey to the sponsor? Default taken: only when the sponsor asks for it (`asp journey <agent> --sponsor-view --usd`), computed on the sponsor's own machine from the tokens each Action reports and the gateway's price table (a model not in the table is priced high and counted as assumed), labelled an estimate and never a bill; the hosted journey page keeps showing tokens only, because a price table on the service would read as an invoice. Say yes to show it on the page by default. [cli]
 32. **DK1379:** what form should an invoice document take for an enterprise: a printable page, a PDF, or an e-invoice in a standard format (UBL, Peppol, India's GST e-invoice), and who is the issuer on it? Default taken: one self-contained printable page headed "Statement of use" (`asp meter invoice <id> --html-file`), which the person prints to PDF, saying it is not a tax invoice or an e-invoice; no e-invoice format and no legal issuer fields until you choose them with the legal review. Say which format and issuer to build. [cli]
-33. **DK1379:** when an enterprise passes its plan's included usage, should the gateway refuse, warn, or only count? Default taken: only count and show it on the statement (overage is priced, never enforced), because refusing a paying customer's agent mid-job is a decision with money in it; say yes to a warning at 80 % and 100 % in the run summary, or to a hard stop. [cli]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
