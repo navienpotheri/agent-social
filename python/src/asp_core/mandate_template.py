@@ -84,6 +84,8 @@ def mandate_violations(ceiling: dict[str, Any], m: dict[str, Any]) -> list[str]:
         s = m.get("workflow")
         if not s or s.get("start") != c.get("start") or not all(x in (c.get("states") or []) for x in (s.get("states") or [])) or not all(x in (c.get("terminal") or []) for x in (s.get("terminal") or [])) or not all(any(u.get("from") == t.get("from") and u.get("to") == t.get("to") for u in (c.get("transitions") or [])) for t in (s.get("transitions") or [])):
             out.append("workflow")
+    if has(ceiling.get("role")) and m.get("role") != ceiling.get("role"):
+        out.append("role")
     if has(ceiling.get("outbound_scan")):
         c = ceiling["outbound_scan"]
         s = m.get("outbound_scan") or {}

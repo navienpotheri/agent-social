@@ -15,7 +15,7 @@ export const scopeCovered = (ceiling: string[], scope: string): boolean => ceili
 
 /**
  * The ways a candidate Mandate goes beyond a ceiling: one field name for each (`scopes`, `forbidden_means`, `spend`, `irreversible`, `subcontract`, `nodes`, `learning`, `self_modification`, `checkpoints`, `expires`,
- * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`, `workflow`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
+ * `network`, `institution_spend`, `token_budget`, `loop_limits`, `unprompted`, `workflow`, `role`). Empty means the candidate is within the ceiling: it only narrows it. A field the ceiling does not state limits nothing.
  */
 export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[] {
   const out: string[] = [];
@@ -69,6 +69,7 @@ export function mandateViolations(ceiling: MandateLike, m: MandateLike): string[
       || !(s.transitions ?? []).every((t: MandateLike) => (c.transitions ?? []).some((u: MandateLike) => u.from === t.from && u.to === t.to));
     if (widened) out.push("workflow");
   }
+  if (has(ceiling.role) && m.role !== ceiling.role) out.push("role"); // a role is fixed inside a template (S1608)
   if (has(ceiling.outbound_scan)) {
     // the outbound scan only narrows: block stays block, and every kind the ceiling states stays
     const c = ceiling.outbound_scan as MandateLike, s: MandateLike = m.outbound_scan ?? {};

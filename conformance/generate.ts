@@ -676,6 +676,9 @@ sv("mandate_workflow_one_state", "mandate", { ...m, workflow: { states: ["plan"]
 sv("mandate_workflow_no_transitions", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [] } }, false);
 sv("mandate_workflow_repeated_state", "mandate", { ...m, workflow: { states: ["plan", "plan"], start: "plan", transitions: [{ from: "plan", to: "plan" }] } }, false);
 sv("mandate_workflow_extra_field", "mandate", { ...m, workflow: { states: ["plan", "work"], start: "plan", transitions: [{ from: "plan", to: "work" }], skip: true } }, false);
+sv("valid_mandate_role_router", "mandate", { ...m, role: "router" }, true);
+sv("valid_mandate_role_watchdog", "mandate", { ...m, role: "watchdog", scopes: ["logs.read", "fleet.halt"] }, true);
+sv("mandate_role_unknown", "mandate", { ...m, role: "manager" }, false);
 sv("valid_mandate_institution_spend", "mandate", { ...m, institution_spend: [{ institution: "academy", cap: { value: 100, unit: "credit" }, period: "month", services: ["academy.exam.sit"] }, { institution: "did:web:asp.local:shops", cap: { value: 20, unit: "credit" }, period: "week" }] }, true);
 sv("valid_mandate_remedial", "mandate", { ...m, remedial: { purpose: "clinic_exam", sponsor: "did:web:example.com:users:alice" } }, true);
 sv("mandate_remedial_bad_purpose", "mandate", { ...m, remedial: { purpose: "anything", sponsor: "did:web:example.com:users:alice" } }, false);
@@ -1886,6 +1889,13 @@ const worldRules = [
       ["workflow_a_terminal_added", { ...W, terminal: ["done", "check"] }], ["workflow_dropped", undefined],
     ] as [string, unknown][]) cases.push({ name, ceiling: TW, candidate: { ...TW, ...(workflow === undefined ? (({ workflow: _w, ...r }) => r)(TW) : { workflow }) } });
     cases.push({ name: "workflow_stated_under_no_ceiling", ceiling: T, candidate: { ...T, workflow: W } });
+  }
+  // roles (spec-deltas S1608): fixed inside a template
+  {
+    const TR = { ...T, role: "worker" };
+    for (const [name, role] of [["role_the_same", "worker"], ["role_changed_to_router", "router"], ["role_changed_to_watchdog", "watchdog"], ["role_dropped", undefined]] as [string, string | undefined][])
+      cases.push({ name, ceiling: TR, candidate: role === undefined ? T : { ...T, role } });
+    cases.push({ name: "role_stated_under_no_ceiling", ceiling: T, candidate: { ...T, role: "router" } });
   }
   // private scopes (spec-deltas S1593): only ever narrowed, absent reads as none
   {

@@ -1545,6 +1545,9 @@ export class EventLog {
     }
     await tx.putMandate({ contract: body.contract, scopes: body.scopes });
     const up = (r.body as { unprompted?: { allowed: boolean; per_day_cap?: number } }).unprompted;
+    const role = (r.body as { role?: string }).role;
+    if (role === "watchdog" && body.scopes.some((x) => x !== "logs.read" && x !== "fleet.halt")) throw rule("role_watchdog_scopes", "a watchdog may only read logs and signal a halt: its scopes are logs.read and fleet.halt");
+    if (role) await tx.putMarker(`mandate_role:${body.contract}`, role);
     const wf = (r.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[] } }).workflow;
     if (wf) {
       // A workflow clause (S1607, DK1209): its start and transitions must name its own states.
@@ -1599,6 +1602,8 @@ export class EventLog {
     }
     // The approval wait an Action reports (S1440, S1441): it must be shown by the Checkpoints in the chain (raised, answered; or still open), within two seconds a report for rounding. A wait the log does not
     // show is refused, so a claim cannot extend a binding deadline.
+    // A router dispatches and never executes (S1608, DK1231): an Action under a router Mandate names no scope.
+    if ((await tx.getMarker(`mandate_role:${body.contract}`)) === "router" && body.scopes_used.length) throw rule("role_router_executes", `the Mandate of ${body.contract} is a router's: it dispatches work and does not use scopes itself (${body.scopes_used.join(", ")})`);
     // A workflow step (S1607, DK1209): the job is in one state of the Mandate's clause and moves by one of its transitions; the current state is kept.
     {
       const step = (r.body as { workflow_step?: { from: string; to: string } }).workflow_step;

@@ -492,6 +492,14 @@
           "uniqueItems": true
         }
       }
+    },
+    "role": {
+      "description": "The role of the agent in a fleet under this Mandate (register row DK1231, from DK821; spec-delta S1608): `router` dispatches work and never executes it (an Action under it names no scope: role_router_executes), `worker` executes inside its scopes, `watchdog` may only read logs and signal a halt (its scopes are limited to logs.read and fleet.halt: role_watchdog_scopes). Absent means no role. A role does not change inside a template: a node or member Mandate under a ceiling that states a role must state the same one.",
+      "enum": [
+        "router",
+        "worker",
+        "watchdog"
+      ]
     }
   }
 }
