@@ -10,3 +10,5 @@
 - 2026-11-22 10:43 IST keeper: window 10 percent; lane-cli-3 resumed (the other three running). Merged all four lane branches (e806873a, da45c477); gate on that tip running. Earlier gate (f26113f9-era tips) red twice: ladder test wording (fixed by lane-cli-3 in 7c719b8e) and 10,000-member tree wall time (fixed by lane-protocol-3: CPU-time bound, on its branch, goes in next round). Not pushed yet.
 
 - 2026-11-22 11:05 push: gate green on tip a9029d9c (cli 1207/1208 with 0 failed, core 1334, log 1171, package 604, python 1470) after one stale regex in containment-classes.test.ts was updated to the formal README wording.
+
+- 2026-11-22 11:45 IST keeper: window 20 percent; lanes society-2, cli-3, launch-bar-2 resumed (protocol-3 running). Merge round hit conflict markers in two source files, repaired (201ab86a); the first gate on it was invalid and stalled; clean gate (gate2.log) started 11:44. Last push still 2356c362.
