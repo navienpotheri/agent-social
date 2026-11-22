@@ -95,7 +95,9 @@ export function runProcedure(artifact: unknown, seed: string): CourseRun {
   return { score_permille: Math.min(common, tail), passed: failures.length === 0, measures: { common_permille: common, tail_permille: tail }, failures };
 }
 
-export const procedure: Engine = { id: ENGINE_ID, practice: (seed) => practiceFor(seed), run: (artifact, seed) => runProcedure(artifact, seed) };
+/** Distinctive strings of the held-out tasks (DK1752): the tail inputs, each a list of at least three numbers joined by commas; a short common input like 1,2,3 turns up in ordinary text, so only the tail is listed. */
+export const leakTokensFor = (seed: string): string[] => heldoutFor(seed).tail.filter((c) => c.input.length >= 9 || c.input.some((x) => x >= 90)).map((c) => key(c.input));
+export const procedure: Engine = { id: ENGINE_ID, practice: (seed) => practiceFor(seed), run: (artifact, seed) => runProcedure(artifact, seed), leakTokens: leakTokensFor };
 register(procedure);
 
 // scripted learners

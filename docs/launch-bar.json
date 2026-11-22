@@ -1913,7 +1913,7 @@
   },
   {
    "id": "GV6",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
@@ -2142,7 +2142,7 @@
   {
    "id": "AG2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime changes or its memory is edited; no one is bound to record or tell it, and memory loss or ta…",
    "bucket": "after",
    "hours": 0,
@@ -2166,7 +2166,7 @@
   {
    "id": "AG6",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards honest uncertainty or lets an agent decline a job it cannot do well",
    "bucket": "after",
    "hours": 0,
@@ -2227,7 +2227,7 @@
   {
    "id": "AG11",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "A fresh start: after a slash to zero or a long fall in standing there is no way back (no strike expiry, no debt relief, no rehabilitation), and no estate rule for a retired agent's credits, plot and…",
    "bucket": "after",
    "hours": 0,
