@@ -5,10 +5,10 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 578 register rows are not closed (318 at priority A, 212 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 574 register rows are not closed (314 at priority A, 212 at B, 48 at C). Sorted:
 
-- **Must close before launch: 64 rows, 301 worker-hours.** 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 186 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **Must close before launch: 61 rows, 295 worker-hours.** 11 need your decision, 13 a live run, 2 an outside party and 18 an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Withdraw the claim until done: 185 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 328 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
@@ -16,14 +16,14 @@ Three honest dates, at about 10 productive build-hours a day for one worker (an 
 | Bar | Worker-hours | Earliest date |
 |---|---|---|
 | **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 30 | **2026-11-25** |
-| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 61 | 2026-11-28 |
-| **Full**: all 64 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 301 | 2026-12-22 |
+| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 59 | 2026-11-27 |
+| **Full**: all 61 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 295 | 2026-12-21 |
 
 The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 38 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK58, DK95, DK117, DK180, DK183, DK271, DK386, DK390, DK393, DK546, DK793, DK1225, DK1229, DK1400, DK1401, DK1411, DK1503, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754, DK1758, DK1802, JO3, JO4, JO5, JO6, M3, US7.
+**Closed on 2026-11-23: 6 rows** (the register rows whose status is closed and whose text says closed on that date): DK1807, DK1811, DK1812, E9, ML1, ML3.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -41,10 +41,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 64 (301.2 worker-hours; 11 need an owner decision, 15 a live run, 2 an outside party, 20 an owner action) |
-| Withdraw the claim until done | 186 |
+| Must close before launch | 61 (295.2 worker-hours; 11 need an owner decision, 13 a live run, 2 an outside party, 18 an owner action) |
+| Withdraw the claim until done | 185 |
 | After launch | 328 |
-| Total not closed | 578 |
+| Total not closed | 574 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -54,7 +54,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 |---|---|---|---|---|---|---|
 | DK1368 | A | partial | 2 | S | - | the enterprise page and README section so claims match what is built |
 | DK1369 | A | partial | 2 | S | - | the enterprise readiness audit, so the list is known to be exhaustive |
-| DK1812 | A | open | 2 | S | - | the walkthrough does not say how the institutions' keys get on the operator's machine and into the log, or that the Treasury must be funded before the drafts are signed |
 | DK1813 | A | open | 2 | S | - | step 11 runs the forum checkpoint before any post exists and step 12's house run needs a funded performer and bank |
 | E8 | A | partial | 2 | S | - | the mail exists (S70) but E11 and E12 are closed; the row stays partial until E5 (a run log for every runtime, needs a live run of each) is done |
 | DK1 | A | partial | 3 | M | - | monetary policy for the credit economy written down and tested against the audit |
@@ -96,9 +95,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
-| DK1811 | A | partial | 2 | S | LO | twenty-one read methods used by operator commands (charter index and check, the Bank, the Treasury statement, the registry, abuse) are not callable over the service unti… |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
-| E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
 | GV6 | A | partial | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
 | O19 | A | partial | 2 | S | DX | terms and privacy text on /join (needs the DK1340 legal minimum) |
 | T2 | A | partial | 2 | S | LO | first-minutes failure modes: laptop sleep and a multi-GB repo are the untested two |
@@ -225,11 +222,11 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1604 | A | open | The drift scheduler has run on a real agent | site, docs: say 'built and tested on stand-ins; the first live run is pending' |
 | DK1606 | A | open | The rent and the tax are set from measured real earnings | site, docs: say 'the rent and the tax are drafted from a seeded run; the live measure is pending' |
 | DK1801 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| DK1807 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | KO1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | KO2 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1831 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | DK1830 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| DK1840 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG1 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG2 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG3 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
@@ -260,9 +257,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ENG28 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG29 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | KO3 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| ML1 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ML2 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
-| ML3 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ML4 | A | partial | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG30 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG31 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
