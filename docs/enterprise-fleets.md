@@ -119,3 +119,22 @@ A fleet of copies (one template) and a fleet of personas (each with its own temp
 An organisation is a tenant that creates an organisation (`asp org create`) and so becomes its owner. People are given roles: **owner** (everything, including the sign-on settings, roles and the provisioning token), **administrator** (members, their agents, deprovisioning and the audit trail; gives only the roles member and auditor and does not change an owner or another administrator), **member** (reads the organisation) and **auditor** (reads the organisation and the audit trail, changes nothing). A person signs in through the organisation's identity provider by OpenID Connect and receives a token of their own that works only on that organisation's routes, limited by their role. The identity system can also provision people by a SCIM-style feed; a person who is deprovisioned loses every token at once, cannot sign in again, and has the agents linked to them frozen through the fleet controls. Every act, refused or accepted, is in a hash-chained audit trail, which the organisation takes out with `asp org audit export` as a file signed by its own key (the service holds no key), checkable from the file alone, on a schedule if it wants. **Tested with a provider made by the tests; a real identity provider has not been tried.** **Not built:** SAML, SCIM groups, a private log with a signed checkpoint in the society, a key vault, a streaming feed for a security information system.
 
 **Keys in the organisation's own vault (DK1359).** Set `ASP_KEY_VAULT_CMD` to a program in front of the vault (HashiCorp Vault, a cloud KMS, an HSM); ASP runs it as `put <kid>` (the seed in hex on standard input), `get <kid>` and `list <did>`, writes no key file on the machine, and never falls back to a file when the vault is down. ASP talks to no vault itself, and none has been tried: only a stand-in program has.
+
+## Through the service, at 5,000 and 10,000 agents (DK1362, O6; measured 2026-11-22 by lane-protocol-3)
+
+`evals/load-fleet-service.ts` drives a real `asp serve` process (the file log, no throttling) over HTTP: the organisation and its fleet, a passport for each agent, then signed acts, all through `POST /append-batch` (500 records a request), then reads with the log at full size. On a developer laptop (22 cores, node 24, Windows), one process, **not** the Postgres backend:
+
+| | 5,000 agents, 1 act each | 10,000 agents, 2 acts each |
+|---|---|---|
+| records written | 10,003 | 30,003 |
+| bringing the agents in | 316 records a second, batch p95 2.1 s | 277 a second, batch p95 2.4 s |
+| acts | 386 a second | 394 and 491 a second |
+| size on disk | 760 bytes a record, 7.6 MB | 735 bytes a record, 22 MB |
+| refused | 0 | 0 |
+| fleet read of every member | 22 ms | 47 ms |
+| a member's Registry page, before the change below | 361 ms median, 459 ms p95 | 896 ms median, 1,100 ms p95 |
+| a member's Registry page, after | 11 ms median, 17 ms p95 (the first read after a write is a rebuild: about 0.5 to 1 s at 10,000) | |
+
+What was slow: a Registry page of an agent in a fleet rebuilt the facts of every member, the list of records of several types and the abuse reports for each read, so it grew with the size of the log. They are now kept for the log head (and the minute, for the one time-dependent part): a new record changes the head, so a stale page is never served (`packages/asp-log/test/page-cache.test.ts` pins both ways, and two mutants of the key die). What is still slow: the first read after any write rebuilds, so a service that is written to every second and read for a page each time pays the rebuild each time; an index by agent would remove that and is not built.
+
+The same service on 5,050 and on 10,100 records of single-tenant traffic (`evals/load-test.mjs`, 50 and 100 tenants): write p95 143.8 ms and 180.5 ms, read p95 100.1 ms and 132.9 ms, 0 errors, 673 bytes a record; the local targets (300 ms and 150 ms) are met. **Not measured:** the Postgres backend and the hosted machine (a database and a host, not a builder's laptop); several processes; the figures are for a shared development machine. Results: `docs/load-test-results-fleet-service-5000.json`, `-10000.json` (before) and `-10000-after.json`.
