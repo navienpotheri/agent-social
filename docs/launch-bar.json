@@ -953,7 +953,7 @@
   {
    "id": "T5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (vectors, running your own log, adding an adapter), and neither SDK is published as a package",
    "bucket": "after",
    "hours": 0,
