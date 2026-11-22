@@ -41,3 +41,11 @@ test("a few record types: a mint and a starter claim are credits in, a passport 
   assert.equal(stepOf(rec("agent_message", ME, { to: "did:web:you", kind: "note" }), ME, ctx(), "public")!.kind, "message_sent");
   assert.equal(stepOf(rec("agent_message", "did:web:you", { to: ME, kind: "note" }), ME, ctx(), "public")!.kind, "message_received");
 });
+
+test("a party named in the body and again through the contract is named once, and a record the agent both issued and is the subject of is read as issued", () => {
+  const cid = "sha256:" + "e".repeat(64);
+  const c = ctx([[cid, { principal: "did:web:op", performer: ME }]]);
+  const s = stepOf(rec("mandate", "did:web:op", { contract: cid, signed_by: "did:web:op" }), ME, c, "public")!;
+  assert.deepEqual(s.with, ["op"], "the same party from the body, the contract and the issuer is one name");
+  assert.equal(stepOf(rec("mint", ME, { to: ME, amount: { value: 1, unit: "credit" }, reason: "x" }, { subject: ME }), ME, ctx(), "public")!.role, "issuer");
+});
