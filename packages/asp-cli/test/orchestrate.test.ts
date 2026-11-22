@@ -156,3 +156,28 @@ test("--task is required, and an unknown backend is a usage error", async () => 
   assert.equal((await asp(f, ["orchestrate", pkg, "--backend", "claude-code"])).code, 2);
   assert.equal((await asp(f, ["orchestrate", pkg, "--backend", "nope", "--task", "x"])).code, 2);
 });
+
+test("E5: each node keeps a hash-chained run log of its start and end with the hashes of its output, and the log verifies", async () => {
+  const { readdirSync, statSync } = await import("node:fs");
+  const { f, pkg } = await packed();
+  const res = await asp(f, ["orchestrate", pkg, "--backend", "claude-code", "--project", f.project, "--task", "one", "--task", "two"], fakeClaude());
+  assert.equal(res.code, 0, res.err);
+  const logs: string[] = [];
+  const walk = (d: string) => { for (const n of readdirSync(d)) { const p = join(d, n); if (statSync(p).isDirectory()) walk(p); else if (n === "run-log.ndjson" && /node-\d/.test(p)) logs.push(p); } };
+  walk(f.aspHome);
+  assert.equal(logs.length, 2, "one run log for each node");
+  for (const file of logs) {
+    const lines = readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { event?: string; kind?: string; body?: Record<string, unknown> });
+    const text = readFileSync(file, "utf8");
+    assert.match(text, /run_start/);
+    assert.match(text, /run_end/);
+    assert.match(text, /"output_read":false/);
+    assert.match(text, /"stdout_sha256":(null|"[0-9a-f]{64}")/);
+    assert.ok(lines.length >= 2);
+    const v = await asp(f, ["run-log", "verify", file]);
+    assert.equal(v.code, 0, v.err + v.out);
+    assert.match(v.out, /run log ok: 2 event/);
+  }
+  const off = await asp(f, ["orchestrate", pkg, "--backend", "claude-code", "--project", f.project, "--task", "three", "--no-run-log"], fakeClaude());
+  assert.equal(off.code, 0, off.err);
+});

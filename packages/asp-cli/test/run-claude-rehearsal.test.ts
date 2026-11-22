@@ -124,6 +124,13 @@ test("claude-code: asp stop --all ends a running session from another window", a
   assert.ok(Date.now() - t0 < 20_000, "the session ends within seconds of the stop");
   assert.ok((r.out.match(/status 200/g) ?? []).length < 40, "it did not run to the end");
   assert.match((await lasp(f, ["runs"])).out, /claude-code\s+\S*stopped|claude-code/);
+  // E8: the sessions as one page
+  const page = join(f.root, "runs.html");
+  const wrote = await lasp(f, ["runs", "--html-file", page]);
+  assert.match(wrote.out, /wrote .* \(1 session\(s\)\)/, wrote.out + wrote.err);
+  const html = (await import("node:fs")).readFileSync(page, "utf8");
+  assert.match(html, /What my agents did/);
+  assert.match(html, /claude-code/);
 });
 
 test("claude-code: asp pause holds the next call and asp resume lets it go", async () => {

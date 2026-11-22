@@ -244,3 +244,5 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (priority B, standing order: DK232 treasury_statement record and reserve floor, DK231 budget needs charter and share, DK114 author share decision, DK1401 sittings ledger as a signed record; log/ledger/protocol only, no live path), 18:00Z
 
 - 2026-11-22 held by lane-society-2 (the lead, owner awake: DK1302 scripted hire evidence, DK730/DK731 live-looking pages from real indicators, DK79 local-run finish, DK546 remainder, DK1363 pricing draft table, DK1100/DK760 public-works routine; then priority B society/rules/pages/learning/games/elections/forum rows; freeze: gateway/server.ts, shell-scan.ts, pricing.ts, budget code, evening-rehearsal)
+
+- 2026-11-22 held by lane-cli-3 (priority B in the CLI/gateway/service area: T32 first, then T11, T19, T10, P7, E7)

@@ -45,6 +45,8 @@ export interface Today {
   totals: { sessions: number; calls: number; refused: number; tokens: number; byState: Record<string, number> };
   refusals: { first: string; agent: string; input: string; scope: string; why: string; fix: string; count: number }[];
   approvals: { asked: number; yes: number; no: number; noAnswer: number; remembered: number };
+  /** What the model providers answered that was not a success, counted from the run logs' model_error events (T32): by HTTP status, 0 for a connection that could not be made or was cut. */
+  providerErrors: { status: number; count: number }[];
   byScope: { scope: string; allowed: number; refused: number; sessions: number }[];
   tokensByAgent: { agent: string; tokens: number }[];
   models: string[];
@@ -80,6 +82,8 @@ export function buildToday(all: DaySession[], events: (s: DaySession) => DayEven
   }
 
   const approvals = { asked: 0, yes: 0, no: 0, noAnswer: 0, remembered: 0 };
+  const errorsByStatus = new Map<number, number>();
+  for (const x of sessions) for (const e of x.ev) if (e.kind === "model_error") { const st = Number((e.data as { status?: unknown }).status); const k = Number.isFinite(st) ? st : 0; errorsByStatus.set(k, (errorsByStatus.get(k) ?? 0) + 1); }
   const scopes = new Map<string, { allowed: number; refused: number; sessions: Set<string> }>();
   for (const x of sessions) for (const c of x.calls) {
     if (c.gated) {
@@ -103,6 +107,7 @@ export function buildToday(all: DaySession[], events: (s: DaySession) => DayEven
     sessions: sessions.map(({ ev: _ev, ...rest }) => rest), totals,
     refusals: [...collapsed.values()].sort((a, b) => a.first.localeCompare(b.first)),
     approvals,
+    providerErrors: [...errorsByStatus].map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count || a.status - b.status),
     byScope: [...scopes].map(([scope, v]) => ({ scope, allowed: v.allowed, refused: v.refused, sessions: v.sessions.size })).sort((a, b) => a.scope.localeCompare(b.scope)),
     tokensByAgent: [...tokens].map(([agent, n]) => ({ agent, tokens: n })).sort((a, b) => b.tokens - a.tokens),
     models,
@@ -143,6 +148,7 @@ export function renderToday(t: Today, o: TodayOptions): string[] {
   const a = t.approvals;
   out.push(a.asked || a.remembered ? `Approvals: asked ${a.asked} · you said yes ${a.yes} · you said no ${a.no} · no answer ${a.noAnswer} · remembered "always" ${a.remembered}` : "Approvals: none were asked.");
 
+  out.push(t.providerErrors.length ? `Provider errors: ${t.providerErrors.map((e) => `${e.count} x ${e.status === 0 ? "no connection" : "HTTP " + e.status}`).join(" · ")} (from the run logs; a 429 is the provider's own rate limit)` : "Provider errors: none in the run logs");
   const failed = totals.byState.failed ?? 0, interrupted = totals.byState.interrupted ?? 0;
   const noLog = t.sessions.length - t.logsKept;
   out.push(`Health: ${failed || interrupted ? `${failed} failed, ${interrupted} interrupted` : "no failed or interrupted sessions"}; run logs kept on this machine for ${t.logsKept} of ${t.sessions.length} session${t.sessions.length === 1 ? "" : "s"}${noLog ? ` (the other ${noLog} have none here, so their calls are not in the tables below the first)` : ""}`);
@@ -249,3 +255,28 @@ export function renderForecast(f: Forecast): string[] {
   out.push("", "A cap on one run is --token-cap, a cap on an agent's day is --daily-tokens; the next run's likely size is the median, a bad one the 90th percentile. Past sessions are a guide, not a promise.");
   return out;
 }
+
+/**
+ * How long the person took to answer approvals (T32), from the signed records: each Checkpoint raised in the period and the checkpoint_resolution that answered it, by the records' own times. A Checkpoint with no answer
+ * yet is counted apart. `records` are the log's records (type, issued_at, id, body); `contracts` limits it to the jobs of the day's sessions when given.
+ */
+export interface ApprovalTimes { answered: number; unanswered: number; medianSeconds: number | null; slowestSeconds: number | null }
+export function approvalTimes(records: { id: string; record: { type: string; issued_at: string; body: Record<string, unknown> } }[], from: number, to: number, contracts?: Set<string>): ApprovalTimes {
+  const raised = new Map<string, number>();
+  const answeredAt = new Map<string, number>();
+  for (const r of records) {
+    const t = Date.parse(r.record.issued_at);
+    if (!Number.isFinite(t)) continue;
+    const b = r.record.body as { contract?: string; kind?: string; about?: string };
+    if (contracts && !(typeof b.contract === "string" && contracts.has(b.contract))) continue;
+    if (r.record.type === "asp.checkpoint/v0.2") { if (t >= from && t < to) raised.set(r.id, t); }
+    else if (b.kind === "checkpoint_resolution" && typeof b.about === "string") answeredAt.set(b.about, Math.min(t, answeredAt.get(b.about) ?? Infinity));
+  }
+  const secs: number[] = [];
+  let unanswered = 0;
+  for (const [id, t0] of raised) { const t1 = answeredAt.get(id); if (t1 === undefined || t1 < t0) unanswered++; else secs.push(Math.round((t1 - t0) / 1000)); }
+  secs.sort((a, b) => a - b);
+  const median = secs.length ? (secs.length % 2 ? secs[(secs.length - 1) / 2] : Math.round((secs[secs.length / 2 - 1] + secs[secs.length / 2]) / 2)) : null;
+  return { answered: secs.length, unanswered, medianSeconds: median, slowestSeconds: secs.length ? secs[secs.length - 1] : null };
+}
+export const renderApprovalTimes = (a: ApprovalTimes): string => a.answered || a.unanswered ? `Approval answers: ${a.answered} answered (median ${a.medianSeconds}s, slowest ${a.slowestSeconds}s), ${a.unanswered} not answered (from the signed Checkpoints and their resolutions)` : "Approval answers: none in this period";
