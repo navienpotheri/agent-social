@@ -4983,6 +4983,24 @@ export class EventLog {
   }
 
   /**
+   * The Registry's report for a calendar month (registry.md RG-16, DK125), computed from the records: identities first seen, names claimed and released, impersonation reports filed, names taken down and reports
+   * dismissed, suspensions made and lifted, renewals and retirements. A month is `YYYY-MM` (UTC); an act counts in the month it was issued. Counts only: no name and no holder. Reads only.
+   */
+  async registryReport(month: string): Promise<{ month: string; from: string; to: string; newIdentities: number; namesClaimed: number; namesReleased: number; reportsFiled: number; namesTakenDown: number; reportsDismissed: number; suspensions: number; suspensionsLifted: number; renewals: number; retirements: number }> {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const seen = new Set<string>();
+    let newIdentities = 0;
+    for (const r of await this.recordsOfTypes(["passport"])) { const did = (r.body as { did: string }).did; if (seen.has(did)) continue; seen.add(did); if (inMonth(r)) newIdentities++; }
+    const acts = (await this.recordsOfTypes(["registry_act"])).filter(inMonth);
+    const n = (a: string) => acts.filter((r) => (r.body as { act: string }).act === a).length;
+    return { month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), newIdentities, namesClaimed: n("name_claim"), namesReleased: n("name_release"), reportsFiled: n("impersonation_report"), namesTakenDown: n("name_takedown") + n("court_takedown"), reportsDismissed: n("takedown_dismissal"), suspensions: n("identity_suspension"), suspensionsLifted: n("suspension_lift"), renewals: n("identity_renewal"), retirements: n("identity_retirement") };
+  }
+
+  /**
    * The Courts' report for a calendar month (courts.md CT-20, DK123), computed from the records: disputes opened (a delivery rejected), rulings made and for whom, the days a ruling took, appeals filed and how they
    * were decided, the share of decided appeals that reversed or varied, and the disputes still open at the month's end. A month is `YYYY-MM` (UTC); a ruling, appeal or rejection counts in the month it was issued.
    * Counts only: no name, no amount. Reads only.
