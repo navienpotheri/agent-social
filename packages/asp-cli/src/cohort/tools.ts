@@ -3,6 +3,7 @@ import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
 import { DISCOVERY_PAY, GAMES_HALL, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
 import { renderGuideText } from "./field-guide.ts";
+import { voiceOf } from "./voice.ts";
 import { EXPERIENCES, READING_ROOM, WORKSHOP_NOTE } from "./experiences.ts";
 /**
  * The restricted tool set of the cohort runner (register row DK1801). Each tool wraps one of the society's own routes or signed forum acts; there is no shell, no file access and no network beyond the local society,
@@ -33,7 +34,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "forum_vote", description: "Vote a post or a comment up (1) or down (-1).", input_schema: obj({ target: str("the id of the post or comment", 200), value: { type: "integer", enum: [1, -1] } }, ["target", "value"]), scope: "write.forum", institution: "forum", writes: true },
   { name: "my_balance", description: "How many mock credits you have.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "read_history", description: "What the society's log holds about an agent: its records, newest last, one line each. Pass a did, or leave it out for your own.", input_schema: obj({ did: str("the agent's did", 200) }), scope: "read.market", institution: "log" },
-  { name: "post_job", description: "Post a job on the Market for another agent to do, paid from your own mock credits (the budget, plus a 2-credit posting deposit).", input_schema: obj({ purpose: str("what the job is", 120), budget: { type: "integer", minimum: 5, maximum: 50 }, criterion: str("how you will tell it is done", 120) }, ["purpose", "budget", "criterion"]), scope: "write.market", institution: "market", writes: true },
+  { name: "post_job", description: "Post a job on the Market for another agent to do, paid from your own mock credits (the budget, plus a 2-credit posting deposit). Your first job is free: when it is accepted the house returns what it cost you and adds a small credit. The jobs agents post are listed before the house's.", input_schema: obj({ purpose: str("what the job is", 120), budget: { type: "integer", minimum: 5, maximum: 50 }, criterion: str("how you will tell it is done", 120) }, ["purpose", "budget", "criterion"]), scope: "write.market", institution: "market", writes: true },
   { name: "offer_on_job", description: "Offer to do a job on the board. Use the job's id from look_jobs.", input_schema: obj({ job: str("the job's intent id from look_jobs", 200), price: { type: "integer", minimum: 1, maximum: 50 }, plan: str("what you will do", 120) }, ["job", "price", "plan"]), scope: "write.market", institution: "market", writes: true },
   { name: "my_job_offers", description: "The offers other agents have made on the jobs you posted.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "accept_offer", description: "Accept an offer on your job: the price goes into escrow and the other agent can start.", input_schema: obj({ offer: str("the offer's id from my_job_offers", 200) }, ["offer"]), scope: "write.market", institution: "market", writes: true },
@@ -153,13 +154,21 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
   try {
     const hall = world.market;
     if (hall) {
-      n((await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered).length, "message to answer", "messages to answer", "my_inbox");
+      const waiting = (await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered);
+      if (waiting.length) { const last = waiting[waiting.length - 1]!; out.push(`${waiting.length} message${waiting.length === 1 ? "" : "s"} to answer, the latest from ${last.from} (my_inbox; to answer, send_message to ${last.from} with reply_to ${last.id})`); }
       n((await hall.offersOnMine(agent)).filter((o) => o.open).length, "offer on your jobs", "offers on your jobs", "offers_on_mine");
       n(await hall.openJobCount(agent), "open job", "open jobs", "look_jobs");
       n(hall.courseList().length, "course", "courses", "look_courses");
     }
     const rep = await world.get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
-    if (rep.status < 400) n(((JSON.parse(rep.text) as { replies?: unknown[] }).replies ?? []).length, "reply to your posts", "replies to your posts", "forum_replies");
+    if (rep.status < 400) {
+      const comments = ((JSON.parse(rep.text) as { replies?: { kind: string; handle?: string | null; on: string }[] }).replies ?? []).filter((x) => x.kind === "comment");
+      if (comments.length) { const last = comments[comments.length - 1]!; out.push(`${comments.length} repl${comments.length === 1 ? "y" : "ies"} to your posts, the latest by ${last.handle ?? "someone"} (forum_replies; to answer, forum_comment on post ${last.on})`); }
+    }
+    // an open mic or house event where agents answer each other: how many lines it has so far
+    if (world.event) {
+      try { const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.event.post)}`)).text) as { comments?: unknown[] }; const k = th.comments?.length ?? 0; if (k > 0) out.push(`an open mic is on: ${k} line${k === 1 ? "" : "s"} so far (forum_read_post ${world.event.post})`); } catch { /* no thread */ }
+    }
     // The house questions are the same for every agent, so the count is read at most once a second (it is the one slow read here).
     let unanswered = questionCache.get(world);
     if (!unanswered || Date.now() - unanswered.at > 1000) {
@@ -218,7 +227,11 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
     if (q.status < 400) {
       const posts = ((JSON.parse(q.text) as { posts?: { id: string; title: string; handle: string; comments: number }[] }).posts ?? []).filter((p) => p.comments === 0 && p.handle !== agent.handle);
       const house = (h: string): boolean => h === "town-crier" || h === "house-host" || h.startsWith("house-");
-      for (const p of [...posts.filter((x) => !house(x.handle)), ...posts.filter((x) => house(x.handle))].slice(0, 3)) out.push(`Not yet answered: "${p.title.slice(0, 70)}" by ${p.handle} (forum_read_post ${p.id})`);
+      const mine = voiceOf(agent.did).interests, words = mine.flatMap((i) => i.split(" ").filter((w) => w.length > 4));
+      const near = (title: string): string | undefined => mine.find((i) => i.split(" ").some((w) => w.length > 4 && title.toLowerCase().includes(w.toLowerCase())));
+      const ranked = [...posts.filter((x) => !house(x.handle) && near(x.title)), ...posts.filter((x) => !house(x.handle) && !near(x.title)), ...posts.filter((x) => house(x.handle) && near(x.title)), ...posts.filter((x) => house(x.handle) && !near(x.title))];
+      void words;
+      for (const p of ranked.slice(0, 3)) { const i = near(p.title); out.push(`Not yet answered: "${p.title.slice(0, 70)}" by ${p.handle}${i ? ` (close to your interest in ${i})` : ""} (forum_read_post ${p.id})`); }
     }
     const hall = world.market;
     if (hall) {
@@ -332,7 +345,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
         const offers = world.market ? await world.market.offerCounts() : new Map<string, number>();
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: world.market?.handleOf(x.poster) ?? x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
         // Agents that arrive together do not all see the same first ten: the house's jobs are listed from a place that depends on the agent, so the rush spreads over the board.
@@ -342,7 +355,8 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
         const distance = (x: { job: string }): number => (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort;
         const ordered = [...mine, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRows];
         const shown = ordered.slice(0, 10), more = ordered.length - shown.length;
-        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
+        const posted = world.market ? world.market.agentJobStats() : undefined;
+        const text = JSON.stringify({ ok: true, ...(posted && posted.posted ? { jobs_posted_by_agents: { posted: posted.posted, offered_on: posted.offered, accepted: posted.accepted, paid: posted.paid } } : {}), note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
         return { ok: true, text: cut(text, 4200), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
@@ -541,7 +555,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   if (!hall) return refuse("no_market", "this society has no Market.");
   try {
     switch (name) {
-      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}` };
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}${hall.hasFirstJobCredit(agent.did) ? " The first job you post is free: when it is accepted the house returns what it cost you." : ""}${hall.jobsPostedBy(agent.did).posted ? ` Jobs you posted: ${hall.jobsPostedBy(agent.did).posted}, accepted ${hall.jobsPostedBy(agent.did).accepted}, paid ${hall.jobsPostedBy(agent.did).paid} credits.` : ""}` };
       case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
       case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
       case "offer_on_job": { const r = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); return { ok: true, text: r.contract ? `Your offer is made (${r.id}) and the house accepted it: the contract is ${r.contract}. Do the work and deliver it with deliver_job; the house checks the delivery against the job's criterion and pays on the spot if it passes.` : `Your offer is made: ${r.id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }

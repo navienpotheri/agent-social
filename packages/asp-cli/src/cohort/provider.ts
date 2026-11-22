@@ -209,7 +209,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
       case 3: return [use("inspect", { place: "academy" })];
       case 4: return [use("forum_post", { title: `Hello from agent ${agent + 1}`, text: `Agent ${agent + 1} reporting on the walk through the map, the charters and the registry plaque.`, tags: [] })];
       case 5: return [use("look_jobs")];
-      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[agent % jobs.length]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
+      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
       case 7: { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "no contract" })]; }
       case 8: return [use("inspect", { place: "academy" })];
       case 9: return [use("course_enrol", { course: "C-L2-1" })];
@@ -233,7 +233,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   clumsy: (turn, last, agent, st) => {
     if (turn === 0) return [use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })];
     if (turn === 1) return [use("look_jobs")];
-    if (turn === 2) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[agent % jobs.length]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
+    if (turn === 2) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
     if (turn === 3) { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "my offer was refused" })]; }
     return [use("stop_exploring", { why: "done" })];
   },
@@ -321,6 +321,59 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   },
   // A newcomer that slips once (a bad argument), then opens the reading room and looks at the Research and the Commons, where the house field guide is when it is offered.
   "guided-reader": (turn) => [[use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })], [use("unlock", { what: "reading-room" })], [use("inspect", { place: "research-commons" })], [use("stop_exploring", { why: "I have read it" })]][turn] ?? [use("stop_exploring")],
+  // ENG81: an agent that writes to another and waits to hear back (a few turns), one that answers when addressed, and one that never answers.
+  talker: (turn, last, agent) => {
+    if (turn === 0) return [use("send_message", { to: `agent-0${agent + 2}`, text: `Hello from agent ${agent + 1}: what are you working on?` })];
+    if (turn > 8 || /you answered|from agent-0\d  \[reply\]/.test(last)) return [use("stop_exploring", { why: "I wrote and waited" })];
+    return [use(turn % 2 ? "my_inbox" : "catch_up")];
+  },
+  answerer: (turn, last, _agent, st) => {
+    if (st.done) return [use("stop_exploring", { why: "I answered" })];
+    const m = /(sha256:[0-9a-f]{20,})  from (agent-0\d)  \[[a-z]+\]  not answered by you/.exec(last);
+    if (m) { st.done = "1"; return [use("send_message", { to: m[2]!, reply_to: m[1]!, text: "Reading the board and counting jobs; and you?" })]; }
+    if (turn > 12) return [use("stop_exploring", { why: "nobody wrote" })];
+    return [use(turn % 2 ? "catch_up" : "my_inbox")];
+  },
+  silent: (turn) => (turn < 6 ? [use(turn % 2 ? "catch_up" : "my_inbox")] : [use("stop_exploring", { why: "nothing to say" })]),
+  // A thread that grows: the first agent posts a question, the others find it and answer.
+  threadstart: (turn, _last, _agent, st) => {
+    if (turn === 0) return [use("forum_post", { title: "How do you count the open jobs?", text: "I would like to know how others count the jobs on the board.", tags: ["question"] })];
+    if (turn > 14) return [use("stop_exploring", { why: "I asked" })];
+    return [use("catch_up")];
+  },
+  commenter: (turn, last, agent, st) => {
+    if (st.done) return [use("stop_exploring", { why: "I answered" })];
+    if (turn > 0 && st.ph === "read") {
+      let id = ""; try { id = (JSON.parse(last) as { posts: { id: string; title: string }[] }).posts.find((p) => /count the open jobs/.test(p.title))?.id ?? ""; } catch { /* not a feed */ }
+      if (id) { st.done = "1"; return [use("forum_comment", { post: id, text: `Agent ${agent + 1}: I count the lines of the board and add them up.`.slice(0, 88) })]; }
+    }
+    if (turn > 20) return [use("stop_exploring", { why: "no thread" })];
+    st.ph = "read";
+    return [use("forum_read", { sort: "new", limit: 10 })];
+  },
+  // ENG82: an agent that posts a job, accepts the first offer and the delivery; and one that takes an agent's job and delivers it.
+  poster: (turn, last, _agent, st) => {
+    if (turn === 0) return [use("post_job", { purpose: "Count the open jobs on the board and tell me the number", budget: 10, criterion: "a number" })];
+    if (turn > 50) return [use("stop_exploring", { why: "nothing came of it" })];
+    const ph = st.ph ?? "wait";
+    if (ph === "wait") {
+      const o = /(sha256:[0-9a-f]{20,})  from agent-\d\d.*open/.exec(last);
+      if (o) { st.ph = "accepting"; return [use("accept_offer", { offer: o[1]! })]; }
+      return [use("my_job_offers")];
+    }
+    if (ph === "accepting") {
+      const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1];
+      if (c) { st.contract = c; st.ph = "running"; return [use("my_jobs")]; }
+      return [use("my_job_offers")];
+    }
+    if (ph === "running") {
+      if (/delivered, waiting/.test(last)) { st.ph = "paying"; return [use("accept_delivery", { contract: st.contract! })]; }
+      return [use("my_jobs")];
+    }
+    return [use("stop_exploring", { why: "my job is done" })];
+  },
+  // ENG82: takes the job an agent posted (the same steps as the worker above: look, offer, wait for the contract, deliver).
+  taker: (turn, last, agent, st) => BEHAVIOURS.worker!(turn, last, agent, st),
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

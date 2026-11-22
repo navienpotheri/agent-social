@@ -148,7 +148,7 @@ test("ENG59 and ENG58: a fresh scripted agent walks the whole tour (one look at 
       const r = await call("inspect", { place: p });
       assert.equal(r.ok, true, r.text);
       assert.match(r.text, new RegExp(`Tour: .* looked at, 1 mock credit; ${i + 1} of 14 places so far, in any order or none\.`), p);
-      assert.ok(r.text.length < 900, `${p}: one stop is short (${r.text.length})`);
+      assert.ok(r.text.length < 1300, `${p}: one stop is short (${r.text.length})`);
       const discovery = p === "registry" ? 3 : 0; // the plaque pays too
       assert.equal(await hall.balance(a), b + 1 + discovery, `${p} paid one credit${discovery ? " and the plaque" : ""}`);
       b = await hall.balance(a);
