@@ -67,7 +67,7 @@ test("two sponsored and two key-only agents in one society: sponsor identities o
       if (n === 2) return use("rest", { until: "3h" });
       if (n === 3) return use("forum_read", { sort: "new" });
       if (n === 4) return use("forum_comment", { post: idOf(r.last, "From A") ?? "missing", text: "Hello A, from C." });
-      if (n === 5) return use("send_message", { to: "agent-01", kind: "reply", text: "Hello A: C here." });
+      if (n === 5) return use("send_message", { to: "agent-01", kind: "note", text: "Hello A: C here." });
     }
     if (w === "D") {                                           // key-only: posts, is refused once for a text that is too long
       if (n === 1) return use("forum_post", { title: "From D", text: "x".repeat(6000) });
