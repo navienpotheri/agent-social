@@ -35,6 +35,8 @@ export interface WorldApi {
   postJson(path: string, body: unknown): Promise<{ status: number; json: any }>;
   /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
   market?: import("./market.ts").MarketHall;
+  /** The games of the local society (games.ts), when the run has them. */
+  games?: import("./games.ts").GameHall;
   /** The orientation expedition and the places to discover (expedition.ts), when the run has them. */
   expedition?: import("./expedition.ts").Expedition;
   /** The text workspaces and the library of the local society (library.ts). */

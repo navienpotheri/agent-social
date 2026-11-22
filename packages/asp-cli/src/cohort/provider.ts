@@ -218,6 +218,16 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
       default: return [use("stop_exploring", { why: "I have walked it" })];
     }
   },
+  // The game test: reads the rules, enters a move in the open round (agent n stands at a different number, or hides in a different cell), waits for the round to fill, reads the results and leaves.
+  gamer: (turn, last, agent, st) => {
+    if (turn === 0) return [use("game_list")];
+    if (turn === 1) return [use("game_enter", { game: "twenty-one", move: JSON.stringify({ stand_at: [13, 15, 17, 19][agent % 4] }) })];
+    if (turn === 2) return [use("game_enter", { game: "hide-and-seek", move: JSON.stringify({ hide: (agent * 2) % 9, order: [0, 1, 2, 3, 4, 5, 6, 7, 8].map((c) => (c + agent * 3) % 9) }) })];
+    if (st.done) return [use("stop_exploring", { why: "I have seen how the round went" })];
+    if (/\(twenty-one\)/.test(last) && /\(hide-and-seek\)/.test(last)) { st.done = "1"; return [use("do_nothing", { why: "that was a good round" })]; }
+    if (turn > 30) return [use("stop_exploring", { why: "the rounds did not fill" })];
+    return [use(turn % 2 ? "game_results" : "catch_up")];
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

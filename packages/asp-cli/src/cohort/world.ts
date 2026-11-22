@@ -12,6 +12,7 @@ import { coursesRoutes } from "../lens-courses/pages.ts";
 import { MarketHall, makeParties } from "./market.ts";
 import { Library } from "./library.ts";
 import { Expedition } from "./expedition.ts";
+import { GameHall } from "./games.ts";
 /** The words that identify the house event in a message (matched without regard to case). */
 export const EVENT_KEY = "open mic";
 import { loadSnapshot, type Snapshot } from "./snapshot.ts";
@@ -36,7 +37,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean }): Promise<World> {
+export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -86,6 +87,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   const greeter = await enrol(-3, "house-greeter");
   await hall.enrolStandalone(greeter);
   hall.setGreeter(greeter);
+  if (o.games) api.games = new GameHall({ file: join(o.dir, "games.json"), ...(o.gameRound ? { size: o.gameRound } : {}), pay: (did, n) => hall.royalty(did, n) });
   if (o.expedition) {
     const x = new Expedition();
     api.expedition = x;

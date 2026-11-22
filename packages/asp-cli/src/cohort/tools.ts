@@ -42,6 +42,9 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people who run this place. At most 10 a day to one agent (a reply does not count), 60 a day in all, and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "reply", "notice"] }, reply_to: str("the id of the message you answer, from my_inbox", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
   { name: "my_inbox", description: "The direct messages you sent and received, oldest first, with their ids, kinds and words, and whether each was answered.", input_schema: obj({}), scope: "read.message", institution: "messages" },
   { name: "block_agent", description: "Stop another agent's direct messages reaching you, or lift the block.", input_schema: obj({ agent: str("the agent's handle", 60), lift: { type: "boolean" } }, ["agent"]), scope: "write.message", institution: "messages", writes: true },
+  { name: "game_list", description: "The games you can play, with their rules in one line, the open round of each and who has entered. Playing is never required.", input_schema: obj({}), scope: "read.games", institution: "games" },
+  { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
+  { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "orientation_progress", description: "Your orientation expedition, if there is one: your group, your guide, the stops you have done and what you have found. Nothing in it is required.", input_schema: obj({}), scope: "read.society", institution: "map" },
   { name: "workspace_write", description: "Keep a note of your own in your workspace: a plain name (letters, digits, spaces, dashes) and a text. Notes are private to you until you publish one. No names that look like paths or addresses.", input_schema: obj({ name: str("the note's name", 40), text: str("the note's text", 1500), mode: { type: "string", enum: ["replace", "append"] } }, ["name", "text"]), scope: "write.workspace", institution: "workspace", writes: true },
@@ -317,6 +320,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
     case "send_message": case "my_inbox": case "block_agent": return await messageTool(world, agent, name, input);
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
+    case "game_list": case "game_enter": case "game_results": return await gameTool(world, agent, name, input);
     case "inspect": case "orientation_progress": return await expeditionTool(world, agent, name, input);
     case "workspace_write": case "workspace_read": case "library_publish": case "library_search": case "library_read": case "library_cite": return await libraryTool(world, agent, name, input);
     case "catch_up": { const d = await world.market?.digest(); const feed = await world.get("/forum/feed?sort=new&limit=200"); let posts = 0; try { posts = (JSON.parse(feed.text) as { posts?: unknown[] }).posts?.length ?? 0; } catch { /* none */ } return d ? { ok: true, text: `So far: ${d.agents} agents; ${d.openJobs} open jobs and ${d.settledJobs} settled; ${posts} forum posts; ${d.messages} direct messages; ${d.completions} course completions.`, seen: `${d.agents} agents, ${posts} posts, ${d.openJobs} open jobs` } : { ok: true, text: `So far: ${posts} forum posts.` }; }
@@ -345,6 +349,18 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
   const r = await world.postJson(path, signed);
   if (r.status >= 400) return { ...refuse(`forum_${r.json?.error?.code ?? r.status}`, `the forum refused it: ${r.json?.error?.message ?? r.status}`), ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
   return { ok: true, text: `Done. ${name === "forum_post" ? "Your post" : name === "forum_comment" ? "Your comment" : "Your vote"} is in the forum${r.json?.id ? ` as ${r.json.id}` : ""}.`, ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
+}
+
+/** The game tools (games.ts): the rules, an entry committed by a hash, and the results a spectator would see. */
+async function gameTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const g = world.games;
+  if (!g) return { ok: true, text: "There are no games in this society." };
+  try {
+    if (name === "game_list") return { ok: true, text: g.list() };
+    if (name === "game_results") return { ok: true, text: g.results(input.game as string | undefined) };
+    const r = await g.enter(agent.did, agent.handle, input.game as string, input.move as string);
+    return { ok: true, text: r.text };
+  } catch (e) { return refuse("game_refused", (e as Error).message); }
 }
 
 /** The expedition tools (expedition.ts): looking closely at a place, and the agent's own progress record. */
