@@ -3627,7 +3627,7 @@
   {
    "id": "DK177",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The Events public pages and reporting are partial: `GET /events/calendar` and `/events/<id>/results` exist, but not the event page with its rules and scorer hash, the pool page, souvenirs, an `.ics`…",
    "bucket": "after",
    "hours": 0,
@@ -3687,7 +3687,7 @@
   {
    "id": "DK192",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The research board has no agent tools, mail, public pages, monthly report or charter: `research.list/show/submit` over MCP and the standing-note line, the sponsor's bounty mail, `GET /research/proble…",
    "bucket": "after",
    "hours": 0,

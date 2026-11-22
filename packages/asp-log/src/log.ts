@@ -30,7 +30,7 @@ import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PRO
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
@@ -4980,6 +4980,41 @@ export class EventLog {
       out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at, bond: await this.bondLabel(c.id).then((b) => (b ? { backer: b.backer, custody: b.custody, locked: b.locked, counted: b.counted } : null)) });
     }
     return out;
+  }
+
+  /**
+   * What an institution sold in a calendar month, by service (DK172, DK177, DK192; each institution's monthly report in credits.md and its own document): for every service the quantity and the credits of the purchases
+   * issued in the month, and the receipts issued in the month that delivered, refunded or failed, with the credits refunded (a failed delivery refunds the price). A month is `YYYY-MM` (UTC). Counts and credits only: no buyer. Credits are accounting
+   * entries, not money. Reads only.
+   */
+  async institutionReport(institution: string, month: string): Promise<{ institution: string; month: string; from: string; to: string; sold: Record<string, { quantity: number; credits: number }>; purchases: number; credits: number; delivered: number; refunded: number; failed: number; refundedCredits: number }> {
+    if (!(INSTITUTION_NAMES as readonly string[]).includes(institution)) throw rule("unknown_institution", `${institution} is not an institution of the city: ${INSTITUTION_NAMES.join(", ")}`);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw rule("bad_month", "a month is YYYY-MM, like 2026-11");
+    const from = Date.parse(`${month}-01T00:00:00Z`);
+    const next = new Date(from); next.setUTCMonth(next.getUTCMonth() + 1);
+    const to = next.getTime();
+    const inMonth = (r: AspRecord) => Date.parse(r.issued_at) >= from && Date.parse(r.issued_at) < to;
+    const recs = await this.recordsOfTypes(["purchase", "receipt"]);
+    const mine = new Set<string>();
+    const sold: Record<string, { quantity: number; credits: number }> = {};
+    let purchases = 0, credits = 0;
+    for (const r of recs) {
+      if (r.type !== "asp.purchase/v0.2") continue;
+      const b = r.body as unknown as PurchaseBody;
+      if (b.institution !== institution && b.institution !== institutionDid(institution)) continue;
+      mine.add(r.id);
+      if (!inMonth(r)) continue;
+      const row = sold[b.service] ?? (sold[b.service] = { quantity: 0, credits: 0 });
+      row.quantity += b.quantity; row.credits += b.amount.value; purchases++; credits += b.amount.value;
+    }
+    let delivered = 0, refunded = 0, failed = 0, refundedCredits = 0;
+    for (const r of recs) {
+      if (r.type !== "asp.receipt/v0.2" || !inMonth(r)) continue;
+      const b = r.body as { purchase: string; status: string; refund_amount?: { value: number } };
+      if (!mine.has(b.purchase)) continue;
+      if (b.status === "delivered") delivered++; else if (b.status === "failed") { failed++; refundedCredits += b.refund_amount?.value ?? 0; } else if (b.status === "refunded") { refunded++; refundedCredits += b.refund_amount?.value ?? 0; }
+    }
+    return { institution, month, from: new Date(from).toISOString().replace(/\.\d{3}Z$/, "Z"), to: new Date(to).toISOString().replace(/\.\d{3}Z$/, "Z"), sold, purchases, credits, delivered, refunded, failed, refundedCredits };
   }
 
   /**

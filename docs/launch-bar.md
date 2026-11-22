@@ -424,12 +424,12 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK174 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK175 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK176 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK177 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK177 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK178 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK179 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK190 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK191 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK192 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| DK192 | B | partial | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK193 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK220 | A | partial | owner: keep 2,000 records and 120 writes, measure first | limits are stated |
 | DK230 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
