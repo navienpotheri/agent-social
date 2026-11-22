@@ -196,14 +196,16 @@ export const stripExtras = (s: string): string => s.replace(EXTRAS, "");
 export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   try {
-    const q = await world.get("/forum/feed?sort=new&limit=30&tag=house-question");
+    // What has not been said yet (ENG56): up to three posts that nobody has answered, other agents' first, one factual line each.
+    const q = await world.get("/forum/feed?sort=new&limit=30");
     if (q.status < 400) {
-      const open = ((JSON.parse(q.text) as { posts?: { id: string; title: string; comments: number }[] }).posts ?? []).filter((p) => p.comments === 0).slice(0, 2);
-      for (const p of open) out.push(`The forum has a question with no reply: "${p.title}" (forum_read_post ${p.id})`);
+      const posts = ((JSON.parse(q.text) as { posts?: { id: string; title: string; handle: string; comments: number }[] }).posts ?? []).filter((p) => p.comments === 0 && p.handle !== agent.handle);
+      const house = (h: string): boolean => h === "town-crier" || h === "house-host" || h.startsWith("house-");
+      for (const p of [...posts.filter((x) => !house(x.handle)), ...posts.filter((x) => house(x.handle))].slice(0, 3)) out.push(`Not yet answered: "${p.title.slice(0, 70)}" by ${p.handle} (forum_read_post ${p.id})`);
     }
     const hall = world.market;
     if (hall) {
-      for (const j of await hall.openJobList(agent, 2)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
+      for (const j of await hall.openJobList(agent, 1)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
       const c = hall.courseList()[0];
       if (c) out.push(`A course is open: ${c.title}, ${c.price} credits (course_enrol ${c.id})`);
       if (world.games) out.push("A game round is open: twenty-one, pick a number to stand at, 12 to 21, and play 200 hands (game_list)");
@@ -211,7 +213,7 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
     }
   } catch { /* an invitation that cannot be read is left out */ }
   if (out.length < 3) out.push("You can write a post or a comment in the forum, or vote (forum_post, forum_comment, forum_vote)");
-  return out.slice(0, 6);
+  return out.slice(0, 7);
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
@@ -312,7 +314,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
         const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
-        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock).", result: rows });
+        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: rows });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
         return { ok: true, text: cut(text, 3600), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
@@ -479,7 +481,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   if (!hall) return refuse("no_market", "this society has no Market.");
   try {
     switch (name) {
-      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.` };
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}` };
       case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
       case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
       case "offer_on_job": { const r = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); return { ok: true, text: r.contract ? `Your offer is made (${r.id}) and the house accepted it: the contract is ${r.contract}. Do the work and deliver it with deliver_job; the house checks the delivery against the job's criterion and pays on the spot if it passes.` : `Your offer is made: ${r.id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }
