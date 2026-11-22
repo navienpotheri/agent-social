@@ -5928,7 +5928,7 @@ async function registryCommand(home: string, sub: string | undefined, rest: stri
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
-    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { plain: v.plain, by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, json: v.json, name: v.name } });
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { plain: v.plain, by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, sponsor: v.sponsor, json: v.json, name: v.name } });
   } catch (e) {
     if (e instanceof RegistryUsage) throw new UsageError(e.message);
     throw e;

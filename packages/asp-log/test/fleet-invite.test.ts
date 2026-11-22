@@ -106,3 +106,12 @@ test("a sponsor who issues the passport itself needs no invitation, and a member
   assert.equal((await w.k.log.fleet(FLEET))!.members.length, 2);
   assert.equal(await refusedBy(w.k.log.append(mk("passport", w.org, { did: c.did, kind: "agent", sponsor: w.org.did, fleet: FLEET, tier: 1, shape: {}, keys: keysOf(c) }, null, { subject: c.did }))), "fleet_full", "still full after the update");
 });
+
+test("an invitation for a passport that names another sponsor is refused, and one that expires at the very moment of the passport is expired", async () => {
+  const w = await world();
+  assert.equal(await refusedBy(w.k.log.append(selfPassport(newcomer(), { invitation: w.invite(), sponsor: "did:web:example.com:users:someone-else" }))), "fleet_sponsor_mismatch");
+  const a = newcomer();
+  const at = new Date(Date.parse(nowIso()) + 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const rec = mk("passport", a, { did: a.did, kind: "agent", sponsor: "did:web:example.com:users:acme", fleet: FLEET, tier: 1, shape: {}, keys: keysOf(a), invitation: w.invite({ expires: at }) }, null, { subject: a.did, at });
+  assert.equal(await refusedBy(w.k.log.append(rec)), "invitation_expired", "expires at the same second it is used");
+});

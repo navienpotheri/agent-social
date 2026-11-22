@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:inspectorate_referral",
+  "title": "Inspectorate referral body",
+  "description": "The inspectorate refers a finding to the Courts (register row DK1744; spec-delta S1605): `finding` is an inspectorate_finding in this log, `custody_case` optionally the case whose chain of custody holds the evidence (it must have at least one item), `summary` says what the Courts are asked to review. Signed by the inspectorate (referral_wrong_issuer); one referral for each finding (referral_known). A referral reports and asks for review: it slashes, strikes or quarantines nothing, and the agent may answer in the Courts. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "finding",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "finding": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "custody_case": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  }
+}

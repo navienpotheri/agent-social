@@ -379,7 +379,7 @@ export class EventLog {
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
     if (type === "gateway_refusal") await this.projectGatewayRefusal(tx, verified);
     if (type === "memory_key") await this.projectMemoryKey(tx, verified);
-    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding") await this.projectInspectorate(tx, verified, type);
+    if (type === "warrant" || type === "custody_item" || type === "decoy_registration" || type === "inspectorate_finding" || type === "warrant_request" || type === "inspectorate_referral") await this.projectInspectorate(tx, verified, type);
     if (type === "agent_message") await projectAgentMessage(tx, verified);
     if (type === "ladder_season" || type === "ladder_entry" || type === "ladder_match") await this.projectLadder(tx, verified, type);
     if (type === "expedition" || type === "expedition_frame" || type === "expedition_result") await this.projectExpedition(tx, verified, type);
@@ -2821,8 +2821,28 @@ export class EventLog {
   private async projectInspectorate(tx: LogTx, r: AspRecord, type: string): Promise<void> {
     if (r.prev !== null) throw rule(`${type}_not_chained`, `a ${type.replace("_", " ")} starts its own chain (prev is null)`);
     const now = Date.parse(r.issued_at);
+    if (type === "warrant_request") {
+      const b = r.body as { subject: string; sponsor: string; data: DataClass[] };
+      if (r.issuer !== INSPECTORATE_DID) throw rule("warrant_request_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it asks for a warrant`);
+      const pass = await tx.getPassport(b.subject);
+      if (!pass) throw rule("warrant_request_unknown_agent", `${b.subject} has no passport in this log`);
+      if (pass.sponsor !== b.sponsor) throw rule("warrant_request_sponsor_mismatch", `${b.subject}'s sponsor is ${pass.sponsor ?? "none"}, not ${b.sponsor}`);
+      if (b.data.includes("key_material")) throw rule("warrant_request_key_material", "key material is never available by warrant: it is not asked for");
+      await tx.putMarker(`warrant_req:${r.id}`, JSON.stringify({ subject: b.subject, data: b.data }));
+      return;
+    }
+    if (type === "inspectorate_referral") {
+      const b = r.body as { finding: string; custody_case?: string };
+      if (r.issuer !== INSPECTORATE_DID) throw rule("referral_wrong_issuer", `${r.issuer} is not the inspectorate (${INSPECTORATE_DID}): only it refers a finding`);
+      const f = await tx.getRecord(b.finding);
+      if (!f || f.record.type !== "asp.inspectorate_finding/v0.2") throw rule("referral_unknown_finding", `${b.finding} is not an inspectorate finding in this log`);
+      if (b.custody_case !== undefined && !(await tx.getMarker(`custody:${b.custody_case}`))) throw rule("referral_unknown_custody", `case ${b.custody_case} has no custody chain in this log`);
+      if (await tx.getMarker(`referral:${b.finding}`)) throw rule("referral_known", "this finding was referred already");
+      await tx.putMarker(`referral:${b.finding}`, r.id);
+      return;
+    }
     if (type === "warrant") {
-      const b = r.body as { subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
+      const b = r.body as { request?: string; subject: string; sponsor: string; requested_by: string; granted_by: string[]; panel_size: number; grounds: string; data: DataClass[]; expires_at: string; scope: string; notified_at?: string; delayed_notice_finding?: string; produced_by?: string };
       if (r.issuer !== COURTS_DID) throw rule("warrant_wrong_issuer", `${r.issuer} is not the Courts (${COURTS_DID}): only a Court grants a warrant`);
       if (b.requested_by !== INSPECTORATE_DID) throw rule("warrant_wrong_requester", `a warrant is requested by the inspectorate (${INSPECTORATE_DID})`);
       const pass = await tx.getPassport(b.subject);
@@ -2833,6 +2853,14 @@ export class EventLog {
       if (b.granted_by.includes(b.subject) || b.granted_by.includes(b.sponsor) || b.granted_by.includes(b.requested_by)) throw rule("warrant_party_on_panel", "a juror who is the subject, its sponsor or the inspectorate does not sit");
       const bad = warrantProblems({ id: r.id, requestedBy: b.requested_by, grantedBy: b.granted_by, panelSize: b.panel_size, partiesOnPanel: false, subject: b.subject, sponsor: b.sponsor, grounds: b.grounds, data: b.data, grantedAt: now, expiresAt: Date.parse(b.expires_at), notifiedAt: b.notified_at ? Date.parse(b.notified_at) : null, ...(b.delayed_notice_finding ? { delayedNoticeFinding: b.delayed_notice_finding } : {}), scope: b.scope }, now);
       if (bad.length) throw rule("warrant_invalid", bad.join("; "));
+      if (b.request !== undefined) {
+        const req = JSON.parse((await tx.getMarker(`warrant_req:${b.request}`)) ?? "null") as { subject: string; data: DataClass[] } | null;
+        if (!req) throw rule("warrant_request_unknown", `${b.request} is not a warrant request in this log`);
+        if (req.subject !== b.subject) throw rule("warrant_request_subject", `the request was for ${req.subject}, the warrant names ${b.subject}`);
+        if (b.data.some((d) => !req.data.includes(d))) throw rule("warrant_exceeds_request", "a warrant opens no class of data the request did not ask for");
+        if (await tx.getMarker(`warrant_answered:${b.request}`)) throw rule("warrant_request_answered", "this request was answered already");
+        await tx.putMarker(`warrant_answered:${b.request}`, r.id);
+      }
       await tx.putMarker(`warrant:${r.id}`, "1");
       return;
     }
@@ -4968,6 +4996,16 @@ export class EventLog {
       out.push({ contract: c.id, principal: cb.principal, performer: cb.performer, price: cb.price.value, route: rt.route, panelSize: rt.panel, panel: await this.drawPanel(c.id).catch(() => []), ruled: records.some((r) => r.subject === c.id && r.type === "asp.attestation/v0.2" && (r.body as { kind: string }).kind === "ruling"), rejectedAt: rej.issued_at, bond: await this.bondLabel(c.id).then((b) => (b ? { backer: b.backer, custody: b.custody, locked: b.locked, counted: b.counted } : null)) });
     }
     return out;
+  }
+
+  /**
+   * The Courts' jurors as the public page reads them (courts.md CT-20, DK123): each registered, staked juror with its stake and the open cases whose panel it sits on, and the totals. Built from the juror registrations
+   * and the docket's drawn panels; a view, with no names beyond the DIDs the log already shows. The caseload limit of the design is a proposal and is not enforced, so none is stated here.
+   */
+  async courtJurors(): Promise<{ jurors: { did: string; staked: number; openCases: number }[]; openCases: number; staked: number }> {
+    const open = (await this.courtDocket()).filter((d) => !d.ruled);
+    const jurors = (await this.store.activeJurors()).map((j) => ({ did: j.did, staked: j.staked, openCases: open.filter((d) => d.panel.includes(j.did)).length })).sort((x, y) => x.did.localeCompare(y.did));
+    return { jurors, openCases: open.length, staked: jurors.reduce((n, j) => n + j.staked, 0) };
   }
 
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */

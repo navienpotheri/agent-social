@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:warrant_request",
+  "title": "Warrant request body",
+  "description": "The inspectorate asks a Court for a warrant (register row DK1744; spec-delta S1605; docs/institutions/inspectorate.md 3): `subject` and its `sponsor`, the classes of `data` it asks to open (never key_material: warrant_request_key_material), the `grounds` and the `scope` in words. Signed by the inspectorate (warrant_request_wrong_issuer); the subject must have a passport (warrant_request_unknown_agent). A Court answers with a `warrant` that cites this request (`request`): the same subject, no class the request did not ask for, once for each request. The request opens nothing by itself. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "subject",
+    "sponsor",
+    "data",
+    "grounds",
+    "scope"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "subject": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "sponsor": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "log_record",
+          "run_log",
+          "private_memory",
+          "sponsor_mail",
+          "key_material"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "grounds": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  }
+}

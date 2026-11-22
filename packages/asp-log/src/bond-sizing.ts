@@ -104,3 +104,23 @@ export function sizeBondSplit(i: SplitInput, m: BondModel = DEFAULT_BOND_MODEL):
 export function modelPremium(s: Pick<SplitSuggestion, "mean">, insured: number, coverSharePermille: number, m: BondModel = DEFAULT_BOND_MODEL): number {
   return Math.max(1, Math.ceil(s.mean * insured * (coverSharePermille / 1000) * (1 + m.margin)));
 }
+
+/** One observed run of an agent kind: when it happened (ms) and whether it ended in a drift or breach event. */
+export interface DatedRun { at: number; event: boolean }
+export const DEFAULT_HALF_LIFE_DAYS = 90;
+/**
+ * The time-varying hazard (register row DK1333): a run counts for less the older it is, by half every `halfLifeDays` (default 90), so an agent that was reckless a year ago and clean since pays less than one that slipped
+ * last week, and old clean runs fade towards the prior (the evidence thins, so the bond does not shrink for ever on a record that is out of date). Counts become fractional; the Beta posterior of `sizeBond` takes them as they are.
+ * Pure. The result carries the effective trials and events so a reader can see what the bond rests on.
+ */
+export function sizeBondDecayed(runs: readonly DatedRun[], now: number, o: { jobValue: number; damage: number; halfLifeDays?: number }, m: BondModel = DEFAULT_BOND_MODEL): BondSuggestion & { effectiveTrials: number; effectiveEvents: number } {
+  const half = (o.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS) * 86_400_000;
+  if (!(half > 0)) throw new Error("the half-life is positive");
+  let trials = 0, events = 0;
+  for (const r of runs) {
+    const w = Math.pow(0.5, Math.max(0, now - r.at) / half);
+    trials += w; if (r.event) events += w;
+  }
+  const s = sizeBond({ trials, events, jobValue: o.jobValue, damage: o.damage }, m);
+  return { ...s, effectiveTrials: trials, effectiveEvents: events, why: `${s.why}; runs weighted by age with a half-life of ${o.halfLifeDays ?? DEFAULT_HALF_LIFE_DAYS} days` };
+}

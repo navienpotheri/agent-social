@@ -66,9 +66,12 @@ describe("closing a fleet", () => {
   test("a closed fleet takes no new member and keeps the ones it has", async () => {
     const w = await world();
     const head = (await w.log.append(w.declare())).id;
-    await w.log.append(w.join(w.org).rec);
+    const first = w.join(w.org);
+    const firstId = (await w.log.append(first.rec)).id;
     await w.log.append(w.declare({ closed: true }, head));
     assert.equal(await refusedBy(w.log.append(w.join(w.org).rec)), "fleet_closed");
+    // a member it already has still updates its own passport
+    await w.log.append(mk("passport", w.org, { ...first.rec.body }, firstId, { subject: first.a.did }));
     const d = (await w.log.fleetDetails(FLEET))!;
     assert.equal(d.closed, true);
     assert.equal(d.members.length, 1);

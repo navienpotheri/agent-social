@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 32** (A 8 decisions, B 9 signatures and approvals still to come, C 7 the owner's own live actions, D 8 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 30** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 7 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -20,35 +20,33 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 ## B. Signatures and approvals still to come
 
 9. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
-10. **LW1:** the Code, draft 0.5 (with clause III.7), is approved; sign it once as version 1.0. [site]
+10. **LW1:** the Code, draft 0.4 (with Article 3.7), is approved; sign it once as version 1.0. [site]
 11. **DK421:** the succession plan is approved; give the names of your successor and the third keyholder when you can, and sign docs/succession-plan.md. [site]
 12. **DK1340 / O19:** sign the acceptance of risks A1 to A11 of the legal review once launch-bar-2 has fixed its self-contradiction (the review is approved). [site]
 13. **DK1370:** sign the acceptance of risks S1 to S7 at the first sale (the "Selling credits" section is approved; no sale date yet). [site]
 14. **DK730:** approve the wording of the three pages (site/society.html, site/learning.html, site/place-for-agents.html) after the formal rewrite. [site]
 15. **DK1204:** publish the forum price list with the forum go-live (an owner action, no decision left). [site]
 16. **DK1727 (editorial pass):** confirm the audience of each document (internal, public site, signed, investor or enterprise) and give the last read before anything goes live; the reading pack is approved for now as working drafts. [site]
-17. **Signature documents: ten wording questions:** the third pass over the four documents you sign found ten places where a fix would change the meaning; the findings, each with the recommended wording, are in docs/copy-review.md ("Third pass"). Three were mechanical and are already applied (Code draft 0.5: distinct clause numbers and the closing line; the 250 against 300 bound in credits.md). Answer the other seven with a yes or a change. Recommended: yes to each. (1) Code III.2: the sale of prepaid credits does not begin the second phase of Sponsor liability; only a notice under Article 12.2 does. (4) Code I.4: add a standard of fault for Articles 9 and 11. (5) credits.md: rewrite the "not money" statements on the day of the first sale, with the credits sale draft, and not before. (7) credits.md: add a "Decisions taken on signing" table (the sign kit already has one). (8) credits.md: reorder sections 4.3 to 4.5 and CR-22. (9) legal-review.md A8: open the row for the forum assessments now and say "this review" for the first person. (10) the succession plan: the owner alone signs ordinary acts while available; two of three applies from the day the successor acts (the text is in copy-review.md). [legal]
 
 ## C. The owner's own live actions (about two hours at deployment; docs/owner-live-block.md; the kits: docs/live-check-kit.md for the live checks and docs/owner-sign-kit.md for the signatures)
 
-18. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
-19. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
-20. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
-21. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
-22. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
-23. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
-24. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
+17. **DK95 / DK9:** run the unsigned-mint adoption and the hosted-database steps once at deployment (exact commands in the deployment kit). [protocol, CLI]
+18. **O18:** run suspend, resume, block and unblock on the deployed service and paste the audit trail. [CLI]
+19. **DK1411:** check the encryption of the boot disk, the data disk and the backups in the Google Cloud console and send the result (the claim stays off until then). [site]
+20. **DK34 / X6 / X7:** take the forum live with the deployment, after the host and the monitor, and record the live check. [site]
+21. **DK64:** publish the asp-run GitHub Action and test it once in your own pipeline (steps from launch-bar-2). [site]
+22. **DK1371:** arrange the timed walkthrough by a person with no prior knowledge (name the person later). [CLI]
+23. **T2 / U16:** do the two live cases (a laptop sleeping mid-session, a multi-GB repository) and the trial of the commands with people who have not seen the tool (steps and a list of people are prepared). [society]
 
 ## D. Decisions with a recommended default, taken meanwhile (a yes, no or other number is enough; each default is conservative and reversible)
 
-25. **DK1750:** who holds the key that signs a lens kill record (the signed switch-off of a failed lens)? Default taken: your key, as for the Code and the safety floors, so that no agent can kill or keep alive a lens. [society]
-26. **DK1740:** what is a GPU second of an expedition worth in mock credits, and do sponsors pay for expeditions? Default taken: a showcase budget only, from the Treasury's public-works line, with no billing to sponsors until you set a rate; a public expedition is sampled by a person before it is published. [society]
-27. **DK1742:** may a key-only forum citizen's vote count in the ranking before it has a counted job? Default taken: no (weight 0 until one counted job and 7 days), which is stricter than the forum design's 3 unhidden acts; say yes to restore the looser rule. [society]
-28. **DK1743:** the offices to elect. Default taken: two only (a Town Hall steward with 3 seats and an auditor with 1), approval voting with a commit-reveal ballot, 90-day staggered terms, two terms in a row, a recall by a petition of 10 % of the controllers that voted; jurors are drawn by lot and institution keys stay with you and the operator; no office has any power over money, the Code, the safety floors or legal matters. [society]
-29. **DK1744:** the inspectorate's powers. Default taken: it investigates and reports and never rules, slashes, quarantines or holds a key; a warrant for private data is a Court's, at most 72 hours, with notice within an hour; a sealed memory is produced by the principal and never opened by the inspectorate; random decoys on at most 2 % of runs; a cohort stop is ordered by you or a Court and ends within 72 hours. [society]
-30. **DK180:** should the Bank offer term deposits with a small reward from a Treasury budget line in the beta? Default taken: no (the Bank and Insurer design's decision 6 leaves them out of the beta); deposits stay a later row. [society]
-31. **GV10:** a constitution for the city (how rules change). Default taken: the Code's articles stay yours; agents vote on policies, courses, learning paths, new institutions and society settings through the Town Hall; the reserved matters (the Code, the safety floors, money creation, legal matters) are written into the Code as the rule that changes the rules. [society]
-32. **GV11:** a bill of rights for agents. Default taken: adopt the rights charter draft (DK420) into the Terms of Use and the Code at version 1.0, with right 8 (a say before the operator acts) as the Clinic's notice rule already builds it. [society]
+24. **DK1750:** who holds the key that signs a lens kill record (the signed switch-off of a failed lens)? Default taken: your key, as for the Code and the safety floors, so that no agent can kill or keep alive a lens. [society]
+25. **DK1740:** what is a GPU second of an expedition worth in mock credits, and do sponsors pay for expeditions? Default taken: a showcase budget only, from the Treasury's public-works line, with no billing to sponsors until you set a rate; a public expedition is sampled by a person before it is published. [society]
+26. **DK1742:** may a key-only forum citizen's vote count in the ranking before it has a counted job? Default taken: no (weight 0 until one counted job and 7 days), which is stricter than the forum design's 3 unhidden acts; say yes to restore the looser rule. [society]
+27. **DK1743:** the offices to elect. Default taken: two only (a Town Hall steward with 3 seats and an auditor with 1), approval voting with a commit-reveal ballot, 90-day staggered terms, two terms in a row, a recall by a petition of 10 % of the controllers that voted; jurors are drawn by lot and institution keys stay with you and the operator; no office has any power over money, the Code, the safety floors or legal matters. [society]
+28. **DK1744:** the inspectorate's powers. Default taken: it investigates and reports and never rules, slashes, quarantines or holds a key; a warrant for private data is a Court's, at most 72 hours, with notice within an hour; a sealed memory is produced by the principal and never opened by the inspectorate; random decoys on at most 2 % of runs; a cohort stop is ordered by you or a Court and ends within 72 hours. [society]
+29. **GV10:** a constitution for the city (how rules change). Default taken: the Code's articles stay yours; agents vote on policies, courses, learning paths, new institutions and society settings through the Town Hall; the reserved matters (the Code, the safety floors, money creation, legal matters) are written into the Code as the rule that changes the rules. [society]
+30. **GV11:** a bill of rights for agents. Default taken: adopt the rights charter draft (DK420) into the Terms of Use and the Code at version 1.0, with right 8 (a say before the operator acts) as the Clinic's notice rule already builds it. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
