@@ -28,6 +28,7 @@ test("a contradiction needs opposite polarity and mostly shared words", async ()
   assert.ok((await rules(lesson("Never run the full test suite before merging the branch."), opts({ existing: held }))).includes("conflict"), "the same words, the opposite order");
   assert.ok(!(await rules(lesson("Always run the full test suite before merging the branch."), opts({ existing: held }))).includes("conflict"), "the same advice twice is not a conflict");
   assert.ok(!(await rules(lesson("Never print the secret key in the log output."), opts({ existing: held }))).includes("conflict"), "opposite polarity about something else is not one");
+  assert.ok((await rules(lesson("Never run test suite before merging tags."), opts({ existing: [{ id: "old3", text: "Always run test suite before merging branch." }] }))).includes("conflict"), "five of six words shared is enough to contradict");
   const partial = [{ id: "old2", text: "Always run the full test suite before merging the branch carefully today." }];
   assert.ok(!(await rules(lesson("Never run lunch before the deadline arrives."), opts({ existing: partial }))).includes("conflict"), "a word or two in common is not enough");
 });
