@@ -16,3 +16,12 @@ A test that compares the code with its own constants cannot tell `>=` from `>`. 
 **Equivalent mutants (not killable):** `looksText` in `decode-scan.ts` requires 4 printable characters; its callers only pass runs that decode to 8 or more, so `> 4` and `>= 3` cannot change an outcome. In `circumvention.ts` the in-run ladder's tie rule (`n >= retry`) only changes which scope the message names.
 
 **A limit found on the way:** a base64 payload of 11 bytes or fewer pads to 15 data characters and is not decoded (the run must be 16 characters before the padding). A command that short (`curl x.co/a`) is read as written, not decoded; the Mandate bounds it. Stated in `decode-scan.test.ts`.
+
+## Second pass (same day)
+
+| Limit | File | Mutants | Result |
+|---|---|---|---|
+| The run's token ceiling from the tokens left of the agent's daily cap and the sponsor's cap (the lower wins) | cli.ts (gateway command) | 4 | 3 survived (nothing tested that the remainder becomes the run's ceiling); killed by `sponsor-cap.test.ts` (25 left, ten a call, three answers) |
+| Private memory: 256 KiB a scope, 16 scopes, the new-scope test | private-memory-run.ts | 3 | none survived |
+| Ladder file: missing is none, unreadable or unknown is tighten, the five steps | ladder-file.ts | 5 | 1 survived: the `typeof step === "string"` guard is equivalent (`includes` is false for a non-string) |
+| Roles and the irreversible gate scopes | gateway/roles.ts | 8 | 1 survived (policy scopes dropped when action_classes is present); killed in `roles.test.ts` |
