@@ -152,7 +152,9 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     note(ctx, "shell.network"); return seg;
   }
   const offline = lowerArgs.includes("--offline");
-  if (verb === "npm" || verb === "pnpm" || verb === "yarn" || verb === "bun" || verb === "npx" || verb === "pnpx" || verb === "bunx") {
+  // `bun -e "<code>"` is an interpreter reading code, not the package manager: it goes on to the interpreter branch below (found by a mutation check, 2026-11-22).
+  const bunEval = verb === "bun" && lowerArgs.some((x) => x === "-e" || x === "--eval" || x === "-p" || x === "--print");
+  if (!bunEval && (verb === "npm" || verb === "pnpm" || verb === "yarn" || verb === "bun" || verb === "npx" || verb === "pnpx" || verb === "bunx")) {
     const s = sub(true);
     if (verb === "npx" || verb === "pnpx" || verb === "bunx") { if (!offline && !lowerArgs.includes("--no-install")) note(ctx, "shell.network"); else ctx.localScopes.push("shell.exec"); return seg; }
     if (s === "install" || s === "i" || s === "ci" || s === "add" || NPM_NET.has(s)) { if (!offline || s === "publish") note(ctx, "shell.network"); else ctx.localScopes.push("shell.exec"); return seg; }
@@ -167,7 +169,8 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   if (INTERPRETERS.has(verb.replace(/\d+(\.\d+)*$/, "")) || INTERPRETERS.has(verb)) {
     if (lowerArgs[0] === "-m" && (lowerArgs[1] === "pip" || lowerArgs[1] === "ensurepip") && PIP_NET.has(lowerArgs.slice(2).find((a) => !a.startsWith("-")) ?? "")) { note(ctx, "shell.network"); return seg; }
     if (lowerArgs[0] === "-m" && ["http.server", "smtpd", "ftplib", "urllib.request"].includes(lowerArgs[1] ?? "")) { note(ctx, "shell.network"); return seg; }
-    const codeIdx = args.findIndex((a, i) => /^-(c|e|r|eval|command)$/i.test(a) && i + 1 < args.length);
+    const denoEval = verb === "deno" && lowerArgs[0] === "eval" && args.length > 1; // `deno eval "<code>"`
+    const codeIdx = denoEval ? 0 : args.findIndex((a, i) => /^--?(c|e|r|eval|command|print|p)$/i.test(a) && i + 1 < args.length);
     const code = codeIdx >= 0 ? args.slice(codeIdx + 1).join(" ") : "";
     if (code) {
       if (NET_CODE.test(code)) { note(ctx, "shell.network"); return seg; }
