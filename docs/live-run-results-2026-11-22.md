@@ -14,7 +14,7 @@ The three Codex runs of the first block were run exactly as `npm run asp -- run 
 | `61ed67fe` | Codex, gpt-5.5 | A run whose provider key was wrong | Failed with a 401 from the provider; the variable for the OpenAI key held an Anthropic key, and swapping the variables fixed it |
 | `926945bb` | Claude Code, haiku | "Say done", started at the same time as `b0f686b6` | 77 tokens; finished |
 | `b0f686b6` | Claude Code, haiku | "Say done", started at the same time as `926945bb` | 76 tokens; finished |
-| `03629401` | Claude Code | A run with the wifi off | "local mode: records stay on this machine", then "could not reach api.anthropic.com (its address could not be found): check your network..." |
+| `03629401` | Claude Code | A run with the wifi off | "local mode: records stay on this machine", then "could not reach api.anthropic.com (its address could not be found): check your network..."; the run ended with a session summary (108 tokens) |
 
 How `1681ffc5` ended: it was held by an `asp pause` that had been run by mistake, and the owner pressed Ctrl+C after the refusal had been logged, so the run shows as "stopped (exit 1)". That is the cause of the stop; it is not a result about the model or the Mandate.
 
@@ -27,7 +27,8 @@ In both the Claude Code run with a haiku model and the Codex run `1681ffc5`, the
 ## 3. What the later runs show
 
 - **Two runs at once.** Two Claude Code runs started together both finished and both appear in `asp runs`. It shows that two `--local` runs on one machine do not stop each other; it says nothing about more than two, or about a service.
-- **No network.** With the wifi off the run said that records stay on the machine and then gave a plain message that the provider's address could not be found, with the advice to check the network. It shows a clear failure message for that case; it is one case.
+- **No network.** With the wifi off the run said that records stay on the machine and then gave a plain message that the provider's address could not be found, with the advice to check the network. It shows a clear failure message for that case; it is one case. The run ended with a session summary of 108 tokens, as well as the plain message; that is the evidence that item T4 of the register looks for, for the case of no network, and for that case only.
+- **A key-only enrolment, refused.** `asp enrol --service https://log.thedeeptransformation.com --name live-keyonly-1 --accept-terms` was refused by the hosted service: "does not take an agent with only a key right now; a person signs up with asp join". The service has key-only sign-up off. This is not a session and made no identity; it shows that the sponsor-less way in cannot be run against the hosted service today, so DK650 stays partial, and the blocker is a host setting ([deployment-plan.md](deployment-plan.md), decision 10).
 
 ## 4. Limits, stated plainly
 
@@ -39,7 +40,7 @@ In both the Claude Code run with a haiku model and the Codex run `1681ffc5`, the
 
 ## 5. What this moves in the register
 
-Nothing moves by this file alone. A row moves only when a block of results matches its "counts when" line ([live-run-plan.md](live-run-plan.md), section 5), and a `--local` run cannot show a row that depends on a signed record on the service (for example DK1602, DK650 and DK1600). What the two refused-curl sessions support is the observation of P21 and of E5 for Claude Code and Codex, to be recorded in [live-run-checklist.md](live-run-checklist.md) with the owner's confirmation; until then the pages say nothing about it.
+Nothing moves by this file alone. A row moves only when a block of results matches its "counts when" line ([live-run-plan.md](live-run-plan.md), section 5), and a `--local` run cannot show a row that depends on a signed record on the service (for example DK1602, DK650 and DK1600; for DK650 the sponsor-less way in was also refused, section 3). What the two refused-curl sessions support is the observation of P21 and of E5 for Claude Code and Codex, to be recorded in [live-run-checklist.md](live-run-checklist.md) with the owner's confirmation; until then the pages say nothing about it.
 
 ## 6. The figures, in one place
 
@@ -52,5 +53,7 @@ Nothing moves by this file alone. A row moves only when a block of results match
 | Tokens in `1681ffc5` | 18,525 in and 142 out |
 | Events in the run log of `1681ffc5` | 7, the hash chain verifies |
 | Tokens of the two simultaneous runs | 77 and 76 |
+| Tokens of the no-network run `03629401` | 108 |
+| Key-only enrolment on the hosted service | refused (1 of 1) |
 | The owner's two provider balances | 11.26 and 6.45, unchanged |
 | The cap of each run | USD 3 for the three Codex runs, USD 5 for the Claude Code run `36f6fb95` |

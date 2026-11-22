@@ -44,6 +44,15 @@ test("the facts relayed for the Codex runs and the two ends are stated: the comm
   assert.match(doc, /could not reach api\.anthropic\.com/);
 });
 
+test("the later findings are recorded: the no-network summary and the refused key-only enrolment, with DK650 left partial", () => {
+  assert.match(doc, /session summary \(108 tokens\)/);
+  assert.match(doc, /\| Tokens of the no-network run `03629401` \| 108 \|/);
+  assert.match(doc, /does not take an agent with only a key right now; a person signs up with asp join/);
+  assert.match(doc, /DK650 stays partial/);
+  assert.match(doc, /\| Key-only enrolment on the hosted service \| refused \(1 of 1\) \|/);
+  assert.doesNotMatch(doc, /DK650[^.]*closed/);
+});
+
 test("the limits are stated and the file claims no row", () => {
   assert.match(doc, /The runs were `--local`/);
   assert.match(doc, /no signed Action report was written to a log on a service/);
