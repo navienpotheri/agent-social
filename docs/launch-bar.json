@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 65,
-  "withdraw": 137,
-  "after": 319,
-  "total": 521
+  "must": 64,
+  "withdraw": 136,
+  "after": 320,
+  "total": 520
  },
- "mustWorkerHours": 307.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -3193,17 +3193,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK95",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A database that already holds unsigned mints (the live service before ASP_OPERATOR_DID is set) keeps them: `asp credits audit` shows them as mintedUnsigned, the replay seeds them from a snapshot, and…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "",
-   "why": "legacy unsigned mints: signed adoption by the operator (owner decided)"
-  },
-  {
    "id": "DK430",
    "pri": "A",
    "status": "partial",
@@ -5291,19 +5280,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1503",
-   "pri": "A",
-   "status": "partial",
-   "gap": "No ping from outside the server: the monitor and the status page run on the same machine as the service, so if the machine dies nobody is told, and the site must not say the platform is independently…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "DK1504",
    "pri": "A",
    "status": "partial",
@@ -5885,7 +5861,7 @@
   {
    "id": "DK1802",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The hosted service runs older code than the client. On 2026-11-22 the owner's real run against https://log.thedeeptransformation.com found: the preflight READY (the service answered 200, identities g…",
    "bucket": "must",
    "hours": 2,
@@ -5896,13 +5872,25 @@
   {
    "id": "DK1803",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The client does not know the server's build and does not say so when they differ: `asp live preflight` does not show the service's version against the client's, and a SCHEMA_INVALID on a field that t…",
    "bucket": "must",
    "hours": 4,
    "size": "M",
    "flags": "",
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
+  },
+  {
+   "id": "DK1805",
+   "pri": "B",
+   "status": "open",
+   "gap": "The status page reads \"Partly degraded\" in quiet times: the society-health `QUIET` alarm (a quiet society, no service fault) counts as degraded, so the public page says that the platform is partly de…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1804",

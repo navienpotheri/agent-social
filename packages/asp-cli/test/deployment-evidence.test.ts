@@ -9,6 +9,7 @@ const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
 const register = read("docs/gaps-register.md");
 const rowOf = (id: string) => register.split("\n").filter((l) => l.startsWith(`| ${id} |`));
+const BS = String.fromCharCode(92);
 const status = (row: string) => { const c = row.split("|").map((x) => x.trim()); return c[c.length - 2]; };
 const HEAD = "sha256:503a57fe9540ba2c5b6d9e7d2e48e3652dfa4dde5989b353c51bd0bc870094fc";
 const FILES = ["docs/live-run-checklist.md", "docs/procurement/encryption-evidence.md", "docs/procurement/security-questionnaire.md", "docs/owner-setup-operations.md", "docs/deployment-plan.md", "docs/deployment-walkthrough.md"];
@@ -41,9 +42,9 @@ test("the restore drills close nothing that they do not cover: GV6 stays partial
   for (const frag of ["first run copied 4 files, the second copied 0 and found 4 already there", "hooked as the last line of `/usr/local/bin/asp-backup`", "private line had been shown on screen", "the six old objects were deleted", "only the age public key", "permission denied for schema public", "5848af56", "DRILL PASSED", "decrypted by the owner with the private key from his password manager", "Launch gate 13", "for the database only", "GV6 stays partial"]) assert.ok(sec.includes(frag), frag);
 });
 
-test("the outside monitor makes DK1503 partial and not closed, and the checklist records the alert test and the findings", () => {
+test("the outside monitor was set up first (DK1503 partial), and the checklist records the alert test and the findings; the later evidence closes it (see the test below)", () => {
   const row = rowOf("DK1503")[0]!;
-  assert.equal(status(row), "partial");
+  assert.equal(status(row), "closed");
   assert.match(row, /13:40:34 UTC, started 13:43:19 UTC/);
   assert.match(row, /wait for step 5/);
   const sec = read("docs/live-run-checklist.md");
@@ -69,5 +70,41 @@ test("no key text appears in the evidence: no private key, no age public key, no
     assert.doesNotMatch(d, /AGE-SECRET-KEY-1[0-9A-Z]{10,}/, `${p}: no age private key`);
     assert.doesNotMatch(d, /\bage1[0-9a-z]{40,}\b/, `${p}: no age public key text`);
     assert.doesNotMatch(d, /BEGIN [A-Z ]*PRIVATE KEY|"private_key"|sk-[A-Za-z0-9]{20,}/, `${p}: no key material`);
+  }
+});
+
+test("steps 5, 6, 8 and the end of step 4 (as relayed): DK95 and DK1503 are closed on their Done lines, DK1802 and DK1803 advance and stay partial, DK9, DK546, DK650 advance only, and DK52 is not advanced", () => {
+  const cell = (id: string, n: number) => rowOf(id).find((r) => r.split("|").length === 9)!.split("|")[n]!.trim();
+  assert.equal(cell("DK95", 7), "closed");
+  assert.match(cell("DK95", 4), /Closed 2026-11-22/);
+  assert.match(cell("DK95", 4), /4500 minted, 4500 signed, 0 unsigned/);
+  assert.match(cell("DK95", 4), /log seq 405 to 413/);
+  assert.equal(cell("DK1503", 7), "closed");
+  assert.match(cell("DK1503", 4), /14:30:30 UTC/);
+  assert.match(cell("DK1503", 4), /The Up mails are to be confirmed by the owner/);
+  assert.equal(cell("DK1802", 7), "partial", "DK1802 is not closed: its Done line needs an enrolment and two runs through the hosted service");
+  assert.match(cell("DK1802", 4), /Still to run, and so not closed/);
+  assert.equal(cell("DK1803", 7), "partial");
+  assert.match(cell("DK1803", 4), /Not yet shown/);
+  for (const id of ["DK9", "DK546", "DK650"]) { assert.equal(cell(id, 7), "partial", `${id} stays partial`); assert.match(cell(id, 4), /Advanced 2026-11-22/); }
+  assert.match(cell("DK52", 4), /Seen 2026-11-22/);
+  assert.match(cell("DK52", 4), /this row is not advanced/);
+  const dk1805 = rowOf("DK1805")[0]!;
+  assert.match(dk1805, /Partly degraded/);
+  assert.match(dk1805, /The society is quiet; every service is up\./);
+  assert.equal(status(dk1805), "open");
+});
+
+test("the checklist records steps 5, 6, 8 and the end of step 4 with their figures, says that not all smoke lines were 200, and states the risk of the admin token shown on screen", () => {
+  const sec = read("docs/live-run-checklist.md");
+  const part = sec.slice(sec.indexOf("continued (steps 5, 6, 8"));
+  for (const frag of ["bbfa5afa", "ce353a1", "bbfa5af", "build block with schema fingerprints", "no \"closed on this service\" line", "4500 minted, 0 signed, 4500 unsigned", "--require-signed` FAILED", "log seq 405 to 413", "4500 minted, 4500 signed, 0 unsigned", "log seq 413", "23 of 24 pages answered ok 200", "/watch/findings", "--watch-interval", "not all lines were 200", "Balanced:", "/etc/cron.d/asp-status-copy", "https://storage.googleapis.com/agent-social-511217-asp-status/status.html", "14:30:30 UTC", "14:33:21Z", "14:34:52 UTC", "14:35:21Z", "8:03 and 8:04 PM IST", "the Up mails are to be confirmed", "Partly degraded", "DK1805", "The risk, plainly", "until the token is replaced"]) assert.ok(part.includes(frag), frag);
+});
+
+test("the guides say it as it was: the token goes to a file, the key may be in the default home, the adoption script, the smoke result of 23 of 24, and what happened in step 5", () => {
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md"]) {
+    const d = read(p);
+    for (const frag of ["The admin token goes to a file, never to the screen.", "sudo tee /root/asp-admin-token.txt >/dev/null", "(Get-Content ." + BS + "asp-admin-token.txt -Raw).Trim(); Remove-Item ." + BS + "asp-admin-token.txt", "sudo shred -u /root/asp-admin-token.txt", "the default home is `~/.asp`", "." + BS + "scripts" + BS + "adopt-beta-mints.ps1", "log seq 405 to 413", "23 of 24 pages answered `ok 200`", "never claim that all lines were 200", "deployed-commit` went from ce353a1 to bbfa5af", "DK1802 stays partial until"]) assert.ok(d.includes(frag), `${p}: ${frag}`);
+    assert.doesNotMatch(d, /Every line of the smoke check says `ok 200`;/, `${p}: the old all-200 claim is gone`);
   }
 });

@@ -181,7 +181,7 @@ sudo systemctl start asp-log
 
 Leave it stopped for three minutes between the two commands.
 
-**Right looks like.** The keyword monitor is green; stopping the service for three minutes (`sudo systemctl stop asp-log`) sends the Down mail, and starting it (`sudo systemctl start asp-log`) sends the Up mail (done on 2026-11-22, 13:40:34 and 13:43:19 UTC). After step 5, the supply monitor is green, the status page shows the outage and the recovery of a second stop, and both dates are recorded.
+**Right looks like.** The keyword monitor is green; stopping the service for three minutes (`sudo systemctl stop asp-log`) sends the Down mail, and starting it (`sudo systemctl start asp-log`) sends the Up mail (done on 2026-11-22, 13:40:34 and 13:43:19 UTC). After step 5, the supply monitor is green, the status page shows the outage and the recovery of a second stop, and both dates are recorded (done on 2026-11-22: stopped 14:30:30 UTC, the page showed Major outage at 14:33:21Z, started 14:34:52 UTC, the page recovered at 14:35:21Z). **The page reads "Partly degraded" in quiet times,** because the society-health `QUIET` alarm counts as degraded; that is DK1805, with the proposed wording "The society is quiet; every service is up."
 
 **If not.** If no alert arrives, the check's URL or the alert route is wrong. Fix it before step 5: the forum opens in step 5 and the monitor must be up first.
 
@@ -205,6 +205,8 @@ cat /etc/asp/deployed-commit
 
 **After this step (it is not part of this step's check):** add the keyword monitor on `$SITE/economy/supply`, copy the two status files to the status bucket after each pass of `asp-monitor` (section 2 of [owner-setup-operations.md](owner-setup-operations.md)), and run the outage test again, now watching the status page. That settles DK1503.
 
+**What happened on 2026-11-22.** The script was run with BRANCH=claude/open-forum (the pushed tip bbfa5afa); asp-log, asp-monitor, postgresql and caddy were all active; `deployed-commit` went from ce353a1 to bbfa5af; `/health` now carries a build block with schema fingerprints (the server states its build); and `/society/llms.txt` has no "closed on this service" line, so key-only sign-up is open. A key-only enrolment through the hosted service is still to be run (DK1802 stays partial until it and a sponsored and a key-only `asp run` are recorded).
+
 **Rollback.** Before step 6 writes anything, return to the old code by name: `sudo BRANCH=deployed-before-2026-11-22 DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 bash /opt/asp/docs/deploy/setup-server.sh`. After step 6, restore the snapshot or the dump of step 1 instead, which loses what was written after it.
 
 ## Step 6: the operator and owner DIDs, and the mint adoption (30 minutes)
@@ -219,6 +221,30 @@ cat /etc/asp/deployed-commit
 sudo bash -c 'sed -i "/^ASP_OPERATOR_DID=/d;/^ASP_OWNER_DID=/d" /etc/asp/asp.env; echo "ASP_OPERATOR_DID=did:web:log.thedeeptransformation.com:u:navien-agentrun" >> /etc/asp/asp.env; echo "ASP_OWNER_DID=did:web:log.thedeeptransformation.com:u:navien-agentrun" >> /etc/asp/asp.env'
 sudo systemctl restart asp-log
 ```
+
+**Where your key is.** The key of your DID is an ordinary identity key in the `keys` folder of an ASP home on your machine: the default home is `~/.asp` (`$HOME\.asp`), and it may be a folder of your own (the live run used `$HOME\asp-live-2026-11-22`). Look by file name only, never open or print a key file: `scripts/adopt-beta-mints.ps1` finds the home whose `keys` folder holds a file named for your DID, uses it if there is exactly one, and otherwise asks for `-AspHome`.
+
+**The admin token goes to a file, never to the screen.** On the server, make it into a file that only root can read, copy the file to your machine, read it into the window without printing it, and delete both files:
+
+```bash
+sudo node /opt/asp/packages/asp-cli/bin/asp.mjs serve token --tokens /var/lib/asp/tokens.json --tenant THE-ADMIN-TENANT --role admin | sudo tee /root/asp-admin-token.txt >/dev/null
+sudo chmod 600 /root/asp-admin-token.txt
+```
+
+```powershell
+gcloud compute scp THE-INSTANCE:/root/asp-admin-token.txt .\asp-admin-token.txt --zone THE-ZONE
+$env:ASP_LOG_TOKEN = (Get-Content .\asp-admin-token.txt -Raw).Trim(); Remove-Item .\asp-admin-token.txt
+```
+
+Then on the server `sudo shred -u /root/asp-admin-token.txt`. (On 2026-11-22 a token was shown once on screen and the owner chose to keep it; a token shown on a screen is a token that the screen's audience holds.)
+
+The nine accounts that hold the beta's 4,500 unsigned credits (500 each) are adopted by one script. In the window where `ASP_LOG_URL` and `ASP_LOG_TOKEN` are set:
+
+```powershell
+.\scripts\adopt-beta-mints.ps1
+```
+
+It signs each adoption as operator and co-signs it as owner (your one DID for both), stops at the first failure, never reads or prints a key, and ends with `npm run asp -- credits audit --require-signed`. The adoption cannot be undone: it moves no balance, and it is run only after the plain audit has named what it adopts. On 2026-11-22 the first audit showed 4500 minted, 0 signed, 4500 unsigned and `--require-signed` failed; after the nine adoptions (log seq 405 to 413) it showed 4500 signed, 0 unsigned and passed.
 
 Then on your machine, run section 1 of [live-check-kit.md](live-check-kit.md): the audit with `--require-signed`, one `credits adopt` for each account that holds unsigned credits, and the audit again.
 
@@ -263,7 +289,7 @@ node scripts/smoke-serve.mjs $SITE
 
 Then section 4 of [live-check-kit.md](live-check-kit.md): suspend and resume a tenant that you made for the purpose, then read the audit trail.
 
-**Right looks like.** Every line of the smoke check says `ok 200`; a suspended tenant's request is refused with the reason and works after the resume; `serve audit` verifies the chain and exits 0; the admin routes answer 401 without the admin token.
+**Right looks like.** Every line of the smoke check says `ok 200`, **except what the service cannot do yet**: on 2026-11-22, 23 of 24 pages answered `ok 200` and `/watch/findings` answered 401, because the watcher flag `--watch-interval` is not on the service's unit (DK52, a decision for later). Say it as it was seen; never claim that all lines were 200. A suspended tenant's request is refused with the reason and works after the resume; `serve audit` verifies the chain and exits 0; the admin routes answer 401 without the admin token.
 
 **If not.** A line that is not `ok 200` names the route; read `journalctl -u asp-log -n 100`.
 
