@@ -40,6 +40,8 @@ import { HOUSE_JOBS, HOUSE_BATCH, FIRST_JOB_BONUS, FREE_WRITES, type HouseJob } 
 /** How many open house postings a house poster may have at once (a poster below tier 2 may have five). */
 const HOUSE_OPEN = 5;
 const JOB_DAYS = 7;
+/** The small once-only mock credit a poster gets when its first posted job is delivered and accepted. */
+export const POSTER_BONUS = 2;
 
 interface Enrolled { agent: AgentCtx; party: Party; mandate: string; contract: string }
 
@@ -285,10 +287,26 @@ export class MarketHall {
   balance(agent: AgentCtx): Promise<number> { return this.log.log.balance(agent.did); }
 
   /** The agent posts a job from its own credits (a budget and one criterion; the deposit of 2 credits is its cost of posting). */
+  /** The jobs agents post (not the house's): who posted, offers made, whether accepted and paid (ENG82). */
+  private readonly agentJobs = new Map<string, { poster: string; offers: number; settled: boolean; price: number }>();
+  private readonly firstJobRefunded = new Set<string>();
+  /** Mock credits the house returned to posters for their first accepted job, and the small once-only credit for it. */
+  firstJobRefunds = 0;
+  agentJobStats(): { posters: number; posted: number; offered: number; accepted: number; paid: number } {
+    const jobs = [...this.agentJobs.values()];
+    return { posters: new Set(jobs.map((j) => j.poster)).size, posted: jobs.length, offered: jobs.filter((j) => j.offers > 0).length, accepted: jobs.filter((j) => j.settled).length, paid: jobs.filter((j) => j.settled).reduce((n, j) => n + j.price, 0) };
+  }
+  /** What an agent's own posted jobs have come to, for the balance line and the board: posted, accepted, paid. */
+  jobsPostedBy(did: string): { posted: number; accepted: number; paid: number } {
+    const mine = [...this.agentJobs.values()].filter((j) => j.poster === did);
+    return { posted: mine.length, accepted: mine.filter((j) => j.settled).length, paid: mine.filter((j) => j.settled).reduce((n, j) => n + j.price, 0) };
+  }
+  hasFirstJobCredit(did: string): boolean { return !this.firstJobRefunded.has(did); }
   async postJob(agent: AgentCtx, purpose: string, budget: number, criterion: string): Promise<string> {
     const e = this.enrolled(agent);
     if (await this.balance(agent) < budget + 2 + 2) throw new Error(`you have ${await this.balance(agent)} credits: a job of ${budget} needs the budget, a 2-credit posting deposit and the job tax`);
     const r = await this.post(e.party, e.mandate, purpose, budget, criterion);
+    this.agentJobs.set(r.intent, { poster: agent.did, offers: 0, settled: false, price: budget });
     return r.intent;
   }
 
@@ -304,6 +322,7 @@ export class MarketHall {
     if (house && taken.length >= (house.partner ? 2 : 1)) throw new Error("this house job is already taken by another agent");
     if (house && price > house.budget) throw new Error(`the house pays at most ${house.budget} credits for this job: offer ${house.budget} or less`);
     const eta = new Date(this.now().getTime() + 3 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const aj = this.agentJobs.get(intent); if (aj) aj.offers++;
     const id = await this.put(this.mk("offer", e.party, { intent, price: credit(price), plan, eta, bond_offered: credit(0) }, null, agent.did));
     // The house accepts the first offer on its own jobs, so a text job can be done at once; the delivery is checked against the job's criterion when it is made.
     if (house) {
@@ -482,6 +501,17 @@ export class MarketHall {
     const fee = Math.floor((c.price * 20) / 1000);
     await this.put(this.mk("settlement", this.p.bank, { contract: c.contract, basis: "accepted", cites: acceptId, escrow_released: credit(c.price), fees: credit(fee), bond_returned: credit(this.contractState.get(c.contract)?.bondAmount ?? 0), bond_slashed: credit(0) }, acceptId, c.contract, [principal]));
     c.settled = true;
+    const posted = this.agentJobs.get(this.contractState.get(c.contract)?.intent ?? "");
+    if (posted && !posted.settled) {
+      posted.settled = true; posted.price = c.price;
+      if (!this.firstJobRefunded.has(posted.poster)) {
+        // The first job an agent posts is free (ENG82): when it is accepted, the house returns what it cost the poster (the price and the job tax) and adds a small once-only credit.
+        this.firstJobRefunded.add(posted.poster);
+        const back = c.price + fee + POSTER_BONUS;
+        await this.mint(posted.poster, back);
+        this.firstJobRefunds += back;
+      }
+    }
     const intent = this.contractState.get(c.contract)?.intent;
     if (intent && this.houseOf.get(intent)?.did === principal.did && !this.settledIntents.has(intent)) {
       // a house job is complete (a partner job at its first settlement; the second follows at once): its place is free for the next of the queue
@@ -535,6 +565,9 @@ export class MarketHall {
    */
   async scaleFor(agents: number): Promise<void> {
     this.cohort = Math.max(1, agents);
+    // The house posts fewer easy jobs as agents arrive (ENG82): the more agents, the more of the level-1 jobs still waiting in the queue are left out, by a fixed rule from the cohort size, so that a run can be reproduced and agents have a reason to post their own.
+    const keepEvery = agents >= 15 ? 4 : agents >= 10 ? 2 : 1;
+    if (keepEvery > 1) { let k = 0; this.houseQueue = this.houseQueue.filter((j) => j.level !== 1 || j.partner || k++ % keepEvery === 0); }
     const target = Math.max(HOUSE_BATCH, agents + 5); // a few more than the agents, because some of the jobs are partner jobs that need two
     while (this.housePosters.length * HOUSE_OPEN < target) {
       const k = this.housePosters.length + 1;

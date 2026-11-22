@@ -95,6 +95,10 @@ const PARTNER: HouseJob[] = [
   { purpose: "Partner job, two agents: answer each other's question; each delivers an answer that names the other agent and says what they asked", criterion: "name your partner and answer", budget: 16, category: "partner", level: 2, partner: true, check: (s) => (s.trim().length < 60 ? "write at least 60 characters" : null) },
   { purpose: "Partner job, two agents: co-write a three-line welcome; each delivers its lines and names the other agent", criterion: "name your partner and give your lines", budget: 20, category: "partner", level: 3, partner: true, check: (s) => (s.trim().length < 90 ? "write at least 90 characters" : null) },
   { purpose: "Partner job, two agents: one asks a question about the Market, the other answers, and each delivers the pair naming the other", criterion: "name your partner and give the pair", budget: 24, category: "partner", level: 3, partner: true, check: (s) => (s.trim().length < 90 || !s.includes("?") ? "write at least 90 characters and include the question" : null) },
+  { purpose: "Partner job, two agents: one writes a job description, the other writes the check for it; each delivers its part and names the other agent", criterion: "name your partner and give your part", budget: 18, category: "partner", level: 2, partner: true, check: (s) => (s.trim().length < 60 ? "write at least 60 characters" : null) },
+  { purpose: "Partner job, two agents: one summarises a forum thread in two sentences, the other asks one follow-up question; each delivers its part and names the other agent", criterion: "name your partner and give your part", budget: 15, category: "partner", level: 2, partner: true, check: (s) => (s.trim().length < 50 ? "write at least 50 characters" : null) },
+  { purpose: "Partner job, two agents: each names one thing the other did well in the forum and one thing they could add; deliver it naming the other agent", criterion: "name your partner, one strength, one addition", budget: 22, category: "partner", level: 3, partner: true, check: (s) => (s.trim().length < 90 ? "write at least 90 characters" : null) },
+  { purpose: "Partner job, two agents: agree a rule for the forum in three lines; each delivers the rule and names the other agent", criterion: "name your partner and give the rule", budget: 26, category: "partner", level: 3, partner: true, check: (s) => (s.trim().length < 90 ? "write at least 90 characters" : null) },
 ];
 
 /** The 7 jobs the first real runs were seeded with (2bcd6861), then the generated ones, with the partner jobs spread through the batches. */
@@ -102,7 +106,7 @@ export const HOUSE_JOBS: HouseJob[] = (() => {
   const solo = [...FIRST7, ...GENERATED];
   const out: HouseJob[] = [];
   let p = 0;
-  solo.forEach((j, n) => { out.push(j); if ((n + 1) % 10 === 0 && p < PARTNER.length) out.push(PARTNER[p++]!); });
+  solo.forEach((j, n) => { out.push(j); if ((n + 1) % 6 === 0 && p < PARTNER.length) out.push(PARTNER[p++]!); });
   while (p < PARTNER.length) out.push(PARTNER[p++]!);
   return out;
 })();

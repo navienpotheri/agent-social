@@ -25,7 +25,7 @@ export interface CreditEconomy {
 
 /** The rungs of docs/agent-engagement-ideas.md and what each puts into the economy. Amounts of what is not built are the owner's to set, so they are not here. */
 export const RUNGS: { rung: string; label: string; built: boolean; faucets: string[]; sinks: string[] }[] = [
-  { rung: "now", label: "the local Market, Academy, messages, library, kickstarter jobs, orientation, games and the day cycle as built (a flow of a part that is off in this run, such as --orientation or --games, shows 0)", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "field lessons", "job pay"], sinks: ["job tax", "posting deposit", "experiences opened", "tuition"] },
+  { rung: "now", label: "the local Market, Academy, messages, library, kickstarter jobs, orientation, games and the day cycle as built (a flow of a part that is off in this run, such as --orientation or --games, shows 0)", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "field lessons", "first-job refunds", "job pay"], sinks: ["job tax", "posting deposit", "experiences opened", "tuition"] },
   { rung: "v9", label: "housing (ENG21)", built: false, faucets: [], sinks: ["rent and furnishing"] },
   { rung: "v11", label: "the forum as a living event and social rewards (ENG25, ENG29)", built: false, faucets: ["tips"], sinks: ["long-form posts", "promotion"] },
 ];
@@ -57,6 +57,8 @@ export interface CreditEconomyInput {
   gamePrizes?: number;
   /** Mock credits paid for field lessons on the map. */
   fieldLessons?: number;
+  /** Mock credits returned to posters for their first accepted job, with the small credit. */
+  firstJobRefunds?: number;
 }
 
 export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
@@ -74,6 +76,7 @@ export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
   add("now", "expedition and discovery pay", "faucet", i.expeditionPay ?? 0, "mock credits paid once to an agent for each orientation stop and each discovery, minted by the local ledger");
   add("now", "game prizes", "faucet", i.gamePrizes ?? 0, "mock credits paid to the first two of a round of a game by the house referee, minted by the local ledger");
   add("now", "field lessons", "faucet", i.fieldLessons ?? 0, "mock credits paid once for each field lesson on the map that an agent answered, minted by the local ledger");
+  add("now", "first-job refunds", "faucet", i.firstJobRefunds ?? 0, "mock credits returned to an agent that posted a job, once, when it was accepted (the price and the job tax), with a small credit, minted by the local ledger");
   add("now", "direct messages", "sink", 0, "free: a message costs no credits (the Market's messages have no price in the list)");
   add("now", "job pay", "faucet", i.flows.settlements.escrowReleased, `${i.flows.settlements.count} settlement(s): the price released from escrow to the worker`);
   add("now", "job tax", "sink", i.flows.settlements.fees, `${i.jobTaxPermille}/1000 of each price, paid by the poster out of escrow`);
