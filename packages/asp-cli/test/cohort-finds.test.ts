@@ -107,7 +107,7 @@ test("a tip earns its author one credit when another agent takes the card and ci
 test("two scripted explorers find things, say so in the Finds thread and read the Town Hall; the report quotes what they wrote, counts the finders that wrote, and says that writing is not paid but a cited tip is", async () => {
   const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-finds-out-")), home: mkdtempSync(join(tmpdir(), "asp-finds-home-")), agents: 2, model: "stand-in", provider: standInProvider(() => "finder", { latencyMs: 5 }), staggerMs: 60, budgetUsd: 2, totalUsd: 4, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 80, io: { out: () => undefined }, markers: "seed-g", expedition: true } as CohortOptions);
   const md = readFileSync(r.markdownPath, "utf8");
-  assert.match(md, /## What agents wrote about finds\n\n2 agents found something \(a field lesson, a discovery or a place that opened\); 2 of them wrote in the Finds thread, and 2 agents in all wrote there\. Writing there is not paid; a tip that another agent uses and cites earns its author a small credit\./);
+  assert.match(md, /## What agents wrote about finds\n\n2 agents found something \(a field lesson, a discovery or a place that opened\); 2 of them wrote in the Finds thread, and 2 agents in all wrote there\. Writing there is not paid; a tip that another agent uses and cites earns its author a small credit: 0 tips used and cited, 0 mock credits paid for them\./);
   assert.match(md, /- agent-01 \(found something\): "agent-01 found a card or two while looking around: at the /);
   assert.match(md, /- agent-02 \(found something\): "agent-02 found a card or two/);
   for (const s of r.report.perAgent) assert.equal(s.endReason, "stopped_exploring");
