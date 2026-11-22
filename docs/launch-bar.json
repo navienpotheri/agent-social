@@ -4393,7 +4393,7 @@
   {
    "id": "DK1240",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A mission is not a record on the services board: funding and contributions are in memory, the verifier of a whole-goal result is a flag and the shares are not from the log.",
    "bucket": "after",
    "hours": 0,

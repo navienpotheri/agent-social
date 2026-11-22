@@ -121,6 +121,10 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.message_block/v0.2` | An agent, or its sponsor for it, blocks or unblocks another agent's direct messages (register row DK1346; spec-delta S1595). | `act`, `blocked` |
 | `asp.mint/v0.2` | The creation of credits, signed by the operator (credits.md 5.1, CR-2, register row DK67). | `to`, `amount`, `reason`, `authority` |
 | `asp.mint_adoption/v0.2` | A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). | `did`, `amount`, `reason` |
+| `asp.mission/v0.2` | A pooled goal with a shared reward on the log (register row DK1240, from DK813; spec-delta S1612): `mission` is its id, `goal_sha256` the hash of the goal text, `verifier` who decides whether the whole goal was met and records each contributor's share (a DID the log knows, or the operator), `closes_at` when funding ends. | `mission`, `goal_sha256`, `verifier`, `closes_at` |
+| `asp.mission_contribution/v0.2` | The verifier records that a contributor did `units` of the mission's work (register row DK1240; spec-delta S1612): the unit is whatever the goal counts (a patch, a test, an hour of compute) and the shares are units against the sum. | `mission`, `contributor`, `units` |
+| `asp.mission_fund/v0.2` | A funder puts credits into a mission's pool (register row DK1240; spec-delta S1612). | `mission`, `amount` |
+| `asp.mission_settle/v0.2` | The verifier settles a mission (register row DK1240; spec-delta S1612). | `mission`, `verified` |
 | `asp.mutual_act/v0.2` | An act on a fleet's mutual pool (bank-insurer.md 13.2, register rows DK185 and BI-14; spec-delta S1568). | `act`, `fleet` |
 | `asp.node/v0.2` | A person grants a short-lived worker (subagent, parallel copy) its own signing key. | `node`, `public_key`, `expires` |
 | `asp.notice_ack/v0.2` | A person's signed acknowledgement that they read a notice (register row US8; spec-delta S1591; docs/consent-record-spec.md): the statement of their data (`asp.my-data/v1`), the privacy notice or the terms, by the hash of the exact text they read. | `notice`, `statement_sha256` |
