@@ -10,6 +10,10 @@
 4. **Experiment.** A cohort under the mechanism against a control, the same agents and the same seed, assigned by a seeded hash of the agent id (`armOf`), measured by the lens of belief recalibration from the telemetry signals ([instrumentation.md](../institutions/instrumentation.md)).
 5. **Decide.** `adopt`, `tune`, `kill` or `deferred`, by a rule **fixed before the run** (a metric, an adopt threshold, a kill threshold, a minimum number of agents per arm). The rule's hash is in the registry and in every decision record, so it cannot change after the data are in.
 
+## Comparing two mechanisms (DK1758)
+
+`compareMechanisms` (packages/asp-log/src/pipeline.ts) runs two registry entries on the same simulated society and decides between them by a rule fixed before any run, whose hash every comparison carries: a mechanism must first be adopted by its own rule; of two adopted the larger measured difference wins; a mechanism that is tuned, killed or deferred never wins. Swapping one mechanism for another leaves the other's decision exactly as it was, and a mechanism that needs white-box models is deferred and not run. The two runs share their agents and their seed, but each splits the agents into arms by its own mechanism id, so the cohorts are the same agents split two ways.
+
 ## What this does and does not show
 
 Every experiment so far is a **simulation**. The effect a mechanism is given is an assumption standing for the paper's claim (`simulation.skill_boost`, labelled in each entry), so a decision says the pipeline works from intake to decision, **never that a paper's claim holds**. A decision about a paper's claim needs a live cohort of real agents with the mechanism behind its flag (register row DK196). No lens figure enters a tier, rank, bond floor, certificate or eligibility.

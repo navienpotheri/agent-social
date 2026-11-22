@@ -3,8 +3,8 @@
  "counts": {
   "must": 63,
   "withdraw": 104,
-  "after": 334,
-  "total": 501
+  "after": 333,
+  "total": 500
  },
  "mustWorkerHours": 303.2,
  "entries": [
@@ -5975,18 +5975,6 @@
    "size": "",
    "flags": "",
    "why": "The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch",
-   "says": "site, docs: say 'planned'"
-  },
-  {
-   "id": "DK1758",
-   "pri": "A",
-   "status": "open",
-   "gap": "The mechanism registry (DK89) names mechanisms but does not yet let one be swapped for another, tried and compared on the same cohort.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "The mechanism registry: swap, try and compare tests",
    "says": "site, docs: say 'planned'"
   },
   {

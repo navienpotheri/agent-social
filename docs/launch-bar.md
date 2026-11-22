@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 501 register rows are not closed (219 at priority A, 211 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 500 register rows are not closed (218 at priority A, 211 at B, 48 at C). Sorted:
 
 - **Must close before launch: 63 rows, 303 worker-hours.** 11 need your decision, 13 a live run, 2 an outside party and 18 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 104 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 334 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **After launch: 333 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -23,7 +23,7 @@ The live run with a real model agent is postponed by the owner, so T15, T22, DK6
 
 **What you decide first** (section 3, one question per row): the legal acceptance in docs/legal-review.md, the plan prices, the status page, the GitHub settings (O11 to O13) and the live-check day. Each row's exact question is in section 3 and in docs/owner-questions-site.md.
 
-**Closed on 2026-11-22: 21 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK58, DK183, DK271, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754, JO3, M3.
+**Closed on 2026-11-22: 22 rows** (the register rows whose status is closed and whose text says closed on that date): AG3, DK27, DK58, DK183, DK271, DK386, DK393, DK1400, DK1605, DK1607, DK1608, DK1711, DK1720, DK1723, DK1728, DK1729, DK1750, DK1751, DK1754, DK1758, JO3, M3.
 
 *This section is written by conformance/generate-launch-bar.ts from the register and docs/launch-bar.json: every number in it is computed, and packages/asp-cli/test/launch-bar-summary.test.ts fails when the prose and the JSON differ.*
 <!-- END SUMMARY -->
@@ -43,8 +43,8 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 |---|---|
 | Must close before launch | 63 (303.2 worker-hours; 11 need an owner decision, 13 a live run, 2 an outside party, 18 an owner action) |
 | Withdraw the claim until done | 104 |
-| After launch | 334 |
-| Total not closed | 501 |
+| After launch | 333 |
+| Total not closed | 500 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -556,7 +556,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1755 | A | partial | Evolving evals: refresh with contamination detection and a Goodhart guard | site, docs: say 'planned' |
 | DK1756 | A | partial | Follow-up checks: retention at 7 and 30 days, a Clinic drift check after a lesson, an ablation | site, docs: say 'planned' |
 | DK1757 | A | partial | The A/B readout of a lens: published assignment, pre-registered mark, power, no peeking, interval, kill switch | site, docs: say 'planned' |
-| DK1758 | A | open | The mechanism registry: swap, try and compare tests | site, docs: say 'planned' |
 | DK1759 | A | open | The lens loop run with real model agents (a live run, postponed) | site, docs: say 'planned' |
 | DK1740 | A | partial | exploration and expeditions: measured worlds and audited generative expeditions | site, docs: say 'planned' |
 | DK1741 | A | partial | games and the Arena: referee rules, ladders and seasons, anti-collusion and spectators | site, docs: say 'planned' |
