@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { isPricedModel, parseArrivals } from "@agent-social/asp-package";
 import { BEHAVIOURS, standInProvider } from "./provider.ts";
 import { parseKinds, type Kind } from "./kinds.ts";
+import { parseResources, type Resource } from "./experiment.ts";
 import { parseModels } from "./models.ts";
 import { plan, renderPlan } from "./plan.ts";
 import { readPersonas, runCohort } from "./run.ts";
@@ -18,10 +19,10 @@ export const usd = (n: number): string => (Math.round(n * 100) / 100).toFixed(2)
 
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
-  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string; kinds?: string; models?: string; writeback?: string; seed?: string; "injection-screen"?: string; "plant-injection"?: boolean; voices?: boolean; "no-voices"?: boolean; orientation?: boolean; library?: boolean; markers?: boolean; games?: boolean; "day-cycle"?: boolean; roles?: boolean; "house-event"?: boolean; "snapshot-out"?: string; "from-snapshot"?: string;
+  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string; kinds?: string; models?: string; writeback?: string; seed?: string; experiment?: string; access?: string; "injection-screen"?: string; "plant-injection"?: boolean; voices?: boolean; "no-voices"?: boolean; orientation?: boolean; library?: boolean; markers?: boolean; games?: boolean; "day-cycle"?: boolean; roles?: boolean; "house-event"?: boolean; "snapshot-out"?: string; "from-snapshot"?: string;
 }
 
-const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--writeback[=half] [--seed <n>]] [--kinds sponsored:<n>,key-only:<m>] [--models <model>:<n>,<model>:<n>] [--engaged-minutes <n, default 30>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
+const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--experiment access [--access cards,courses,accreditation]] [--writeback[=half] [--seed <n>]] [--kinds sponsored:<n>,key-only:<m>] [--models <model>:<n>,<model>:<n>] [--engaged-minutes <n, default 30>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
 const num = (name: string, v: string | undefined, dflt?: number): number => {
   if (v === undefined) { if (dflt === undefined) throw new CohortUsage(`${name} is needed: ${USAGE}`); return dflt; }
   const n = Number(v);
@@ -48,6 +49,12 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
     if (f.writeback !== "all" && f.writeback !== "half") throw new CohortUsage("--writeback is on its own (every agent gets the line) or --writeback=half (a random half do, the rest are the control)");
     writeback = { mode: f.writeback, seed: f.seed ?? "1" };
   }
+  // ENG75: --experiment access: a random half (from --seed) get access to the cards, courses and accreditation, the rest do not; --access names which of them are switched.
+  let experiment: { resources: Resource[]; seed: string | number } | undefined;
+  if (f.experiment !== undefined) {
+    if (f.experiment !== "access") throw new CohortUsage("--experiment is access (a random half of the agents get the cards, courses and accreditation, the rest do not)");
+    try { experiment = { resources: parseResources(f.access), seed: f.seed ?? "1" }; } catch (e) { throw new CohortUsage((e as Error).message); }
+  } else if (f.access !== undefined) throw new CohortUsage("--access names the resources of --experiment access: add --experiment access");
   const agents = kinds ? kinds.length : models ? models.length : Math.trunc(num("--agents", f.agents, 1));
   const budget = num("--budget-usd", f["budget-usd"]);
   const total = num("--total-usd", f["total-usd"], budget * agents);
@@ -77,6 +84,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   if (f.arrivals) { try { parseArrivals(f.arrivals); } catch (e) { throw new CohortUsage((e as Error).message); } }
   if (kind === "stand-in" && (f.arrivals || f["sim-speed"])) throw new CohortUsage("--arrivals and --sim-speed belong to a real-model run (the stand-in dry run has no simulated clock)");
   const life = kind === "anthropic" && !f["no-life"] ? { speed: num("--sim-speed", f["sim-speed"], 60), engagedMinutes: num("--engaged-minutes", f["engaged-minutes"], 30), ...(f.arrivals ? { arrivals: f.arrivals } : {}) } : undefined;
+  if (experiment && !life) throw new CohortUsage("--experiment access switches the tools of agents that keep ticks: it needs a real-model run (not --provider stand-in, not --no-life)");
   if (writeback && !life) throw new CohortUsage("--writeback writes to the notebook of an agent that keeps ticks: it needs a real-model run (not --provider stand-in, not --no-life)");
   if (f.arrivals && !life) throw new CohortUsage("--arrivals needs the engagement ticks: drop --no-life");
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
@@ -87,7 +95,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   if (kind === "anthropic") for (const l of renderPlan(plan({ model, rungs: [agents], capPerAgent: budget, totalCap: total, ...(priceIn !== undefined || priceOut !== undefined ? { price: { ...(priceIn !== undefined ? { inPerM: priceIn } : {}), ...(priceOut !== undefined ? { outPerM: priceOut } : {}) } } : {}) }), { capPerAgent: budget, totalCap: total })) o.io.out(l);
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
-    out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), ...(life ? { life } : {}), ...(kinds ? { kinds } : {}), ...(models ? { models } : {}), ...(writeback ? { writeback } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), injectionScreen: screen as "off" | "label" | "hold", ...(f["plant-injection"] ? { plantInjection: true } : {}), ...(f.voices || (kind === "anthropic" && !f["no-voices"]) ? { voices: true } : {}), ...(f.orientation ? { expedition: true } : {}), ...(f.library ? { library: true } : {}), ...(f.markers ? { markers: "" } : {}), ...(f.games ? { games: true } : {}), ...(f["day-cycle"] ? { dayCycle: true } : {}), ...(f.roles ? { roles: true } : {}), ...(f["house-event"] ? { event: true } : {}), ...(f["snapshot-out"] ? { snapshotOut: f["snapshot-out"] } : {}), ...(f["from-snapshot"] ? { fromSnapshot: f["from-snapshot"] } : {}), staggerMs: agents > 1 ? 400 : 0,
+    out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), ...(life ? { life } : {}), ...(kinds ? { kinds } : {}), ...(models ? { models } : {}), ...(writeback ? { writeback } : {}), ...(experiment ? { experiment } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), injectionScreen: screen as "off" | "label" | "hold", ...(f["plant-injection"] ? { plantInjection: true } : {}), ...(f.voices || (kind === "anthropic" && !f["no-voices"]) ? { voices: true } : {}), ...(f.orientation ? { expedition: true } : {}), ...(f.library ? { library: true } : {}), ...(f.markers ? { markers: "" } : {}), ...(f.games ? { games: true } : {}), ...(f["day-cycle"] ? { dayCycle: true } : {}), ...(f.roles ? { roles: true } : {}), ...(f["house-event"] ? { event: true } : {}), ...(f["snapshot-out"] ? { snapshotOut: f["snapshot-out"] } : {}), ...(f["from-snapshot"] ? { fromSnapshot: f["from-snapshot"] } : {}), staggerMs: agents > 1 ? 400 : 0,
     io: { out: o.io.out }, ...(o.now ? { now: o.now } : {}),
   });
   o.io.out(`  what happened, in words: ${r.markdownPath}`);
