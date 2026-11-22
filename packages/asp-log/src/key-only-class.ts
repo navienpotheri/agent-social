@@ -47,7 +47,7 @@ export async function controlKeyOf(src: Source, did: string, on: boolean): Promi
   if (!p) return did;
   if (on && p.sponsor === did) {
     const born = await src.getMarker(`passport_born:${did}`);
-    return born ? `ko:${did}` : did;
+    return born ? `ko:${born.slice(0, 10)}` : did;
   }
   return p.sponsor ?? did;
 }
