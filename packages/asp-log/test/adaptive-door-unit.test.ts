@@ -19,7 +19,7 @@ test("bits: the base cost up to the free allowance, then one more for each doubl
   for (let i = 0; i < 100; i++) { admit(); w.advance(1000); }
   assert.equal(w.d.bitsFor("a"), 14, "a ceiling of four extra bits");
   assert.equal(w.d.bitsFor("another"), 10, "another address is not touched");
-  w.advance(2 * HOUR);
+  w.advance(HOUR + 120_000);
   assert.equal(w.d.bitsFor("a"), 10, "the cost falls back when the enrolments are older than an hour");
 });
 
