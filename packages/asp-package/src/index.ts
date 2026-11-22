@@ -97,7 +97,7 @@ export { runReadOnlyProbe, type ProbeProposition } from "./telemetry-probe.ts";
 export { adminRoutes, AdminAudit, setSuspension, setBlock, type AuditEntry, type AdminOptions } from "./admin-routes.ts";
 export { Budgets, budgetWarnings, monthProjection, DEFAULT_WARN_PERCENT, type AgentBudget } from "./budget.ts";
 export { DailyCeiling, type Limits as WakeLimits, type Ceiling as WakeCeiling } from "./daily-ceiling.ts";
-export { newMemoryKey, openPrivateScope, sealPrivateScope, type MemoryKey, type PrivateScope, type ScopePair } from "./private-memory.ts";
+export { newMemoryKey, openPrivateScope, sealPrivateScope, rawPublicKeyOf, spkiOfRawPublicKey, type MemoryKey, type PrivateScope, type ScopePair } from "./private-memory.ts";
 export { renderSponsorReturn, sponsorReturn, type SponsorReturn } from "./sponsor-return.ts";
 export { telemetryRoutes, type TelemetryRoutesOptions } from "./telemetry-routes.ts";
 export { httpEnrol, bindMessage, type HttpEnrolOptions, type HttpEnrolReply } from "./http-enrol.ts";

@@ -215,3 +215,4 @@ Areas (so lanes do not collide):
 - 2026-11-22 held by lane-protocol-3 (mutation-check of closed rows E11 CY8 DK854 DK1405 DK1343 DK1382 DK1471 DK1726 DK1730 DK402 DK1721; results in docs/verification-log.md), 20:19Z
 - 2026-11-22 held by lane-protocol-3 (DK1346 service: sealed text store, delivery, wake, sponsor view in asp-package; recall records; DK183/DK386 mutation checks), 21:14Z
 - 2026-11-22 held by lane-society-2 (DK1743 elections pages over the recall records; IS9 follow-ups), 05:10Z
+- 2026-11-22 held by lane-protocol-3 (done: recall DK1743, gateway_refusal DK1607, JO3 job_data_chain, DK1744 records, memory_key D12; now: mutation checks DK1353-DK1357 DK1366, then DK1349/DK1458 cycle, DK1355, DK1370, DK1379, DK1474, DK1650, DK1717, DK1726, DK1728/9; DK1744 referral and Courts' grant route; priority A GV10, DK1457, BI-18), 06:00Z

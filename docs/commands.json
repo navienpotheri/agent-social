@@ -323,6 +323,14 @@
           "description": "Check a run log's hash chain and what the Actions committed to"
         },
         {
+          "command": "asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did>",
+          "description": "Publish the PUBLIC half of an identity's memory key in the log (signed with its own signing key; only the raw 32-byte public key is recorded, never private material), so a principal-agent pair can seal a private memory scope to each other from a second machine; a changed key is a rotation that names the live one it replaces. show prints the live key (D12, DK272)"
+        },
+        {
+          "command": "asp run-log retention [--days <n>|off]",
+          "description": "Keep a retention period for the run logs on this machine: every asp run and asp gateway then deletes the logs older than n days when it starts and says so in one line; with no argument it shows the period (ASP_RUN_LOG_DAYS overrides it). A sealed copy kept on the service is not touched, and an Action that committed to a deleted log keeps its hash"
+        },
+        {
           "command": "asp run-log prune --days <n> [--yes]",
           "description": "Delete run logs on this machine older than n days (a plan without --yes)"
         },
