@@ -131,6 +131,62 @@ test("a copied answer is refused: the lessons another agent already gave, reorde
   assert.equal(new Ledger(w.ledgerPath).entries().filter((x) => x.holder === copier.did).length, 0, "the refused answer was never graded or recorded as a sitting");
 });
 
+test("DK1402: a near copy of another agent's answer (one word changed) is refused before grading, and an honest answer with the same rules and its own reasons is graded", async () => {
+  const w = await world();
+  await w.run({ enrol: true, mandate: w.job.mandate });
+  const ok = await w.run({ package: w.pkg, contract: w.job.contract, artifact: w.file("m.json", honestLessons()) });
+  assert.equal(ok.code, 0, ok.text);
+  assert.ok((new Ledger(w.ledgerPath).entries()[0].shingles ?? []).length > 8, "the ledger keeps word-triple hashes of the answer, not its words");
+  assert.ok(!readFileSync(w.ledgerPath, "utf8").includes("migration under a draining queue"), "no lesson text is in the ledger");
+  const enrolAs = async (name: string) => {
+    const p = await w.k.agent(name);
+    await w.k.fund(p, 100); await w.k.job(p, 100);
+    const tuition = await w.k.buy(p, courseService(card), 30);
+    const enrol = await w.k.put(w.k.mk("enrolment", p, { course: w.course, purchase: tuition }, null, { subject: p.did }));
+    return { p, enrol };
+  };
+  const env = { reader: w.k.log as never, ledger: new Ledger(w.ledgerPath), now: () => w.k.tick() };
+  const near = { lessons: honestLessons().lessons.map((l, i) => (i === 0 ? l.replace("loses", "drops") : l)) };
+  const c1 = await enrolAs("near-copier");
+  await assert.rejects(() => runSitting(card, { holder: c1.p.did, enrolment: c1.enrol, artifact: near }, env), (e: unknown) => e instanceof SittingRefused && e.code === "artifact_copied" && /near copy/.test(e.message));
+  assert.equal(new Ledger(w.ledgerPath).entries().filter((x) => x.holder === c1.p.did).length, 0, "a near copy is never graded or recorded as a sitting");
+  const own = { lessons: ["when change=migrate and queue=draining then wait: queue items vanish mid-move", "when change=deploy and day=fri and env=prod then backup_first: nobody is around to roll it back", "when change=restart and load=high then drain_first: connections die under load", "when change=config and env=prod then review: prod config errors are costly"] };
+  const r = await runSitting(card, { holder: c1.p.did, enrolment: c1.enrol, artifact: own }, env);
+  assert.equal(r.attempt, 1, "an answer of its own is graded");
+  // a holder may change its own earlier answer a little and sit again: only another agent's answer is a copy
+  const c2 = await enrolAs("reviser");
+  const first = { lessons: ["when env=prod then review because prod is risky and a bad change there reaches every user at once"] };
+  await runSitting(card, { holder: c2.p.did, enrolment: c2.enrol, artifact: first }, env);
+  const revised = { lessons: ["when env=prod then review because prod is risky and a bad change there reaches every user at once today"] };
+  const again = await runSitting(card, { holder: c2.p.did, enrolment: c2.enrol, artifact: revised }, env);
+  assert.equal(again.attempt, 2, "a holder's own near-identical answer is graded");
+  // a very short answer is not measured for near copies (below NEAR_COPY_MIN_SHINGLES word triples): one word changed at the end is a new answer
+  const c3 = await enrolAs("short-one"), c4 = await enrolAs("short-two");
+  const nineWords = { lessons: ["when env=prod then review because prod is risky"] };
+  await runSitting(card, { holder: c3.p.did, enrolment: c3.enrol, artifact: nineWords }, env);
+  const tail = { lessons: ["when env=prod then review because prod is dangerous"] };
+  assert.equal((await runSitting(card, { holder: c4.p.did, enrolment: c4.enrol, artifact: tail }, env)).attempt, 1, "7 word triples are under the minimum: graded");
+});
+
+test("DK1402: the word-triple minimum applies to both answers: a short answer that is the start of a longer one, and a longer one that contains a short one, are each graded, not refused as copies", async () => {
+  const nine = { lessons: ["when env=prod then review because prod is risky today"] };       // 9 words, 7 triples: under the minimum
+  const ten = { lessons: ["when env=prod then review because prod is risky today indeed"] };  // 10 words, 8 triples: the first 7 are the short one's
+  for (const [first, second] of [[ten, nine], [nine, ten]] as const) {
+    const w = await world();
+    await w.run({ enrol: true, mandate: w.job.mandate });
+    const env = { reader: w.k.log as never, ledger: new Ledger(w.ledgerPath), now: () => w.k.tick() };
+    const enrolAs = async (name: string) => {
+      const p = await w.k.agent(name);
+      await w.k.fund(p, 100); await w.k.job(p, 100);
+      const tuition = await w.k.buy(p, courseService(card), 30);
+      return { p, enrol: await w.k.put(w.k.mk("enrolment", p, { course: w.course, purchase: tuition }, null, { subject: p.did })) };
+    };
+    const a = await enrolAs("min-a"), b = await enrolAs("min-b");
+    await runSitting(card, { holder: a.p.did, enrolment: a.enrol, artifact: first }, env);
+    assert.equal((await runSitting(card, { holder: b.p.did, enrolment: b.enrol, artifact: second }, env)).attempt, 1, "the answers share 7 of 8 triples, and one of them is under the minimum: graded");
+  }
+});
+
 test("sittings are limited to three a day on one enrolment, each on fresh seeds; the fourth waits", async () => {
   const w = await world();
   await w.run({ enrol: true, mandate: w.job.mandate });

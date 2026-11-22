@@ -71,3 +71,22 @@ test("DK394: the panel never holds the poster or a bidder, the draw is the posti
   const ranked = await k.log.rankPosting(posting.id, "panel_pick", "s");
   assert.equal(await refusedBy(k.log.append(mk("market_act", market, { act: "assignment", posting: posting.id, intent, agent: bidder.did, rule: "panel_pick", ranked, seed: "s" }))), "assignment_no_panel");
 });
+
+test("DK394 mutation review: a pick by anyone but the Market is refused, and a juror who sponsors a bidder does not sit on the panel that picks", async () => {
+  const w = await world();
+  // Not the Market: the poster signs the assignment itself.
+  const forged = mk("market_act", w.poster, { act: "assignment", posting: w.posting.id, intent: w.intent, agent: w.ranked[0].agent, rule: "panel_pick", ranked: w.ranked, seed: "seed-1" });
+  assert.equal(await refusedBy(w.k.log.append(cosign(cosign(forged, w.jurors.get(w.panel[0])! as Signer), w.jurors.get(w.panel[1])! as Signer))), "assignment_wrong_issuer");
+  // A fourth bidder is sponsored by a juror who was on the panel: that juror is out, and the panel is redrawn without them.
+  const sponsorJuror = w.jurors.get(w.panel[0])!;
+  const late = await w.k.agent("pp-bidder-late", sponsorJuror, { tier: 1, funds: 100 });
+  const offer = await w.k.offer(late, w.intent, 60);
+  await w.k.log.append(mk("market_act", late, { act: "bid", posting: w.posting.id, offer }));
+  const all = [...w.bidders, late].map((b) => b.did);
+  const panel2 = await w.k.log.store.transaction((tx) => drawPanel(tx, { principal: w.poster.did, performer: w.poster.did, seed: w.posting.id, size: 3, also: all })) as string[];
+  assert.ok(!panel2.includes(w.panel[0]), "the bidder's sponsor is not drawn");
+  const ranked2 = await w.k.log.rankPosting(w.posting.id, "panel_pick", "seed-1");
+  let r = mk("market_act", market, { act: "assignment", posting: w.posting.id, intent: w.intent, agent: ranked2[0].agent, rule: "panel_pick", ranked: ranked2, seed: "seed-1" });
+  for (const d of panel2.slice(0, 2)) r = cosign(r, w.jurors.get(d)! as Signer);
+  await w.k.log.append(r);
+});

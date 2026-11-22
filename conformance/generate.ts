@@ -877,6 +877,15 @@ sv("shadow_opinion_bad_verdict", "shadow_opinion", soBody({ verdict: "dismissed"
 sv("shadow_opinion_no_reasons", "shadow_opinion", soBody({ reasons: "" }), false);
 sv("shadow_opinion_no_contract", "shadow_opinion", { verdict: "split", reasons: "x" }, false);
 sv("shadow_opinion_extra_field", "shadow_opinion", soBody({ fault: { a: 1000 } }), false);
+const irBody = (over: Record<string, unknown> = {}) => ({ fleet: "did:web:example.com:fleets:acme-eng", nonce: "Zr3k9QmV2xT7pL1aB4cD8e", ...over });
+sv("valid_invitation_revocation", "invitation_revocation", irBody(), true);
+sv("valid_invitation_revocation_reason", "invitation_revocation", irBody({ reason: "the file of invitations was shared by mistake" }), true);
+sv("invitation_revocation_no_nonce", "invitation_revocation", { fleet: "did:web:example.com:fleets:acme-eng" }, false);
+sv("invitation_revocation_short_nonce", "invitation_revocation", irBody({ nonce: "abc" }), false);
+sv("invitation_revocation_bad_nonce_chars", "invitation_revocation", irBody({ nonce: "has spaces and symbols!!" }), false);
+sv("invitation_revocation_fleet_not_did", "invitation_revocation", irBody({ fleet: "acme-eng" }), false);
+sv("invitation_revocation_empty_reason", "invitation_revocation", irBody({ reason: "" }), false);
+sv("invitation_revocation_extra_field", "invitation_revocation", irBody({ all: true }), false);
 const cfBody = (over: Record<string, unknown> = {}) => ({ contract: "sha256:" + "c".repeat(64), cause: "unreachable", evidence: "no answer to six messages over two days after the deadline", ...over });
 sv("valid_contract_failure", "contract_failure", cfBody(), true);
 sv("valid_contract_failure_deadline", "contract_failure", cfBody({ cause: "deadline_passed", evidence: "nothing was delivered by the deadline" }), true);
@@ -1121,6 +1130,11 @@ sv("juror_extra_field", "juror", { did: coder.did, stake: credits(50), note: "pi
   sv("price_list_bad_class", "price_list", { ...list, items: [{ ...item, class: "luxury" }] }, false);
   sv("price_list_bad_service_id", "price_list", { ...list, items: [{ ...item, service: "Deposit" }] }, false);
   sv("price_list_price_zero", "price_list", { ...list, items: [{ ...item, price: 0 }] }, false);
+  sv("valid_price_list_gated_limited", "price_list", { ...list, items: [{ ...item, gate: { min_tier: 1, certificate: "foundations" }, max_per_buyer_period: { count: 3, period: "week" } }] }, true);
+  sv("price_list_limit_zero", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 0, period: "day" } }] }, false);
+  sv("price_list_limit_bad_period", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2, period: "year" } }] }, false);
+  sv("price_list_limit_no_period", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2 } }] }, false);
+  sv("price_list_limit_extra_field", "price_list", { ...list, items: [{ ...item, max_per_buyer_period: { count: 2, period: "day", refundable: true } }] }, false);
   sv("price_list_no_payees", "price_list", { ...list, items: [{ ...item, split: { ...split, payees: [] } }] }, false);
   sv("price_list_institution_not_a_did", "price_list", { ...list, items: [{ ...item, institution: treasuryDid.replace("did:web:", "") }] }, false);
 

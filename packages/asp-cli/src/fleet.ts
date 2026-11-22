@@ -13,7 +13,7 @@ export interface FleetOpts {
   io: { out: (l: string) => void };
   now: () => string;
   signerFor: (did: string) => Signer;
-  flags: { window?: string; multiple?: string; halt?: boolean; association?: string; action?: string; node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
+  flags: { nonce?: string; window?: string; multiple?: string; halt?: boolean; association?: string; action?: string; node?: string; kind?: string; parent?: string; to?: string; owner?: string; credits?: string; tokens?: string; reason?: string; at?: string; file?: string; persona?: string; member?: string; contract?: string; org?: string; by?: string; did?: string; name?: string; purpose?: string; "max-members"?: string; runtime?: string; model?: string; "harness-sha"?: string; "harness-uri"?: string; skills?: string[]; "co-sponsor"?: string[]; strict?: boolean; json?: boolean };
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "fleet";
@@ -112,6 +112,14 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     if (!org) throw new FleetUsage("asp fleet list --org <organisation did>");
     const ids = await o.log.log.fleetsOf(org);
     o.io.out(ids.length ? ids.join("\n") : `${org} has declared no fleet`);
+    return 0;
+  }
+  if (sub === "revoke") {
+    const fleet = rest[0] ?? f.did;
+    if (!fleet || !f.nonce) throw new FleetUsage("asp fleet revoke <fleet did> --nonce <the invitation's nonce> [--reason <text>]");
+    const d = await declaration(o, fleet);
+    const res = await o.log.append(createRecord({ type: "invitation_revocation" as never, issuer: d.org, subject: fleet, prev: null, body: { fleet, nonce: f.nonce, ...(f.reason ? { reason: f.reason } : {}) }, issued_at: o.now() }, o.signerFor(d.org)));
+    o.io.out(`invitation ${f.nonce} of ${fleet} revoked (log seq ${res.seq}): a passport that carries it is refused; the other invitations stand`);
     return 0;
   }
   if (sub === "update" || sub === "close") {
@@ -267,5 +275,5 @@ export async function fleetCmd(sub: string | undefined, rest: string[], o: Fleet
     }
     return 0;
   }
-  throw new FleetUsage("asp fleet declare|show|update|members|close|list|template|narrow|mandate|node|move|tree|attest|record|standing|breaker");
+  throw new FleetUsage("asp fleet declare|show|update|members|close|list|revoke|template|narrow|mandate|node|move|tree|attest|record|standing|breaker");
 }

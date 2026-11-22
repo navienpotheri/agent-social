@@ -36,7 +36,7 @@ import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRU
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
-import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
+import { INSTITUTION_NAMES, ALLOWANCE_AMOUNT, DEMAND_MINT_PERMILLE, SERVICE_PRICE_MAX, HANDOUT_MAX, ALLOWANCE_MAX_AGE_DAYS, ALLOWANCE_SLASH_DAYS, CLINIC_CHECKUP_PRICE, CLINIC_CHECKUP_SERVICE, CLINIC_FREE_BUDGET_PURPOSE, BURN_DID, CLINIC_DID, INSTITUTION_DIDS, isQuarantineRisky, PLATFORM_DID, REGISTRAR_DID, STARTER_POOL_DID, TREASURY_DID, WATCHER_DID, canonicalAccount, institutionDid, isReservedAccount, refundParts, splitParts, splitProblem, type Split } from "./economy.ts";
 import { MemoryStore } from "./memory.ts";
 import { agentFacts, checkIntentClass, jobNeeds, markPostingFilled, projectMarketAct, rankedFor, readQualClass, type MarketEnv } from "./market-rules.ts";
 import { rulingPayout } from "./courts.ts";
@@ -76,7 +76,7 @@ import { projectHousingAct } from "./housing-rules.ts";
 import { projectEventsAct } from "./events-rules.ts";
 import { projectResearchAct } from "./research-rules.ts";
 import { projectTelemetryAct } from "./telemetry-rules.ts";
-import { assertNotDormant, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
+import { assertNotDormant, checkGate, checkShopsPurchase, notePerformer, projectShopsAct } from "./shops-rules.ts";
 import { homeView, type HomeView } from "./housing.ts";
 import { resourceExtras, type ResourceExtras } from "./shops.ts";
 import { HOUSING_DID, SHOPS_DID, catalogueProblem, type CatalogueItem } from "./shops.ts";
@@ -257,7 +257,7 @@ export const MAX_LATE_ACTIONS = 5;
 
 interface PriceListBody {
   version: number; effective_from: string; bounds_version: number; job_tax_permille: number;
-  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"] }[];
+  items: { service: string; institution: string; price: number; split: Split; class: "standard" | "essential" | "remedial"; gives_standing?: boolean; effect?: CatalogueItem["effect"]; duration_days?: number; gate?: CatalogueItem["gate"]; max_per_buyer_period?: { count: number; period: "day" | "week" | "month" } }[];
 }
 interface PurchaseBody { buyer?: string; service: string; institution: string; price_list: string; quantity: number; amount: { value: number }; idempotency: string; mandate?: string; standing_order?: string }
 interface InstitutionSpend { institution: string; cap: { value: number }; period: "day" | "week" | "month"; services?: string[] }
@@ -431,6 +431,7 @@ export class EventLog {
     await tx.insertRecord(stored);
     if (type === "passport") await this.projectPassport(tx, verified);
     if (type === "fleet") await this.projectFleet(tx, verified);
+    if (type === "invitation_revocation") await this.projectInvitationRevocation(tx, verified);
     if (type === "node") await this.projectNode(tx, verified);
     if (type === "lineage") await this.projectLineage(tx, verified);
     if (type === "bond") await this.projectBond(tx, verified);
@@ -803,9 +804,25 @@ export class EventLog {
     let good = false;
     try { good = !!key && verifyBytes(b64urlDecode(inv.sig), new TextEncoder().encode(invitationMessage(inv)), b64urlDecode(key.publicKey)); } catch { good = false; }
     if (!good) throw rule("invitation_bad_signature", `the invitation's signature does not verify against a current key of ${fleet.org}`);
+    if (await tx.getMarker(`invite_revoked:${inv.fleet}:${inv.nonce}`)) throw rule("invitation_revoked", "the organisation took this invitation back before it was used");
     if (await tx.getMarker(`invite_used:${inv.nonce}`)) throw rule("invitation_used", "this invitation has already been used: one invitation joins one agent");
     await tx.putMarker(`invite_used:${inv.nonce}`, body.did);
     return true;
+  }
+
+  /**
+   * An invitation revocation (DK1505, S1706): the organisation of a fleet takes back an invitation it signed and nobody has used. The fleet is declared, the invitation is named by its nonce, which has not been
+   * used and has not been revoked; `checkInvitation` then refuses a passport that carries it. Other invitations are not touched.
+   */
+  private async projectInvitationRevocation(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { fleet: string; nonce: string };
+    if (r.prev !== null) throw rule("invitation_revocation_not_chained", "an invitation revocation starts its own chain (prev is null)");
+    const fleet = await tx.getFleet(b.fleet);
+    if (!fleet) throw rule("invitation_revocation_unknown_fleet", `fleet ${b.fleet} is not declared`);
+    if (r.issuer !== fleet.org) throw rule("invitation_revocation_not_the_org", `${r.issuer} is not the organisation of ${b.fleet} (${fleet.org}): only the organisation that signs invitations takes them back`);
+    if (await tx.getMarker(`invite_used:${b.nonce}`)) throw rule("invitation_revocation_already_used", "this invitation has been used: the agent has joined");
+    if (await tx.getMarker(`invite_revoked:${b.fleet}:${b.nonce}`)) throw rule("invitation_revocation_known", "this invitation is already revoked");
+    await tx.putMarker(`invite_revoked:${b.fleet}:${b.nonce}`, r.id);
   }
 
   private async fleetCount(tx: LogTx, fleetDid: string): Promise<number> {
@@ -2398,6 +2415,16 @@ export class EventLog {
     if (rep && rep.tier === 0 && item.class === "standard") throw rule("tier_excluded", "a tier 0 agent may buy only essential or remedial items");
     if (item.class !== "essential" && item.class !== "remedial") await assertNotDormant(tx, buyer, `buy ${b.service}`);
     if (item.institution === SHOPS_DID || item.institution === HOUSING_DID) await checkShopsPurchase(tx, buyer, item as unknown as CatalogueItem, r.issued_at, rep?.tier);
+    else if (item.gate) await checkGate(tx, buyer, item, r.issued_at, rep?.tier); // a gate on any other institution's item (DK93)
+    // At most `count` units of the item for one buyer in a period (DK93): counted by quantity when bought.
+    let periodMark: { key: string; total: number } | undefined;
+    if (item.max_per_buyer_period) {
+      const key = `bought:${buyer}|${b.service}|${periodKey(item.max_per_buyer_period.period, r.issued_at)}`;
+      const had = Number((await tx.getMarker(key)) ?? 0);
+      if (had + b.quantity > item.max_per_buyer_period.count) throw rule("purchase_over_period_limit", `${b.service} is limited to ${item.max_per_buyer_period.count} per ${item.max_per_buyer_period.period} for one buyer; ${buyer} has ${had} this ${item.max_per_buyer_period.period} and asks for ${b.quantity} more`);
+      periodMark = { key, total: had + b.quantity };
+    }
+
     const qlevel = await this.liveQuarantine(tx, buyer, r.issued_at);
     if (qlevel?.level === "halt" && item.class !== "essential" && item.class !== "remedial") throw rule("agent_quarantined", `${buyer} is quarantined by the Clinic (halt, ${qlevel.id}, until ${qlevel.until}): it may buy only essential or remedial items`);
     // An agent (a passport with a sponsor) may buy only what its Mandate's institution_spend lists, within the cap for the period (credits.md 4.4, DK3). A person spending their own credits is not limited by a Mandate.
@@ -2407,6 +2434,7 @@ export class EventLog {
     await noteSpent(tx, buyer, item.institution, b.amount.value);
     const parts = splitParts(b.amount.value, item.split);
     if (spendKey) await tx.putMarker(spendKey.key, String(spendKey.total));
+    if (periodMark) await tx.putMarker(periodMark.key, String(periodMark.total));
     for (const p of parts.payees) await this.credit(tx, p.account, p.amount);
     await this.credit(tx, TREASURY_DID, parts.treasury);
     await noteIncome(tx, parts.treasury, r.issued_at);
@@ -4032,7 +4060,11 @@ export class EventLog {
       if (Date.parse(r.issued_at) - Date.parse(born) < 30 * 86_400_000) throw rule("allowance_floor_too_soon", `the unemployment floor is for an identity at least 30 days old with no accepted job; ${who} is ${Math.floor((Date.parse(r.issued_at) - Date.parse(born)) / 86_400_000)} days old`);
       if (((await this.reputation(tx, who))?.acceptedJobs ?? 0) > 0) throw rule("allowance_floor_has_job", `${who} has had a job accepted: the floor is for an identity that found none`);
     } else     if (!(await tx.getMarker(b.trigger === "first_course" ? `first_course:${who}` : `bonded:${who}`))) throw rule("allowance_not_earned", `the allowance is paid after a ${b.trigger === "first_course" ? "first course (a purchase from the Academy)" : "first bond"}, and ${who} has none yet`);
-    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) throw rule("allowance_slashed", `${who} has been slashed: the allowance is for an agent with a clean record`);
+    if (((await this.reputation(tx, who))?.slashCount ?? 0) > 0) {
+      // A slash in the last ALLOWANCE_SLASH_DAYS days refuses it (DK230); an older one does not. A slash with no recorded date (a row from before the date was kept) refuses it, as before.
+      const when = await tx.getMarker(`slashed_at:${who}`);
+      if (!when || Date.parse(r.issued_at) - Date.parse(when) < ALLOWANCE_SLASH_DAYS * 86_400_000) throw rule("allowance_slashed", `${who} was slashed ${when ? `on ${when}, less than ${ALLOWANCE_SLASH_DAYS} days ago` : "(no date is recorded)"}: the allowance is for an agent with a clean record`);
+    }
     const rec = await tx.getRecord(b.budget);
     const bb = rec?.record.type === "asp.budget/v0.2" ? (rec.record.body as { institution: string; purpose: string }) : undefined;
     if (!bb || bb.institution !== TREASURY_DID || bb.purpose !== "allowance") throw rule("allowance_budget_wrong", `${b.budget} is not the Treasury's allowance budget: the allowance is paid only from one`);

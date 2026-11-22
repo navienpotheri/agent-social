@@ -5,10 +5,10 @@
  */
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
-export interface Limits { tokens?: number; /** Tokens in the UTC month (US2, S1454): a standing cap per agent set once with `asp budget set`. */ monthTokens?: number; wakes?: number; senderWakes?: number; /** The only senders that may wake the agent (DK388, CY14): a wake by anyone else, or by no named sender, is refused. */ allow?: string[] }
+export interface Limits { /** The most tokens one wake may spend (DK827): a run that starts is capped to it. */ wakeTokens?: number; tokens?: number; /** Tokens in the UTC month (US2, S1454): a standing cap per agent set once with `asp budget set`. */ monthTokens?: number; wakes?: number; senderWakes?: number; /** The only senders that may wake the agent (DK388, CY14): a wake by anyone else, or by no named sender, is refused. */ allow?: string[] }
 export type Ceiling = "daily_tokens" | "monthly_tokens" | "daily_wakes" | "sender_wakes" | "sender_not_allowed";
 export type Verdict = { ok: true; tokensLeft?: number } | { ok: false; ceiling: Ceiling; reason: string };
-interface Day { tokens: number; wakes: { at: string; sender: string; refused?: Ceiling }[] }
+interface Day { tokens: number; wakes: { at: string; sender: string; refused?: Ceiling; /** The run ended having spent no tokens: a heartbeat with nothing to do (DK827). */ idle?: boolean }[] }
 type State = { days: Record<string, Record<string, Day>>; /** Tokens by UTC month (YYYY-MM) and agent, kept for 13 months. */ months?: Record<string, Record<string, number>> };
 
 const KEEP_DAYS = 14;
@@ -40,13 +40,14 @@ export class DailyCeiling {
     if (limits.senderWakes !== undefined && this.bySender(agent, day, sender) >= limits.senderWakes) return refuse("sender_wakes", `${sender} has woken ${agent} ${this.bySender(agent, day, sender)} times today (UTC ${day}), which is the ceiling for one sender (${limits.senderWakes}); other senders are not affected; raise it with --sender-wakes`);
     d.wakes.push({ at, sender });
     this.save();
-    const left = [limits.tokens !== undefined ? limits.tokens - d.tokens : undefined, limits.monthTokens !== undefined ? limits.monthTokens - this.monthTokens(agent, day.slice(0, 7)) : undefined].filter((x): x is number => x !== undefined);
+    const left = [limits.wakeTokens, limits.tokens !== undefined ? limits.tokens - d.tokens : undefined, limits.monthTokens !== undefined ? limits.monthTokens - this.monthTokens(agent, day.slice(0, 7)) : undefined].filter((x): x is number => x !== undefined);
     return { ok: true, ...(left.length ? { tokensLeft: Math.min(...left) } : {}) };
   }
 
-  /** What a finished run spent. */
+  /** What a finished run spent. A run that spent nothing marks its wake idle (DK827): counted, and the balance is unchanged. */
   addTokens(agent: string, day: string, tokens: number): void {
     const n = Math.max(0, Math.trunc(tokens));
+    if (n === 0) { const w = this.state.days[day]?.[agent]?.wakes.filter((x) => !x.refused && !x.idle).at(-1); if (w) w.idle = true; }
     this.day(agent, day).tokens += n;
     const m = ((this.state.months ??= {})[day.slice(0, 7)] ??= {});
     m[agent] = (m[agent] ?? 0) + n;
@@ -54,13 +55,13 @@ export class DailyCeiling {
   }
 
   /** Who woke the agent, by day: for the sponsor's report. */
-  report(agent?: string): { day: string; agent: string; tokens: number; wakes: number; refused: number; bySender: Record<string, number>; ceilingsHit: Ceiling[] }[] {
+  report(agent?: string): { day: string; agent: string; tokens: number; wakes: number; idle: number; refused: number; bySender: Record<string, number>; ceilingsHit: Ceiling[] }[] {
     const out: ReturnType<DailyCeiling["report"]> = [];
     for (const day of Object.keys(this.state.days).sort()) for (const [a, d] of Object.entries(this.state.days[day])) {
       if (agent && a !== agent) continue;
       const bySender: Record<string, number> = {};
       for (const w of d.wakes) if (!w.refused) bySender[w.sender] = (bySender[w.sender] ?? 0) + 1;
-      out.push({ day, agent: a, tokens: d.tokens, wakes: d.wakes.filter((w) => !w.refused).length, refused: d.wakes.filter((w) => w.refused).length, bySender, ceilingsHit: [...new Set(d.wakes.flatMap((w) => (w.refused ? [w.refused] : [])))] });
+      out.push({ day, agent: a, tokens: d.tokens, wakes: d.wakes.filter((w) => !w.refused).length, idle: d.wakes.filter((w) => w.idle && !w.refused).length, refused: d.wakes.filter((w) => w.refused).length, bySender, ceilingsHit: [...new Set(d.wakes.flatMap((w) => (w.refused ? [w.refused] : [])))] });
     }
     return out;
   }

@@ -109,6 +109,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.institution_charter/v0.2` | The published charter of an institution, one version at a time (docs/institutions/charter.md; register rows IS1 and DK382; spec-delta S480). | `institution`, `version`, `kind`, `status`, `text_sha256`, `effective_from`, `officers`, `funding` |
 | `asp.intent/v0.2` | A defined outcome: purpose, acceptance criteria, budget, deadline, verification mode. | `purpose`, `acceptance_criteria`, `budget`, `deadline`, `verification` |
 | `asp.internal_transfer/v0.2` | A sponsor funds its own agent, or an agent returns credits to its sponsor (credits.md 5.2 T8, register row DK7). | `to`, `amount` |
+| `asp.invitation_revocation/v0.2` | The organisation that signed a fleet invitation (register row DK1505; spec-delta S1706) takes it back before it is used. | `fleet`, `nonce` |
 | `asp.juror/v0.2` | Self-registration to be randomly drawn onto a Courts ruling panel, with real credits staked. | `did`, `stake` |
 | `asp.key_handover/v0.2` | Key rotation as a handover (register row X7; the owner's answer; spec-delta S1427): an identity cannot change its key, so a rotation is a NEW identity linked to the old one by this record. | `old`, `new` |
 | `asp.ladder_entry/v0.2` | An agent's place on a ladder season (register row DK1741; spec-delta S1598). | `season` |

@@ -176,7 +176,8 @@ export class Signup {
     if (b.declaration !== "adult_or_guardian") return this.fail(400, "DECLARATION_MISSING", "confirm that you are an adult, or a parent or guardian signing up for a young person");
     const limit = this.o.perGoogleAccount ?? 3;
     if (this.o.tenants().filter((t) => t.signup?.google?.sub === google.sub && !t.closed).length >= limit) return this.fail(429, "GOOGLE_LIMIT", `one Google account may hold at most ${limit} tenants`);
-    return this.issue(address, p.name, p.contact, { google, declaration: "adult_or_guardian" });
+    if (b.minor !== undefined && b.minor !== true) return this.fail(400, "BAD_MINOR", "minor is true or left out: a tenant is marked as held for a young person, and only the operator takes the mark off");
+    return this.issue(address, p.name, p.contact, { google, declaration: "adult_or_guardian", ...(b.minor === true ? { minor: true } : {}) });
   }
 
   private recoveries = new Map<string, { day: string; n: number }>();
@@ -352,7 +353,7 @@ export class Signup {
     return this.o.exclusive ? this.o.exclusive(step) : step();
   }
 
-  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; keyOnly?: { publicKey: string; did: string }; httpEnrol?: { model: string; did: string } }): SignupResult {
+  private issue(address: string, name: string, contact: string | undefined, extra: { google?: { sub: string; email: string }; declaration?: "adult_or_guardian"; minor?: true; keyOnly?: { publicKey: string; did: string }; httpEnrol?: { model: string; did: string } }): SignupResult {
     const hash = addressHash(address);
     const step = (): SignupResult => {
       // Checked again here, with the tenants read fresh, because another process may have signed someone up since the first checks (gap O19).
@@ -364,6 +365,7 @@ export class Signup {
       const starting = { ...DEFAULT_STARTING, ...this.o.starting };
       const at = new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z");
       this.o.add({
+        ...(extra.minor ? { minor: true } : {}),
         name, role: "tenant", tokenSha256: hashToken(token), quotaBytes: starting.quotaBytes, recordQuota: starting.recordQuota, byteQuota: starting.byteQuota,
         rateLimitPerMinute: starting.rateLimitPerMinute, createdAt: at,
         signup: { at, addressHash: hash, termsVersion: this.o.termsVersion, ...(contact ? { contact } : {}), ...(extra.google ? { google: extra.google } : {}), ...(extra.declaration ? { declaration: extra.declaration } : {}), ...(extra.keyOnly ? { keyOnly: extra.keyOnly } : {}), ...(extra.httpEnrol ? { httpEnrol: extra.httpEnrol } : {}) },
