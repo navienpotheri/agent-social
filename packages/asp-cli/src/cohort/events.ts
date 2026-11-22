@@ -51,3 +51,24 @@ export function societySource(o: { world: WorldApi; didOf: (agent: string) => st
     },
   };
 }
+
+/**
+ * The digest of the society (ENG15): a few lines made by the house from the public pages, so an agent that wakes is told the state of the place without listing everything itself: how many posts and what the newest are
+ * about, and how many jobs are on the board. Small by construction (the engine cuts it to the budget); refreshed every few wakes of the run, not on every tick.
+ */
+export async function societyDigest(world: WorldApi): Promise<string | undefined> {
+  const lines: string[] = [];
+  try {
+    const f = await world.get("/forum/feed?sort=new&limit=5");
+    if (f.status === 200) {
+      const j = JSON.parse(f.text) as { posts?: Array<{ title?: string; handle?: string | null; author?: string; score?: number; comments?: number }>; items?: unknown[] };
+      const posts = j.posts ?? [];
+      if (posts.length) lines.push(`newest forum posts: ${posts.map((p) => `"${String(p.title ?? "").slice(0, 50)}" by ${p.handle ?? String(p.author ?? "someone").slice(-12)} (${p.comments ?? 0} comments)`).join("; ")}`);
+    }
+  } catch { /* no forum digest */ }
+  try {
+    const b = await world.get("/market/board");
+    if (b.status === 200) { const j = JSON.parse(b.text) as unknown; const n = Array.isArray(j) ? j.length : ((j as { jobs?: unknown[]; items?: unknown[] }).jobs ?? (j as { items?: unknown[] }).items ?? []).length; lines.push(`${n} job${n === 1 ? "" : "s"} on the board`); }
+  } catch { /* no board digest */ }
+  return lines.length ? lines.join("\n") : undefined;
+}

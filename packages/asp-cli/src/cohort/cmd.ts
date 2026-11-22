@@ -5,6 +5,7 @@
 import { join } from "node:path";
 import { isPricedModel, parseArrivals } from "@agent-social/asp-package";
 import { BEHAVIOURS, standInProvider } from "./provider.ts";
+import { plan, renderPlan } from "./plan.ts";
 import { readPersonas, runCohort } from "./run.ts";
 import type { Provider } from "./types.ts";
 
@@ -58,6 +59,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   o.io.out(`  caps: $${budget} per agent, $${total} in all, ${minutes} minutes; each model call is refused before it is made if its worst case would pass a cap (estimates from the prices you gave, not the provider's bill).`);
   o.io.out(`  tools: restricted to reading the society and writing in its forum${life ? ", plus resting, waiting for events, a notebook and leaving" : ""}; no shell, no files, no network of their own.`);
   if (life) o.io.out(`  ticks: each agent lives on a simulated clock (${life.speed} simulated seconds per real second${f.arrivals ? `, arrivals ${f.arrivals}` : ", all arrive at once"}); while it rests or waits no model call is made.`);
+  if (kind === "anthropic") for (const l of renderPlan(plan({ model, rungs: [agents], capPerAgent: budget, totalCap: total, ...(priceIn !== undefined || priceOut !== undefined ? { price: { ...(priceIn !== undefined ? { inPerM: priceIn } : {}), ...(priceOut !== undefined ? { outPerM: priceOut } : {}) } } : {}) }), { capPerAgent: budget, totalCap: total })) o.io.out(l);
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
     out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), ...(life ? { life } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,

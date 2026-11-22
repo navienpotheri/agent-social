@@ -28,7 +28,7 @@ async function provider(script: (r: Req) => unknown[], usage = { input_tokens: 7
       const msgs = body.messages ?? [];
       const lastMsg = msgs[msgs.length - 1];
       const last = typeof lastMsg?.content === "string" ? lastMsg.content : JSON.stringify(lastMsg?.content ?? "");
-      const r: Req = { system: String(body.system ?? ""), last, messages: msgs, calls: 0 };
+      const r: Req = { system: Array.isArray(body.system) ? body.system.map((b: { text?: string }) => b.text ?? "").join("") : String(body.system ?? ""), last, messages: msgs, calls: 0 };
       seen.push(r);
       const content = script(r);
       res.writeHead(200, { "content-type": "application/json" });

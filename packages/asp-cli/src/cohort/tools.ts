@@ -42,7 +42,7 @@ export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
 export interface ToolResult { ok: boolean; text: string; refused?: string; target?: string; targetAuthor?: string; end?: boolean }
-const MAX_CHARS = 3000;
+const MAX_CHARS = 2000;
 const cut = (s: string): string => (s.length > MAX_CHARS ? s.slice(0, MAX_CHARS) + `\n[cut: ${s.length - MAX_CHARS} more characters]` : s);
 const refuse = (rule: string, why: string): ToolResult => ({ ok: false, refused: rule, text: `Refused (${rule}): ${why}` });
 
@@ -77,7 +77,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "look_jobs": return get("/market/board");
     case "look_courses": return get("/society/courses?format=json");
     case "read_constitution": return get("/forum/constitution");
-    case "forum_read": return get(`/forum/feed?sort=${(input.sort as string) ?? "new"}&limit=${(input.limit as number) ?? 15}${input.tag ? `&tag=${encodeURIComponent(input.tag as string)}` : ""}`);
+    case "forum_read": return get(`/forum/feed?sort=${(input.sort as string) ?? "new"}&limit=${Math.min((input.limit as number) ?? 8, 20)}${input.tag ? `&tag=${encodeURIComponent(input.tag as string)}` : ""}`);
     case "forum_read_post": { const r = await get(`/forum/posts/${encodeURIComponent(input.post as string)}`); return { ...r, target: input.post as string }; }
     case "forum_replies": return get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);

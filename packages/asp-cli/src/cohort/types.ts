@@ -39,7 +39,7 @@ export interface WorldApi {
 export type TraceEvent =
   | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string }
   | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string }
-  | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; usd: number; text?: string }
+  | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; cacheRead?: number; cacheWrite?: number; usd: number; text?: string }
   | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; ms: number }
   | { t: "end"; at: string; agent: string; reason: string; turns: number; usd: number }
   | { t: "stop"; at: string; reason: string };

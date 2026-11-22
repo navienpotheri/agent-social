@@ -69,8 +69,17 @@ export interface LifeLimits {
   pollRealMs: number;
   /** Events shown in one observation; the rest are counted. */
   observationEvents: number;
+  /** The hard budget, in characters, of one observation without the notebook: the events, the summary and the digest. Over it, events are dropped (and counted) first, then the digest and the summary are cut. */
+  observationChars: number;
+  /** One event's line is cut to this. */
+  eventChars: number;
+  /** The rolling summary of the agent's own past is cut to this. */
+  summaryChars: number;
+  /** The digest of the society is refreshed every this many wakes of the run, and is cut to digestChars. */
+  digestEveryWakes: number;
+  digestChars: number;
 }
-export const DEFAULT_LIFE_LIMITS: LifeLimits = { agentWakesPerSimHour: 8, runWakesPerSimMinute: 30, minWaitSimMs: 5 * 60_000, maxWaitSimMs: 7 * 86_400_000, notebookChars: 4000, pollRealMs: 500, observationEvents: 12 };
+export const DEFAULT_LIFE_LIMITS: LifeLimits = { agentWakesPerSimHour: 8, runWakesPerSimMinute: 30, minWaitSimMs: 5 * 60_000, maxWaitSimMs: 7 * 86_400_000, notebookChars: 4000, pollRealMs: 500, observationEvents: 12, observationChars: 3000, eventChars: 160, summaryChars: 700, digestEveryWakes: 5, digestChars: 700 };
 
 /** Counts wakes and says how long the next one must be delayed. */
 export class WakeGovernor {
@@ -105,6 +114,8 @@ export interface LifeOptions {
   notebookDir: string;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   onWake?: (w: WakeInfo) => void;
+  /** A short "state of the society" made by the house (not by the agents), asked for at the start and again every `digestEveryWakes` wakes of the run, instead of an agent listing everything itself. */
+  digest?: () => Promise<string | undefined>;
 }
 
 const defaultSleep = (ms: number, signal: AbortSignal) => new Promise<void>((resolve) => {
@@ -139,19 +150,36 @@ export class AgentLife {
     if (this.actions.length > 40) this.actions.shift();
   }
   /** What the agent is told when it begins and each time it wakes: simulated time, events since the last tick, the rolling summary and the notebook. */
+  /** The agent's own past in a few lines (kept by the engine, not by the model): what it did, newest last. */
+  summaryText(): string | undefined {
+    if (!this.actions.length) return undefined;
+    const lines = this.actions.slice(-10).map((a) => `- ${a}`);
+    let out = lines.join("\n");
+    while (out.length > this.limits.summaryChars && lines.length > 1) { lines.shift(); out = lines.join("\n"); }
+    return out.slice(0, this.limits.summaryChars);
+  }
+  /** What the agent is told when it begins and each time it wakes: simulated time, events since the last tick, the rolling summary, the digest and the notebook. The first four stay inside `observationChars`. */
   observation(head: string): string {
+    const L = this.limits;
     const now = this.life.opts.clock.now();
     const evs = this.buffer;
-    const shown = evs.slice(0, this.limits.observationEvents);
-    const lines = [
+    const summary = this.summaryText();
+    const digest = this.life.digestText?.slice(0, L.digestChars);
+    const evLine = (e: LifeEvent) => `  - ${fmtSim(e.at)} ${e.kind}: ${e.text}`.slice(0, L.eventChars);
+    const section = (k: number): string[] => [
       head,
       `Simulated time now: ${fmtSim(now)} since the run began.`,
-      evs.length ? `Since your last tick (${fmtSim(now - this.lastTickAt)} ago), ${evs.length} thing${evs.length === 1 ? "" : "s"} happened:\n${shown.map((e) => `  - ${fmtSim(e.at)} ${e.kind}: ${e.text}`).join("\n")}${evs.length > shown.length ? `\n  - and ${evs.length - shown.length} more (coalesced)` : ""}` : "Since your last tick nothing that concerns you happened.",
-      this.actions.length ? `Your recent actions (kept for you by the engine):\n${this.actions.slice(-10).map((a) => `  - ${a}`).join("\n")}` : "You have not acted yet.",
-      this.notebook ? `Your notebook (${this.notebook.length} of ${this.limits.notebookChars} characters):\n${this.notebook}` : "Your notebook is empty (notebook_write keeps notes that survive resting).",
+      evs.length ? `Since your last tick (${fmtSim(now - this.lastTickAt)} ago), ${evs.length} thing${evs.length === 1 ? "" : "s"} happened:\n${evs.slice(0, k).map(evLine).join("\n")}${evs.length > k ? `\n  - and ${evs.length - k} more (coalesced)` : ""}` : "Since your last tick nothing that concerns you happened.",
+      ...(digest ? [`The state of the society (made by the house, refreshed now and then):\n${digest}`] : []),
+      summary ? `Your recent actions (kept for you by the engine):\n${summary}` : "You have not acted yet.",
     ];
+    // The hard budget: fewer events first, then a shorter digest and summary.
+    let k = Math.min(evs.length, L.observationEvents);
+    let body = section(k).join("\n\n");
+    while (body.length > L.observationChars && k > 0) { k--; body = section(k).join("\n\n"); }
+    if (body.length > L.observationChars) body = body.slice(0, L.observationChars - 20) + "\n[cut to the budget]";
     this.buffer = []; this.lastTickAt = now;
-    return lines.join("\n\n");
+    return `${body}\n\n${this.notebook ? `Your notebook (${this.notebook.length} of ${L.notebookChars} characters):\n${this.notebook}` : "Your notebook is empty (notebook_write keeps notes that survive resting)."}`;
   }
   private async pollInto(): Promise<void> {
     const src = this.life.opts.source;
@@ -177,6 +205,7 @@ export class AgentLife {
     }
     this.life.governor.record(this.id);
     this.wakes++;
+    await this.life.refreshDigest();
     const hit = kinds ? [...new Set(this.buffer.filter((e) => kinds.has(e.kind)).map((e) => e.kind))] : [];
     const because = hit.length ? `something you were waiting for happened (${hit.join(", ")})` : "the time you gave ran out";
     this.life.opts.onWake?.({ agent: this.id, simAt: clock.now(), because, kinds: hit, events: this.buffer.length, delayedSimMs: delayed });
@@ -240,6 +269,15 @@ export class Life {
   readonly governor: WakeGovernor;
   readonly sleep: (ms: number, signal: AbortSignal) => Promise<void>;
   private readonly agents = new Map<string, AgentLife>();
+  /** The latest digest of the society, and how many wakes of the run have happened since it was made. */
+  digestText: string | undefined;
+  private wakesSinceDigest = 0;
+  async refreshDigest(force = false): Promise<void> {
+    if (!this.opts.digest) return;
+    this.wakesSinceDigest++;
+    if (!force && this.digestText !== undefined && this.wakesSinceDigest < this.limits.digestEveryWakes) return;
+    try { this.digestText = (await this.opts.digest())?.slice(0, this.limits.digestChars); this.wakesSinceDigest = 0; } catch { /* the last digest stands */ }
+  }
   constructor(o: LifeOptions) {
     this.opts = o;
     this.limits = { ...DEFAULT_LIFE_LIMITS, ...(o.limits ?? {}) };

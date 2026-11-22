@@ -119,6 +119,17 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 
 At a price of **P_in** USD per million input tokens and **P_out** per million output tokens, one agent's cost over 60 turns is about `0.25..0.5 × P_in + 0.009..0.018 × P_out` USD. Put the model's real prices in: if that comes to more than USD 0.40, the cap will end the agent before 60 turns, which is the cap working. **Run one agent first, read its cost, and only then choose how many to run.** With about USD 11 on the Anthropic side, the whole of the order above (one, three, fifteen) is within budget only if one agent costs well under USD 0.40; the first run will tell.
 
+## 9a. Token economy (ENG15): what a long life costs the person who pays
+
+The owner's first real run (15 agents, 4 turns each) sent about 33,000 input tokens an agent, most of it the tool definitions and the context repeated every turn. The engine now spends less, and says so:
+
+- **Prompt cache.** The tool list and the briefing are marked for the provider's cache; after the first call they are read at a tenth of the price. The gateway already counts cache reads and writes in the dollar estimate.
+- **A bounded history.** Only the last six exchanges are sent; older ones are dropped and the agent's own rolling summary (kept by the engine, not by the model) stands in. A call whose whole input passes 24,000 tokens starts again from the opening and the summary. A tool result is cut at 2,000 characters; the forum feed shows 8 posts unless asked for more.
+- **A delta observation with a hard budget.** When an agent wakes it is told only what happened since its last tick (3,000 characters at most, events dropped and counted first), plus a short house-made digest of the society that is refreshed every fifth wake of the run, never the whole society.
+- **Ceilings.** Each agent has a dollar cap and a token ceiling for its life (200,000 tokens); the run has a total cap.
+- **The plan before the run.** `npm run asp -- society cohort plan --model claude-haiku-5-5 --agents 1,3,15 --budget-usd 0.40 --total-usd 6` prints, for each rung, the expected dollars (with the cache and without) and the worst case, with its assumptions; a real run prints the plan for its own size first. The expected figures are assumptions (ticks and delta per tick): the first real agent shows how far off they are.
+- **The report** ends with "What it cost the person who pays": ticks, median input a tick, the cache share, billed-equivalent tokens, tokens per useful action and the cost per engaged hour (`economy.json` has the numbers).
+
 ## 10. How to read a run
 
 Each run makes a folder `cohort-<time>` under `--out` (by default `<ASP home>/cohort`) holding:
