@@ -1,6 +1,6 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { cosign } from "@agent-social/asp-core";
+import { b64urlEncode, cosign, publicKeyFromSeed, signerFromSeed } from "@agent-social/asp-core";
 import { EventLog } from "../src/index.ts";
 import { alice, bank, coder, failure, memory, party, passport, pgUrl, postgres, rec, registerParties, type Harness } from "./harness.ts";
 
@@ -21,8 +21,8 @@ const CLAIMS = [
 ];
 
 /** contract -> bond -> mandate -> delivery (with claims), reaching Delivered. */
-async function delivered(log: EventLog, opts: { verifier?: boolean; claims?: unknown[] } = {}) {
-  const body = contractBody();
+async function delivered(log: EventLog, opts: { verifier?: boolean; claims?: unknown[]; verifierDid?: string } = {}) {
+  const body = contractBody(opts.verifierDid ? { verifier: opts.verifierDid } : {});
   if (opts.verifier === false) delete (body as Record<string, unknown>).verifier;
   const contract = cosign(rec("contract", alice, body, null, coder.did), coder);
   await log.append(contract);
@@ -180,3 +180,24 @@ for (const h of [memory, postgres] as Harness[]) {
     });
   });
 }
+
+// Register row KO1 (S1654): a key-only agent (it names itself as its sponsor) that has no non-self sponsor's vouch and does not meet the thresholds does not verify a Delivery; once vouched it does.
+describe("a key-only verifier (KO1)", () => {
+  const seed = new Uint8Array(32).fill(77), kovDid = "did:web:example.com:agents:key-only-verifier";
+  const kov = { did: kovDid, seed, ...signerFromSeed(`${kovDid}#key-1`, seed) };
+  const keyOnlyPassport = () => {
+    const body = { did: kov.did, kind: "agent", sponsor: kov.did, tier: 1, shape: {}, keys: [{ id: kov.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) }] };
+    return rec("passport", kov, body, null, kov.did);
+  };
+  test("an unvouched key-only verifier is refused (verifier_unvouched) and a vouched one verifies", async () => {
+    const log = new EventLog(await memory.make(), { keyOnlyClassFrom: "2026-01-01T00:00:00Z" } as never);
+    await parties(log);
+    const born = await log.append(keyOnlyPassport());
+    const { delivery } = await delivered(log, { verifierDid: kov.did });
+    assert.equal((await failure(log.append(verification(kov, delivery.id, "confirmed", GOOD))))?.detail, "verifier_unvouched");
+    const vouch = cosign(rec("passport", kov, { did: kov.did, kind: "agent", sponsor: bank.did, tier: 1, shape: {}, keys: [{ id: kov.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) }] }, born.id, kov.did), bank);
+    await log.append(vouch);
+    await log.append(verification(kov, delivery.id, "confirmed", GOOD));
+    assert.equal((await log.verificationOf(delivery.id))?.verdict, "confirmed", "vouched by a non-self sponsor outside the job, it verifies");
+  });
+});

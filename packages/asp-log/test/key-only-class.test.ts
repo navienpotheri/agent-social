@@ -106,3 +106,36 @@ test("the control key and the thresholds are what the document says", async () =
   assert.equal(unvouchedReasons({ ageDays: 0, jobs: 0, bonded: false }).length, 3);
   void institutionDid;
 });
+
+// ---- the rules that need more of the society than the kit above gives: the daily juror limit counts the group, and a course's reviewers are checked ----
+import { EventLog, MemoryStore, JUROR_NEW_PER_DAY } from "../src/index.ts";
+import { Kit as AcademyKit, SERVICES, hashOf, operator as aOperator, owner as aOwner, party as aParty, registrar, refused, treasury as aTreasury, bankP, clinic, courts } from "./academy-kit.ts";
+import { b64urlEncode, staticResolver } from "@agent-social/asp-core";
+
+test("the daily juror limit is counted for the whole key-only group: qualified keys of one day stop at the limit, as one sponsor's agents do", async () => {
+  const k = await world({ panelV2From: "2026-01-01T00:00:00Z" });
+  const group = Array.from({ length: JUROR_NEW_PER_DAY + 1 }, (_, i) => keyOnly(`lim-${i}`));
+  for (const p of group) { await k.log.append(passport(p)); await k.mint(p.did, 200); }
+  jump(KEY_ONLY_MIN_AGE_DAYS * DAY + 1000);
+  for (const p of group) await qualify(k, p, KEY_ONLY_MIN_JOBS, true);
+  for (const p of group.slice(0, JUROR_NEW_PER_DAY)) await k.log.append(juror(p));
+  assert.equal(await refusedBy(k.log.append(juror(group[JUROR_NEW_PER_DAY]!))), "juror_registration_limit", "the key-only keys of one day are one source");
+});
+
+test("a course's reviewers: an unvouched key-only agent cannot review; once each is vouched by a different sponsor the course is published", async () => {
+  const resolver = staticResolver(Object.fromEntries([aOperator, aOwner, aTreasury, registrar, clinic, courts, bankP].map((p) => [p.kid, p.publicKey])));
+  const k = new AcademyKit(new EventLog(new MemoryStore(), { operator: aOperator.did, owner: aOwner.did, fallbackResolver: resolver, keyOnlyClassFrom: "2026-01-01T00:00:00Z" } as never));
+  await k.priceList();
+  const author = await k.agent("ko-author");
+  const [r1, r2] = [aParty("did:web:example.com:agents:ko-rev-1", 201), aParty("did:web:example.com:agents:ko-rev-2", 202)];
+  const born = (p: typeof r1) => k.mk("passport", p, { did: p.did, kind: "agent", sponsor: p.did, tier: 1, shape: {}, keys: [{ id: p.kid, type: "Ed25519", public_key: b64urlEncode(p.publicKey) }] }, null, { subject: p.did });
+  const p1 = born(r1), p2 = born(r2);
+  await k.put(p1); await k.put(p2);
+  const course = () => k.mk("course", author, { course: "foundations-1", title: "Working inside a Mandate", skill: "foundations", level: 1, lessons: [hashOf("a")], exercises: hashOf("e"), exercise_count: 3, price_service: SERVICES.foundations, author_share_permille: 550, reviews: [hashOf("b"), hashOf("c")], reviewers: [r1.did, r2.did] }, null, { subject: null, cosigners: [registrar] });
+  assert.equal(await refused(k.log.append(course())), "course_reviewer_unvouched", "two unvouched key-only keys are not reviewers");
+  for (const [r, p, n] of [[r1, p1, "a"], [r2, p2, "b"]] as const) {
+    const s = await k.person(`ko-voucher-${n}`);
+    await k.put(k.mk("passport", r, { did: r.did, kind: "agent", sponsor: s.did, tier: 1, shape: {}, keys: [{ id: r.kid, type: "Ed25519", public_key: b64urlEncode(r.publicKey) }] }, p.id, { subject: r.did, cosigners: [s] }));
+  }
+  await k.put(course());
+});
