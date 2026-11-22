@@ -62,3 +62,12 @@ test("the log reads its own history: a real log with a few settled jobs reports 
   assert.equal(r.events, 0);
   assert.equal(r.agents, 1);
 });
+
+test("an earlier event raises what the model expects of an agent afterwards, and an agent whose rate is above its bound is not counted as within it", () => {
+  const slipped = [...run("a", 0, { slashed: true }), ...run("a", 1), ...run("a", 2), ...run("a", 3)];
+  const clean = [...run("b", 0), ...run("b", 1), ...run("b", 2), ...run("b", 3)];
+  assert.ok(backtestBond(slipped).meanPredicted > backtestBond(clean).meanPredicted, "after a slash the next runs are expected to be riskier");
+  // an agent slashed on every run: its observed rate (1) is above the bound the model gave it before its last run
+  const bad = Array.from({ length: 5 }, (_, i) => run("c", i, { slashed: true })).flat();
+  assert.equal(backtestBond(bad).agentsWithin, 0);
+});
