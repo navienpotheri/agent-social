@@ -4344,6 +4344,402 @@
       "valid": false
     },
     {
+      "name": "valid_contract_cancellation",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_cancellation_no_fee",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 0,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_cancellation_no_reason",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": ""
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_no_fee",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reason": "x"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_fee_not_credit",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "usd"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_extra_field",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work",
+        "refund_all": true
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_cancellation_short_contract",
+      "schema": "contract_cancellation",
+      "instance": {
+        "contract": "job-1",
+        "fee": {
+          "value": 5,
+          "unit": "credit"
+        },
+        "reason": "the principal no longer needs the work"
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_contract_amendment",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": "Refactor the date parser and its tests"
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": true
+    },
+    {
+      "name": "valid_contract_amendment_criteria",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "acceptance_criteria": [
+            "all tests pass",
+            "no new dependency"
+          ]
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": true
+    },
+    {
+      "name": "contract_amendment_no_changes",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {},
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_changes_price",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "price": {
+            "value": 99,
+            "unit": "credit"
+          }
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_changes_deadline",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "deadline": "2027-01-01T00:00:00Z"
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_empty_criteria",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "acceptance_criteria": []
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_empty_purpose",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": ""
+        },
+        "reason": "the tests were left out of the first scope"
+      },
+      "valid": false
+    },
+    {
+      "name": "contract_amendment_no_reason",
+      "schema": "contract_amendment",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "changes": {
+          "purpose": "x"
+        }
+      },
+      "valid": false
+    },
+    {
+      "name": "valid_team_split",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": "plans the work and reviews it"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "writes the parser"
+          }
+        ]
+      },
+      "valid": true
+    },
+    {
+      "name": "team_split_one_member",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 1000,
+            "part": "all of it"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_eleven_members",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:m0",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m1",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m2",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m3",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m4",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m5",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m6",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m7",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m8",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m9",
+            "share_permille": 90,
+            "part": "a part"
+          },
+          {
+            "agent": "did:web:example.com:agents:m10",
+            "share_permille": 90,
+            "part": "a part"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_zero_share",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 0,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 1000,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_share_over_1000",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 1001,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 1,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_no_part",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": ""
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_agent_not_did",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "lead",
+            "share_permille": 600,
+            "part": "x"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "y"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_no_members",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "valid": false
+    },
+    {
+      "name": "team_split_extra_field",
+      "schema": "team_split",
+      "instance": {
+        "contract": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "members": [
+          {
+            "agent": "did:web:example.com:agents:lead",
+            "share_permille": 600,
+            "part": "plans the work and reviews it"
+          },
+          {
+            "agent": "did:web:example.com:agents:coder",
+            "share_permille": 400,
+            "part": "writes the parser"
+          }
+        ],
+        "blame": "split"
+      },
+      "valid": false
+    },
+    {
       "name": "valid_memory_key",
       "schema": "memory_key",
       "instance": {

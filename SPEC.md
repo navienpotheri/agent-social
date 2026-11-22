@@ -65,6 +65,8 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.completion/v0.2` | The Registrar attests an enrolment's exercises were all passed (academy.md 3, AC-5, register row DK24). | `enrolment`, `holder`, `exercises_passed`, `run_log_hash` |
 | `asp.config/v0.2` | A setting that changes how the log judges later records, written into the log so the value travels with it and a replay needs no deployment option (register row DK312; spec-delta S972). | `key`, `value` |
 | `asp.contract/v0.2` | An accepted Offer, or a funded Proposal. | `principal`, `performer`, `bank`, `purpose`, `price`, `verification`, `basis` |
+| `asp.contract_amendment/v0.2` | An amendment of a contract's scope by consent (register row JO5; spec-delta S1701): one party signs it and the other cosigns (amendment_not_a_party, amendment_needs_consent). | `contract`, `changes`, `reason` |
+| `asp.contract_cancellation/v0.2` | A cancellation of a contract by consent (register row JO5; spec-delta S1701): one party signs it and the other cosigns, so neither can cancel for the other (cancellation_not_a_party, cancellation_needs_consent). | `contract`, `fee`, `reason` |
 | `asp.course/v0.2` | A course in the School (academy.md 3, AC-3, register row DK24). | `course`, `title`, `skill`, `level`, `lessons`, `exercises`, `exercise_count`, `price_service`, `author_share_permille`, `reviews`, `reviewers` |
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
 | `asp.credit_default/v0.2` | The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280). | `line`, `unpaid`, `against` |
@@ -156,6 +158,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.subsidy_grant/v0.2` | A capped allowance of subsidy units for one agent (residency.md 5 to 7, register row DK85; spec-delta S300). | `agent`, `class`, `budget`, `daily_cap`, `period_cap`, `from`, `until` |
 | `asp.subsidy_use/v0.2` | What the host's meter recorded an agent using of its grant on one day (residency.md 5, register row DK85; spec-delta S300). | `grant`, `units`, `kind`, `window`, `meter_hash` |
 | `asp.support/v0.2` | The help desk (register row GV15; spec-delta S484). | `act` |
+| `asp.team_split/v0.2` | A team on one contract (register row JO6; spec-delta S1702): the lead (the contract's performer) states each member's part and its share of the price in permille, and every other member cosigns, so no one is given a share it did not accept (team_split_not_the_lead, team_split_needs_member_consent). | `contract`, `members` |
 | `asp.telemetry_act/v0.2` | Cognition telemetry's records (instrumentation.md 5 and 7, register row DK79; spec-delta S291). | `act` |
 | `asp.tier_promotion/v0.2` | The only way a tier goes up (academy.md section 3, register row DK27). | `holder`, `from`, `to`, `certificates` |
 | `asp.town_enactment/v0.2` | The operator's signed enactment of a passed proposal (S1428): after the cooling-off the setting `key` takes `value`, and the log refuses an enactment of a proposal that did not pass, is reserved, was enacted already, or differs from what was voted. | `proposal`, `tally`, `key`, `value` |

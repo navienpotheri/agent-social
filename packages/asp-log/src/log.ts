@@ -379,6 +379,8 @@ export class EventLog {
     }
     const root = chain?.root ?? verified.id;
     const kind = chain?.kind ?? type!;
+    // A contract cancelled by consent (JO5, S1701) takes no further step in its chain: only its settlement, which must follow the cancellation.
+    if (chain && kind === "contract" && type !== "settlement" && (await tx.getMarker(`cancellation:${root}`))) throw rule("contract_cancelled", `the contract ${root} was cancelled by consent (${await tx.getMarker(`cancellation:${root}`)}): nothing more is delivered, checkpointed or ruled on it; the Bank settles it`);
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
@@ -491,6 +493,8 @@ export class EventLog {
     if (type === "exam") await this.projectExam(tx, verified);
     if (type === "exam_result") await this.projectExamResult(tx, verified);
     if (type === "exam_withdrawal") await this.projectExamWithdrawal(tx, verified);
+    if (type === "contract_cancellation" || type === "contract_amendment") await this.projectContractChange(tx, verified, type);
+    if (type === "team_split") await this.projectTeamSplit(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
     if (type === "enrolment") await this.projectEnrolment(tx, verified);
@@ -1739,6 +1743,15 @@ export class EventLog {
     // a real adjudication, not a rubber stamp on top of it — docs/backlog.md).
     // A settlement because no ruling came in time (gap M10) follows a stated split, so a bank cannot pick who bears the cost of a slow ruling: half the escrow released, nothing
     // slashed, the bond left to return. Neither side is found at fault for the delay.
+    if (body.basis === "revoked") {
+      const cancelled = await tx.getMarker(`cancellation:${body.contract}`);
+      if (cancelled) {
+        const agreed = (JSON.parse(cancelled) as { fee: number }).fee;
+        const price = ((await tx.getRecord(body.contract))!.record.body as { price: { value: number } }).price.value;
+        const share = Math.floor((agreed * 1000) / price), stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
+        if (body.escrow_released.value !== agreed || fees !== 0 || body.bond_slashed.value !== 0 || stated !== share) throw rule("settlement_mismatches_cancellation", `the contract was cancelled by consent with a fee of ${agreed} (${share} permille of the price): the settlement releases exactly that, states that share, takes no job tax and slashes nothing (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
+      }
+    }
     if (body.basis === "ruling_timeout") {
       const expectedReleased = Math.floor(escrow.escrowLocked / 2);
       if (body.escrow_released.value !== expectedReleased || body.bond_slashed.value !== 0 || fees !== 0) {
@@ -1813,26 +1826,32 @@ export class EventLog {
       throw rule("earnings_split_mismatch", `the performer's passport splits ${escrow.agentPermille ?? 1000}‰ to the agent, not ${declared}‰`);
     }
     const agentPermille = escrow.agentPermille ?? 1000;
-    if (agentPermille < 1000 && body.escrow_released.value > 0) {
+    // A team on the contract (JO6, S1702): each member other than the lead is paid its share of what is released, and the lead is paid the rest, out of the same release, so the books balance and the lead's own
+    // earnings split applies to the lead's part only.
+    const team = JSON.parse((await tx.getMarker(`team_split:${body.contract}`)) ?? "null") as { id: string; members: { agent: string; share_permille: number }[] } | null;
+    const memberPay = team ? team.members.filter((m) => m.agent !== cbody.performer).map((m) => ({ agent: m.agent, amount: Math.floor((body.escrow_released.value * m.share_permille) / 1000) })) : [];
+    const leadReleased = body.escrow_released.value - memberPay.reduce((n, m) => n + m.amount, 0);
+    for (const m of memberPay) if (m.amount > 0) { await this.credit(tx, m.agent, m.amount); await noteEarned(tx, m.agent, m.amount); await noteFunder(tx, m.agent, cbody.principal, isReservedAccount); }
+    if (agentPermille < 1000 && leadReleased > 0) {
       const sponsor = (await tx.getPassport(cbody.performer))?.sponsor;
       if (!sponsor) throw rule("earnings_split_no_sponsor", `${cbody.performer} has no sponsor to receive the rest of an earnings_split`);
-      const agentShare = Math.floor((body.escrow_released.value * agentPermille) / 1000);
+      const agentShare = Math.floor((leadReleased * agentPermille) / 1000);
       await this.credit(tx, cbody.performer, agentShare);
       await noteEarned(tx, cbody.performer, agentShare);
-      await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
+      await this.credit(tx, sponsor, leadReleased - agentShare);
       await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
       await noteFunder(tx, sponsor, cbody.principal, isReservedAccount);
     } else {
-      await this.credit(tx, cbody.performer, body.escrow_released.value);
-      await noteEarned(tx, cbody.performer, body.escrow_released.value);
-      if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
+      await this.credit(tx, cbody.performer, leadReleased);
+      await noteEarned(tx, cbody.performer, leadReleased);
+      if (leadReleased > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
     if (fees > 0) { await this.credit(tx, PLATFORM_DID, fees); await noteIncome(tx, fees, r.issued_at); }
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     {
       // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
-      const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
+      const pay = agentPermille < 1000 && leadReleased > 0 ? Math.floor((leadReleased * agentPermille) / 1000) : leadReleased;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
       await serveQueue(tx, this.bankEnv, r.issued_at);
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
@@ -3928,6 +3947,84 @@ export class EventLog {
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
     if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
+  }
+
+  /**
+   * A cancellation or an amendment of a contract by consent (JO5, S1701): one party signs and the other cosigns, so neither acts for the other; it is made before delivery, and a cancellation is made once. A
+   * cancellation names the fee the principal pays the performer out of the escrow (never more than the price, and none before a Bond locked anything), which the settlement must then release exactly. An
+   * amendment changes the purpose or the acceptance criteria, at most three times; the price, the deadline and the parties are a new contract.
+   */
+  private async projectContractChange(tx: LogTx, r: AspRecord, type: "contract_cancellation" | "contract_amendment"): Promise<void> {
+    const b = r.body as { contract: string; fee?: { value: number }; changes?: { purpose?: string; acceptance_criteria?: string[] } };
+    const word = type === "contract_cancellation" ? "cancellation" : "amendment";
+    if (r.prev !== null) throw rule(`${word}_not_chained`, `a contract ${word} starts its own chain (prev is null)`);
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule(`${word}_unknown_contract`, `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string; price: { value: number } };
+    if (r.issuer !== cb.principal && r.issuer !== cb.performer) throw rule(`${word}_not_a_party`, `${r.issuer} is neither the principal nor the performer of ${b.contract}: only a party proposes a ${word}`);
+    const other = r.issuer === cb.principal ? cb.performer : cb.principal;
+    if (!this.cosignedBy(r, other)) throw rule(`${word}_needs_consent`, `a ${word} is cosigned by the other party (${other}): neither side acts for the other`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule(`${word}_too_late`, `the contract is ${chain?.state ?? "not started"}: a ${word} is made before delivery, and after it the acceptance, the dispute and the ruling decide`);
+    if (type === "contract_cancellation") {
+      if (await tx.getMarker(`cancellation:${b.contract}`)) throw rule("cancellation_known", `${b.contract} is already cancelled`);
+      const fee = b.fee!.value;
+      if (fee > cb.price.value) throw rule("cancellation_fee_over_price", `a fee of ${fee} is more than the price of ${cb.price.value}`);
+      if (fee > 0 && !(await tx.getEscrow(b.contract))) throw rule("cancellation_fee_without_escrow", "nothing is locked yet (no Bond), so there is nothing to pay a fee from");
+      await tx.putMarker(`cancellation:${b.contract}`, JSON.stringify({ id: r.id, fee }));
+      return;
+    }
+    const list = JSON.parse((await tx.getMarker(`amendments:${b.contract}`)) ?? "[]") as string[];
+    if (list.length >= 3) throw rule("amendment_limit", `${b.contract} has been amended ${list.length} times: at most 3; a further change is a new contract`);
+    await tx.putMarker(`amendments:${b.contract}`, JSON.stringify([...list, r.id]));
+  }
+
+  /** The terms of a contract in force (JO5, S1701): its purpose and acceptance criteria with each amendment applied in order, the amendments, and whether it was cancelled and at what fee. Reads only. */
+  async termsOf(contract: string): Promise<{ contract: string; purpose: string; acceptance_criteria: string[]; amendments: { id: string; at: string; by: string; reason: string }[]; cancelled: { id: string; fee: number } | null } | null> {
+    const c = await this.store.getRecord(contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") return null;
+    const cb = c.record.body as { purpose: string; acceptance_criteria?: string[] };
+    let purpose = cb.purpose, criteria = cb.acceptance_criteria ?? [];
+    const amendments = (await this.recordsOfTypes(["contract_amendment"])).filter((r) => (r.body as { contract: string }).contract === contract);
+    for (const a of amendments) { const ch = (a.body as { changes: { purpose?: string; acceptance_criteria?: string[] } }).changes; if (ch.purpose !== undefined) purpose = ch.purpose; if (ch.acceptance_criteria !== undefined) criteria = ch.acceptance_criteria; }
+    const cancelled = await this.store.transaction((tx) => tx.getMarker(`cancellation:${contract}`));
+    return { contract, purpose, acceptance_criteria: criteria, amendments: amendments.map((a) => ({ id: a.id, at: a.issued_at, by: a.issuer, reason: (a.body as { reason: string }).reason })), cancelled: cancelled ? (JSON.parse(cancelled) as { id: string; fee: number }) : null };
+  }
+
+  /**
+   * A team on one contract (JO6, S1702): the lead, who is the contract's performer, states each member's part and its permille of the price; every other member cosigns. The shares add up to 1000, the lead is a
+   * member, members are different agents with passports and none is the principal; it is made before delivery and once. The settlement then pays each member its share of what is released, and the lead the rest.
+   * The fault of a ruling stays the lead's alone: the Bond is the lead's.
+   */
+  private async projectTeamSplit(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string; members: { agent: string; share_permille: number; part: string }[] };
+    if (r.prev !== null) throw rule("team_split_not_chained", "a team split starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("team_split_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string };
+    if (r.issuer !== cb.performer) throw rule("team_split_not_the_lead", `${r.issuer} is not the performer of ${b.contract} (${cb.performer}): the lead states the split`);
+    const agents = b.members.map((m) => m.agent);
+    if (new Set(agents).size !== agents.length) throw rule("team_split_duplicate_member", "a member is named twice");
+    if (!agents.includes(cb.performer)) throw rule("team_split_lead_missing", `the lead ${cb.performer} is a member of its own team`);
+    if (agents.includes(cb.principal)) throw rule("team_split_principal_member", "the principal cannot be a member of the team that does its job");
+    const total = b.members.reduce((n, m) => n + m.share_permille, 0);
+    if (total !== 1000) throw rule("team_split_shares", `the shares add up to ${total}, not 1000`);
+    for (const m of b.members) if (m.agent !== cb.performer) {
+      if (!(await this.reputation(tx, m.agent))) throw rule("team_member_unknown", `${m.agent} has no passport in this log`);
+      if (!this.cosignedBy(r, m.agent)) throw rule("team_split_needs_member_consent", `${m.agent} has not cosigned: no one is given a share it did not accept`);
+    }
+    const chain = await tx.getChain(b.contract);
+    if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule("team_split_too_late", `the contract is ${chain?.state ?? "not started"}: the split is made before delivery`);
+    if (await tx.getMarker(`team_split:${b.contract}`)) throw rule("team_split_known", `${b.contract} already has a team split`);
+    await tx.putMarker(`team_split:${b.contract}`, JSON.stringify({ id: r.id, members: b.members.map((m) => ({ agent: m.agent, share_permille: m.share_permille })) }));
+  }
+
+  /** A contract's team (JO6, S1702): the lead and each member with its part and its share, or null when the contract has none. Reads only. */
+  async teamOf(contract: string): Promise<{ contract: string; lead: string; members: { agent: string; part: string; share_permille: number }[] } | null> {
+    const rec = (await this.recordsOfTypes(["team_split"])).find((r) => (r.body as { contract: string }).contract === contract);
+    const c = await this.store.getRecord(contract);
+    if (!rec || !c) return null;
+    return { contract, lead: (c.record.body as { performer: string }).performer, members: (rec.body as { members: { agent: string; part: string; share_permille: number }[] }).members };
   }
 
   /**

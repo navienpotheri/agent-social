@@ -135,14 +135,17 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     return r.id;
   };
   /** A contract (principal to performer) on an intent and offer, bonded and mandated, delivered and accepted, settled with the job tax. Returns the contract id. */
-  const runJob = async (principal: Party, performer: Party, price: number, basis?: { intent: string; offer: string }, o: { settle?: boolean } = {}) => {
+  const runJob = async (principal: Party, performer: Party, price: number, basis?: { intent: string; offer: string }, o: { settle?: boolean; stopAt?: "contract" | "bond" | "mandate" } = {}) => {
     const fee = Math.floor((price * 20) / 1000);
     const contract = cosign(mk("contract", principal, { principal: principal.did, performer: performer.did, bank: bank.did, purpose: `Run ${++n}`, price: credit(price), verification: "principal", deadline: "2027-12-03T18:00:00Z", basis: basis ?? { intent: "sha256:" + "0".repeat(64), offer: "sha256:" + "1".repeat(64) } }, null, { subject: performer.did }), performer as Signer);
     await log.append(contract);
+    if (o.stopAt === "contract") return { contract: contract.id, delivery: "", bond: "", mandate: "" };
     const bond = mk("bond", performer, { contract: contract.id, backer: performer.did, amount: credit(0), escrow: { payer: principal.did, amount: credit(price + fee) }, slashing_conditions: ["lost_dispute", "floor_breach", "forbidden_means"] }, contract.id, { subject: contract.id });
     await log.append(bond);
+    if (o.stopAt === "bond") return { contract: contract.id, delivery: "", bond: bond.id, mandate: "" };
     const mandate = mk("mandate", principal, { contract: contract.id, purpose: "Do the job", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true }, bond.id, { subject: performer.did });
     await log.append(mandate);
+    if (o.stopAt === "mandate") return { contract: contract.id, delivery: "", bond: bond.id, mandate: mandate.id };
     const delivery = mk("delivery", performer, { contract: contract.id, result: { summary: "Done", artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, mandate.id, { subject: contract.id });
     await log.append(delivery);
     if (o.settle === false) return { contract: contract.id, delivery: delivery.id, bond: bond.id, mandate: mandate.id };
