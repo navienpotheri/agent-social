@@ -180,3 +180,32 @@ test("on the service: a held token's writes are refused with 423 and its reads s
   assert.ok(!/192\.0\.2|203\.0\.113/.test(text), "the operator's view holds no address");
   assert.equal((await fetch(`${url}/society/token-watch`, { headers: { authorization: "Bearer ta" } })).status, 403);
 });
+
+test("the edges: a burst from a new range escalates at exactly 30 requests in five minutes, and a spike holds at exactly its minimum and at exactly twenty times the usual rate", () => {
+  // burst: two known ranges, then a new range; 29 requests are still the quiet hold, the 30th is the stolen pattern
+  const w = new TokenWatch({ salt: "edge1" });
+  w.observe("e1", "203.0.113.5", T0, true); w.observe("e1", "198.51.100.9", T0 + 1, true);
+  const t = T0 + 2 * HOUR;
+  w.observe("e1", "192.0.2.10", t, false);
+  for (let i = 1; i < 29; i++) w.observe("e1", "192.0.2.10", t + i * 1000, false);
+  assert.equal(w.held("e1")?.kind, "quiet_new_range", "29 requests from the new range are not yet a burst");
+  w.observe("e1", "192.0.2.10", t + 30_000, false);
+  assert.equal(w.held("e1")?.kind, "stolen_pattern", "the 30th is");
+
+  // spike: a usual 10 an hour for three hours; 299 requests in the next hour hold nothing, the 300th holds
+  const s = new TokenWatch({ salt: "edge2" });
+  for (let h = 0; h < 3; h++) for (let i = 0; i < 10; i++) s.observe("e2", "203.0.113.5", T0 + h * HOUR + i * 1000, false);
+  const hour = T0 + 3 * HOUR;
+  for (let i = 0; i < 299; i++) s.observe("e2", "203.0.113.5", hour + i * 1000, false);
+  assert.equal(s.held("e2"), undefined, "299 in an hour is under the minimum of 300");
+  s.observe("e2", "203.0.113.5", hour + 299_000, false);
+  assert.equal(s.held("e2")?.kind, "rate_spike", "the 300th is twenty times the usual 10 and the minimum");
+
+  // factor: a usual 20 an hour: 20 x 20 = 400, so 399 holds nothing and the 400th holds
+  const f = new TokenWatch({ salt: "edge3" });
+  for (let h = 0; h < 3; h++) for (let i = 0; i < 20; i++) f.observe("e3", "203.0.113.5", T0 + h * HOUR + i * 1000, false);
+  for (let i = 0; i < 399; i++) f.observe("e3", "203.0.113.5", hour + i * 1000, false);
+  assert.equal(f.held("e3"), undefined, "399 is under twenty times 20");
+  f.observe("e3", "203.0.113.5", hour + 399_000, false);
+  assert.equal(f.held("e3")?.kind, "rate_spike");
+});
