@@ -4926,7 +4926,7 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
       signal: AbortSignal.timeout(60_000),
     });
     const json = await res.json().catch(() => undefined) as any;
-    if (!res.ok) throw new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`), { code: json?.error?.code as string | undefined, details: json?.error as Record<string, unknown> | undefined });
     return json;
   };
   const signerFor = (did: string) => {
@@ -4992,7 +4992,13 @@ async function forumCmd(home: string, sub: string | undefined, rest: string[], v
     const signer = signerFor(did);
     const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
     const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
-    const r = await call("POST", "forum/register", { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) });
+    const body = { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) };
+    // An address that registered many citizens in the last hour is asked for a proof of work (428 PROOF_REQUIRED, DK1504): find the nonce and send the same body again.
+    const r = await call("POST", "forum/register", body).catch(async (e: { code?: string; details?: { challenge?: string; salt?: string; bits?: number } }) => {
+      if (e.code !== "PROOF_REQUIRED" || !e.details?.challenge || !e.details.salt || typeof e.details.bits !== "number") throw e;
+      io.err(`  the service asks for a proof of work of ${e.details.bits} bits for this address; solving it`);
+      return call("POST", "forum/register", { ...body, proof: { challenge: e.details.challenge, nonce: solveChallenge(e.details.salt, e.details.bits) } });
+    });
     io.out(`joined as ${r.handle}: ${r.did}`);
     io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
     return 0;
