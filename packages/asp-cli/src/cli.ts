@@ -399,7 +399,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
-import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
+import { buildReport, capProblem, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -3742,6 +3742,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so at the start, with the remedy (the same rule as asp live preflight).
+  if (v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
   const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
@@ -7490,6 +7492,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so now, with the remedy (the gateway's own start note is not shown by asp run).
+  if (!hooked && v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;

@@ -49,6 +49,7 @@ test("claude-code, streamed: the allowed call reaches the agent, the call outsid
   const f = makeFixture();
   const r = await run(f, p.url, ["--budget-usd", "5"], { REHEARSAL_STREAM: "1" });
   assert.equal(r.code, 0, r.err + r.out);
+  assert.match(r.err, /budget\s+WARNING: one worst-case model call could cost up to \$5\.58/, "asp run says at its start that a $5 cap may not admit a call at the default price, with the remedy");
   assert.match(r.out, /request 1: status 200; blocks text,tool_use:Read,text/, "Read and the refusal note arrive; Bash does not");
   assert.ok(!/tool_use:Bash/.test(r.out));
   const rep = await asp(f, ["live", "report"]);
