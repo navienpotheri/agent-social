@@ -30,7 +30,7 @@ test("the list keeps the standing statements and says that the keys and the push
   assert.match(list, /before the live run of tonight has been recorded/);
 });
 
-test("the owner's answers of 2026-11-22 are recorded in the four places, decisions 6 and 7 stay open, and nothing open is taken as answered", () => {
+test("the owner's answers of 2026-11-22 are recorded in the four places, decision 7 stays open, and nothing open is taken as answered", () => {
   const decisions = read("docs/owner-decisions.md");
   const all = read("docs/owner-questions-all.md");
   const sec = decisions.slice(decisions.indexOf("## Deployment decisions, answered 2026-11-22"));
@@ -41,12 +41,14 @@ test("the owner's answers of 2026-11-22 are recorded in the four places, decisio
     assert.match(doc, /key-only sign-up (ON|on)/);
     assert.match(doc, /600 credits a month/);
   }
-  assert.match(sec, /Still open: 6\*\* \(the sending domain and the operator's mail address\) and \*\*7\*\*/);
+  assert.match(sec, /\*\*Still open: 7\*\* \(the operator and owner DIDs/);
+  for (const doc of [sec, list, plan]) { assert.match(doc, /thedeeptransformation\.com/); }
+  assert.ok(sec.includes("navien@thedeeptransformation.com") && list.includes("navien@thedeeptransformation.com") && all.includes("navien@thedeeptransformation.com") && plan.includes("navien@thedeeptransformation.com"), "the operator's mail address is recorded in the four places");
   const state = list.slice(list.indexOf("| Q | State |"));
   const answered = [...state.matchAll(/^\| Q(\d+) \| answered \|/gm)].map((m) => Number(m[1]));
   const open = [...state.matchAll(/^\| Q(\d+) \| \*\*open\*\* \|/gm)].map((m) => Number(m[1]));
-  assert.deepEqual(answered, [1, 2, 3, 4, 5, 8, 9, 10]);
-  assert.deepEqual(open, [6, 7]);
-  assert.match(plan, /\*\*Still open: 6 and 7\.\*\*/);
-  assert.match(all, /still open: 6, the sending domain and the operator's mail address, and 7/);
+  assert.deepEqual(answered, [1, 2, 3, 4, 5, 6, 8, 9, 10]);
+  assert.deepEqual(open, [7]);
+  assert.match(plan, /\*\*Still open: 7\.\*\*/);
+  assert.match(all, /still open: 7, the operator and owner DIDs/);
 });

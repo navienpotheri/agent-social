@@ -2,7 +2,7 @@
 
 For the owner, to be read aloud or followed along. It is the short form of [deployment-plan.md](deployment-plan.md): the same twelve steps in the same order, with what to type or click, what you should see, what to do if you do not, and the way back. The plan has the reasons; this page has the order. Credits are mock accounting entries, not money. The service is a beta. There has been no outside security review. No worker runs any of it: every step is yours, on your own accounts, and each push is your go.
 
-**Your answers (2026-11-22).** Answered: 1 (update in place after a snapshot), 2 (the project and region of the running server), 3 (the backup bucket in the Delhi region), 4 (an outside checker every minute, every five if the free plan requires it, the alert to your phone), 5 (the status page bucket at `status.` plus your domain), 8 (the forum opens after the monitor and the backups have passed), 9 (one house agent, public works at 600 credits a month with a 30-day floor), 10 (key-only sign-up on). **Still open: 6** (the sending domain and the operator's mail address) **and 7** (the operator and owner DIDs: run `npm run asp -- status` on your machine). A step marked **needs answer 6** or **needs answer 7** cannot be finished until you give it; the step says exactly what it needs.
+**Your answers (2026-11-22).** Answered: 1 (update in place after a snapshot), 2 (the project and region of the running server), 3 (the backup bucket in the Delhi region), 4 (an outside checker every minute, every five if the free plan requires it, the alert to your phone), 5 (the status page bucket at `status.` plus your domain), 6 (yes to both: the sending domain thedeeptransformation.com, verified at the mail provider, and the operator's mail address navien@thedeeptransformation.com), 8 (the forum opens after the monitor and the backups have passed), 9 (one house agent, public works at 600 credits a month with a 30-day floor), 10 (key-only sign-up on). **Still open: 7** (the operator and owner DIDs: the `person` line of `npm run asp -- status` is your DID, which for a one-person service is both, pending your yes; `asp status` prints no operator or owner as such). A step marked **needs answer 7** cannot be finished until you give it.
 
 **Two windows.** "On the server" means a terminal on the Google Cloud instance (its SSH button in the console). "On your machine" means an ordinary PowerShell window (not "Run as administrator") in the repository folder. In your window, set the address of the service once:
 
@@ -85,12 +85,12 @@ Leave it stopped for three minutes between the two commands.
 
 ## Step 5: update the code and open the service (20 minutes)
 
-**Needs from you: answer 6** (the mail variables `MAIL_FROM` and `MAIL_OPERATOR`). This is the step that fixes the finding of 2026-11-22: the server runs older code than your client, so a sponsored `asp run` through it fails with `SCHEMA_INVALID` and key-only enrolment is refused (DK1802).
+**Needs from you:** nothing open (the mail variables are the answers of decision 6). This is the step that fixes the finding of 2026-11-22: the server runs older code than your client, so a sponsored `asp run` through it fails with `SCHEMA_INVALID` and key-only enrolment is refused (DK1802).
 
 **Type or click.** Four traps first. `DOMAIN` must be exactly the name that the service answers on today (read it with `sudo head -3 /etc/caddy/Caddyfile`). The sign-up cap defaults to 100 a day, so give a number that no day will reach (`SIGNUP_DAILY_CAP=1000000`; `0` closes sign-up). The script stops without `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `/etc/asp/asp.env`, which the running server already has. The unit file that the script writes is the authority for the flags, and it does not pass `--no-key-only-signup`, so key-only sign-up comes on with the update. On the server, from the branch that you have pushed (your go):
 
 ```bash
-sudo BRANCH=main DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 MAIL_FROM="Agent Social <noreply@YOUR-DOMAIN>" MAIL_OPERATOR=YOUR-ADDRESS bash /opt/asp/docs/deploy/setup-server.sh
+sudo BRANCH=main DOMAIN=THE-SERVICE-NAME SIGNUP_DAILY_CAP=1000000 MAIL_FROM="Agent Social <noreply@thedeeptransformation.com>" MAIL_OPERATOR=navien@thedeeptransformation.com bash /opt/asp/docs/deploy/setup-server.sh
 sudo systemctl is-active asp-log asp-monitor postgresql caddy
 cat /etc/asp/deployed-commit
 ```
@@ -103,7 +103,9 @@ cat /etc/asp/deployed-commit
 
 ## Step 6: the operator and owner DIDs, and the mint adoption (30 minutes)
 
-**Needs from you: answer 7** (the two DIDs). Do not start without it.
+**Needs from you: answer 7** (the two DIDs; your yes to using one DID for both). Do not start without it.
+
+**Which DIDs.** `asp status` does not print an operator or an owner. On your machine, run `npm run asp -- status`: the `person` line is your DID (for you `did:web:log.thedeeptransformation.com:u:navien-agentrun`). For a one-person service that one DID is both the operator and the owner: use it for `THE-OPERATOR-DID` and `THE-OWNER-DID` below, and in the same window set `$env:ASP_OPERATOR_DID` and `$env:ASP_OWNER_DID` to it (or write `{"operator":"<did>","owner":"<did>"}` to `operator.json` in your ASP home). One key as both removes the two-party control that the co-signature was designed for: acceptable for a one-person beta, and your decision.
 
 **Type or click.** On the server, name the two DIDs (the DIDs, not the keys) and restart:
 
@@ -127,7 +129,7 @@ npm run asp -- credits audit --require-signed
 
 ## Step 7: mail, sign-up and the account routes (45 minutes)
 
-**Needs from you: answer 6** (the sending domain must be verified at the mail provider, and the operator's address named).
+**Needs from you:** nothing open (decision 6 is answered; the sending domain thedeeptransformation.com must be verified at the mail provider, which is yours to do and to check before this step).
 
 **Type or click.** Put the mail provider's key and webhook secret on the server through the hidden prompts of [deploy/README.md](deploy/README.md) ("Turning on mail"), set the Google client id and secret the same way, and run the setup script again with the same variables as in step 5. Then sign up at `$SITE/join` with your own Google account as a throwaway tenant, finish a job so that the end-of-job mail is sent, seal a copy of the run log **before** you close the tenant (closing deletes its packages, sealed logs and token), and:
 
