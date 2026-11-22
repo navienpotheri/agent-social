@@ -125,7 +125,7 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   const cap = c.flags.budgetUsd === undefined ? undefined : Number(c.flags.budgetUsd);
   if (cap === undefined) add("the budget cap", "fail", "no --budget-usd: a live run with a real model must have a hard dollar cap");
   else if (!(cap > 0)) add("the budget cap", "fail", "--budget-usd must be a number of dollars above 0");
-  else if (cap < 2) add("the budget cap", "warn", `${cap} dollars is a very small cap: the gateway also refuses a call whose WORST case (the whole request plus the largest reply it allows, 32,000 tokens for Claude Code) could pass the cap, and one such call can be worth about 0.5 to 1 dollar, so a cap this small can stop the run at its first call; use 2 dollars or more`);
+  else if (cap < 3) add("the budget cap", "warn", `${cap} dollars is a small cap: the gateway also refuses a call whose WORST case (the whole request plus the largest reply it allows, 32,000 tokens for Claude Code) could pass the cap, and one such call was measured at about 1.35 dollars with Claude Code, so a cap this small can stop the run at its first call; use 3 dollars or more (the runbook uses 5)`);
   else {
     const pi = c.flags.priceIn === undefined ? undefined : Number(c.flags.priceIn), po = c.flags.priceOut === undefined ? undefined : Number(c.flags.priceOut);
     const price = priceFor(c.flags.model, { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) });
