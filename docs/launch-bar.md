@@ -189,7 +189,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK81 | B | open | A visible map of the society | deck (becomes true with DK730 and DK731) |
 | DK92 | A | partial | A system watches for bad behaviour after an agent has passed its checks | deck, site, ads (DK1332 claim rule) |
 | DK210 | A | open | Drift probes run against real agents | deck, site |
-| DK211 | A | open | Hiding intent and sandbagging are detected | deck, site |
+| DK211 | A | partial | Hiding intent and sandbagging are detected | deck, site |
 | DK212 | A | open | The drift ladder was run on a real log | deck, site |
 | DK431 | A | partial | A law-abiding certificate | deck, site |
 | DK115 | A | open | A real agent took the Foundations course and exam | deck, site |

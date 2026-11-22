@@ -3252,7 +3252,7 @@
   {
    "id": "DK211",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Two of DK92's detections are not built: hiding intent (an agent that conceals what it is doing from its own summary) and the red-team suite that tries to circumvent and must be caught (LW4); and the…",
    "bucket": "withdraw",
    "hours": 0,

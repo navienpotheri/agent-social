@@ -1897,8 +1897,8 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
     for (const s of page) {
       after = s.seq;
       if (s.record.type !== "asp.action/v0.2") continue;
-      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number; targets?: string[] }[]; targets?: string[]; artifacts?: { uri: string; sha256: string }[] };
-      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], ...(b.targets ? { targets: b.targets } : {}), artifacts: b.artifacts ?? [] });
+      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number; targets?: string[] }[]; targets?: string[]; artifacts?: { uri: string; sha256: string }[]; summary?: string };
+      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], ...(b.targets ? { targets: b.targets } : {}), ...(b.summary !== undefined ? { summary: b.summary } : {}), artifacts: b.artifacts ?? [] });
     }
   }
   return actions;
@@ -3263,7 +3263,7 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
       const mine = findings.filter((f) => f.issuer === who);
       const { step, why } = ladderStep(mine);
       io.out(`  ${who}: recommended step ${step.toUpperCase()} (${why})`);
-      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : f.kind === "split" ? `    SPLIT    refused ${f.scope} at ${f.via}, then reached it in ${f.attempts} allowed Actions (${f.firstAt} to ${f.lastAt})` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
+      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : f.kind === "hide" ? `    HIDE     ${f.attempts} summaries between ${f.firstAt} and ${f.lastAt} left out: ${f.scope}` : f.kind === "split" ? `    SPLIT    refused ${f.scope} at ${f.via}, then reached it in ${f.attempts} allowed Actions (${f.firstAt} to ${f.lastAt})` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
     }
     io.out(`${issuers.length} agent(s) with findings; a step is advice for a person or the gateway, nothing here slashes anyone`);
     return 1;
