@@ -6,10 +6,9 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { arrivalAt, Life, parseArrivals, SimClock, runCohort as runEngine, type LifeLimits, type SocietyTool } from "@agent-social/asp-package";
-import { societySource } from "./events.ts";
+import { runCohort as runEngine, type SocietyTool } from "@agent-social/asp-package";
 import { BRIEFING, runAgent, type Caps, type Shared } from "./agent.ts";
-import { defOf, LIFE_DEFS, runTool, TOOLS } from "./tools.ts";
+import { defOf, runTool, TOOLS } from "./tools.ts";
 import { analyse, injectionIn, renderReport, type Report } from "./observe.ts";
 import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
@@ -27,8 +26,6 @@ export interface CohortOptions {
   provider?: Provider;
   /** A real model: one gateway for each agent (the key lives only there), the loop of packages/asp-package/src/cohort. */
   engine?: { price?: { inPerM?: number; outPerM?: number }; keyEnv: string; env: Record<string, string | undefined>; upstream?: string; parallel?: number };
-  /** Real-model runs keep ticks (docs/agent-engagement.md): the simulated clock, the arrivals and the wake limits. Absent: no rest, wait_for, notebook or leave. */
-  life?: { speed: number; arrivals?: string; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -95,8 +92,11 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
       agents.push(a);
       trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
     }
-    bridge = await SignedTrace.open({ log: world.log, tools: o.engine && o.life ? [...TOOLS, ...LIFE_DEFS] : TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
-    o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
+    bridge = await SignedTrace.open({ log: world.log, tools: TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
+    // The Market: each agent keeps the passport and sponsor the signed trace gave it, and gets mock credits and a standing Mandate to spend at the Market.
+    for (const a of agents) await world.api.market?.adopt(a, bridge.sponsorOf(a.id)!);
+    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "start", balance: (await world.api.market?.balance(a)) ?? 0 });
+    o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${(Math.round(o.budgetUsd * 100) / 100).toFixed(2)} each, $${(Math.round(o.totalUsd * 100) / 100).toFixed(2)} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
     let engineAbort: AbortController | undefined;
     const watcher = setInterval(() => { if (stopRequested()) engineAbort?.abort(); }, 250);
     try {
@@ -106,12 +106,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const lastUsd = new Map<string, number>();
         const flush = (id: string) => { const m = pending.get(id); if (m) { trace(m); pending.delete(id); } };
         const byId = new Map<string, AgentCtx>(agents.map((a) => [a.id, a]));
-        const allow = new Set([...TOOLS, ...LIFE_DEFS].map((t) => t.scope));
-        const clock = o.life ? new SimClock({ speed: o.life.speed, now }) : undefined;
-        const arrivals = o.life?.arrivals ? parseArrivals(o.life.arrivals) : undefined;
-        const life = o.life && clock ? new Life({ clock, source: societySource({ world: world.api, didOf: (id) => byId.get(id)?.did, clock }), ...(o.life.limits ? { limits: o.life.limits } : {}), notebookDir: join(dir, "notebooks"), ...(o.life.sleep ? { sleep: o.life.sleep } : {}) }) : undefined;
-        const deadline = setTimeout(() => { shared.stopped ??= `the run's ${o.minutes} minutes are up`; trace({ t: "stop", at: stamp(), reason: shared.stopped }); ac.abort(); }, o.minutes * 60_000);
-        deadline.unref?.();
+        const allow = new Set(TOOLS.map((t) => t.scope));
         const toolsetFor = (id: string) => {
           const a = byId.get(id)!;
           const tools: SocietyTool[] = TOOLS.map((t) => ({
@@ -120,33 +115,19 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               const t0 = now();
               flush(id);
               const r = await runTool(world.api, a, allow, t.name, args);
-              life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ms: now() - t0 } as TraceEvent);
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
             },
           }));
-          const mine = life?.agent(id);
-          const lifeTools: SocietyTool[] = mine ? mine.tools().map((lt) => ({
-            ...lt,
-            run: async (args, ctx) => {
-              const t0 = now(); flush(id);
-              const r = await lt.run(args, ctx);
-              const d = defOf(lt.name)!;
-              mine.noteAction(lt.name, r.ok, typeof args.reason === "string" ? args.reason : typeof args.until === "string" ? args.until : typeof args.max_wait === "string" ? `up to ${args.max_wait}` : undefined);
-              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: lt.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: d.institution, scope: d.scope, writes: !!d.writes, ms: now() - t0 } as TraceEvent);
-              return r;
-            },
-          })) : [];
-          return { tools: [...tools, ...lifeTools], system: () => BRIEFING + (a.persona ? `
+          return { tools, system: () => BRIEFING + (a.persona ? `
 
-${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
+${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like." };
         };
         const res = await runEngine({
           agents: agents.map((a) => a.id), toolsetFor, model: o.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
           limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000 }, runDir: join(dir, "agents"), signal: ac.signal,
-          ...(life && clock ? { loop: { equivalentCalls: 40, nearRepeats: 60 }, beforeStart: async (_a: string, i: number, sig: AbortSignal) => { if (arrivals) { const ms = clock.realMsUntil(arrivalAt(arrivals, i)); if (ms > 0) await life.sleep(ms, sig); } } } : {}),
           onEvent: (e) => {
             if (e.kind === "turn") {
               flush(e.agent);
@@ -166,12 +147,12 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
           },
         });
         void res;
-        clearTimeout(deadline);
       } else await Promise.all(agents.map(async (a, i) => {
         if (o.staggerMs && i) await new Promise((r) => setTimeout(r, o.staggerMs! * i));
         await runAgent({ agent: a, provider: o.provider!, world: world.api, caps, shared, trace, stopRequested, now });
       }));
     } finally { clearInterval(watcher); }
+    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
   } finally {
@@ -184,7 +165,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   writeFileSync(markdownPath, logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown);
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   writeFileSync(join(dir, "report.json"), json);
-  o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${o.totalUsd}; report ${markdownPath}`);
+  o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${(Math.round(o.totalUsd * 100) / 100).toFixed(2)}; report ${markdownPath}`);
   return { report, dir, markdownPath, sid };
 }
 

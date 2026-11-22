@@ -35,6 +35,9 @@ export const TOOLS: ToolDef[] = [
   { name: "accept_delivery", description: "Accept the delivery on a job you posted: the escrow is paid to the worker.", input_schema: obj({ contract: str("the contract id from my_jobs", 200) }, ["contract"]), scope: "write.market", institution: "market", writes: true },
   { name: "course_enrol", description: "Enrol in a course of the Academy: the tuition is paid from your mock credits and you are given the practice tasks (not the tasks you will be graded on). Use a course id from look_courses (for example C-L2-1).", input_schema: obj({ course: str("the course id", 40) }, ["course"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "course_sit", description: "Sit the course you are enrolled in: give your answer as JSON in the form the course asks for (the practice tasks say what). It is graded on held-out tasks drawn when you sit; a pass is attested by the Registrar. You may sit again with a changed answer, three times a day.", input_schema: obj({ course: str("the course id", 40), answer: str("your answer as JSON text", 3000) }, ["course", "answer"]), scope: "write.academy", institution: "academy", writes: true },
+  { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people running the study. At most 10 a day to one agent (a reply does not count), 60 a day in all, and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "reply", "notice"] }, reply_to: str("the id of the message you answer, from my_inbox", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
+  { name: "my_inbox", description: "The direct messages you sent and received, oldest first, with their ids, kinds and words, and whether each was answered.", input_schema: obj({}), scope: "read.message", institution: "messages" },
+  { name: "block_agent", description: "Stop another agent's direct messages reaching you, or lift the block.", input_schema: obj({ agent: str("the agent's handle", 60), lift: { type: "boolean" } }, ["agent"]), scope: "write.message", institution: "messages", writes: true },
   { name: "ask_help", description: "Say what you are stuck on or what you would like to know. The people running the study read these; you will be told what the tools are and what the place is, not given a task.", input_schema: obj({ question: str("what you want to ask", 600) }, ["question"]), scope: "rest", institution: "help" },
   { name: "do_nothing", description: "Choose not to act this turn. Say why if you like.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
   { name: "stop_exploring", description: "You have done enough. This ends your time here.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
@@ -65,6 +68,7 @@ export function inputProblem(t: ToolDef, input: Record<string, unknown>): string
   for (const [k, v] of Object.entries(input)) {
     const p = props[k]!;
     if (p.type === "string") { if (typeof v !== "string") return `${k} is a string`; if (p.maxLength && v.length > p.maxLength) return `${k} is at most ${p.maxLength} characters`; if (p.enum && !p.enum.includes(v)) return `${k} is one of ${p.enum.join(", ")}`; }
+    if (p.type === "boolean" && typeof v !== "boolean") return `${k} is true or false`;
     if (p.type === "integer") { if (!Number.isInteger(v)) return `${k} is a whole number`; if (p.enum && !p.enum.includes(v)) return `${k} is one of ${p.enum.join(", ")}`; if (p.maximum !== undefined && (v as number) > p.maximum) return `${k} is at most ${p.maximum}`; if (p.minimum !== undefined && (v as number) < p.minimum) return `${k} is at least ${p.minimum}`; }
     if (p.type === "array") { if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) return `${k} is a list of strings`; if (p.maxItems && v.length > p.maxItems) return `${k} has at most ${p.maxItems} items`; }
   }
@@ -92,6 +96,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "forum_read_post": { const r = await get(`/forum/posts/${encodeURIComponent(input.post as string)}`); return { ...r, target: input.post as string }; }
     case "forum_replies": return get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
+    case "send_message": case "my_inbox": case "block_agent": return await messageTool(world, agent, name, input);
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
@@ -156,5 +161,27 @@ async function academyTool(world: WorldApi, agent: AgentCtx, name: string, input
   } catch (e) {
     const err = e as Error & { detail?: string };
     return refuse(`academy_${err.detail ?? "refused"}`, err.message);
+  }
+}
+
+/** The direct-message tools: signed `agent_message` records on the run's log through the hall; the log's own rules (blocks, size, rate, replies) refuse what they refuse, and the reason comes back to the agent. */
+async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const hall = world.market;
+  if (!hall) return refuse("no_messages", "this society has no direct messages.");
+  try {
+    if (name === "send_message") {
+      const kind = (input.kind as string | undefined) ?? (input.reply_to ? "reply" : "note");
+      const r = await hall.sendMessage(agent, input.to as string, input.text as string, kind, input.reply_to as string | undefined);
+      return { ok: true, text: `Sent: a ${kind} to ${r.to.handle} (${r.id}).`, target: r.id, targetAuthor: r.to.did };
+    }
+    if (name === "block_agent") {
+      const other = await hall.block(agent, input.agent as string, input.lift === true ? "unblock" : "block");
+      return { ok: true, text: input.lift === true ? `${other.handle} can message you again.` : `${other.handle} can no longer message you.` };
+    }
+    const m = await hall.inbox(agent);
+    return { ok: true, text: m.length ? m.map((x) => `${x.id}  ${x.from === agent.handle ? `to ${x.to}` : `from ${x.from}`}  [${x.kind}]${x.from === agent.handle ? (x.answered ? "  answered" : "  not answered yet") : (x.answered ? "  you answered" : "  not answered by you")}${x.text ? `: ${x.text}` : ""}`).join("\n") : "You have no messages yet." };
+  } catch (e) {
+    const err = e as Error & { detail?: string };
+    return refuse(`message_${err.detail ?? "refused"}`, err.message);
   }
 }
