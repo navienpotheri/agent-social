@@ -1,5 +1,5 @@
 // docs/deployment-plan.md is the owner's ordered plan for deploying the hosted service after the live run. Its commands are checked like the other kits (every `npm run asp --` and `asp.mjs` command is a documented command and
-// every flag is one the CLI knows), the files, scripts, units and flags that it names exist in the repository, every one of the 19 owner-only rows of the launch bar is settled by a step that exists, every step
+// every flag is one the CLI knows), the files, scripts, units and flags that it names exist in the repository, every one of the 20 owner-only rows of the launch bar is settled by a step that exists, every step
 // has its check and its way back, the decisions come first with a default each, and the standing statements are kept.
 import { test } from "node:test";
 import assert from "node:assert/strict";

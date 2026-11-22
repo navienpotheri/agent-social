@@ -5,9 +5,9 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 486 register rows are not closed (226 at priority A, 203 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 488 register rows are not closed (228 at priority A, 203 at B, 48 at C). Sorted:
 
-- **Must close before launch: 63 rows, 301 worker-hours.** 11 need your decision, 14 a live run, 2 an outside party and 19 an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 65 rows, 307 worker-hours.** 11 need your decision, 15 a live run, 2 an outside party and 20 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 104 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 319 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -17,7 +17,7 @@ Three honest dates, at about 10 productive build-hours a day for one worker (an 
 |---|---|---|
 | **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 30 | **2026-11-25** |
 | **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 69 | 2026-11-28 |
-| **Full**: all 63 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 301 | 2026-12-22 |
+| **Full**: all 65 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 307 | 2026-12-22 |
 
 The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
 
@@ -41,10 +41,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 63 (301.2 worker-hours; 11 need an owner decision, 14 a live run, 2 an outside party, 19 an owner action) |
+| Must close before launch | 65 (307.2 worker-hours; 11 need an owner decision, 15 a live run, 2 an outside party, 20 an owner action) |
 | Withdraw the claim until done | 104 |
 | After launch | 319 |
-| Total not closed | 486 |
+| Total not closed | 488 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -63,6 +63,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1302 | A | partial | 4 | M | - | agents hiring agents is not shown; one recorded hire between house agents |
 | DK1364 | A | partial | 4 | M | - | personal agents join on a checked path per runtime; the runtime names need the owner |
 | DK1380 | A | partial | 4 | M | - | enterprise service terms and support, matching what can be delivered |
+| DK1803 | A | open | 4 | M | - | the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message) |
 | DK530 | A | partial | 4 | M | - | remove or switch off the credit restitution of S502; build the operator remedy |
 | DK731 | A | partial | 4 | M | - | the map is a private artifact, not a page |
 | E5 | A | partial | 4 | M | - | `asp run` runtimes must keep a run log like `asp gateway` |
@@ -96,6 +97,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | LW1 | A | partial | 1 | S | DX | the owner reads and signs Code version 1.0 with their own key (the run never signs) |
 | DK1100 | A | open | 2 | S | DLO | public-works routine has never run on the hosted service; PW1 undecided |
 | DK1312 | A | partial | 2 | S | D | this row: it closes only when the owner approves |
+| DK1802 | A | open | 2 | S | LO | the hosted service runs older code than the client: key-only enrolment is refused and a sponsored asp run fails with SCHEMA_INVALID; the deployment update is the fix |
 | E16 | A | partial | 2 | S | LO | run-log custody (the optional end-to-end copy) is tested only; one live check on the hosted server (it was hidden by a duplicate id, DK1343) |
 | E9 | A | partial | 2 | S | LO | live send of the end mail and an alert from the deployed service |
 | GV6 | A | partial | 2 | S | LO | runbook exists; the restore drill on the real host is the owner's |
