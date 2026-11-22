@@ -3844,6 +3844,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
       const scopes = wanted;
       const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
+      // The key published in the log is the one other machines seal to: if it is not this machine's, a scope sealed elsewhere cannot be opened here. Said once; the run goes on.
+      void local.log.memoryKey(principal).then((live) => { if (live && live.public_key !== rawPublicKeyOf(pk.publicKey)) io.err(`  warning  the memory key published in the log for ${principal} (${live.name}) is not the one on this machine: a private scope sealed on another machine cannot be opened here (asp keys memory publish --by ${principal} replaces the published key with this one)`); }, () => undefined);
       ensureAgentMemoryKey(pkgDir, pk.publicKey);
       const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
       return { privateMemory: new PrivateMemoryRun({ dir: join(pkgDir, "memory", "private"), pair: { principal, agent: by }, agentKey, principalPublic: pk.publicKey, allowed: scopes, onEvent: (e) => runLog?.event("private_memory", { ...e }) }) };
