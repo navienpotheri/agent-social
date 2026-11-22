@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:contract_amendment",
+  "title": "Contract amendment body",
+  "description": "An amendment of a contract's scope by consent (register row JO5; spec-delta S1701): one party signs it and the other cosigns (amendment_not_a_party, amendment_needs_consent). It changes the purpose or the acceptance criteria, never the price, the deadline or the parties: those are a new contract, and the deadline in particular is the one the lifecycle's delivered_in_time guard reads. It is made before delivery (amendment_too_late), at most three times for a contract (amendment_limit), and the terms in force are the contract's with each amendment applied in order. Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "changes",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "changes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "purpose": {
+          "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        }
+      }
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

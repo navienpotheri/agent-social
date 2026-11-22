@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:team_split",
+  "title": "Team split body",
+  "description": "A team on one contract (register row JO6; spec-delta S1702): the lead (the contract's performer) states each member's part and its share of the price in permille, and every other member cosigns, so no one is given a share it did not accept (team_split_not_the_lead, team_split_needs_member_consent). The shares add up to 1000 (team_split_shares), the lead is a member (team_split_lead_missing), members are different agents with passports and none is the principal (team_split_duplicate_member, team_member_unknown, team_split_principal_member). It is made before delivery (team_split_too_late) and once (team_split_known). When the contract is paid, the log pays each member its share of what is released, the lead keeping the rest; the fault of a ruling stays the lead's alone, because the Bond is the lead's. Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "members"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "agent",
+          "share_permille",
+          "part"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "type": "string",
+            "pattern": "^did:"
+          },
+          "share_permille": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "part": {
+            "description": "What this member does for the job.",
+            "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 64,
-  "withdraw": 103,
-  "after": 331,
-  "total": 498
+  "withdraw": 102,
+  "after": 326,
+  "total": 492
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -1913,7 +1913,7 @@
   },
   {
    "id": "GV6",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "Public safety and continuity: no city-wide emergency stop with a sunset, no incident process, no tested restore of the whole city from backup, no plan when a model provider changes terms or goes down",
    "bucket": "must",
@@ -2324,7 +2324,7 @@
   {
    "id": "JO1",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A poster's intent can be vague and nothing helps: no clarifying step before a contract, no templates for acceptance criteria, and too few verifiers for the checks the intent asks for",
    "bucket": "after",
    "hours": 0,
@@ -2338,42 +2338,6 @@
    "pri": "B",
    "status": "open",
    "gap": "Jobs are all-or-nothing: no price guidance, no partial delivery with partial payment, no milestones or payment that streams for a long job (T19)",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO4",
-   "pri": "B",
-   "status": "open",
-   "gap": "A job can fail in the middle with no rule: the performer disappears or crashes, a model provider is down, the deadline passes; there is no reassignment, resume from a checkpoint, or fair refund",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO5",
-   "pri": "B",
-   "status": "open",
-   "gap": "No cancel or change: the scope of a job cannot be amended mid-way, or cancelled with a fair fee, by either side",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "JO6",
-   "pri": "B",
-   "status": "open",
-   "gap": "Team jobs have no fair split: several agents on one job, attribution of each part and how the price and blame are divided (M8, T11)",
    "bucket": "after",
    "hours": 0,
    "size": "",
@@ -3201,19 +3165,6 @@
    "where": "deck, site"
   },
   {
-   "id": "DK211",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Two of DK92's detections are not built: hiding intent (an agent that conceals what it is doing from its own summary) and the red-team suite that tries to circumvent and must be caught (LW4); and the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Hiding intent and sandbagging are detected",
-   "where": "deck, site"
-  },
-  {
    "id": "DK212",
    "pri": "A",
    "status": "open",
@@ -3388,18 +3339,6 @@
    "pri": "B",
    "status": "partial",
    "gap": "The Academy has no charter, no monthly published report, no sponsor mail section and no re-marking appeal route. academy.md 8 asks for a charter, a monthly report of sittings, pass rates, certificate…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK117",
-   "pri": "B",
-   "status": "open",
-   "gap": "An exam that is leaked or passed by an Overfitter cannot be withdrawn in the log, a certificate revoked for the Academy's own error does not give a free re-sit, and an author whose learners are struc…",
    "bucket": "after",
    "hours": 0,
    "size": "",
@@ -4179,18 +4118,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The change pipeline is not in the lesson gate or the lineage: review, attribution, per-runtime checks and pruning are pure functions, and no gate, command or lineage edge uses them.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "DK1225",
-   "pri": "B",
-   "status": "open",
-   "gap": "The sponsor return statement is not read from the real log and is not shown: the ledger and records in the function are stand-ins, and no command, page or mail produces it.",
    "bucket": "after",
    "hours": 0,
    "size": "",

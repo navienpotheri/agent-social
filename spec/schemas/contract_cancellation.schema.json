@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:contract_cancellation",
+  "title": "Contract cancellation body",
+  "description": "A cancellation of a contract by consent (register row JO5; spec-delta S1701): one party signs it and the other cosigns, so neither can cancel for the other (cancellation_not_a_party, cancellation_needs_consent). It names a fee in credits that the principal pays the performer out of the escrow for the work done, never more than the price (cancellation_fee_over_price) and none before a Bond locked anything (cancellation_fee_without_escrow). A contract is cancelled before it is delivered (cancellation_too_late) and once (cancellation_known). The Bank then settles with basis revoked, and the settlement must release exactly the fee, take no job tax and slash nothing (settlement_mismatches_cancellation); a delivery or an acceptance on a cancelled contract is refused (contract_cancelled). Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "fee",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "fee": {
+      "description": "What the principal pays the performer for the work done, from the escrow.",
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}
