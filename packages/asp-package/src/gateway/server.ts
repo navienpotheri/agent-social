@@ -237,6 +237,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
   /** The salient tokens of every tool result read in this run, and the text the principal typed (untrusted flow). */
   const readTokens = new Set<string>();
   let spendUsd = 0;
+  /** The worst case of every model call in flight, reserved when it starts and released when it ends, so calls that run at the same time cannot each pass the cap and together pass it. */
+  let reservedUsd = 0;
   /** Ids of calls to the private memory tools: their results are not written to the run log (the text is sealed memory). */
   const privateCallIds = new Set<string>();
   let principalText = "";
@@ -265,10 +267,17 @@ export function createGateway(opts: GatewayOptions): Gateway {
     }
     rec?.event("model_request", { api, model: body?.model, stream: body?.stream === true, prompt: lastUserText(body), tools: Array.isArray(body?.tools) ? body.tools.length : 0 });
     tokens.text = ""; tokens.thinking = undefined;
-    return { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead ?? 0, cacheWrite: tokens.cacheWrite ?? 0, at: Date.now(), model: body?.model };
+    return { input: tokens.input, output: tokens.output, cacheRead: tokens.cacheRead ?? 0, cacheWrite: tokens.cacheWrite ?? 0, at: Date.now(), model: body?.model, reqChars: (() => { try { return JSON.stringify(body).length; } catch { return 0; } })() };
   };
-  const endModelCall = (snap: { input: number; output: number; cacheRead?: number; cacheWrite?: number; at: number; model?: unknown }, text: string, thinking?: string) => {
+  const endModelCall = (snap: { input: number; output: number; cacheRead?: number; cacheWrite?: number; at: number; model?: unknown; reqChars?: number }, text: string, thinking?: string) => {
     spendUsd += costUsd(tokens.input - snap.input, tokens.output - snap.output, priceFor(snap.model, opts.price), (tokens.cacheRead ?? 0) - (snap.cacheRead ?? 0), (tokens.cacheWrite ?? 0) - (snap.cacheWrite ?? 0));
+    // A reply that carried no usage (an error body, a stream cut before its usage event, a provider that leaves it out) is not free: the spend is estimated from the request and from what was read of the reply (a token is about three characters).
+    if (opts.usdCap !== undefined) {
+      const dIn = tokens.input - snap.input, dOut = tokens.output - snap.output;
+      const outChars = String(text ?? "").length + String(thinking ?? "").length;
+      if (dIn === 0 && (snap.reqChars ?? 0) > 0 && (tokens.cacheRead ?? 0) - (snap.cacheRead ?? 0) === 0) spendUsd += costUsd(Math.ceil((snap.reqChars ?? 0) / 3), 0, priceFor(snap.model, opts.price));
+      if (dOut === 0 && outChars > 0) spendUsd += costUsd(0, Math.ceil(outChars / 3), priceFor(snap.model, opts.price));
+    }
     opts.cognition?.observeReply({ text, ...(thinking ? { thinking } : {}) });
     rec?.event("model_reply", { tokens_in: tokens.input - snap.input, tokens_out: tokens.output - snap.output, ms: Date.now() - snap.at, text });
     tokens.text = ""; tokens.thinking = undefined;
@@ -836,13 +845,14 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (opts.usdCap !== undefined && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         let model: unknown, worst = 0;
         try { const b = JSON.parse(rawBody.toString("utf8")); model = b?.model; worst = worstCaseUsd(b, priceFor(model, opts.price)); } catch { /* an unreadable body is judged as it is below */ }
-        if (spendUsd >= opts.usdCap || spendUsd + worst > opts.usdCap) {
+        if (spendUsd >= opts.usdCap || spendUsd + reservedUsd + worst > opts.usdCap) {
           const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged). The run is stopped: raise --budget-usd to go on`;
           rec?.event("budget_stop", { usd: Number(spendUsd.toFixed(6)), cap_usd: opts.usdCap, worst_case_usd: Number(worst.toFixed(6)) });
           opts.onCall?.({ tool: "model request", scope: "model.usd", allowed: false, reason });
-          stop("dollar cap reached");
+          if (spendUsd >= opts.usdCap) stop("dollar cap reached");
           return json(res, 429, style === "openai" ? { error: { message: reason, type: "asp_usd_budget", code: "asp_usd_budget" } } : { type: "error", error: { type: "rate_limit_error", message: reason } });
         }
+        if (worst > 0) { reservedUsd += worst; let freed = false; const free = () => { if (!freed) { freed = true; reservedUsd = Math.max(0, reservedUsd - worst); } }; res.once("close", free); res.once("finish", free); }
       }
       if (opts.modelBlock && req.method === "POST" && (/\/chat\/completions$/.test(path) || /\/responses$/.test(path) || /\/v1\/messages$/.test(path))) {
         const reason = `ASP gateway: the next model call is refused: ${opts.modelBlock}`;
