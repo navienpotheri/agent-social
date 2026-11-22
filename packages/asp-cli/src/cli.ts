@@ -750,6 +750,9 @@ const OPTIONS = {
   context: { type: "string" },
   "quota-mb": { type: "string" },
   "token-env": { type: "string" },
+  "sim-speed": { type: "string" },
+  arrivals: { type: "string" },
+  "no-life": { type: "boolean" },
   name: { type: "string" },
   merge: { type: "boolean" },
   "share-to-commons": { type: "boolean" },
@@ -1200,6 +1203,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "identity" && sub === "restore") return await identityRestore(home, rest[0], v, io);
     if (cmd === "identity" && sub === "recover") return await identityRecover(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "recovery-check") return await identityRecoveryCheck(home, rest[0] ?? v.did, v, io);
+    if (cmd === "notices") return await noticesCmd(home, v, io);
     if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
@@ -1367,11 +1371,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "society" && sub === "cohort") {
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      // The journey of an agent made by `asp run --local` is in the local log (<home>/local), not on the service of a saved login.
+      const li = localIdentities(home);
+      const isLocal = !!v.local || (!!li && !!sub && [li.me, li.agent, li.bank].includes(sub));
+      const jhome = isLocal ? join(home, "local") : home;
+      try { return await journeyCommand(sub, v as never, (isLocal ? { ...io, env: localOnlyEnv(io.env) } : io) as never, async () => (await (await openLog(jhome, isLocal ? localOnlyEnv(io.env) : logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
@@ -1737,7 +1745,7 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   const held = new Keystore(home).entriesFor(did).map((e) => e.kid);
   io.out(JSON.stringify({
     passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did),
-    recovery: passportKeys.some((k) => k.includes("#recovery-")) ? "recovery key set" : p.sponsor ? "recoverable by its sponsor" : did.startsWith("did:key:") ? "none possible (the DID is the key)" : "NOT SET: losing the key means losing this identity",
+    recovery: passportKeys.some((k) => k.includes("#recovery-")) ? "recovery key set" : p.sponsor === did ? "not recoverable: key-only, no sponsor (its did:key is its key; restore it from the recovery code shown at enrolment: asp identity restore <did>)" : p.sponsor ? "recoverable by its sponsor" : did.startsWith("did:key:") ? "none possible (the DID is the key)" : "NOT SET: losing the key means losing this identity",
     keysOnThisMachine: held,
     ...(reputation ? { reputation } : {}),
   }, null, 2));
@@ -1786,13 +1794,38 @@ async function identityBackup(home: string, did: string | undefined, v: Values, 
 
 /** asp identity restore <file>: puts the keys of a backup back on this machine. */
 async function identityRestore(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!file) throw new UsageError("asp identity restore <file>   (it asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
+  if (!file) throw new UsageError("asp identity restore <file> | <did:key:...>   (a backup file asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead; a did:key is restored from the recovery code shown at enrolment, in ASP_RECOVERY_CODE or --recovery-code-file)");
+  if (file.startsWith("did:key:")) {
+    // A key-only agent's key is its DID: the recovery code is the key's own seed, so the same key is made again on another machine (KO2).
+    const seed = seedFromRecoveryCode(recoveryCodeFrom(v, io));
+    if (didKeyFromPublicKey(publicKeyFromSeed(seed)) !== file) { io.out("this recovery code is NOT the one for this identity: nothing was restored"); return 1; }
+    const keys = new Keystore(home);
+    if (keys.forDid(file)) { io.out(`${file}'s key is already here; left as it is`); return 0; }
+    keys.createFromSeed(`${file}#key-1`, seed);
+    io.out(`restored the key of ${file} from its recovery code`);
+    return 0;
+  }
   const backup = JSON.parse(readFileSync(resolve(io.cwd, file), "utf8"));
   const entries = decryptKeys(backup, await backupPassphrase(v, io));
   const keys = new Keystore(home);
   let restored = 0;
   for (const e of entries) { if (keys.importEntry(e)) restored++; else io.out(`  ${e.kid} is already here; left as it is`); }
   io.out(`restored ${restored} key(s) for ${backup.did}`);
+  return 0;
+}
+
+/** `asp notices [--did <did>] [--json]`: what has happened to an identity that a sponsor would have been mailed about (KO2). */
+async function noticesCmd(home: string, v: Values, io: Io): Promise<number> {
+  const { noticesFor } = await import("./notices.ts");
+  let did = v.did;
+  if (!did) { try { did = (JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { agent?: string } }).identities?.agent; } catch { /* none */ } }
+  if (!did) throw new UsageError("asp notices --did <did>   (or run it where asp enrol or asp join saved your identities)");
+  const log = (await openLog(home, logEnv)).log;
+  const list = await noticesFor((await log.since(0, 1_000_000)) as never, did);
+  if (v.json) { io.out(JSON.stringify(list, null, 2)); return 0; }
+  io.out(`notices for ${did}: ${list.length}`);
+  for (const n of list) io.out(`  ${n.at}  ${n.kind}: ${n.detail}  (${n.id.slice(0, 19)})`);
+  if (!list.length) io.out("  nothing has been recorded about this identity that you would need to act on");
   return 0;
 }
 
@@ -2166,7 +2199,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     if (a.namespace) io.out(`  your identities live in: a person ${a.namespace.person}, further people ${a.namespace.personPrefix}<name>, agents ${a.namespace.agentPrefix}<name>  (asp identity new --kind agent --name <name>)`);
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
-    for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
+    for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "key-only" ? "NOT RECOVERABLE: key-only, no sponsor (a did:key is its key: keep the recovery code shown at enrolment, and make a backup: asp identity backup)" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
     io.out(`  data sharing: ${a.tenant.dataSharing?.choice ?? "share"}${a.tenant.dataSharing?.choice === "private" ? " (only hashes are stored for you; your agents are not used in studies)" : " (as for every open agent; asp account data-sharing)"}`);
     io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
     return 0;
@@ -2802,6 +2835,12 @@ async function enrolCmd(home: string, v: Values, io: Io): Promise<number> {
   };
   io.out(`enrolled as ${body.tenant} on ${service}; your identity is ${did}`);
   io.out(`the login is saved in ${home} and the key in its key store (keep it private; anyone who has it acts as you)`);
+  // KO2: a key-only agent has no sponsor to recover it or to be told what happens to it. Say so plainly, give the one way back (the recovery code, shown once, never saved here) and where to read what happened.
+  io.out("RECOVERY (read this once): you have no sponsor and a did:key is its key, so a lost key is a lost identity and nobody else can restore it. Your recovery code is the key itself, written as a short code: it is shown now, once, and not saved on this machine. Write it down and keep it somewhere else:");
+  io.out(`  recovery code: ${recoveryCodeFor(seed)}`);
+  io.out(`  on another machine: ASP_RECOVERY_CODE="<the code>" asp identity restore ${did}`);
+  io.out("TOKEN: your login token is saved in the login file in your ASP home. There is no Google account to recover it with, so if it is lost the way back is the recovery code above (it restores your key and your identity) and then the operator, who can issue a new token for your tenant.")
+  io.out("NOTICES: nothing is mailed to you (you have no verified address). Read what has happened to you, a slash, a quarantine, an upheld report, with: asp notices   (the public page of your record is: asp journey " + name + ")");
   const reg = await step(["identity", "register", file]);
   if (reg.code) { io.err(`  the identity was not written to the service: ${reg.text}`); return 1; }
   io.out("identity written to the service (an agent that names itself as its sponsor)");
@@ -7805,7 +7844,7 @@ async function statusCmd(home: string, io: Io): Promise<number> {
       if (rq && used >= rq * 0.9) next.push(`your account is ${used >= rq ? "full" : "nearly full"} (${used} of ${rq} records): ask the operator to raise the limit (the contact is in the Terms); your agents keep running meanwhile`);
       const waitingReports = outboxWaiting(home);
       if (waitingReports) io.out(`  ${waitingReports} report(s) from earlier sessions are waiting to be sent; they go by themselves at your next session`);
-      for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery: asp identity backup ${i.did}`);
+      for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none" || i.recovery === "key-only") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery${i.recovery === "key-only" ? " (key-only: no sponsor)" : ""}: asp identity backup ${i.did}`);
       if (a.starter?.available) next.push("starter credits are waiting: asp account starter");
     }
   } catch (e) { io.out(`  service: not reachable now (${(e as Error).message.slice(0, 60)}); what follows is from this machine`); }
@@ -7932,6 +7971,11 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
  * there. Found in the owner's first real run: a home that already held old sessions never looked at the local index (it was a fallback for an EMPTY home), so tonight's sessions were not listed, not found by id, and
  * \`asp live report\` showed an old run.
  */
+/** The environment for reading a --local session's records: the local log only, never the service of a saved login or of ASP_LOG_URL (a local session is recorded in <home>/local; read through a hosted login it showed no records). */
+function localOnlyEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv { const e: NodeJS.ProcessEnv = { ...env }; delete e.ASP_LOG_URL; delete e.ASP_LOG_TOKEN; return e; }
+/** The identities `asp run --local` made on this machine (<home>/local/local-identities.json), if any. */
+function localIdentities(home: string): { me: string; agent: string; bank: string } | undefined { try { return JSON.parse(readFileSync(join(home, "local", "local-identities.json"), "utf8")); } catch { return undefined; } }
+
 function sessionsAll(home: string): { start: SessionStart; end?: SessionEnd; src: string }[] {
   const mine = sessionsOf(home).map((x) => ({ ...x, src: home }));
   const isLocal = /[\\/]local[\\/]*$/.test(home);
@@ -7963,7 +8007,12 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
   for (const l of lines) io.out(l);
   // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
   try {
-    const recs = (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never[];
+    // The sessions of --local live in <home>/local and their records in its log: each home is read through its own log.
+    const homes = [...new Set(sessionsAll(home).map((x) => x.src))];
+    const recs: never[] = [];
+    for (const h of homes.length ? homes : [home]) {
+      try { recs.push(...((await (await openLog(h, h === home ? logEnv : localOnlyEnv(io.env))).log.since(0, 1_000_000)) as never[])); } catch { /* that log cannot be read now */ }
+    }
     io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
   } catch { /* the log cannot be read now: the line is left out */ }
   // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
@@ -8011,6 +8060,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
   if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
   const { start, end, src } = hit[0];
+  const localSession = src !== home;
   home = src; // the log and the run logs of a session are where its index is
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
@@ -8024,7 +8074,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   }
   // What the log itself holds for the job.
   try {
-    const log = (await openLog(home, logEnv)).log;
+    const log = (await openLog(home, localSession ? localOnlyEnv(io.env) : logEnv)).log;
     const chain = await log.chain(start.contract);
     const actions = chain.length ? (await log.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
     const sets = actions.map((a) => a.record.body as { scopes_used?: string[]; blocked_attempts?: { scope: string; count: number }[]; assurance?: string });
@@ -8225,7 +8275,7 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const held = keys.entriesFor(a.did).map((e) => /#(key-\d+)$/.exec(e.kid)?.[1] ?? e.kid);
     io.out(`  ${short(a.did)}${a.did === cfg.identities.agent ? "  (default)" : ""}`);
     io.out(`      identity  ${a.did}`);
-    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}`);
+    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery === "key-only" ? "not recoverable: key-only, no sponsor" : a.recovery}`);
     io.out(`      sessions  ${mine.length}${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
   }
   io.out(`${agents.length} agent(s); asp agent add <name> makes another`);

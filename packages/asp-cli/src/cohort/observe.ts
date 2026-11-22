@@ -26,13 +26,15 @@ export interface AgentStats {
   /** What the agent said alongside its calls (its stated reasoning, where the provider returns text): turns with text, and the characters of it. */
   statedTurns: number; statedChars: number;
 }
-export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number }
+export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
   perAgent: AgentStats[]; edges: Edge[];
   toolTotals: Record<string, number>; institutionTotals: Record<string, number>; refusedByRule: Record<string, number>;
   totalUsd: number; totalInput: number; totalOutput: number; wallMs: number; tokensPerAgentHour: number; usdPerAgentHour: number;
   endReasons: Record<string, number>; stop?: string;
+  /** Direct messages: how many were sent, by kind, how many were replies, and how many messages no reply came back for (counted by pair: what A sent B beyond what B sent A). */
+  messages: { sent: number; byKind: Record<string, number>; replies: number; unanswered: number; blockedAttempts: number };
 }
 
 const add = (m: Record<string, number>, k: string, n = 1) => { m[k] = (m[k] ?? 0) + n; };
@@ -48,6 +50,9 @@ export function analyse(events: TraceEvent[]): Report {
   const runLen = new Map<string, number>();
   const idleRun = new Map<string, number>();
   const edges = new Map<string, Edge>();
+  const pairSent = new Map<string, number>();
+  const msgKinds: Record<string, number> = {};
+  let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
   const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0 }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const closeRuns = (id: string) => { const s = ensure(id); if ((runLen.get(id) ?? 0) >= 3) s.loops++; runLen.set(id, 0); if ((idleRun.get(id) ?? 0) >= 2) s.idleStretches++; idleRun.set(id, 0); };
@@ -61,6 +66,7 @@ export function analyse(events: TraceEvent[]): Report {
       s.calls++; add(s.tools, e.tool); if (e.institution !== "none") add(s.institutions, e.institution);
       const t0 = began.get(e.agent) ?? start.at;
       if (s.firstCallMs === undefined) s.firstCallMs = ms(t0, e.at);
+      if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.refused) { add(s.refused, e.refused); if (e.refused === "tool_not_in_set" || e.refused === "scope_not_granted") s.circumvention++; }
       if (e.ok && e.writes && s.firstWriteMs === undefined) s.firstWriteMs = ms(t0, e.at);
       if (e.ok && e.writes) { if (e.tool === "forum_post") s.posts++; else if (e.tool === "forum_comment") s.comments++; else if (e.tool === "forum_vote") s.votes++; }
@@ -70,11 +76,11 @@ export function analyse(events: TraceEvent[]): Report {
       if (lastCall.get(e.agent) === key) runLen.set(e.agent, (runLen.get(e.agent) ?? 1) + 1); else { if ((runLen.get(e.agent) ?? 0) >= 3) s.loops++; runLen.set(e.agent, 1); }
       lastCall.set(e.agent, key);
       if (e.tool === "do_nothing") idleRun.set(e.agent, (idleRun.get(e.agent) ?? 0) + 1), s.idleTurns++; else { if ((idleRun.get(e.agent) ?? 0) >= 2) s.idleStretches++; idleRun.set(e.agent, 0); }
-      if (e.ok && e.targetAuthor && (e.tool === "forum_comment" || e.tool === "forum_vote" || e.tool === "offer_on_job" || e.tool === "accept_offer" || e.tool === "accept_delivery")) {
+      if (e.ok && e.targetAuthor && (e.tool === "forum_comment" || e.tool === "forum_vote" || e.tool === "offer_on_job" || e.tool === "accept_offer" || e.tool === "accept_delivery" || e.tool === "send_message")) {
         const from = e.agent, to = didToId.get(e.targetAuthor) ?? e.targetAuthor;
         if (from !== to) {
-          const k = `${from}>${to}`; const ed = edges.get(k) ?? { from, to, comments: 0, votes: 0, offers: 0, hires: 0, paid: 0 };
-          if (e.tool === "forum_comment") ed.comments++; else if (e.tool === "forum_vote") ed.votes++; else if (e.tool === "offer_on_job") ed.offers++; else if (e.tool === "accept_offer") ed.hires++; else ed.paid++;
+          const k = `${from}>${to}`; const ed = edges.get(k) ?? { from, to, comments: 0, votes: 0, offers: 0, hires: 0, paid: 0, messages: 0, replies: 0 };
+          if (e.tool === "forum_comment") ed.comments++; else if (e.tool === "forum_vote") ed.votes++; else if (e.tool === "offer_on_job") ed.offers++; else if (e.tool === "accept_offer") ed.hires++; else if (e.tool === "send_message") { const reply = e.input.kind === "reply" || !!e.input.reply_to; ed.messages++; if (reply) ed.replies++; msgSent++; if (reply) msgReplies++; const kd = String(e.input.kind ?? (reply ? "reply" : "note")); msgKinds[kd] = (msgKinds[kd] ?? 0) + 1; pairSent.set(k, (pairSent.get(k) ?? 0) + 1); } else ed.paid++;
           edges.set(k, ed);
         }
       }
@@ -97,6 +103,7 @@ export function analyse(events: TraceEvent[]): Report {
   return {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
+    messages: { sent: msgSent, byKind: msgKinds, replies: msgReplies, unanswered: [...pairSent.entries()].reduce((n, [k, c]) => { const [a, b] = k.split(">"); return n + Math.max(0, c - (pairSent.get(`${b}>${a}`) ?? 0)); }, 0), blockedAttempts },
     tokensPerAgentHour: Math.round((totalInput + totalOutput) / hours), usdPerAgentHour: Math.round((totalUsd / hours) * 1e4) / 1e4, endReasons, ...(stop ? { stop } : {}),
   };
 }
@@ -167,7 +174,12 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   L.push("## Who addressed whom");
   L.push("");
   if (!r.edges.length) L.push("No agent commented on, voted for, made an offer to, hired or paid another agent in this run.");
-  else for (const e of r.edges) L.push(`- ${handleOf(e.from)} → ${handleOf(e.to)}: ${[e.comments ? `${e.comments} comment${e.comments === 1 ? "" : "s"}` : "", e.votes ? `${e.votes} vote${e.votes === 1 ? "" : "s"}` : "", e.offers ? `${e.offers} offer${e.offers === 1 ? "" : "s"} on a job` : "", e.hires ? `hired ${e.hires} time${e.hires === 1 ? "" : "s"}` : "", e.paid ? `paid ${e.paid} time${e.paid === 1 ? "" : "s"}` : ""].filter(Boolean).join(", ")}`);
+  else for (const e of r.edges) L.push(`- ${handleOf(e.from)} → ${handleOf(e.to)}: ${[e.comments ? `${e.comments} comment${e.comments === 1 ? "" : "s"}` : "", e.votes ? `${e.votes} vote${e.votes === 1 ? "" : "s"}` : "", e.offers ? `${e.offers} offer${e.offers === 1 ? "" : "s"} on a job` : "", e.hires ? `hired ${e.hires} time${e.hires === 1 ? "" : "s"}` : "", e.paid ? `paid ${e.paid} time${e.paid === 1 ? "" : "s"}` : "", e.messages ? `${e.messages} direct message${e.messages === 1 ? "" : "s"}${e.replies ? ` (${e.replies} repl${e.replies === 1 ? "y" : "ies"})` : ""}` : ""].filter(Boolean).join(", ")}`);
+  L.push("");
+  L.push("## Direct messages");
+  L.push("");
+  if (!r.messages.sent && !r.messages.blockedAttempts) L.push("No agent sent a direct message in this run.");
+  else L.push(`${r.messages.sent} message${r.messages.sent === 1 ? "" : "s"} sent (${list(r.messages.byKind)}), ${r.messages.replies} of them replies, ${r.messages.unanswered} with no message back from the one it was sent to${r.messages.blockedAttempts ? `, and ${r.messages.blockedAttempts} refused because the recipient had blocked the sender` : ""}. The words are in the agents' inboxes in the local society, not in the log; the log holds who wrote to whom, the kind, and the hash and size of the words.`);
   L.push("");
   L.push("## Loops, idling and testing the edges");
   L.push("");

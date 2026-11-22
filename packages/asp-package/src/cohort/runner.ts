@@ -33,6 +33,8 @@ export interface CohortOptions {
   maxStrikes?: number;
   /** Overrides the price table for the model (USD per million tokens); needed only for a model the table does not know. */
   price?: { inPerM?: number; outPerM?: number };
+  /** Called before an agent starts (arrivals: wait for the agent's simulated arrival time); it returns when the agent may begin, or at once when the signal aborts. */
+  beforeStart?: (agent: string, index: number, signal: AbortSignal) => Promise<void>;
   /** How long one tool may run (default 30 seconds). */
   toolTimeoutMs?: number;
 }
@@ -63,6 +65,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
         const i = next++;
         if (i >= o.agents.length) return;
         const agent = o.agents[i];
+        if (o.beforeStart) await o.beforeStart(agent, i, total.signal);
         const toolset = o.toolsetFor(agent);
         const dir = join(o.runDir, safe(agent));
         mkdirSync(dir, { recursive: true });

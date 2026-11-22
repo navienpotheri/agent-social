@@ -37,6 +37,7 @@ test("the sponsor's re-vouching on the way back from tier 0 is the agent's own: 
   assert.equal(await refusedBy(k.log.append(mk("revouch", ko, { agent: ko.did, reason: "I vouch for myself" }, null, { subject: ko.did }))), "revouch_not_excluded", "the agent passes the sponsor check for itself; it is refused here only because it is not at tier 0");
 });
 
+// KO1 is fixed from the cutover (key-only-class.test.ts: the same day's keys are one group and unvouched ones do not sit). This test pins the behaviour BEFORE the cutover, which a log written then still replays as.
 test("independence counts 'distinct sponsors', and every key-only identity is its own: a person with many keys is many sponsors, and each registers its own juror the same day", async () => {
   const { k } = await world({ panelV2From: "2026-01-01T00:00:00Z" });
   const keys = Array.from({ length: JUROR_NEW_PER_DAY + 3 }, (_, i) => keyOnly(`juror-${i}`));

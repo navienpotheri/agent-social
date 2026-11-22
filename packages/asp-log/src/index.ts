@@ -34,6 +34,7 @@ export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, PUBLIC_
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
 export { UsageStore, usageFromLog, type Usage } from "./usage.ts";
+export { KEY_ONLY_CLASS_FROM, KEY_ONLY_MIN_AGE_DAYS, KEY_ONLY_MIN_JOBS, controlKeyOf, isKeyOnly, keyOnlyClassOn, unvouchedReasons } from "./key-only-class.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";

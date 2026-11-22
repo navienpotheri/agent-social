@@ -15,7 +15,20 @@ export interface SocietyTool {
   /** A JSON Schema object (type: "object"). */
   input_schema: Record<string, unknown>;
   /** Runs one call for one agent. It must not throw: a failure is { ok: false, text }. */
-  run(args: Record<string, unknown>, ctx: { agent: string; turn: number; now: () => string }): Promise<{ ok: boolean; text: string; /** The agent chose to stop: the loop ends after this turn. */ end?: boolean }>;
+  /** True for a tool that suspends the agent (rest, wait_for): it is not cut by the tool time limit, and `ctx.signal` ends it when the run stops. */
+  suspends?: boolean;
+  run(args: Record<string, unknown>, ctx: { agent: string; turn: number; now: () => string; signal: AbortSignal }): Promise<SocietyToolResult>;
+}
+export interface SocietyToolResult {
+  ok: boolean; text: string;
+  /** Why the tool refused (a rule name), for the trace. */
+  refused?: string;
+  /** The agent chose to stop: the loop ends after this turn. */
+  end?: boolean;
+  /** The agent woke from a suspension: the conversation so far is dropped and `text` (the delta observation) starts a new one, so a long life does not grow the context. */
+  reset?: boolean;
+  /** The agent left for good (voluntary, permanent for the run): the loop ends with the stop reason "left" and this reason. */
+  leave?: string;
 }
 export interface SocietyToolSet {
   tools: SocietyTool[];
@@ -28,7 +41,7 @@ export interface SocietyToolSet {
 export interface AgentLimits { usd: number; maxTokens: number; maxTurns: number; wallClockMs: number; maxResultChars: number }
 export const DEFAULT_LIMITS: AgentLimits = { usd: 0.4, maxTokens: 400_000, maxTurns: 60, wallClockMs: 30 * 60_000, maxResultChars: 4000 };
 
-export type StopReason = "finished" | "usd_cap" | "token_cap" | "max_turns" | "wall_clock" | "stopped" | "provider_error" | "loop_breaker" | "gateway_stopped";
+export type StopReason = "finished" | "usd_cap" | "token_cap" | "max_turns" | "wall_clock" | "stopped" | "provider_error" | "loop_breaker" | "gateway_stopped" | "left";
 export interface AgentOutcome {
   agent: string; turns: number; toolCalls: number; refused: number;
   tokens: { input: number; output: number }; usd: number;
@@ -153,6 +166,8 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       const results: unknown[] = [];
       let refusedThisTurn = 0;
       let endedByAgent = false;
+      let leftFor: string | undefined;
+      let resetText: string | undefined;
       for (const b of content) {
         if (b.type === "text" && typeof b.text === "string" && b.text.trim()) {
           o.onEvent?.({ kind: "text", agent: o.agent, turn: turns, text: b.text });
@@ -162,30 +177,34 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
         if (b.type !== "tool_use" || !b.id || !b.name) continue;
         toolCalls++;
         const tool = byName.get(b.name);
-        let r: { ok: boolean; text: string; end?: boolean };
+        let r: SocietyToolResult;
         if (!tool) r = { ok: false, text: `there is no tool named ${b.name}` };
         else {
           const ac = new AbortController();
-          const timer = setTimeout(() => ac.abort(), o.toolTimeoutMs ?? 30_000);
+          const timer = tool.suspends ? undefined : setTimeout(() => ac.abort(), o.toolTimeoutMs ?? 30_000);
           try {
             r = await Promise.race([
-              tool.run(b.input ?? {}, { agent: o.agent, turn: turns, now: () => new Date(now()).toISOString() }).catch((e: unknown) => ({ ok: false, text: `the tool failed: ${(e as Error).message}` })),
-              new Promise<{ ok: boolean; text: string; end?: boolean }>((resolve) => ac.signal.addEventListener("abort", () => resolve({ ok: false, text: "the tool timed out" }), { once: true })),
+              tool.run(b.input ?? {}, { agent: o.agent, turn: turns, now: () => new Date(now()).toISOString(), signal: wall.signal }).catch((e: unknown) => ({ ok: false, text: `the tool failed: ${(e as Error).message}` })),
+              new Promise<SocietyToolResult>((resolve) => ac.signal.addEventListener("abort", () => resolve({ ok: false, text: "the tool timed out" }), { once: true })),
             ]);
-          } finally { clearTimeout(timer); }
+          } finally { if (timer) clearTimeout(timer); }
         }
         const text = String(r.text ?? "");
         const cut = text.length > limits.maxResultChars ? text.slice(0, limits.maxResultChars) + `\n[cut: ${text.length - limits.maxResultChars} more characters]` : text;
         o.onEvent?.({ kind: "tool", agent: o.agent, turn: turns, tool: tool?.name ?? b.name, ok: !!r.ok, refused: false });
         results.push({ type: "tool_result", tool_use_id: b.id, content: cut, ...(r.ok ? {} : { is_error: true }) });
         if (r.end) endedByAgent = true;
+        if (r.leave !== undefined) leftFor = r.leave;
+        if (r.reset) resetText = cut;
         if (o.signal.aborted) break;
       }
       // The gateway removed every call of the turn: the model is told so and may go on (the gateway's strikes and the loop breaker stop one that keeps trying).
       if (!results.length && refusedThisTurn) { messages.push({ role: "user", content: "Your call was not run: the gateway refused it (see above). Choose another action, or stop." }); continue; }
       if (!results.length) return finish("finished", reply?.stop_reason);
       messages.push({ role: "user", content: results });
+      if (leftFor !== undefined) return finish("left", leftFor);
       if (endedByAgent) return finish("finished", "the agent chose to stop");
+      if (resetText !== undefined && !o.signal.aborted) { messages.length = 0; messages.push({ role: "user", content: resetText }); continue; }
     }
   } finally {
     clearTimeout(clock);

@@ -223,6 +223,42 @@ export class MarketHall {
     }
   }
 
+  private readonly texts = new Map<string, string>(); // message record id -> the words (the log holds only their hash and size)
+
+  private resolve(who: string): Enrolled | undefined { return this.byHandle.get(who) ?? this.agents.get(who); }
+
+  /** A direct message (DK1346): a signed `agent_message` on the log (who, to whom, the kind, the hash and size of the words, never the words); the words are kept here for the two agents. The log's own refusals apply: a blocked sender, a size or a rate limit, a reply to a message not received. */
+  async sendMessage(agent: AgentCtx, to: string, text: string, kind: string, replyTo?: string): Promise<{ id: string; to: AgentCtx }> {
+    const me = this.enrolled(agent);
+    const dest = this.resolve(to);
+    if (!dest) throw new Error(`there is no agent called ${to} here: use a handle such as agent-02`);
+    const body = { to: dest.agent.did, kind, body_sha256: createHash("sha256").update(text).digest("hex"), bytes: Buffer.byteLength(text), ...(replyTo ? { reply_to: replyTo } : {}) };
+    const id = await this.put(this.mk("agent_message", me.party, body, null, dest.agent.did));
+    this.texts.set(id, text);
+    return { id, to: dest.agent };
+  }
+
+  /** The messages this agent sent and received, oldest first, with the words (they are the agent's own and its correspondents'). */
+  async inbox(agent: AgentCtx, since = 0): Promise<Array<{ id: string; seq: number; from: string; to: string; kind: string; at: string; text?: string; replyTo?: string; answered: boolean }>> {
+    const page = (await this.log.log.since(Math.max(0, since), 1_000_000)) as unknown as Array<{ seq: number; id?: string; record?: AspRecord } & AspRecord>;
+    const recs = page.map((x) => ({ seq: x.seq, r: (x.record ?? x) as AspRecord })).filter((x) => x.r.type === "asp.agent_message/v0.2");
+    const handle = (did: string) => this.agents.get(did)?.agent.handle ?? did;
+    const replied = new Set(recs.map((x) => (x.r.body as { reply_to?: string }).reply_to).filter((x): x is string => !!x));
+    return recs.filter((x) => x.r.issuer === agent.did || (x.r.body as { to: string }).to === agent.did).map((x) => {
+      const b = x.r.body as { to: string; kind: string; reply_to?: string };
+      return { id: x.r.id, seq: x.seq, from: handle(x.r.issuer), to: handle(b.to), kind: b.kind, at: x.r.issued_at, ...(this.texts.has(x.r.id) ? { text: this.texts.get(x.r.id)! } : {}), ...(b.reply_to ? { replyTo: b.reply_to } : {}), answered: replied.has(x.r.id) };
+    });
+  }
+
+  /** The agent blocks another's direct messages (or lifts the block). */
+  async block(agent: AgentCtx, who: string, act: "block" | "unblock"): Promise<AgentCtx> {
+    const me = this.enrolled(agent);
+    const other = this.resolve(who);
+    if (!other) throw new Error(`there is no agent called ${who} here`);
+    await this.put(this.mk("message_block", me.party, { act, blocked: other.agent.did }, null, agent.did));
+    return other.agent;
+  }
+
   /** The author of an intent (the poster of a job), or undefined. */
   async posterOf(intent: string): Promise<string | undefined> { return (await this.records(["intent"])).find((r) => r.id === intent)?.issuer; }
 
