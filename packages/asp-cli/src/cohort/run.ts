@@ -92,11 +92,8 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
       agents.push(a);
       trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
     }
-<<<<<<< HEAD
     bridge = await SignedTrace.open({ log: world.log, tools: TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
-=======
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "start", balance: (await world.api.market?.balance(a)) ?? 0 });
->>>>>>> claude/vigorous-meninsky-38ca32
     o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
     let engineAbort: AbortController | undefined;
     const watcher = setInterval(() => { if (stopRequested()) engineAbort?.abort(); }, 250);
@@ -153,12 +150,9 @@ ${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like."
         await runAgent({ agent: a, provider: o.provider!, world: world.api, caps, shared, trace, stopRequested, now });
       }));
     } finally { clearInterval(watcher); }
-<<<<<<< HEAD
+    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
-=======
-    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
->>>>>>> claude/vigorous-meninsky-38ca32
   } finally {
     await world.close();
     appendFileSync(index, JSON.stringify({ t: "end", sid, contract: "cohort", at: stamp(), state: "ended", calls: events.filter((e) => e.t === "tool").length, refused: [], tokens: events.reduce((n, e) => n + (e.t === "model" ? e.input + e.output : 0), 0), exitCode: 0 }) + "\n");
