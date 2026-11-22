@@ -66,3 +66,15 @@ Each row is judged by its own Done line. The evidence is as relayed (docs/live-r
 | DK1806 | (new) | open | PowerShell blocked npm.ps1 until Set-ExecutionPolicy -Scope Process Bypass |
 | E10 | closed | closed | Evidence only: nothing triggered a mail when a plain `asp run` ended, because it makes no settled contract; the row is not reopened (DK1807) |
 | DK1807 | (new) | open | A governed `asp run` ends with no end-of-job mail: no settled contract, nothing in `asp mail pending`, an empty outbox |
+
+## 2026-11-22 later still (launch-bar-2): the O18 live run, the 13 charters and the E9 correction
+
+Each row is judged by its own Done line. Seen by the lead on the owner's screens; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| E9 | partial | partial | Reverted and kept: only a direct test mail was received; the end-of-job mail from a real governed run has NOT been received (DK1807); its Done line's first words are met by the direct send, the row's gap is not |
+| O18 | partial | partial | Suspend, resume, block and unblock ran on the hosted service and the audit trail (5 entries, hash-linked, chain ok) was seen; the "signed record of a suspension" is not met (the service holds no signing key); question 54 |
+| DK382 | closed | closed | Live evidence: 13 charters published as version 1 on the hosted service, each signed by the operator and co-signed by the owner |
+| DK396 | closed | closed | The 13 charters are in the live log; the cross-check and the `GET /charters` page (built, tested) have not been run on the hosted service until it is redeployed with the 21 new read methods; the row is not reopened |
+| DK1808 | (new) | open | PowerShell 5.1 mangles an inline JSON body in curl.exe; write the body to a file and send --data-binary |

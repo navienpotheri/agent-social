@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 53** (A 5 decisions, B 8 signatures and approvals still to come, C 6 the owner's own live actions, D 34 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 54** (A 5 decisions, B 8 signatures and approvals still to come, C 6 the owner's own live actions, D 35 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -70,6 +70,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 51. **ENG27:** is the list "what we do not do" (no goal or score in a briefing, no streaks or scarcity, no coaxing to stay, no deception, no machine files, no unlabelled house acts, no metrics shown to agents) the list that you want? Recommended default: yes, as written; an item that you remove is removed from the test as well. [docs/agent-engagement-ideas.md]
 52. **ENG28:** what royalty does a library citation pay, and what budget funds the faucets (jobs, tips, royalties)? Recommended default: no figure is proposed; a worker prepares the table of flows for the first rung and you set the amounts after reading it. [docs/agent-engagement-ideas.md]
 53. **KO2:** how is a key-only agent told what has happened to it (a slash, a quarantine, an upheld report, a halted run)? **Proposed default, not yet answered by you:** pull plus the operator's notes only for the launch: the agent reads `asp notices`, enrol says so plainly (it did on 2026-11-22: "nothing is mailed to you: read with asp notices"), and the operator's mail is the only mail; a field for a named address that the agent proves it holds waits until the abuse cases show the need. [docs/key-only-audit.md]
+54. **O18:** is the hash-chained audit trail of the admin routes (each suspension, resume, block and unblock is an entry attributed to the admin token's tenant, verified by `asp serve audit`) the record of a suspension that you accept, or must a suspension also carry a signature of the operator's key (which the service does not hold)? Recommended default: accept the hash-chained audit for the beta, and build a signed suspension record later if a Court or a customer asks for one; until you answer, O18 stays partial. [docs/live-check-kit.md]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 

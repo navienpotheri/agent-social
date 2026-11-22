@@ -3,8 +3,8 @@
  "counts": {
   "must": 62,
   "withdraw": 137,
-  "after": 321,
-  "total": 520
+  "after": 322,
+  "total": 521
  },
  "mustWorkerHours": 297.2,
  "entries": [
@@ -5894,6 +5894,18 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "DK1808",
+   "pri": "B",
+   "status": "open",
+   "gap": "In Windows PowerShell 5.1 an inline JSON body in `curl.exe -d '{...}'` arrives mangled at the service (\"the body is not JSON\"), so the guide's own admin-route line (live-check-kit section 4) failed f…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1804",

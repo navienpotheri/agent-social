@@ -306,7 +306,7 @@ npm run asp -- account close --confirm YOUR-TENANT
 node scripts/smoke-serve.mjs $SITE
 ```
 
-and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a tenant that you made for the purpose, then read the audit trail).
+and section 4 of [live-check-kit.md](live-check-kit.md) (suspend and resume a tenant that you made for the purpose, then read the audit trail). When you call an admin route by hand with `curl.exe` in Windows PowerShell 5.1, an inline JSON body (`-d '{...}'`) reaches the service mangled ("the body is not JSON"): write the body to a file with `Set-Content -NoNewline` and send it with `--data-binary @file` (DK1808).
 
 **Right.** Every line of the smoke check says `ok 200`, **except what the service cannot do yet**: on 2026-11-22, 23 of 24 pages answered `ok 200` and `/watch/findings` answered 401, because the watcher flag `--watch-interval` is not on the service's unit (DK52, a decision for later). Say it as it was seen; never claim that all lines were 200. A suspended tenant's request is refused with the reason and works after the resume; `serve audit` verifies the chain and exits 0; the admin routes answer 401 without the admin token.
 

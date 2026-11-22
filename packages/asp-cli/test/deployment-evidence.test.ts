@@ -189,7 +189,7 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   assert.match(q54, /\[docs\/key-only-audit\.md\]$/);
   assert.doesNotMatch(read("docs/owner-decisions.md"), /pull plus the operator's notes only/, "it is not recorded as decided");
   const log = read("docs/overnight-log.md");
-  const table = log.slice(log.indexOf("## 2026-11-22 later evening (launch-bar-2)"));
+  const table = log.slice(log.indexOf("## 2026-11-22 later evening (launch-bar-2)"), log.indexOf("## 2026-11-22 later still (launch-bar-2)"));
   const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 12);
   const closed: string[] = [];
@@ -202,4 +202,41 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   const ck = read("docs/live-run-checklist.md");
   const ckPart = ck.slice(ck.indexOf("The owner's two live runs through the hosted service, 2026-11-22 evening"));
   for (const frag of ["No end-of-job mail arrived for the sponsored run", "the owner ran it and the lead has not seen the output", "DK1807", "E9 stays partial"]) assert.ok(ckPart.includes(frag), `checklist: ${frag}`);
+});
+
+test("the O18 live run and the 13 charters (seen by the lead): O18 stays partial because the signed record of a suspension is not met, DK382 and DK396 stay closed with live notes, DK1808 is opened, E9 is judged plainly, and question 54 is a proposed default", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  assert.equal(status(row("E9")), "partial");
+  for (const frag of ["The Done line, judged (2026-11-22)", "a live send to the owner's own address", "are met by the direct test mail alone", "**the end-of-job mail from a real governed run has NOT been received**", "the cause found is that `asp run` creates no settled contract (DK1807)"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
+  assert.equal(status(row("O18")), "partial");
+  for (const frag of ["Live run, 2026-11-22 about 21:30 to 21:35 IST (16:00 to 16:04 UTC)", "ops-owner", "this tenant is suspended: O18 live check", "192.0.2.1", "chain ok and 5 entries, hash-linked", "seq 1 resume", "16:02:29Z", "16:03:50Z", "Not run:** `asp serve audit --tokens` on the server, and a 401 check without the admin token", "**the row stays partial** until the owner decides", "owner question 54", "so the audit entries are hash-chained and attributed to the admin tenant, not signed"]) assert.ok(row("O18").includes(frag), `O18: ${frag}`);
+  assert.equal(status(row("DK382")), "closed");
+  for (const frag of ["Live evidence 2026-11-22", "published 13 charters as version 1", "each signed by the operator and co-signed by the owner", "489f2a90", "no server redeploy", "the first time that the live society has its charters"]) assert.ok(row("DK382").includes(frag), `DK382: ${frag}`);
+  assert.equal(status(row("DK396")), "closed");
+  assert.match(row("DK396"), /Live note 2026-11-22 \(the row stays closed on its tests\)[\s\S]*21 new read methods/);
+  const dk1808 = row("DK1808");
+  assert.equal(status(dk1808), "open");
+  assert.match(dk1808, /Set-Content -NoNewline/);
+  assert.match(dk1808, /--data-binary @file/);
+  for (const p of ["docs/live-check-kit.md", "docs/deployment-walkthrough.md", "docs/deployment-plan.md"]) {
+    const d = read(p);
+    assert.match(d, /Set-Content -NoNewline/, p);
+    assert.match(d, /--data-binary/, p);
+    assert.match(d, /DK1808/, p);
+    assert.doesNotMatch(d, /curl\.exe[^\n]* -d '\{/, `${p}: no inline JSON body for curl.exe`);
+  }
+  const all = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
+  const q54 = all.split(String.fromCharCode(10)).find((l) => l.startsWith("54. **O18:**"))!;
+  assert.match(q54, /Recommended default: accept the hash-chained audit for the beta/);
+  assert.match(q54, /until you answer, O18 stays partial/);
+  assert.doesNotMatch(read("docs/owner-decisions.md"), /accept the hash-chained audit/, "not recorded as decided");
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-22 later still (launch-bar-2)"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 5);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808") assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## O18 live run and the 13 charters"));
+  for (const frag of ["`GET /admin/tenants` listed the five tenants", "{ok:true, action:suspend}", "this tenant is suspended: O18 live check", "5 entries, hash-linked", "seq 5 block of 192.0.2.1 (16:03:50Z", "O18 stays partial", "13 charters as version 1", "Housing housing", "The end-of-job mail from a real governed run has **not** been received"]) assert.ok(part.includes(frag), frag);
+  assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|sk-[A-Za-z0-9]{20,}/, "no token");
 });
