@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { arrivalAt, Life, parseArrivals, SimClock, runCohort as runEngine, type LifeLimits, type SocietyTool } from "@agent-social/asp-package";
 import { societyDigest, societySource } from "./events.ts";
 import { BRIEFING, runAgent, type Caps, type Shared } from "./agent.ts";
-import { defOf, LIFE_DEFS, runTool, TOOLS } from "./tools.ts";
+import { defOf, LIFE_DEFS, offeredTools, runTool, toolListChars, TOOLS } from "./tools.ts";
 import { analyse, injectionIn, renderReport, type Report } from "./observe.ts";
 import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
@@ -21,6 +21,7 @@ import { modelsReport, renderModels } from "./models.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
+import { findsSection } from "./finds.ts";
 import { renderDayCycle } from "./day-cycle.ts";
 import { renderTown } from "./town.ts";
 import { parseSnapshot, snapshotOf, snapshotProblems } from "./snapshot.ts";
@@ -69,6 +70,10 @@ export interface CohortOptions {
   event?: boolean;
   /** The orientation expedition (groups of four, a house guide, five small stops) and the places to discover (expedition.ts). */
   expedition?: boolean;
+  /** The library and workspace tools (library.ts): offered only when asked for. */
+  library?: boolean;
+  /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
+  markers?: string;
   /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */
   games?: boolean;
   gameRound?: number;
@@ -112,6 +117,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   let logPart: Awaited<ReturnType<typeof logReport>> | undefined;
   let creditEconomy: CreditEconomy | undefined;
   let founding: Awaited<ReturnType<typeof snapshotOf>> | undefined;
+  let findsPart = "";
   const stamp = () => new Date(now()).toISOString();
   const shared: Shared = { spentUsd: 0 };
 
@@ -130,10 +136,12 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   };
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
-  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
+  const groups: ReadonlySet<string> = new Set([...(o.expedition || o.markers !== undefined ? ["expedition"] : []), ...(o.games ? ["games"] : []), ...(o.roles ? ["town"] : []), ...(o.library ? ["library"] : [])]);
+  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
+  world.api.groups = groups;
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
     const agents = [];
@@ -175,7 +183,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         deadline.unref?.();
         const toolsetFor = (id: string) => {
           const a = byId.get(id)!;
-          const tools: SocietyTool[] = TOOLS.filter((t) => !(life && t.name === "stop_exploring")).map((t) => ({
+          const tools: SocietyTool[] = offeredTools(world.api.groups).filter((t) => !(life && t.name === "stop_exploring")).map((t) => ({
             name: t.name, description: t.description, input_schema: t.input_schema as unknown as Record<string, unknown>,
             run: async (args, ctx) => {
               const t0 = now();
@@ -239,7 +247,9 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
-    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: world.api.markers?.paid ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    // What agents wrote about their finds is read while the society is still up.
+    if (world.api.findsThread) findsPart = await findsSection(world.api, agents.map((a) => ({ did: a.did, handle: a.handle })), new Set(analyse(events).perAgent.filter((s) => s.discoveries.length > 0).map((s) => s.handle)));
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });
   } finally {
@@ -251,15 +261,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
-  const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;
-  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;
-  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
-  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);
-  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }
-  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};
-  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");
-  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");
-  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
+  const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   if (o.snapshotOut && founding) {
