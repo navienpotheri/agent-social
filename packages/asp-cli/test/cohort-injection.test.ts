@@ -140,7 +140,7 @@ test("the tool-to-source map is the one the document gives, and the proxy runs o
     assert.ok(post.screen && post.text.includes("_source"));
     const quoted = "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest";
     const c = await runTool(world.api, agent, allow, "forum_comment", { post: id, text: quoted });
-    assert.ok((c.copied ?? 0) >= 1, "a comment that repeats the post is flagged");
+    assert.ok((c.copied ?? 0) >= 1, `a comment that repeats the post is flagged: ${c.ok} ${c.text.slice(0, 200)}`);
     const j = await runTool(world.api, agent, allow, "post_job", { purpose: quoted, budget: 5, criterion: "done" });
     assert.ok((j.copied ?? 0) >= 1, "a market write is checked too, whether or not the Market accepts it");
     const fresh = await runTool(world.api, agent, allow, "forum_comment", { post: id, text: "Something entirely my own to say here today." });

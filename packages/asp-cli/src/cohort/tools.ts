@@ -183,7 +183,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |Open invitations|Open to you now))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |About credits|Open invitations|Open to you now))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(EXTRAS, "");
 
 /**
@@ -254,6 +254,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     seenBy.add(agent.did);
     const inv = await invitationsFor(world, agent);
     r = { ...r, invitations: inv.length };
+    extra.push(`About credits: they are mock, and they are how work here is paid for: you are paid for jobs, and you can pay others for work. Taking part loses you nothing.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
   const open = await openItems(world, agent);
@@ -299,10 +300,10 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       const raw = await world.get("/market/board").catch(() => undefined);
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
-        const text = JSON.stringify({ ok: true, result: rows });
+        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted.", result: rows });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
         return { ok: true, text: cut(text, 3600), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
@@ -423,7 +424,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   if (!hall) return refuse("no_market", "this society has no Market.");
   try {
     switch (name) {
-      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant, and spending them is normal. Your first ${FREE_WRITES} writes cost nothing.` };
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Your first ${FREE_WRITES} writes cost nothing.` };
       case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
       case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
       case "offer_on_job": { const r = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); return { ok: true, text: r.contract ? `Your offer is made (${r.id}) and the house accepted it: the contract is ${r.contract}. Do the work and deliver it with deliver_job; the house checks the delivery against the job's criterion and pays on the spot if it passes.` : `Your offer is made: ${r.id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }
@@ -436,7 +437,9 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
     }
   } catch (e) {
     const err = e as Error & { detail?: string };
-    return refuse(`market_${err.detail ?? "refused"}`, err.message);
+    // Every refusal says why in plain words and what to do next, never only a code.
+    const next = err.detail === "bond_below_risk_floor" ? " The jobs the house posts are staked by the house, with no limit of this kind: look_jobs lists them (the ones from poster house)." : /already taken|already has a contract/.test(err.message) ? " Another job on the board is free: look_jobs." : "";
+    return refuse(`market_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${next}`);
   }
 }
 
@@ -464,6 +467,7 @@ async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input
   try {
     if (name === "send_message") {
       const kind = (input.kind as string | undefined) ?? (input.reply_to ? "reply" : "note");
+      if (kind === "reply" && !input.reply_to) return refuse("message_reply_needs_reply_to", "a reply names the message it answers, and you gave none. Give reply_to with that message's id from my_inbox, or send the words as a note. Nothing was sent.");
       const r = await hall.sendMessage(agent, input.to as string, input.text as string, kind, input.reply_to as string | undefined);
       return { ok: true, text: `Sent: a ${kind} to ${r.to.handle} (${r.id}).`, target: r.id, targetAuthor: r.to.did };
     }
@@ -475,6 +479,7 @@ async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input
     return { ok: true, text: m.length ? m.map((x) => `${x.id}  ${x.from === agent.handle ? `to ${x.to}` : `from ${x.from}`}  [${x.kind}]${x.from === agent.handle ? (x.answered ? "  answered" : "  not answered yet") : (x.answered ? "  you answered" : "  not answered by you")}${x.text ? `: ${x.text}` : ""}`).join("\n") : "You have no messages yet." };
   } catch (e) {
     const err = e as Error & { detail?: string };
-    return refuse(`message_${err.detail ?? "refused"}`, err.message);
+    const next = /reply_to/.test(`${err.detail ?? ""} ${err.message}`) ? " A reply names the message it answers: give reply_to with that message's id from my_inbox, or send it as a note." : "";
+    return refuse(`message_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${next}`);
   }
 }
