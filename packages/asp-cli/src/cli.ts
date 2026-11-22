@@ -733,6 +733,8 @@ const OPTIONS = {
   status: { type: "string" },
   note: { type: "string" },
   dir: { type: "string" },
+  house: { type: "boolean" },
+  operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
   name: { type: "string" },
@@ -1169,6 +1171,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    // A house agent (DK270, DK1603): created by the operator and nobody else. `asp house create <name>` is `asp identity new --kind agent --house` with the operator as the sponsor.
+    if (cmd === "house" && sub === "create") {
+      if (!rest[0]) throw new UsageError("asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]   (the operator's own command: it signs with the operator's key)");
+      const op = v.operator ?? operatorOf(home, io.env);
+      if (!op) throw new UsageError("no operator is named: set ASP_OPERATOR_DID to the operator's DID (the one the service was started with) or pass --operator <did>");
+      v.kind = "agent"; v.house = true; v.sponsor = v.sponsor ?? op; v.operator = op;
+      if (!v.did && !v.method) v.name = rest[0];
+      return await identityNew(home, v, need, io);
+    }
     if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
@@ -1525,9 +1536,23 @@ async function identityRotate(home: string, did: string | undefined, v: Values, 
   return 0;
 }
 
+/** The operator's DID on this machine: ASP_OPERATOR_DID, else <home>/operator.json (the same two places the log reads). */
+function operatorOf(home: string, env: Record<string, string | undefined>): string | undefined {
+  if (env.ASP_OPERATOR_DID) return env.ASP_OPERATOR_DID;
+  try { return (JSON.parse(readFileSync(join(home, "operator.json"), "utf8")) as { operator?: string }).operator; } catch { return undefined; }
+}
+
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
   if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
+  if (v.house && kind !== "agent") throw new UsageError("--house is for an agent: a house agent is a scripted agent the operator runs");
+  // A house agent is sponsored by the operator, and only the operator's key can sign that sponsorship: --house names the operator (--operator, else ASP_OPERATOR_DID) and refuses any other sponsor before anything is made.
+  const houseOperator = v.house ? (v.operator ?? operatorOf(home, io.env)) : undefined;
+  if (v.house) {
+    if (!houseOperator) throw new UsageError("--house needs the operator's DID: set ASP_OPERATOR_DID or pass --operator <did>");
+    if (v.sponsor !== houseOperator) throw new UsageError("a house agent is sponsored by the operator (" + houseOperator + "), not by " + (v.sponsor ?? "nobody") + ": the label is permanent and only the operator may give it");
+    if (!new Keystore(home).forDid(houseOperator)) throw new UsageError("this machine does not hold the operator's key (" + houseOperator + "): only the operator can create a house agent, on the operator's own machine");
+  }
   const keys = new Keystore(home);
   const log = await openLog(home, logEnv);
 
@@ -1584,6 +1609,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       sponsor, mentor: sponsor, tier: 1,
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
+      ...(v.house ? { house: true } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
       ...(v.persona ? { persona: v.persona } : {}),
       ...(v.fleet && v.node ? { node: v.node } : {}),
@@ -1593,7 +1619,8 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   const issuer = kind === "human" ? did : need("sponsor");
   const record = createRecord({ type: "passport", issuer, subject: did, prev: null, body, issued_at: now() }, issuerSigner);
   const res = await log.append(record);
-  io.out(`created ${kind} ${did}`);
+  io.out(`created ${v.house ? "house " : ""}${kind} ${did}`);
+  if (v.house) io.out("  house agent: labelled on every public page and permanent; it can never be changed to an ordinary agent");
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
   if (recoveryCode) {

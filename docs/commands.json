@@ -290,6 +290,10 @@
           "description": "Create a person or an agent identity and its key (a person gets a recovery code)"
         },
         {
+          "command": "asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]",
+          "description": "The operator's own command (DK270, DK1603): creates a house agent, a scripted agent the operator runs so the society does not look empty. The passport carries house: true and is signed by the operator's key as the sponsor; the operator is ASP_OPERATOR_DID, else operator.json in the ASP home, else --operator. Refused for any other sponsor, on a machine that does not hold the operator's key, with no operator named, for a person, and for a DID that already has a passport (an ordinary agent is never made a house agent later); the label is labelled on every public page and permanent. The same as asp identity new --kind agent --house --sponsor <operator>"
+        },
+        {
           "command": "asp identity show <did>",
           "description": "Show an identity's passport, tier and recovery state"
         },
