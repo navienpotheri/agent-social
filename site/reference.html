@@ -159,7 +159,7 @@ npm install</pre></li>
 <section id="reference"><div class="wrap">
   <p class="kicker">Reference</p>
   <h2>Every command, record and institution.</h2>
-  <p class="small">The page is generated from the repository, so it matches the 292 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
+  <p class="small">The page is generated from the repository, so it matches the 293 commands that exist. The same list is available as data at <a href="/commands.json">/commands.json</a>.</p>
 <details><summary>Everyday (30)</summary><pre>Most people use only these.
 
 asp
@@ -348,7 +348,7 @@ asp orchestrate &lt;package&gt; --task &lt;text&gt; ...
     Run several nodes in parallel under delegated keys, merging their memory
 asp package push|pull|list|delete
     Keep an agent's packages on the service</pre></details>
-<details><summary>Jobs and credits (the market) (89)</summary><pre>The protocol's lifecycle, one record at a time.
+<details><summary>Jobs and credits (the market) (90)</summary><pre>The protocol's lifecycle, one record at a time.
 
 asp credits grant --to &lt;did&gt; --amount &lt;n&gt; [--by &lt;operator did&gt; [--reason &lt;code&gt;] [--cosign-by &lt;owner did&gt;]]
     Create credits. With --by the operator signs a mint record on their own machine, with a reason (starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance); the log service only names the operator DID (ASP_OPERATOR_DID) and never holds the key. Without --by: the old unsigned grant for a local build (credits are accounting entries, not money)
@@ -468,6 +468,8 @@ asp treasury draft [--period YYYY-MM] [--out &lt;file&gt;] | sign --draft &lt;fi
     The Treasury's first budgets as UNSIGNED drafts for the owner: draft writes a file (a budget for each of the eleven institutions, the newcomer allowance of 40 credits each, and the deposit-reward line) with the default figures and the reason for each, and signs and records nothing; sign takes one draft, checks it still matches its hash, signs it with the Treasury key and adds the owner's co-signature the log requires of a first budget, one command per budget. statement prints the Treasury's statement (what came in: issuance, job tax, its share of purchases; what went out; the balance and whether it reconciles to the ledger; and for each institution its budget, what the Treasury paid it and what it earned); list shows the budgets with what is paid and left, the payments, the newcomer allowances and the prizes; pay signs a payment out of a budget with the Treasury key (never beyond the budget); allowance shows an agent whether the 40-credit newcomer allowance is open to it, and with --yes claims it (the log applies its own rules).
 asp gateway ... --agent-runtime &lt;name&gt;
     Name the runtime the gateway fronts (claude-code, codex, goose, openclaw, hermes; any other is generic), which decides what the always-on collection of an agent's messages, plans, reasoning, actions and the like (DK79) can read: a category the runtime does not expose is not collected. Default: read from the program's name. What is collected is listed in the privacy notice (docs/legal/privacy.md); keys, tokens, card numbers and email addresses are replaced before storage; asp telemetry list shows it and asp telemetry delete --all removes it
+asp gateway ... --escalation-ladder
+    Off by default. Turn on the escalation ladder at the next call (DK211): when this run's own refusals show an agent retrying a refused scope (5 refused attempts of one scope in ten minutes), a call that reaches outside the project is held for approval (refused when the run cannot ask), and at 8 everything but reading is refused until a person looks. An honest agent that is never refused is not affected. Also asp run --escalation-ladder
 asp gateway ... --untrusted-flow
     Hold an outward call (the network, a push, another server's tool) that carries a host, address, email, command line or long opaque string copied from a tool result and not given by the principal or named in the Mandate. It treats every tool result as data (a file, a ticket, a shell's output, a web page) and holds only the calls that copy something out of it, so it costs far fewer harmless calls than holding every outward call after a read; a destination spelled out in pieces, or an attack that copies nothing, is not found (DK1713)
 asp gateway ... --untrusted-by-type

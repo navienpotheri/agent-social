@@ -619,6 +619,7 @@ const OPTIONS = {
   "agent-runtime": { type: "string" },
   "private-scopes": { type: "string" },
   "untrusted-flow": { type: "boolean" },
+  "escalation-ladder": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -3856,6 +3857,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
     ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    ...(v["escalation-ladder"] ? { escalationLadder: true } : {}),
     // A hard dollar cap (an estimate from tokens and a price table): `asp gateway --budget-usd 5 [--price-in <$ per million> --price-out <$ per million>]`.
     ...(() => { if (v["budget-usd"] === undefined) return {}; const cap = Number(v["budget-usd"]), pi = v["price-in"] === undefined ? undefined : Number(v["price-in"]), po = v["price-out"] === undefined ? undefined : Number(v["price-out"]); if (!(cap > 0) || (pi !== undefined && !(pi >= 0)) || (po !== undefined && !(po >= 0))) throw new UsageError("--budget-usd is a number of dollars above 0; --price-in and --price-out are dollars per million tokens"); return { usdCap: cap, ...(pi !== undefined || po !== undefined ? { price: { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) } } : {}) }; })(),
     // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
@@ -7366,7 +7368,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
