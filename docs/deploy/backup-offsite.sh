@@ -4,8 +4,10 @@
 # What it does, on the server, as root, after the nightly backup (it is called as the last line of /usr/local/bin/asp-backup):
 #   1. takes the day's backup files in /var/backups/asp: the two newest database dumps (asp-YYYYMMDD-HHMM.sql.gz) and the two newest file archives (asp-files-YYYYMMDD-HHMM.tgz), each not older than 26 hours,
 #   2. encrypts each one with `age` to the PUBLIC key in /etc/asp-backup/age-recipient.txt (the server holds only the public key; the private key is the owner's, in his password manager, and is never on the server),
-#   3. copies the encrypted files (name.age) to the bucket with rclone, using the credential in /etc/asp-backup/rclone.conf, and checks that each one is listed there,
-#   4. removes its temporary files whatever happens, and exits non-zero if any step failed, naming the step on standard error.
+#   3. lists the bucket ONCE, and skips a file whose name.age is already there (the credential can create and list objects but cannot delete, and overwriting an object needs delete: a file that is already there must
+#      never be copied again, so a second night, or a test run before the nightly one, copies only what is new),
+#   4. copies each new encrypted file (name.age) to the bucket with rclone, using the credential in /etc/asp-backup/rclone.conf, and checks that it is listed there,
+#   5. removes its temporary files whatever happens, and exits non-zero if any step failed, naming the step on standard error.
 # It prints one line for each file. It never prints the contents of a key or of the rclone configuration.
 #
 # Nothing here decrypts anything: a restore needs the private key and is done by the owner (docs/deploy/restore-drill.sh).
@@ -52,16 +54,24 @@ while IFS= read -r f; do [ -n "$f" ] && FILES+=("$f"); done < <(newest 'asp-file
 [ "$NDB" -gt 0 ] || fail "no database dump newer than $MAX_AGE_HOURS hours in $BACKUPS (last night's backup did not run, or the dump is missing)"
 [ "${#FILES[@]}" -gt "$NDB" ] || fail "no file archive newer than $MAX_AGE_HOURS hours in $BACKUPS"
 
+# What the bucket already holds, listed once. A destination that does not exist yet (the first run) lists as exit status 3 in rclone and counts as empty; any other failure is a failure.
+if EXISTING=$(rclone --config "$CONFIG" lsf "$DEST" 2>/dev/null); then :; else
+  rc=$?
+  if [ "$rc" = 3 ]; then EXISTING=""; else fail "could not list $DEST (rclone exit status $rc)"; fi
+fi
+
 COUNT=0
+SKIPPED=0
 for f in "${FILES[@]}"; do
   name=$(basename "$f")
+  if grep -Fxq "$name.age" <<<"$EXISTING"; then echo "skip $name.age already there"; SKIPPED=$((SKIPPED + 1)); continue; fi
   age -r "$RECIPIENT" -o "$TMP/$name.age" "$f" || fail "could not encrypt $name"
   [ -s "$TMP/$name.age" ] || fail "the encrypted copy of $name is empty"
-  rclone --config "$CONFIG" copyto "$TMP/$name.age" "$DEST/$name.age" || fail "could not copy $name.age to $DEST"
+  rclone --config "$CONFIG" copy --no-traverse "$TMP/$name.age" "$DEST" || fail "could not copy $name.age to $DEST"
   LISTING=$(rclone --config "$CONFIG" lsf "$DEST" 2>/dev/null) || fail "could not list $DEST after the copy"
   grep -Fxq "$name.age" <<<"$LISTING" || fail "$name.age is not listed in $DEST after the copy"
   echo "ok $name.age $(wc -c < "$TMP/$name.age" | tr -d ' ') bytes -> $DEST"
   rm -f "$TMP/$name.age"
   COUNT=$((COUNT + 1))
 done
-echo "offsite: $COUNT file(s) encrypted and copied"
+echo "offsite: $COUNT copied, $SKIPPED already there"

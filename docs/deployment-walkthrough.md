@@ -111,6 +111,16 @@ sudo /usr/local/bin/asp-backup
 
 The hook line is the last line of `/usr/local/bin/asp-backup`, so the nightly job copies the day's files after it has made them. The setup script of step 5 writes the same hook into `asp-backup` each time that it runs, when `/usr/local/bin/asp-backup-offsite` exists, so a later update does not lose it.
 
+**It never overwrites.** The role of the server's credential can create and list objects but cannot delete, and in Google Cloud Storage overwriting an existing object needs delete. So the script lists the bucket once, skips (and says `skip <name>.age already there`) any file whose `.age` is already in it, and copies only what is new: the nightly job after a test run, or the second night, copies only the new files and still succeeds.
+
+**This is the first real execution.** The script has been tested here only with stand-in `age` and `rclone` programs; the test with the real tools was written and has not been run. The first run on the server is therefore the first time that it runs with the real `age`, the real `rclone` and the real bucket: read its output line by line. **If it fails with a 403 that names `storage.objects.get`**, rclone is reading the destination before it copies and the role lacks that permission. The remedy is to add that one permission to the custom role, from Cloud Shell as the project owner (the server can then read ciphertext only; it cannot decrypt, and it still cannot delete or overwrite):
+
+```bash
+gcloud iam roles update aspBackupWriter --project=agent-social-511217 --add-permissions=storage.objects.get
+```
+
+Then run `sudo /usr/local/bin/asp-backup` again. Never add delete.
+
 Then the drill, twice. First as it stands: it restores the newest local dump into a scratch database and removes everything it made.
 
 ```bash
@@ -140,7 +150,7 @@ Back in Cloud Shell, remove your copies:
 shred -u asp-YYYYMMDD-HHMM.sql.gz asp-YYYYMMDD-HHMM.sql.gz.age
 ```
 
-**Right looks like.** The test run prints one line for each file, `ok asp-... .age <n> bytes -> backup:agent-social-511217-asp-backups/asp-backups`, for the newest two database dumps and the newest two file archives of the last 26 hours (two lines on a first run, up to four later), and ends `offsite: <n> file(s) encrypted and copied`. From Cloud Shell, as yourself (your own read access, not the server's key), the bucket lists the `.age` files:
+**Right looks like.** The test run prints one line for each file, `ok asp-... .age <n> bytes -> backup:agent-social-511217-asp-backups/asp-backups`, for the newest two database dumps and the newest two file archives of the last 26 hours (two lines on a first run, up to four later), and ends `offsite: <n> copied, <m> already there`. From Cloud Shell, as yourself (your own read access, not the server's key), the bucket lists the `.age` files:
 
 ```bash
 gcloud storage ls gs://agent-social-511217-asp-backups/asp-backups/

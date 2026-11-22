@@ -28,13 +28,18 @@ echo "age -r $rec umask=$(umask)" >> "$STUB_LOG"
 { echo "STUB-AGE-HEADER $rec"; cat "$in"; } > "$out"
 `;
 const STUB_RCLONE = `#!/usr/bin/env bash
-# a stand-in for rclone: copyto copies to a local directory, lsf lists it; RCLONE_FAIL makes the copy fail
+# a stand-in for rclone: copy copies a file into a local directory, lsf lists it (exit 3 when the directory is not there yet); RCLONE_FAIL makes the copy fail; the remote refuses to overwrite an existing object, as the bucket does for a credential without delete
 [ "$1" = "--config" ] && { echo "rclone config=$2 $3 args" >> "$STUB_LOG"; shift 2; } || echo "rclone no-config" >> "$STUB_LOG"
 verb="$1"; shift
-dest_dir() { echo "\${1#backup:}" | sed "s|^[^/]*/||"; }
+[ "$1" = "--no-traverse" ] && { echo "rclone copy no-traverse" >> "$STUB_LOG"; shift; }
 case "$verb" in
-  copyto) [ -n "\${RCLONE_FAIL:-}" ] && { echo "rclone: copy failed" >&2; exit 1; }; mkdir -p "$STUB_REMOTE/asp-backups"; cp "$1" "$STUB_REMOTE/asp-backups/$(basename "$2")";;
-  lsf) ls -1 "$STUB_REMOTE/asp-backups" 2>/dev/null;;
+  copy) [ -n "\${RCLONE_FAIL:-}" ] && { echo "rclone: copy failed" >&2; exit 1; }
+        mkdir -p "$STUB_REMOTE/asp-backups"
+        [ -e "$STUB_REMOTE/asp-backups/$(basename "$1")" ] && { echo "rclone: 403 storage.objects.delete denied: cannot overwrite $(basename "$1")" >&2; exit 1; }
+        echo "copied $(basename "$1")" >> "$STUB_LOG"; cp "$1" "$STUB_REMOTE/asp-backups/$(basename "$1")";;
+  lsf) [ -n "\${LSF_FAIL:-}" ] && { echo "rclone: lsf failed" >&2; exit 4; }
+       [ -d "$STUB_REMOTE/asp-backups" ] || exit 3
+       ls -1 "$STUB_REMOTE/asp-backups";;
   *) echo "unexpected rclone verb $verb" >&2; exit 2;;
 esac
 `;
@@ -66,7 +71,11 @@ test("the script is strict, encrypts to a public key only, copies with rclone, r
   assert.match(text, /^umask 077$/m);
   assert.match(text, /trap 'rm -rf "\$TMP"' EXIT/);
   assert.match(text, /age -r "\$RECIPIENT" -o /);
-  assert.match(text, /rclone --config "\$CONFIG" copyto /);
+  assert.match(text, /rclone --config "\$CONFIG" copy --no-traverse /);
+  assert.doesNotMatch(text, /--no-check-dest|copyto/, "nothing that an older rclone lacks, and no copy onto a name");
+  assert.match(text, /rclone --config "\$CONFIG" lsf "\$DEST"/, "the bucket is listed once, before the loop");
+  assert.ok(text.indexOf('lsf "$DEST" 2>/dev/null)') < text.indexOf('for f in "${FILES[@]}"'), "the listing is before the loop");
+  assert.match(text, /skip \$name\.age already there/);
   assert.doesNotMatch(text, /age -d|--decrypt|-i "|\bcrypt\b|passphrase/, "nothing decrypts, and rclone crypt is not used");
   assert.doesNotMatch(text, /\bcat "\$CONFIG"|\bcat "\$RECIPIENT_FILE"|echo "\$RECIPIENT"|key\.json/, "no secret is read to the output");
   assert.match(text, /AGE-SECRET-KEY/, "it refuses a private key in the recipient file");
@@ -82,12 +91,59 @@ test("the newest two dumps and the newest two archives within 26 hours are encry
   assert.equal(r.status, 0, r.stderr + r.stdout);
   const lines = r.stdout.trim().split("\n");
   assert.equal(lines.filter((l) => l.startsWith("ok ")).length, 4, "one line for each of four files");
-  assert.match(lines[lines.length - 1]!, /^offsite: 4 file\(s\) encrypted and copied$/);
+  assert.match(lines[lines.length - 1]!, /^offsite: 4 copied, 0 already there$/);
   assert.deepEqual(readdirSync(join(s.remote, "asp-backups")).sort(), ["asp-20261120-0217.sql.gz.age", "asp-20261121-0217.sql.gz.age", "asp-files-20261120-0217.tgz.age", "asp-files-20261121-0217.tgz.age"]);
   const log = readFileSync(s.log, "utf8");
   assert.equal([...log.matchAll(new RegExp(`age -r ${RECIPIENT} umask=0077`, "g"))].length, 4, "age is called with the public key, under umask 077");
-  assert.match(log, /rclone config=.*rclone\.conf copyto/);
+  assert.match(log, /rclone config=.*rclone\.conf copy/);
+  assert.equal([...log.matchAll(/rclone copy no-traverse/g)].length, 4, "each copy is made with --no-traverse");
   noTemp(s.tmp); noSecrets(r.stdout + r.stderr);
+});
+
+test("a file whose .age is already in the bucket is skipped before it is encrypted or copied, and a second run copies nothing and exits 0 (the credential cannot delete, so it must never overwrite)", { skip: !HAVE_BASH && "bash is not available" }, () => {
+  const s = setup();
+  s.put("asp-20261121-0217.sql.gz", 2); s.put("asp-files-20261121-0217.tgz", 2); s.put("asp-20261120-0217.sql.gz", 3);
+  // The night before's dump is already in the bucket (with different content: it must stay as it is).
+  mkdirSync(join(s.remote, "asp-backups"), { recursive: true });
+  writeFileSync(join(s.remote, "asp-backups", "asp-20261120-0217.sql.gz.age"), "ALREADY THERE");
+  const first = s.run();
+  assert.equal(first.status, 0, first.stderr + first.stdout);
+  assert.match(first.stdout, /^skip asp-20261120-0217\.sql\.gz\.age already there$/m);
+  assert.match(first.stdout, /^offsite: 2 copied, 1 already there$/m);
+  assert.equal(readFileSync(join(s.remote, "asp-backups", "asp-20261120-0217.sql.gz.age"), "utf8"), "ALREADY THERE", "the existing object is not touched");
+  let log = readFileSync(s.log, "utf8");
+  assert.equal([...log.matchAll(/^age -r /gm)].length, 2, "the skipped file is not even encrypted");
+  assert.ok(!/copied asp-20261120-0217/.test(log), "the skipped file is not copied");
+  // The second run (the nightly job after a test run): the same files, nothing new, and it still succeeds.
+  const before = log;
+  const second = s.run();
+  assert.equal(second.status, 0, second.stderr + second.stdout);
+  assert.equal(second.stdout.split("\n").filter((l) => l.startsWith("skip ")).length, 3);
+  assert.match(second.stdout, /^offsite: 0 copied, 3 already there$/m);
+  log = readFileSync(s.log, "utf8");
+  assert.equal([...log.matchAll(/^age -r /gm)].length, [...before.matchAll(/^age -r /gm)].length, "no new encryption on the second run");
+  assert.equal([...log.matchAll(/^copied /gm)].length, [...before.matchAll(/^copied /gm)].length, "no new copy on the second run");
+  // A new night adds only the new files.
+  s.put("asp-20261122-0217.sql.gz", 1); s.put("asp-files-20261122-0217.tgz", 1);
+  const third = s.run();
+  assert.equal(third.status, 0, third.stderr + third.stdout);
+  assert.match(third.stdout, /^offsite: 2 copied, 2 already there$/m);
+  noTemp(s.tmp); noSecrets(first.stdout + first.stderr + second.stdout + second.stderr + third.stdout + third.stderr);
+});
+
+test("the first run, when the bucket's folder does not exist yet (rclone lists it as exit status 3), counts it as empty; any other listing failure is a failure that says so", { skip: !HAVE_BASH && "bash is not available" }, () => {
+  const s = setup();
+  s.put("asp-20261121-0217.sql.gz", 2); s.put("asp-files-20261121-0217.tgz", 2);
+  assert.ok(!existsSync(join(s.remote, "asp-backups")));
+  const first = s.run();
+  assert.equal(first.status, 0, first.stderr + first.stdout);
+  assert.match(first.stdout, /^offsite: 2 copied, 0 already there$/m);
+  const t = setup();
+  t.put("asp-20261121-0217.sql.gz", 2); t.put("asp-files-20261121-0217.tgz", 2);
+  const bad = t.run({ LSF_FAIL: "1" });
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /could not list backup:bucket-name\/asp-backups \(rclone exit status 4\)/);
+  noTemp(t.tmp);
 });
 
 test("a failing copy, a failing encryption, a copy that is not listed afterwards, and no recent dump each make the script exit non-zero and say which step, and leave no temporary file", { skip: !HAVE_BASH && "bash is not available" }, () => {
@@ -102,7 +158,7 @@ test("a failing copy, a failing encryption, a copy that is not listed afterwards
   assert.match(enc.stderr, /offsite backup FAILED: could not encrypt/);
   noTemp(s.tmp);
   // A stand-in rclone that copies nothing and lists nothing: the copy "succeeds" but the file is not there.
-  writeFileSync(join(s.bin, "rclone"), `#!/usr/bin/env bash\n[ "$1" = "--config" ] && shift 2\ncase "$1" in copyto) exit 0;; lsf) exit 0;; esac\n`);
+  writeFileSync(join(s.bin, "rclone"), `#!/usr/bin/env bash\n[ "$1" = "--config" ] && shift 2\ncase "$1" in copy) exit 0;; lsf) exit 0;; esac\n`);
   const missing = s.run();
   assert.notEqual(missing.status, 0);
   assert.match(missing.stderr, /is not listed in backup:bucket-name\/asp-backups after the copy/);
@@ -166,6 +222,10 @@ test("with the real age and rclone: a generated key pair, encrypt, copy to a loc
     assert.deepEqual(readFileSync(out), body, `${n} decrypts to the same bytes`);
   }
   noTemp(s.tmp);
+  // A second run of the same files copies nothing and succeeds.
+  const again = spawnSync("bash", [posix(script)], { env: { ...process.env, ...s.env(), ...env, PATH: process.env.PATH! }, encoding: "utf8", timeout: 120_000 });
+  assert.equal(again.status, 0, again.stderr + again.stdout);
+  assert.match(again.stdout, /offsite: 0 copied, 2 already there/);
   // A destination that cannot be written makes the script fail.
   const bad = spawnSync("bash", [posix(script)], { env: { ...process.env, ...s.env(), DEST: "backup:/proc/definitely/not/writable/asp-backups" }, encoding: "utf8", timeout: 120_000 });
   assert.notEqual(bad.status, 0);
@@ -185,6 +245,8 @@ test("the documents give the age route, not a passphrase on the server: the fact
   for (const d of [plan, walk]) {
     for (const cmd of ["age-keygen -o asp-backup-key.txt", "sudo apt-get update && sudo apt-get install -y age rclone", "service_account_file = /etc/asp-backup/key.json", "bucket_policy_only = true", "sudo install -m 755 /tmp/backup-offsite.sh /usr/local/bin/asp-backup-offsite", "sudo grep -q asp-backup-offsite /usr/local/bin/asp-backup", "sudo /usr/local/bin/asp-backup", "age -d -i asp-key.txt", "sudo bash /tmp/restore-drill.sh /tmp/asp-YYYYMMDD-HHMM.sql.gz", "DRILL PASSED"]) assert.ok(d.includes(cmd), cmd);
     for (let n = 1; n <= 5; n++) assert.ok(d.includes(`**${n}. `), `numbered step ${n}`);
+    for (const frag of ["It never overwrites.", "skip <name>.age already there", "This is the first real execution.", "storage.objects.get", "gcloud iam roles update aspBackupWriter --project=agent-social-511217 --add-permissions=storage.objects.get", "Never add delete.", "offsite: <n> copied, <m> already there"]) assert.ok(d.includes(frag), frag);
+    assert.doesNotMatch(d, /--add-permissions=[^`\n]*storage\.objects\.(delete|update)/, "the remedy never grants delete or overwrite");
   }
   assert.match(setup, /if \[ -x \/usr\/local\/bin\/asp-backup-offsite \]; then \/usr\/local\/bin\/asp-backup-offsite; fi/, "the setup script keeps the hook when it rewrites asp-backup");
   assert.match(drill, /\*\.age\) echo "refusing an encrypted file/);
