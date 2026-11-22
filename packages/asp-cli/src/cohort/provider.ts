@@ -276,6 +276,15 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (turn === places.length + 1) return [use("orientation_progress")];
     return [use("stop_exploring", { why: "I have seen every place" })];
   },
+  // Looks closely at every place, and answers the card where one is pinned (ENG67): a scripted explorer.
+  "marker-hunter": (_turn, last, _agent, st) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (/A card is pinned here/.test(last) && st.asked !== st.at) { st.asked = st.at ?? ""; return [use("field_answer", { place: st.at ?? "forum", answer: "I would check it with a test on an unseen case, merge or keep one rule, drop what contradicts, give the reason, verify one claim, write the check first, and say what I left out." })]; }
+    const i = Number(st.i ?? "0");
+    if (i >= places.length) return [use("stop_exploring", { why: "I have looked at every place" })];
+    st.i = String(i + 1); st.at = places[i]!;
+    return [use("inspect", { place: places[i]! })];
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

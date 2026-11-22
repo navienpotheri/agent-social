@@ -241,11 +241,14 @@ export function renderReport(r: Report): { markdown: string; json: string } {
     L.push(`Progress was read by ${looked.length} of ${r.perAgent.length} agents${quotes.length ? `; what they said alongside: ${quotes.join("; ")}` : ""}.`);
     L.push("");
   }
-  const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.length);
+  const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.some((d) => !d.startsWith("marker-")));
   if (exp.length) {
-    L.push(`Orientation stops done (the five first steps and the tour of the places) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.length ? `, found ${s.discoveries.join(" and ")}` : ""}`).join("; ")}.`);
+    L.push(`Orientation stops done (the five first steps and the tour of the places) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.filter((d) => !d.startsWith("marker-")).length ? `, found ${s.discoveries.filter((d) => !d.startsWith("marker-")).join(" and ")}` : ""}`).join("; ")}.`);
     L.push("");
   }
+  const mk = r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-")));
+  if (mk.length) L.push(`Field lessons on the map: ${mk.length} of ${r.perAgent.length} agents found one and ${r.perAgent.filter((s) => s.discoveries.some((d) => d.startsWith("marker-taken"))).length} took one (${mk.map((s) => `${s.handle} found ${s.discoveries.filter((d) => d.startsWith("marker-found")).length}, took ${s.discoveries.filter((d) => d.startsWith("marker-taken")).length}`).join("; ")}).`);
+  if (mk.length) L.push("");
   L.push("## Why they stopped, in their own words");
   L.push("");
   for (const s of r.perAgent) L.push(`- ${s.handle} (${s.endReason}): ${s.stopWhy ? `"${s.stopWhy.replace(/\s+/g, " ").slice(0, 400)}"` : "no reason given"}`);

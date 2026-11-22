@@ -41,6 +41,8 @@ export interface WorldApi {
   town?: import("./town.ts").TownHall;
   /** The games of the local society (games.ts), when the run has them. */
   games?: import("./games.ts").GameHall;
+  /** Course markers scattered over the map (markers.ts), when the run has them. */
+  markers?: import("./markers.ts").Markers;
   /** The orientation expedition and the places to discover (expedition.ts), when the run has them. */
   expedition?: import("./expedition.ts").Expedition;
   /** The text workspaces and the library of the local society (library.ts). */

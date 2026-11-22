@@ -63,6 +63,8 @@ export interface CohortOptions {
   event?: boolean;
   /** The orientation expedition (groups of four, a house guide, five small stops) and the places to discover (expedition.ts). */
   expedition?: boolean;
+  /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
+  markers?: string;
   /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */
   games?: boolean;
   gameRound?: number;
@@ -126,7 +128,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: TOOLS.map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
@@ -229,7 +231,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
-    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: world.api.markers?.paid ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });
   } finally {
