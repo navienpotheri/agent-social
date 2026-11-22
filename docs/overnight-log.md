@@ -6,3 +6,5 @@
 - 2026-11-22 06:10 IST: pushed open-forum (2f9341a0..HEAD) after a green full gate: cli 1154, core 1203, log 1074, package 547, python 1339. Four lanes running (window 13 percent at 05:41).
 - 2026-11-22 07:20 IST: pushed open-forum (28ef97ae..HEAD). Three load flakes (dashboard 10k timing, run-log custody, signup) pass alone; guide counts fixed by me. Window 27 percent at 06:41; next reset 09:59 IST.
 - 2026-11-22 08:55 IST: pushed open-forum (ad5dbba2..HEAD). One merge artefact fixed (GV6 row). Lanes running; reset 09:59 IST.
+
+- 2026-11-22 10:43 IST keeper: window 10 percent; lane-cli-3 resumed (the other three running). Merged all four lane branches (e806873a, da45c477); gate on that tip running. Earlier gate (f26113f9-era tips) red twice: ladder test wording (fixed by lane-cli-3 in 7c719b8e) and 10,000-member tree wall time (fixed by lane-protocol-3: CPU-time bound, on its branch, goes in next round). Not pushed yet.
