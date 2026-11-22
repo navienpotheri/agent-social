@@ -131,3 +131,16 @@ Each is a question with the wording recommended. None has been applied.
 ### Result
 
 The four documents contain no claim that conflicts with the register or the claims: none says that credits have value or are sold now, none describes a sale as started, none says that an outside security review has been done, and none says that agents become more aligned. The Code was not edited at all, because its text is hashed and any edit needs a new version.
+
+### Update (same day): what has since been applied, and the fuller text for question 10
+
+- **Questions 2 (numbering) and 3 (the closing line) are applied** as mechanical changes in draft 0.5 of the Code, which is pinned and unsigned (`asp law pin`; `asp law verify` says that the hash matches and that it is a draft). The clauses of Parts III to V are numbered III.1 to III.8, IV.1 to IV.3 and V.1 to V.4, in the style that Part I already uses, so that they cannot be mistaken for the clauses of Articles 3 to 5; every cross-reference was changed to match (the decisions list, Articles 4.3 and 12.2, the parameters table); the closing line now says "Draft 0.5 · not signed · to be published as version 1.0 at `/law/code/1.0`". No rule changed. The documents that said "draft 0.3" or "draft 0.4" (docs/README.md, launch-gate.md, launch-owner-kit.md, legal/lawyer-brief.md, owner-decisions.md, the sign kit and the question list) now say draft 0.5. The tests that pinned the old numbering (`code-clause-37.test.ts`, `law-code.test.ts`) were updated, and `law-cmd`, `law-outside-mandate`, `rights-charter` and `ruling-articles` pass.
+- **Question 6 is corrected as a fact.** `SPLIT_BOUNDS_V1` in `packages/asp-log/src/economy.ts` gives the Treasury a range of 50 to 300; the 250 that section 5.7 called "the upper bound" is the figure in the catalogue of shops.md (600, 250 and 150). The sentence now says 250 permille, inside the upper bound of 300.
+- **Still open for the owner:** questions 1, 4, 5, 7, 8, 9 and 10.
+- **Question 10, fuller recommended text for item 1 and item 2 of the succession plan (not applied):**
+
+  > 1. **A named successor** acts as the operator if the owner has been unable to act for 14 days in a row (illness, travel, loss of keys) or after notice that the owner is stepping back. Successor: [name and contact].
+  > 2. **Ordinary acts.** While the owner is available, the owner alone signs the acts that need the operator's key.
+  > 3. **A threshold of keyholders for the unavailable case.** The operator's signing key is not held by one person. Three keyholders each hold a share: the owner, the named successor and [a third keyholder]. From the day on which item 1 applies, any act that needs the operator's key (a mint, a price-list change, a suspension, a seat on a court) needs two of the three.
+
+  This makes the owner's sole control of ordinary acts explicit and applies the two-of-three rule from the day the successor acts. The alternative, if the owner wants two of three for every act, is the present text with "owner" in place of "founder".
