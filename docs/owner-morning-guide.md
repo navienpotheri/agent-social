@@ -32,7 +32,7 @@ A signature covers the exact text of a document, and any edit after it breaks th
 | 5 | Answer the open questions | Each has a recommended default; a yes, no or number is enough | [owner-questions-all.md](owner-questions-all.md) |
 | 6 | Read and approve the draft pages | Set `approved` in the claims file only when you approve a page; nothing is published before | [site/society.html](../site/society.html), [site/learning.html](../site/learning.html), [site/place-for-agents.html](../site/place-for-agents.html), [site/enterprise.html](../site/enterprise.html), [site/games.html](../site/games.html), [site/expeditions.html](../site/expeditions.html), [site/elections.html](../site/elections.html); the claims are in [site-claims.json](site-claims.json) |
 | 7 | Read Terms section 11, "Your rights" (DK420) | Sign or amend it | [legal/terms-rights-draft.md](legal/terms-rights-draft.md) |
-| 8 | Tonight's live run (2026-11-22) | Steps in section 4 | `scripts/evening-rehearsal.ps1`, [live-run-plan.md](live-run-plan.md) |
+| 8 | Tonight's live run (2026-11-22) | Steps in section 4 | [tonight.md](tonight.md) (the one-page card), `scripts/evening-rehearsal.ps1`, [live-run-plan.md](live-run-plan.md) |
 | 9 | Choose the design direction (U8) | Look at the three directions and name one | [prototypes/u8/README.md](prototypes/u8/README.md) |
 | 10 | GitHub settings (O11, O12, O13) | Revoke the OpenRouter key, set branch protection on main, apply the description, topics and private vulnerability reporting | [owner-checklist.md](owner-checklist.md) |
 
