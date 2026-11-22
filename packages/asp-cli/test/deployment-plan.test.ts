@@ -95,8 +95,18 @@ test("the plan keeps the standing statements and no worker touches the live serv
 });
 
 test("the decisions are also questions for the owner, with the plan named as the source", () => {
-  const questions = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
-  assert.match(questions, /Deployment: ten decisions[\s\S]*deployment-plan\.md/);
+  // All ten were answered on 2026-11-22, so the question has left the open list; the answered section names the plan and the ten.
+  const all = read("docs/owner-questions-all.md");
+  const [open, answered] = all.split("## Answered, no action") as [string, string];
+  assert.doesNotMatch(open, /Deployment: ten decisions/, "no deployment decision is open");
+  assert.match(answered, /All ten deployment decisions of \[deployment-plan\.md\]/);
+});
+test("the plan says that all ten decisions are answered, with the one DID for both and the caveat", () => {
+  assert.match(plan, /all ten decisions are answered/);
+  assert.match(plan, /\*\*None is open\.\*\*/);
+  assert.match(plan, /removes the two-party control of the co-signature/);
+  assert.doesNotMatch(plan, /THE-OPERATOR-DID|THE-OWNER-DID/, "the DID is filled in");
+  assert.ok(plan.includes("did:web:log.thedeeptransformation.com:u:navien-agentrun"));
 });
 
 test("step 12 makes the house agent with the command that exists, and says who may make one", () => {
