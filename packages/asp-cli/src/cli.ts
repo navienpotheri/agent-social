@@ -3119,6 +3119,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       // The nightly credit audit (DK1, DK9, CR-18): runs on the same timer as the mail pass, but only once every --audit-interval; a
       // mismatch mails the operator, which needs --mail-operator (the alert has nobody to reach without it).
       audit: () => handle.log.creditAudit(), auditIntervalMs: Math.max(1, num("audit-interval", 86_400)) * 1000,
+      // The Insurer's stress replay (BI-18): once a UTC quarter, on the same timer; a simulation that reads the log and writes nothing.
+      stress: (at: string) => handle.log.insurerStress(at),
       log2: (l) => io.out(`  ${l}`),
     });
   }

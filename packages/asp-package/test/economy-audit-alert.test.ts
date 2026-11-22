@@ -138,3 +138,34 @@ test("GET /economy/supply: a mismatch shows plainly, in both forms", async () =>
     assert.match(text, /credits were lost/);
   });
 });
+
+test("the Insurer's quarterly stress replay (BI-18): runs once in each UTC quarter, mails the operator one line whatever the verdict, keeps the result, and runs again in the next quarter", async () => {
+  let now = Date.parse("2026-11-22T00:00:00Z");
+  let calls = 0;
+  const stress = async (at: string) => { calls++; return { stress: { verdict: "holds", note: "the reserve holds at twice the claims", windowDays: 90, multiplier: 2, minStressed: 900, floorStressed: 500 }, line: { reserveStatus: "moving", policies: 12, claims: 3 } }; };
+  const transport = new MemoryTransport();
+  const m = new ServiceMailer({ log: emptyLog as any, tenants: () => [], owners: new OwnerStore(), transport, from: "Agent Social <noreply@example.org>", operatorTo: "ops@example.org", publicUrl: () => "https://log.example.org", secret: Buffer.alloc(32, 1), stress, now: () => now });
+  assert.equal(m.lastStress(), undefined);
+  await m.tick();
+  assert.equal(calls, 1);
+  assert.equal(transport.sent.length, 1);
+  assert.match(transport.sent[0].subject, /Insurer stress replay 2026-Q4: holds/);
+  assert.match(transport.sent[0].text, /asp insure stress/);
+  assert.equal(m.lastStress()?.quarter, "2026-Q4");
+  now += 40 * 86_400_000; // 2027-01-01: the next quarter
+  await m.tick();
+  assert.equal(calls, 2, "a new quarter runs it again");
+  assert.match(transport.sent[1].subject, /2027-Q1/);
+  now += 3_600_000;
+  await m.tick();
+  assert.equal(calls, 2, "not twice in one quarter");
+});
+
+test("the stress replay failing does not stop the pass, and is tried again on the next one", async () => {
+  const now = Date.parse("2026-11-22T00:00:00Z");
+  let calls = 0;
+  const m = new ServiceMailer({ log: emptyLog as any, tenants: () => [], owners: new OwnerStore(), transport: new MemoryTransport(), from: "Agent Social <noreply@example.org>", operatorTo: "ops@example.org", publicUrl: () => "https://log.example.org", secret: Buffer.alloc(32, 1), stress: async () => { calls++; throw new Error("log unreadable"); }, now: () => now });
+  await m.tick();
+  assert.equal(calls, 1);
+  assert.equal(m.lastStress(), undefined);
+});
