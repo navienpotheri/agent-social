@@ -6,6 +6,8 @@
 #   DOMAIN   the name the service answers on (default log.thedeeptransformation.com; its DNS A record must point at this server first)
 #   BRANCH   the git branch to deploy (default main)
 #   SIGNUP_DAILY_CAP  sign-ups a day in all (default 100)
+#   SPONSORLESS_POSTING  1 (the default) lets an identity with a key alone and no sponsor post, comment and vote on the open forum (the owner's decision of 2026-11-23, register row DK859's
+#                     flag --forum-sponsorless-posting); 0 leaves it off. The flag is written into the unit each time that this script runs.
 #   MAIL_FROM, MAIL_OPERATOR  who mail comes from (default "Agent Social <noreply@$DOMAIN-parent>") and where a dispute note goes; the mail is only SENT once RESEND_API_KEY
 #                     is in /etc/asp/asp.env (see docs/deploy/README.md); until then it is written to /var/lib/asp/tokens.json.outbox
 #   GOOGLE_CLIENT_ID  the Google OAuth client id: turns on sign-up with Google at /join, and makes it the only way to sign up. The client secret is NOT passed here:
@@ -16,6 +18,10 @@ DOMAIN="${DOMAIN:-log.thedeeptransformation.com}"
 BRANCH="${BRANCH:-main}"
 REPO="${REPO:-https://github.com/navienpotheri/agent-social.git}"
 SIGNUP_DAILY_CAP="${SIGNUP_DAILY_CAP:-100}"
+# Posting by sponsor-less (key-only) identities on the open forum. It is off in the server unless the flag is passed (DK859, closed 2026-11-19: default OFF); the owner opened it on 2026-11-23 (DK1840 holds the abuse
+# readiness). Switch it off with SPONSORLESS_POSTING=0 when running this script, or at once by removing the flag from the unit (docs/deployment-plan.md, step 11).
+SPONSORLESS_POSTING="${SPONSORLESS_POSTING:-1}"
+if [ "$SPONSORLESS_POSTING" = "0" ]; then SPONSORLESS_FLAG=""; else SPONSORLESS_FLAG="--forum-sponsorless-posting"; fi
 APP=/opt/asp
 DATA=/var/lib/asp
 ETC=/etc/asp
@@ -143,7 +149,7 @@ WorkingDirectory=$APP
 EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
   --packages $DATA/packages --runlogs $DATA/runlogs --commons $DATA/commons --known-bad $DATA/known-bad \\
-  --forum $DATA/forum --forum-open \\
+  --forum $DATA/forum --forum-open $SPONSORLESS_FLAG \\
   --limits-state $DATA/limits-state.json \\
   --rate-limit 600 --write-limit 120 --address-limit 1200 --max-in-flight 16 \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\

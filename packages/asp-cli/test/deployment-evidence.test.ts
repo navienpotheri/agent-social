@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const root = new URL("../../../", import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), "utf8").replace(/\r\n/g, "\n");
@@ -115,7 +116,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     U1: /Advanced 2026-11-22 \(deployment step 7[\s\S]*Still left, so the row stays partial/,
     U9: /Advanced 2026-11-22 \(step 7[\s\S]*Still left, so the row stays partial:\*\* a page behind Google sign-in/,
     O19: /sign-up with a real Google account on the hosted service worked[\s\S]*so the row stays partial/,
-    E9: /The end-of-job mail from a real settled job is NOT proven[\s\S]*so the row stays partial/,
+    E9: /As of the evening of 2026-11-22 the end-of-job mail from a real settled job was NOT proven[\s\S]*Then still not shown \(superseded by the closing note below\)/,
     E8: /mail now sends through Resend[\s\S]*so the row stays partial/,
     KO2: /this row is not advanced/,
     O18: /Not shown:\*\* the suspend, resume, block and unblock run[\s\S]*so the row stays partial/,
@@ -125,7 +126,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
   for (const [id, re] of Object.entries(touched)) {
     const row = rowOf(id).sort((a, b) => b.length - a.length)[0]!;
     assert.match(row, re, `${id}: the note and what is missing`);
-    assert.equal(status(row), ["DK1802", "O18"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802 and O18 closed later the same evening)`);
+    assert.equal(status(row), ["DK1802", "O18", "E9"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802, O18 and E9 closed later)`);
     assert.doesNotMatch(row.split("|").slice(-2)[0]!, /\*\*/, `${id}: the status cell holds one word`);
   }
   // The overnight table: every row id is a row of the register and the 'after' status is the register's.
@@ -139,7 +140,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     const rows = rowOf(c[1]!);
     assert.ok(rows.length >= 1, `${c[1]} is a row of the register`);
     const reg = rows.map((r) => r.split("|").slice(-2)[0]!.trim()).find((st) => /^(open|partial|closed|designed)/.test(st)) ?? "";
-    const later = ["DK1802", "DK546", "O18"].includes(c[1]!) && reg.startsWith("closed");   // closed later the same evening (the later tables)
+    const later = ["DK1802", "DK546", "O18", "E9"].includes(c[1]!) && reg.startsWith("closed");   // closed later (the later tables)
     assert.ok(reg.startsWith(c[3]!) || later, `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
     if (c[3] === "closed") closed.push(c[1]!);
   }
@@ -151,17 +152,17 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
   assert.doesNotMatch(part, /re_[A-Za-z0-9]{20,}|whsec_|sk-[A-Za-z0-9]{20,}/, "no API key or webhook secret");
 });
 
-test("the two live runs through the hosted service (as relayed): DK1802 and DK546 close on their Done lines and E9 stays partial; P21, E5, DK650, DK1602, E8 and KO2 advance and keep their status; DK1806 is opened; question 53 is a proposed default and not a decision", () => {
+test("the two live runs through the hosted service (as relayed): DK1802 and DK546 close on their Done lines and E9 was kept partial that evening (it closed on 2026-11-23); P21, E5, DK650, DK1602, E8 and KO2 advance and keep their status; DK1806 is opened; question 53 is a proposed default and not a decision", () => {
   const cell = (id: string, n: number) => rowOf(id).sort((a, b) => b.length - a.length)[0]!.split("|").slice(-6).map((x) => x.trim())[n]!;
   const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
   for (const id of ["DK1802", "DK546"]) { assert.equal(status(row(id)), "closed", `${id} closed`); assert.match(row(id), /Closed 2026-11-22/); assert.match(row(id), /deployment-evidence\.test\.ts/, `${id} cites its test`); }
   assert.match(row("DK1802"), /session 8aa76014\) and a sponsored `asp run claude-code` \(session 660d3959\) both worked/);
   // E9 stays partial: the sending side is proven (a direct test mail, seen by the lead) and the end-of-job mail is not.
-  assert.equal(status(row("E9")), "partial");
-  for (const frag of ["ASP mail test", "8:45 PM IST", "The sending side is proven", "is **not** an end-of-job mail", "The end-of-job mail from a real settled job is NOT proven", "outbox is empty", "buildMandateMail", "Settled", "13 alerts", "new row DK1807", "so the row stays partial"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
-  assert.doesNotMatch(row("E9"), /Closed 2026-11-22/, "E9 is not closed");
+  // E9 was kept partial on the evening of 2026-11-22 and closed on 2026-11-23 (the test of the redeploy below); its history stays in the row.
+  for (const frag of ["ASP mail test", "8:45 PM IST", "The sending side is proven", "is **not** an end-of-job mail", "As of the evening of 2026-11-22 the end-of-job mail from a real settled job was NOT proven", "outbox is empty", "buildMandateMail", "Settled", "13 alerts", "new row DK1807"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
+  assert.doesNotMatch(row("E9"), /Closed 2026-11-22/, "E9 was not closed on 2026-11-22");
   const dk1807 = row("DK1807");
-  assert.equal(status(dk1807), "open");
+  assert.equal(status(dk1807), "closed", "DK1807 was opened on 2026-11-22 and closed on 2026-11-23");
   assert.match(dk1807, /creates a standing job but no settled contract/);
   assert.match(dk1807, /Done: a governed run's end is mailed to the principal's verified address \(or held with the reason\), shown in a live run with the mail text pasted/);
   assert.match(dk1807, /lane-protocol-3 \(mail\) with lane-cli-3/);
@@ -193,7 +194,7 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 12);
   const closed: string[] = [];
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1806" && c[1] !== "DK1807") { const reg = status(row(c[1]!)); assert.equal(reg, c[3], `${c[1]}: the table's after is the register's`); } if (c[3] === "closed") closed.push(c[1]!); }
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1806" && c[1] !== "DK1807") { const reg = status(row(c[1]!)); if (!(c[1] === "E9" && reg === "closed")) assert.equal(reg, c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); } if (c[3] === "closed") closed.push(c[1]!); }
   assert.deepEqual(closed.filter((x) => x !== "E10").sort(), ["DK1802", "DK546"], "only DK1802 and DK546 close in the second table (E10 is closed already and is listed as evidence only)");
   const res = read("docs/live-run-results-2026-11-22.md");
   const part = res.slice(res.indexOf("## 7. The two runs through the hosted service"));
@@ -206,8 +207,8 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
 
 test("the O18 live run and the 13 charters (seen by the lead): O18 closes on the owner's decision to accept the hash-chained audit (the signed record is the later row DK1809), DK382 and DK396 stay closed with live notes, DK1808 is opened, and E9 is judged plainly", () => {
   const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
-  assert.equal(status(row("E9")), "partial");
-  for (const frag of ["The Done line, judged (2026-11-22)", "a live send to the owner's own address", "are met by the direct test mail alone", "**the end-of-job mail from a real governed run has NOT been received**", "the cause found is that `asp run` creates no settled contract (DK1807)"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
+  assert.equal(status(row("E9")), "closed", "E9 was judged partial on 2026-11-22 and closed on 2026-11-23");
+  for (const frag of ["The Done line, judged (2026-11-22)", "a live send to the owner's own address", "are met by the direct test mail alone", "**as of that evening the end-of-job mail from a real governed run had NOT been received**", "the cause found was that `asp run` created no settled contract (DK1807, ML1)"]) assert.ok(row("E9").includes(frag), `E9: ${frag}`);
   assert.equal(status(row("O18")), "closed");
   for (const frag of ["Live run, 2026-11-22 about 21:30 to 21:35 IST (16:00 to 16:04 UTC)", "ops-owner", "this tenant is suspended: O18 live check", "192.0.2.1", "chain ok and 5 entries, hash-linked", "seq 1 resume", "16:02:29Z", "16:03:50Z", "Not run:** `asp serve audit --tokens` on the server, and a 401 check without the admin token", "Judged by the Done line, and closed 2026-11-22", "accept the hash-chained, attributed audit trail for the beta as the record of a suspension", "**DK1809** (priority B, open: a signed suspension record, the owner's key on the operator's machine", "Not run, and not part of the Done line", "the owner is asked to run that check", "deployment-evidence.test.ts holds this evidence"]) assert.ok(row("O18").includes(frag), `O18: ${frag}`);
   assert.equal(status(row("DK382")), "closed");
@@ -239,12 +240,146 @@ test("the O18 live run and the 13 charters (seen by the lead): O18 closes on the
   assert.match(dk1809, /Done: a suspension \(and a resume, a block and an unblock\) can also be written as a record signed by the operator's key on the operator's machine/);
   assert.match(dk1809, /and a test that an unsigned entry is not accepted as the signed record/);
   const log = read("docs/overnight-log.md");
-  const table = log.slice(log.indexOf("## 2026-11-22 later still (launch-bar-2)"));
+  const table = log.slice(log.indexOf("## 2026-11-22 later still (launch-bar-2)"), log.indexOf("## 2026-11-23 (launch-bar-2)"));
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 6);
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808" && c[1] !== "DK1809") assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808" && c[1] !== "DK1809" && !(c[1] === "E9" && status(row("E9")) === "closed")) assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); }
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## O18 live run and the 13 charters"));
   for (const frag of ["`GET /admin/tenants` listed the five tenants", "{ok:true, action:suspend}", "this tenant is suspended: O18 live check", "5 entries, hash-linked", "seq 5 block of 192.0.2.1 (16:03:50Z", "**O18 is closed**", "13 charters as version 1", "Housing housing", "The end-of-job mail from a real governed run has **not** been received"]) assert.ok(part.includes(frag), frag);
   assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|sk-[A-Za-z0-9]{20,}/, "no token");
+});
+
+test("the redeploy, the live charter index and the real end-of-job mail (seen by the lead, 2026-11-23): DK1807, E9, ML1, ML3 and DK1811 close on their Done lines with what was not run said; E10 and DK1810 get notes; E8, ML2 and KO2 stay partial; the first test mail never counts", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  for (const id of ["DK1807", "E9", "ML1", "ML3", "DK1811"]) { assert.equal(status(row(id)), "closed", `${id} closed`); assert.match(row(id), /Closed 2026-11-23/, `${id} says when`); assert.match(row(id), /deployment-evidence\.test\.ts/, `${id} cites its test`); }
+  for (const id of ["E10", "DK1810"]) assert.equal(status(row(id)), "closed", `${id} stays closed`);
+  for (const id of ["E8", "ML2", "KO2"]) assert.equal(status(row(id)), "partial", `${id} stays partial`);
+  for (const frag of ["mail sent: run:sha256:98835", "Nov 22 18:53:03 UTC, which is 12:23 AM IST", "Your agent's run ended: Standing job: claude-code as my-agent (aea9f4)", "Sun Nov 22 11:50 PM IST", "The two times are reconciled (2026-11-23)", "scopes repo.read, repo.write and tests.run", "2,901 tokens", "`shell.network`", "about USD 0.04, an estimate from a price table and not the provider's bill", "a stop-these-mails link", "first pass after the redeploy", "Not run:** a click on the unsubscribe link, and a bounce", "81af786e", "46 run ends"]) assert.ok(row("DK1807").includes(frag), `DK1807: ${frag}`);
+  assert.match(row("E9"), /The first test mail still does not count as an end-of-job mail; the end-of-job mail is the second one/);
+  assert.match(row("E9"), /Not run:\*\* a click on the unsubscribe link and a bounce/);
+  assert.match(row("ML3"), /Not run live, and only tested against the stand-in Resend:\*\* a click on the unsubscribe link, a permanent bounce, and the List-Unsubscribe headers of the real mail/);
+  assert.match(row("ML1"), /The provider and the model were real in this run/);
+  assert.match(row("DK1811"), /13 of 13 institutions have a charter in force/);
+  assert.match(row("DK1811"), /reconciles to the ledger/);
+  assert.match(row("DK1811"), /Two of the 21 methods were run live/);
+  assert.match(row("E10"), /Evidence 2026-11-23/);
+  assert.match(row("DK1810"), /Live evidence 2026-11-23/);
+  assert.match(row("ML2"), /the row stays partial/);
+  assert.match(row("KO2"), /key-only address proof[\s\S]*was not run/);
+  assert.match(row("E8"), /Advanced 2026-11-23/);
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## The redeploy, the live charters and the end-of-job mail, 2026-11-22 night to 2026-11-23"));
+  for (const frag of ["33c73f14", "33c73f1", "13 of 13 institutions have a charter in force", "reconciles to the ledger", "the 21 read methods are live", "The two times are reconciled (2026-11-23)", "DK1807, E9, ML1, ML3 and DK1811 close", "The first test mail of 8:45 PM IST is not an end-of-job mail and was never counted as one"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+  const emails = /[A-Za-z0-9._-]+@(gmail|googlemail)\.com/;
+  assert.doesNotMatch(part, emails, "no personal address in the checklist");
+  assert.doesNotMatch(row("DK1807"), emails, "no personal address in DK1807");
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-23 (launch-bar-2)"), log.indexOf("## 2026-11-23 later (launch-bar-2)"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 10);
+  const closed: string[] = [];
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); if (c[3] === "closed" && c[2] !== "closed") closed.push(c[1]!); }
+  assert.deepEqual(closed.sort(), ["DK1807", "DK1811", "E9", "ML1", "ML3"], "exactly the five rows that closed");
+  const plan = read("docs/deployment-plan.md");
+  assert.match(plan, /E9 \(step 7; the end-of-job mail of a real governed run reached the owner's inbox after the redeploy\) and DK1811 \(step 5/);
+});
+
+test("step 9 on the hosted service (seen by the lead, 2026-11-23): DK1812 closes with the order written into the plan and the walkthrough, DK760 and DK1100 advance and stay, the two mails are reconciled, and the owner's own loop is said not to have been relayed", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  assert.equal(status(row("DK1812")), "closed");
+  for (const frag of ["Closed 2026-11-23", "seq 453, 454, 455", "no recovery key", "seq 456", "seq 457 to 470", "deployment-evidence.test.ts"]) assert.ok(row("DK1812").includes(frag), `DK1812: ${frag}`);
+  assert.equal(status(row("DK760")), "partial");
+  assert.match(row("DK760"), /public-works line \(600 credits, the draft id `public-works`\) is signed[\s\S]*the row stays partial/);
+  assert.equal(status(row("DK1100")), "open");
+  assert.match(row("DK1100"), /Still open on its Done line:\*\* a public-works payment to the house agent and the seed postings in the hosted log \(step 12\)/);
+  assert.equal(status(row("DK381")), "partial");
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md"]) {
+    const d = read(p);
+    const a = d.indexOf(p.endsWith("plan.md") ? "## 9. The first records of the city" : "## Step 9: the first records of the city");
+    const sec = d.slice(a, d.indexOf(p.endsWith("plan.md") ? "## 10. " : "## Step 10: ", a));
+    const order = ["**9a.", "**9b.", "**9c.", "**9d.", "**9e."].map((x) => sec.indexOf(x));
+    assert.ok(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1]!)), `${p}: 9a to 9e in order`);
+    assert.ok(sec.indexOf("identity new --kind human --did did:web:asp.local:treasury --no-recovery") < sec.indexOf("--reason treasury_issuance") && sec.indexOf("--reason treasury_issuance") < sec.indexOf("treasury sign --draft"), `${p}: keys, then funding, then signing`);
+    for (const frag of ["did:web:asp.local:registry --no-recovery", "did:web:asp.local:bank --no-recovery", "no key for did:web:asp.local:treasury", "GUARD_FAILED: the Treasury holds 0 credits", "seq 453 (treasury), 454 (registry) and 455 (bank)", "14 lines totalling 42,100 credits", "market 1000, academy 5000, shops 1000, courts 2000, registry 1000, clinic 2000, housing 1000, events 3000, bank 2000, insurer 1000, research 2000, allowance 20000, deposit-reward 500 and public-works 600", "the draft ids are the institution names", "STOPPED at $i", "seq 457 to 470", "1,104,500 minted", "reconciles to the ledger"]) assert.ok(sec.includes(frag), `${p}: ${frag}`);
+    const ids = /\$ids = @\(([^)]+)\)/.exec(sec)![1]!.split(",").map((x) => x.trim().replace(/"/g, ""));
+    assert.ok(sec.includes("foreach ($i in $ids) { npm run asp -- treasury sign --draft \"$HOME" + String.fromCharCode(92) + "treasury-draft.json\" --id $i --cosign-by $OP; if ($LASTEXITCODE -ne 0)"), `${p}: the owner's loop`);
+    assert.ok(sec.includes("treasury draft --period 2026-12 --out $HOME" + String.fromCharCode(92) + "treasury-draft.json"), `${p}: the draft file`);
+    assert.ok(sec.includes("as run on 2026-11-23 and seen by the lead"), `${p}: said to be run`);
+    assert.equal(ids.length, 14);
+    assert.equal(new Set(ids).size, 14);
+  }
+  const amounts = [1000, 5000, 1000, 2000, 1000, 2000, 1000, 3000, 2000, 1000, 2000, 20000, 500, 600];
+  assert.equal(amounts.reduce((a, b) => a + b, 0), 42100, "the 14 drafts total 42,100");
+  assert.equal(1_004_500 + 100_000, 1_104_500, "the audit after the Treasury's issuance");
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## Step 9 on the hosted service, 2026-11-23"));
+  for (const frag of ["seq 453", "(454)", "(455)", "seq 456", "seq 457 to 470", "1,104,500", "is the owner's own loop as run on 2026-11-23 (seen by the lead)", "all 14 were signed (seq 457 to 470) and nothing printed STOPPED", "DK1812 closes"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+  assert.match(ck, /there were TWO end-of-job mails/);
+  assert.match(row("DK1807"), /The second mail is seen by the owner on his phone; the lead has not seen its text/);
+  assert.doesNotMatch(part, /Bearer [A-Za-z0-9._-]{16,}|AGE-SECRET-KEY/);
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-23 later (launch-bar-2)"), log.indexOf("## 2026-11-23 (launch-bar-2): steps 10 and 11"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 5);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
+});
+
+test("posting by sponsor-less identities is open on the live forum by the owner's decision of 2026-11-23: the setup script passes the flag (default on, SPONSORLESS_POSTING=0 turns it off), the unit it writes has it, the 30-second kill switch is in the guides and works on the unit line, and DK1840 records the abuse readiness as open", () => {
+  const script = read("docs/deploy/setup-server.sh");
+  assert.match(script, /SPONSORLESS_POSTING="\$\{SPONSORLESS_POSTING:-1\}"/);
+  assert.match(script, /if \[ "\$SPONSORLESS_POSTING" = "0" \]; then SPONSORLESS_FLAG=""; else SPONSORLESS_FLAG="--forum-sponsorless-posting"; fi/);
+  assert.match(script, /--forum \$DATA\/forum --forum-open \$SPONSORLESS_FLAG /);
+  assert.match(script, /DK859/);
+  assert.match(script, /decision of 2026-11-23/);
+  assert.match(read("packages/asp-cli/src/cli.ts"), /"forum-sponsorless-posting": \{ type: "boolean" \}/, "the flag is a flag of the CLI");
+  // The unit's own line, rendered by bash with the script's own variable logic, for the default, 0 and 1.
+  const logic = script.split(String.fromCharCode(10)).filter((l) => l.startsWith('SPONSORLESS_POSTING="') || l.startsWith("if [ \"$SPONSORLESS_POSTING\"")).join(String.fromCharCode(10));
+  const unitLine = script.split(String.fromCharCode(10)).find((l) => l.includes("--forum-open $SPONSORLESS_FLAG"))!;
+  const bash = spawnSync("bash", ["-c", "echo ok"], { encoding: "utf8" });
+  if (bash.status === 0) {
+    const render = (env: string) => spawnSync("bash", ["-c", `${env}${logic}\nDATA=/var/lib/asp\ncat <<UNIT\n${unitLine}\nUNIT`], { encoding: "utf8" }).stdout;
+    assert.match(render(""), /--forum-open --forum-sponsorless-posting /, "on by default");
+    assert.match(render("SPONSORLESS_POSTING=1\n"), /--forum-open --forum-sponsorless-posting /);
+    const off = render("SPONSORLESS_POSTING=0\n");
+    assert.doesNotMatch(off, /sponsorless/, "off with 0");
+    assert.match(off, /--forum-open /, "registration stays open");
+    // The kill switch of the guides, run on the rendered line, removes the flag and keeps the rest.
+    const rendered = render("").trim();
+    const killed = spawnSync("bash", ["-c", `printf '%s\n' '${rendered.replace(/'/g, "'\''")}' | sed 's/ --forum-sponsorless-posting//'`], { encoding: "utf8" }).stdout;
+    assert.doesNotMatch(killed, /sponsorless/);
+    assert.match(killed, /--forum-open /);
+  }
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md"]) {
+    const d = read(p);
+    assert.ok(d.includes("sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service" + String.fromCharCode(10) + "sudo systemctl daemon-reload" + String.fromCharCode(10) + "sudo systemctl restart asp-log" + String.fromCharCode(10) + "```"), `${p}: the three kill-switch lines, in order, as one block`);
+    for (const frag of ["Close posting by sponsor-less identities in 30 seconds", "sudo sed -i 's/ --forum-sponsorless-posting//' /etc/systemd/system/asp-log.service", "sudo systemctl daemon-reload", "sudo systemctl restart asp-log", "writes the flag into the unit each time that it runs", "SPONSORLESS_POSTING=0", "DK1840"]) assert.ok(d.includes(frag), `${p}: ${frag}`);
+  }
+  const row = rowOf("DK1840").sort((a, b) => b.length - a.length)[0]!;
+  assert.equal(status(row), "open");
+  assert.equal(row.split("|").slice(-3)[0]!.trim(), "A");
+  for (const frag of ["SPONSORLESS_POSTING_CLOSED", "DK859", "moderation drill", "hide and restore a test post, restrict a citizen, read the report queue", "the kill switch is run once", "the first 100 outside posts are read by the owner", "first-hour watch", "The open web is not announced as open until the owner has announced it", "Not redeployed by a worker"]) assert.ok(row.includes(frag), `DK1840: ${frag}`);
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## Step 11 learned: sponsor-less posting was closed by default"));
+  for (const frag of ["SPONSORLESS_POSTING_CLOSED", "joined as forum-test-a, no sponsor", "The owner decided on 2026-11-23 (relayed by the lead) to open posting by sponsor-less identities", "did not pass the flag", "the open web is not announced until the owner has announced it"]) assert.ok(part.includes(frag), `checklist: ${frag}`);
+});
+
+test("steps 10 and 11 on the hosted service (seen by the lead, 2026-11-23): DK1204, X6, X7 and DK34 advance and stay partial, each saying what is missing; the price list and the forum facts are in the guides and the checklist; nothing closes; the three findings are written", () => {
+  const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
+  for (const id of ["DK1204", "X6", "X7", "DK34"]) { assert.equal(status(row(id)), "partial", `${id} stays partial`); assert.match(row(id), /Advanced 2026-11-23/, id); assert.match(row(id), /so the row stays partial/, id); }
+  assert.match(row("DK1204"), /The Done line \(an agent on the hosted service buys one and a long post citing it is accepted\) is not met by publishing/);
+  assert.match(row("X6"), /the head signed by the service key and copied by a witness/);
+  assert.match(row("X7"), /key rotation and recovery for a key-only citizen \(DK1726\)/);
+  assert.match(row("DK34"), /one run of a hostile post past a real model \(postponed by the owner\)/);
+  const price = ["sha256:3973057e46730dcd2ea9a1a461a2ebb81032b6b7a73ace336dfa5c17c4549a7", "`forum.post.long` 5 and `forum.comment.long` 1", "2026-11-25T19:27:03Z", "150 permille to the Treasury, 50 burned and 800 to the Research institution", "the first price list of the live Treasury", "which is what closes DK1204"];
+  const forum = ["forum register forum-test-a", "SPONSORLESS_POSTING_CLOSED", "sha256:ba2f4b8b542e6ab449a4bed855d6d030beb85e1f4447eb29a55e9b9ecac27c39", "2026-11-22T19:33:55Z", "own key · sponsored", "19:36:15Z over forum_seq 1", "ALREADY_HIDDEN", "2 entries, head seq 2", "the original post is not deleted", "Read a DID from a file or copy it; never type it", "issuer field of enrol-passport.json", "Run the hide with the operator's key in the operator's own ASP home", "The hostile-post run with a real model is postponed", "Not run:** `forum rank-checkpoint`, `unhide`"];
+  for (const p of ["docs/deployment-plan.md", "docs/deployment-walkthrough.md", "docs/live-run-checklist.md"]) {
+    const d = read(p).toLowerCase();
+    for (const frag of [...price, ...forum]) assert.ok(d.includes(frag.toLowerCase()), `${p}: ${frag}`);
+  }
+  const log = read("docs/overnight-log.md");
+  const table = log.slice(log.indexOf("## 2026-11-23 (launch-bar-2): steps 10 and 11"));
+  const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
+  assert.equal(lines.length, 4);
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(c[2], "partial"); assert.equal(c[3], "partial"); assert.equal(status(row(c[1]!)), "partial"); }
 });

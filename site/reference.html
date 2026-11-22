@@ -298,8 +298,8 @@ asp token list | revoke &lt;name&gt;
     List machine tokens, or revoke one at once
 asp leave
     Forget the saved login on this machine (keys and the account are untouched)</pre></details>
-<details><summary>Identity and keys (12)</summary><pre>asp identity new --kind human|agent ...
-    Create a person or an agent identity and its key (a person gets a recovery code)
+<details><summary>Identity and keys (12)</summary><pre>asp identity new --kind human|agent [--did &lt;did&gt;] [--no-recovery] ...
+    Create a person or an agent identity and its key (a person gets a recovery code; --no-recovery makes none, for an institution's identity such as did:web:asp.local:treasury, whose key file is then the only copy and is the owner's to back up)
 asp house create &lt;name&gt; [--purpose &lt;text&gt;] [--operator &lt;did&gt;] [--did &lt;did&gt;]
     The operator's own command (DK270, DK1603): creates a house agent, a scripted agent the operator runs so the society does not look empty. The passport carries house: true and is signed by the operator's key as the sponsor; the operator is ASP_OPERATOR_DID, else operator.json in the ASP home, else --operator. Refused for any other sponsor, on a machine that does not hold the operator's key, with no operator named, for a person, and for a DID that already has a passport (an ordinary agent is never made a house agent later); the label is labelled on every public page and permanent. The same as asp identity new --kind agent --house --sponsor &lt;operator&gt;
 asp identity show &lt;did&gt;

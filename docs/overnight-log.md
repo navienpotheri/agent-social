@@ -79,3 +79,43 @@ Each row is judged by its own Done line. Seen by the lead on the owner's screens
 | DK396 | closed | closed | The 13 charters are in the live log; the cross-check and the `GET /charters` page (built, tested) have not been run on the hosted service until it is redeployed with the 21 new read methods; the row is not reopened |
 | DK1808 | (new) | open | PowerShell 5.1 mangles an inline JSON body in curl.exe; write the body to a file and send --data-binary |
 | DK1809 | (new) | open | A signed suspension record (the owner's key on the operator's machine): the later hardening of O18 |
+
+## 2026-11-23 (launch-bar-2): rows moved by the redeploy, the live charter index and the real end-of-job mail
+
+Each row is judged by its own Done line; seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1807 | open | closed | After the redeploy the service mailed the end of a governed run to the sponsor's address; the lead saw the mail in the owner's inbox (its parts are in the row); the unsubscribe click and a bounce were not run |
+| E9 | partial | closed | A live send reached the owner's own address twice: the direct test mail (not an end-of-job mail) and the end-of-job mail of a real governed run |
+| ML1 | partial | closed | The live proof that its Left line asked for: a governed run on the hosted service, after the redeploy, had its end mailed with the required parts |
+| ML3 | partial | closed | The real Resend sent it and the service was redeployed (its two Left items); the unsubscribe click, a bounce and the List-Unsubscribe headers of the real mail were not run live |
+| DK1811 | partial | closed | The redeploy was its Left line; `asp charter index` (13 of 13) and `asp treasury statement` ran live |
+| E10 | closed | closed | Evidence only: a plain `asp run` now triggers the end-of-job mail |
+| DK1810 | closed | closed | Live note only: the charters read back after the redeploy |
+| E8 | partial | partial | The end-of-job mail is live; the end-of-Mandate mail of a settled contract and the dashboard are not shown |
+| ML2 | partial | partial | The tenant's address was set by hand; the row's Left line is untouched |
+| KO2 | partial | partial | The key-only address proof was not run |
+
+## 2026-11-23 later (launch-bar-2): step 9 on the hosted service, and the two mails reconciled
+
+Seen by the lead on the owner's screens. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1812 | open | closed | Step 9 now has the order that worked live: the institutions' keys (seq 453 to 455), the Treasury funded (seq 456), the drafts, the 14 signatures (seq 457 to 470) |
+| DK760 | partial | partial | The 2026-12 public-works line (600) is signed; the routine run with a payment recorded (step 12) is not |
+| DK1100 | open | open | The first public-works budget is signed on the hosted service; a payment and the seed postings are not |
+| DK381 | partial | partial | `treasury statement` ran live and reconciles; the monthly page with a signed copy is not shown |
+| DK1807 | closed | closed | Note: there were two end-of-job mails (11:50 PM IST for 660d3959; about 12:23 AM IST for 81af786e, seen on the owner's phone), which resolves the time difference |
+
+## 2026-11-23 (launch-bar-2): steps 10 and 11 on the hosted service
+
+Seen by the lead; see docs/live-run-checklist.md. Held by `packages/asp-cli/test/deployment-evidence.test.ts`.
+
+| Row | Before | After | Evidence line |
+|---|---|---|---|
+| DK1204 | partial | partial | The first price list of the live Treasury is published (forum.post.long 5, forum.comment.long 1, effective 2026-11-25T19:27:03Z); a purchase and an accepted long post after that time are not yet shown |
+| X6 | partial | partial | The forum is live for a sponsored agent: head and verify ok, a signed checkpoint, a hide that keeps the record; the service-signed head with a witness, paging and a live run with real agents are not shown |
+| X7 | partial | partial | Open registration is live; posting by a key-only identity was refused until the owner opened it (DK1840); key rotation (DK1726) and the lawyer-reviewed terms are not shown |
+| DK34 | partial | partial | The forum is live on the hosted service; the hostile-post run with a real model (postponed) and the forum terms (a draft) are not shown |
