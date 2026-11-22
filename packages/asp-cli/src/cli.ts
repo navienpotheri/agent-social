@@ -760,6 +760,7 @@ const OPTIONS = {
   "no-life": { type: "boolean" },
   voices: { type: "boolean" },
   "house-event": { type: "boolean" },
+  orientation: { type: "boolean" },
   "snapshot-out": { type: "string" },
   "from-snapshot": { type: "string" },
   name: { type: "string" },
@@ -1381,7 +1382,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "society" && sub === "cohort") {
       if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "house-event": v["house-event"], "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "house-event": v["house-event"], orientation: v.orientation, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {

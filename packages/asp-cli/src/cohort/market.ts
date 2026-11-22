@@ -138,6 +138,7 @@ export class MarketHall {
     const e: Enrolled = { agent, party, mandate: await this.put(mandate), contract: contract.id };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
     await this.greet(agent);
+    if (this.arrivalHook && !agent.handle.startsWith("house-")) await this.arrivalHook(agent);
   }
 
   private readonly sponsors: Party[] = [];
@@ -157,6 +158,8 @@ export class MarketHall {
     return other ? this.agents.get(other.performer)?.agent.handle : undefined;
   }
   private greeter?: AgentCtx;
+  /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
+  arrivalHook?: (agent: AgentCtx) => Promise<void>;
   private readonly questDone = new Map<string, Set<number>>();
   private readonly writesUsed = new Map<string, number>();
   private freeRefunds = 0;

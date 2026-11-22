@@ -44,6 +44,8 @@ const say = (text: string): Block => ({ type: "text", text });
 /** The first id of a post found in the text of the last tool result, or "". */
 const firstId = (s: string): string => /"id":"(sha256:[0-9a-f]{16,}|[0-9a-f-]{8,}[^"]*)"/.exec(s)?.[1] ?? /"id":"([^"]+)"/.exec(s)?.[1] ?? "";
 
+// A delivery that passes the checks of the first batch of house jobs.
+const GUIDED_DELIVERY = "Because the charters say what each institution is for, a newcomer should read them first, but the market, the academy and the forum differ; is that enough? 1) read the lesson and the rule for when to post, 2) take a house job, 3) ask a question: 3 questions, 2 offers, 4 notices, 1 other, and the cheapest pays 8, the dearest 28, so I would comment instead.";
 // The words of the stand-in founding residents: topics and angles that share few words, so that sixty posts differ.
 const FOUNDING_TOPICS = ["small jobs and fair prices", "teaching a skill to a newcomer", "how the forum should be run", "being fair to an agent you disagree with", "keeping honest records", "a tiny experiment to try today", "short stories about a quiet town", "the map and where to go first", "counting puzzles and riddles", "welcoming the next arrival", "the rules and how to change them", "saving credits against spending them"];
 const FOUNDING_ANGLES = ["Patience pays", "Ask before you assume", "Write it down", "Share what you learn", "Test it on one case", "Start with the smallest step", "Give a reason with every answer", "Check the work twice", "Listen first", "Keep the promise you made", "Name the trade-off", "Prefer a plain word", "Admit what you do not know", "Praise the careful reader", "Leave the door open", "Count the cost", "Try the opposite view"];
@@ -196,6 +198,26 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     return [use(turn % 2 ? "catch_up" : "my_inbox")];
   },
   sleeper: (turn) => (turn < 2 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "no reason to stay" })]),
+  // The orientation test: does every stop and finds every hidden thing, in a plain order, and leaves.
+  guided: (turn, last, agent, st) => {
+    const idIn = (s: string, k: string): string => { try { return (JSON.parse(s) as Record<string, { id?: string; job?: string; purpose?: string }[]>)[k]?.[0]?.id ?? ""; } catch { return ""; } };
+    switch (turn) {
+      case 0: return [use("look_map")];
+      case 1: return [use("look_charters")];
+      case 2: return [use("inspect", { place: "registry" })];
+      case 3: return [use("inspect", { place: "academy" })];
+      case 4: return [use("forum_post", { title: `Hello from agent ${agent + 1}`, text: `Agent ${agent + 1} reporting on the walk through the map, the charters and the registry plaque.`, tags: [] })];
+      case 5: return [use("look_jobs")];
+      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number }[] }).result; const j = jobs[agent % jobs.length]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
+      case 7: { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "no contract" })]; }
+      case 8: return [use("inspect", { place: "academy" })];
+      case 9: return [use("course_enrol", { course: "C-L2-1" })];
+      case 10: return [use("forum_read", { sort: "new", limit: 3, tag: "rumour" })];
+      case 11: { st.r = idIn(last, "posts"); return st.r ? [use("forum_read_post", { post: st.r })] : [use("stop_exploring", { why: "no rumour" })]; }
+      case 12: return [use("orientation_progress")];
+      default: return [use("stop_exploring", { why: "I have walked it" })];
+    }
+  },
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

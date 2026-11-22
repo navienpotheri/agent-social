@@ -29,7 +29,7 @@ export interface AgentStats {
   /** The agent's own words for stopping (the `why` of stop_exploring or leave). */
   stopWhy?: string;
   /** What its reads returned, in order (counts only). */
-  openAtStop?: number; invitations?: number; questSteps?: number; suggestions: string[]; saw: { tool: string; seen: string }[];
+  openAtStop?: number; invitations?: number; questSteps?: number; expeditionStops?: number; discoveries: string[]; suggestions: string[]; saw: { tool: string; seen: string }[];
 }
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
@@ -74,7 +74,7 @@ export function analyse(events: TraceEvent[]): Report {
   const pairSent = new Map<string, number>();
   const msgKinds: Record<string, number> = {};
   let msgSent = 0, msgReplies = 0, blockedAttempts = 0;
-  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [] }; stats.set(id, s); } return s; };
+  const ensure = (id: string): AgentStats => { let s = stats.get(id); if (!s) { s = { id, handle: id, did: "", calls: 0, turns: 0, tools: {}, institutions: {}, refused: {}, circumvention: 0, durationMs: 0, loops: 0, idleStretches: 0, idleTurns: 0, posts: 0, comments: 0, votes: 0, injectionSeen: 0, injectionWritten: 0, inputTokens: 0, outputTokens: 0, usd: 0, endReason: "running", firstWords: [], statedTurns: 0, statedChars: 0, saw: [], suggestions: [], discoveries: [] }; stats.set(id, s); } return s; };
   let last = start.at, stop: string | undefined;
   const guardTotals = { reads: 0, items: 0, matched: 0, held: 0, copiedWrites: 0, bySource: {} as Record<string, { reads: number; matched: number; held: number }> };
   let plant: { token: string; post: string; mode: string } | undefined;
@@ -99,6 +99,8 @@ export function analyse(events: TraceEvent[]): Report {
       if (e.tool === "send_message" && e.refused && /blocked/.test(e.refused)) blockedAttempts++;
       if (e.ok && (e.tool === "stop_exploring" || e.tool === "leave") && typeof e.input.why === "string") s.stopWhy = e.input.why;
       if (e.ok && e.tool === "leave" && typeof e.input.reason === "string") s.stopWhy = e.input.reason;
+      if (e.expedition) s.expeditionStops = Math.max(s.expeditionStops ?? 0, e.expedition);
+      if (e.discovery) s.discoveries.push(e.discovery);
       if (e.invitations) s.invitations = e.invitations;
       if (e.quest) s.questSteps = Math.max(s.questSteps ?? 0, e.quest);
       const open = e.seen ? /^(\d+) open at stop$/.exec(e.seen) : null;
@@ -229,6 +231,11 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   const inv = r.perAgent.filter((s) => s.invitations !== undefined);
   if (inv.length) {
     L.push(`Invitations in the first observation, and steps of the three-step first quest done: ${inv.map((s) => `${s.handle} ${s.invitations} invitations, ${s.questSteps ?? 0} of 3 steps`).join("; ")}.`);
+    L.push("");
+  }
+  const exp = r.perAgent.filter((s) => s.expeditionStops !== undefined || s.discoveries.length);
+  if (exp.length) {
+    L.push(`Orientation stops done (of five) and things found by looking closely: ${exp.map((s) => `${s.handle} ${s.expeditionStops ?? 0} stops${s.discoveries.length ? `, found ${s.discoveries.join(" and ")}` : ""}`).join("; ")}.`);
     L.push("");
   }
   L.push("## Why they stopped, in their own words");

@@ -16,7 +16,7 @@ export const usd = (n: number): string => (Math.round(n * 100) / 100).toFixed(2)
 
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
-  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string; "injection-screen"?: string; "plant-injection"?: boolean; voices?: boolean; "house-event"?: boolean; "snapshot-out"?: string; "from-snapshot"?: string;
+  out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean; "sim-speed"?: string; arrivals?: string; "no-life"?: boolean; "engaged-minutes"?: string; "injection-screen"?: string; "plant-injection"?: boolean; voices?: boolean; orientation?: boolean; "house-event"?: boolean; "snapshot-out"?: string; "from-snapshot"?: string;
 }
 
 const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>] [--sim-speed <simulated seconds per real second, default 60>] [--arrivals staggered:<n>@<simulated minutes>] [--engaged-minutes <n, default 30>] [--no-life]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
@@ -68,7 +68,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
     out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), ...(life ? { life } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,
-    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), injectionScreen: screen as "off" | "label" | "hold", ...(f["plant-injection"] ? { plantInjection: true } : {}), ...(f.voices ? { voices: true } : {}), ...(f["house-event"] ? { event: true } : {}), ...(f["snapshot-out"] ? { snapshotOut: f["snapshot-out"] } : {}), ...(f["from-snapshot"] ? { fromSnapshot: f["from-snapshot"] } : {}), staggerMs: agents > 1 ? 400 : 0,
+    ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), injectionScreen: screen as "off" | "label" | "hold", ...(f["plant-injection"] ? { plantInjection: true } : {}), ...(f.voices ? { voices: true } : {}), ...(f.orientation ? { expedition: true } : {}), ...(f["house-event"] ? { event: true } : {}), ...(f["snapshot-out"] ? { snapshotOut: f["snapshot-out"] } : {}), ...(f["from-snapshot"] ? { fromSnapshot: f["from-snapshot"] } : {}), staggerMs: agents > 1 ? 400 : 0,
     io: { out: o.io.out }, ...(o.now ? { now: o.now } : {}),
   });
   o.io.out(`  what happened, in words: ${r.markdownPath}`);
