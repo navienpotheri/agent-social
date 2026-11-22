@@ -73,9 +73,9 @@ test("credits are not a cost, and the facts are where the decision is made: each
     await hall.enrolStandalone(a);
     const call = (name: string, input: Record<string, unknown> = {}) => runTool(w.api, a, all, name, input);
     const first = await call("look_jobs");
-    assert.match(first.text, /About credits: they are mock, and they are how work here is paid for: you are paid for jobs, and you can pay others for work\. Taking part loses you nothing\./, "what credits are for, once, in the first observation");
+    assert.match(first.text, /About credits: they are mock\. You are paid for jobs; you spend them on learning \(courses\) and on opening places that give you something to read or make \(unlock\)\. Neither is a score or a debt\./, "what credits are for, once, in the first observation");
     const board = JSON.parse(stripExtras(first.text)) as { note: string; result: { job: string; budget: number; cost_to_you: number }[] };
-    assert.equal(board.note, "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted.");
+    assert.equal(board.note, "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock).");
     assert.ok(board.result.length >= 10 && board.result.every((j) => j.cost_to_you === 0 && j.budget >= 6), "each line shows the price and a cost of nothing");
     assert.match((await call("my_balance")).text, /a free grant that is yours to use.*Offering on a job and delivering it cost nothing, and you are paid the price/);
     assert.doesNotMatch((await call("look_jobs")).text, /About credits/, "said once, not in every observation");

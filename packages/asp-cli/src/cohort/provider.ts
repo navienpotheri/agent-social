@@ -266,6 +266,8 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.done = String(Number(st.done ?? "0") + (/accepted by the house/.test(last) ? 1 : 0)); st.ph = "look";
     return [use("catch_up")];
   },
+  // Looks at its progress, opens the reading room, looks again and leaves.
+  learner: (turn) => [[use("my_progress")], [use("unlock", { what: "reading-room" })], [use("my_progress")], [use("stop_exploring", { why: "I looked at what I had done" })]][turn] ?? [use("stop_exploring")],
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [
