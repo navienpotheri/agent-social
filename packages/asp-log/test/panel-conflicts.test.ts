@@ -12,7 +12,7 @@ const j = (n: string) => `did:web:example.com:agents:${n}`;
 interface World { passports: Record<string, { sponsor: string | null; fleet: string | null }>; jurors: { did: string; staked?: number }[]; markers?: Record<string, string> }
 
 function src(w: World): PanelSource {
-  const all = { [P]: { sponsor: PSP, fleet: "fleet-p" }, [PERF]: { sponsor: PERFSP, fleet: null }, ...w.passports };
+  const all: Record<string, { sponsor: string | null; fleet: string | null }> = { [P]: { sponsor: PSP, fleet: "fleet-p" }, [PERF]: { sponsor: PERFSP, fleet: null }, ...w.passports };
   return {
     getRecord: async () => undefined,
     getPassport: async (d) => (all[d] ? { did: d, head: "h", ...all[d] } : undefined) as never,
