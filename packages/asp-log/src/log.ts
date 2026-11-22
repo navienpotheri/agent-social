@@ -82,7 +82,7 @@ import { EMPTY_POSTER_RECORD, OUTLIER_MIN_SAMPLES, OUTLIER_RATIO, depositMultipl
 import { STARTER_MAX_DIDS, STARTER_PER_DID, STARTER_UPFRONT } from "./starter.ts";
 import { PRICE_MULTIPLIER_MAX, PRICE_MULTIPLIER_MIN, RESUME_OWNER_AFTER_HOURS, checkWorldRecord, worldStateAt, type WorldState } from "./world.ts";
 const SEEDED_ENTRY_KINDS = new Set(["shock", "drill", "experiment"]);
-import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2 } from "./panel.ts";
+import { DEFAULT_PANEL_SIZE, JUROR_NEW_PER_DAY, disputeSeedV3, drawPanel, findRejection, noteFunder, noteJurorService, panelDrawIsV2, panelDrawIsV3 } from "./panel.ts";
 import { ledgerSince, noteEarned, noteRevoked, noteSpent } from "./agent-ledger.ts";
 import type { ChainRow, KeyRow, LogHead, LogTx, Store, StoredRecord } from "./store.ts";
 
@@ -183,6 +183,8 @@ export interface EventLogOptions {
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
   panelV2From?: string;
+  /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
+  panelV3From?: string;
   /**
    * The operator's DID (credits.md 5.1, CR-2): the only issuer of a signed `mint` record. With none set, every `mint` record is refused (`mint_unauthorised`).
    * The unsigned local `mint()` stays for tests and bootstrap and is counted apart by the audit.
@@ -303,6 +305,7 @@ export class EventLog {
   private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
+  private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
   private readonly owner?: string;
@@ -323,6 +326,8 @@ export class EventLog {
     if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
+    if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
+    this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
     this.floorMeasuredFrom = opts.floorMeasuredFrom;
     this.operator = opts.operator;
@@ -1768,8 +1773,10 @@ export class EventLog {
       const croutes = await charterIn(tx, ruling?.record.issued_at ?? r.issued_at);
       const route = croutes ? routeFor(price, croutes) : null;
       const fee = route?.flatFee ?? Math.floor((price * PANEL_FEE_PERMILLE) / 1000);
-      const seed = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
-      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, at: ruling?.record.issued_at ?? r.issued_at, v2: panelDrawIsV2(this.panelV2From, ruling?.record.issued_at ?? r.issued_at) }) : [];
+      const rejection = ruling ? await findRejection(tx, ruling.record.prev) : undefined;
+      const draw = rejection ? await this.disputeDraw(tx, contract!.id, rejection, [cbody.principal, cbody.performer], ruling?.record.issued_at ?? r.issued_at, ruling?.seq) : undefined;
+      const seed = draw?.seed;
+      const panel = fee > 0 && ruling && seed ? await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: route?.panel ?? this.panelSize, at: ruling?.record.issued_at ?? r.issued_at, v2: draw?.v2 ?? false, v3: draw?.v3 ?? false }) : [];
       const signers = ruling ? [ruling.record.sig.kid, ...(ruling.record.cosigs ?? []).map((c) => c.kid)].map(didOf) : [];
       const paid = [...new Set(signers.filter((d) => panel.includes(d)))];
       if (fee > 0 && paid.length > 0) {
@@ -1974,11 +1981,16 @@ export class EventLog {
     const contract = await tx.getRecord(body.about);
     if (!contract) return; // the lifecycle's own about_contract guard already rejects this
     const cbody = contract.record.body as { principal: string; performer: string };
-    const seed = await findRejection(tx, r.prev);
-    if (!seed) return; // defensive; the lifecycle's own guards already require a prior rejection
+    const rejection = await findRejection(tx, r.prev);
+    if (!rejection) return; // defensive; the lifecycle's own guards already require a prior rejection
+    const draw = await this.disputeDraw(tx, contract.id, rejection, [cbody.principal, cbody.performer], r.issued_at);
+    if (draw.v3 && !draw.seed) {
+      if ((await tx.activeJurors()).length === 0) return; // no Courts bootstrapped: the pre-Courts fallback below
+      throw rule("panel_not_drawn", "the panel of this dispute is not drawn yet: from the v3 draw its seed is made from the records of three other controllers that follow the rejection, and fewer than three have recorded anything");
+    }
     const croutes = await charterIn(tx, r.issued_at);
     const cprice = (contract.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, at: r.issued_at, v2: panelDrawIsV2(this.panelV2From, r.issued_at) });
+    const panel = await drawPanel(tx, { principal: cbody.principal, performer: cbody.performer, seed: draw.seed ?? rejection, size: croutes ? routeFor(cprice, croutes).panel : this.panelSize, at: r.issued_at, v2: draw.v2, v3: draw.v3 });
     // No staked, conflict-free juror is registered anywhere: Courts hasn't been bootstrapped in
     // this log, so fall back to the pre-Courts mocked behavior (any neutral DID may rule) rather
     // than blocking every dispute — this is what keeps the `dispute_ruled`/`ruling_by_party`
@@ -5440,9 +5452,24 @@ export class EventLog {
     if (!seed) throw rule("no_dispute", `contract ${contract} has no open dispute (no rejection found)`);
     const croutes = await this.charterRoutes();
     const price = (contractRec.record.body as { price?: { value: number } }).price?.value ?? 0;
-    const v2 = panelDrawIsV2(this.panelV2From, new Date().toISOString());
+    const at = new Date().toISOString();
+    const v3 = panelDrawIsV3(this.panelV3From, at), v2 = v3 || panelDrawIsV2(this.panelV2From, at);
     const opts = { principal: cbody.principal, performer: cbody.performer, seed, size: size ?? (croutes ? routeFor(price, croutes).panel : this.panelSize), v2 };
+    if (v3) return this.store.transaction(async (tx) => {
+      const draw = await this.disputeDraw(tx, contract, seed, [cbody.principal, cbody.performer], at);
+      if (!draw.seed) throw rule("panel_not_drawn", "the panel of this dispute is not drawn yet: fewer than three other controllers have recorded anything since the rejection");
+      return drawPanel(tx, { ...opts, seed: draw.seed, at, v3: true });
+    });
     return v2 ? this.store.transaction((tx) => drawPanel(tx, opts)) : drawPanel(this.store, opts); // markers are read in a transaction
+  }
+
+  /**
+   * How a dispute's panel is drawn at time `at` (DK122, S1611): v3 makes the seed from the records of three other controllers after the rejection (undefined until they exist) and caps a juror's caseload; before it
+   * the seed is the rejection's id (v2 or v1). `beforeSeq` reads only the records before a ruling, so the check and the payment of a ruling agree.
+   */
+  private async disputeDraw(tx: LogTx, contract: string, rejection: string, parties: string[], at: string, beforeSeq?: number): Promise<{ seed: string | undefined; v2: boolean; v3: boolean }> {
+    const v3 = panelDrawIsV3(this.panelV3From, at);
+    return { seed: v3 ? await disputeSeedV3(tx, contract, rejection, parties, beforeSeq) : rejection, v2: v3 || panelDrawIsV2(this.panelV2From, at), v3 };
   }
 
   /** The panel a report's ruling would draw (excludes the principal, performer, reporter and anyone they sponsor). */

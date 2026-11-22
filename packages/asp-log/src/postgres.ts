@@ -85,6 +85,10 @@ function reads(q: Queryable) {
       const { rows } = await q.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE id = $1`, [id]);
       return rows[0] && toStored(rows[0]);
     },
+    async recordsSince(afterSeq: number, limit: number) {
+      const { rows } = await q.query<RecordRow>(`SELECT ${RECORD_COLS} FROM records WHERE seq > $1 ORDER BY seq LIMIT $2`, [afterSeq, limit]);
+      return rows.map(toStored);
+    },
     async getChain(root: string): Promise<ChainRow | undefined> {
       const { rows } = await q.query("SELECT * FROM chains WHERE root = $1", [root]);
       const c = rows[0];
@@ -265,6 +269,7 @@ class PgTx implements LogTx {
   }
 
   logHead() { return this.r.logHead(); }
+  recordsSince(afterSeq: number, limit: number) { return this.r.recordsSince(afterSeq, limit); }
   getRecord(id: string) { return this.r.getRecord(id); }
   getChain(root: string) { return this.r.getChain(root); }
   getKey(kid: string) { return this.r.getKey(kid); }

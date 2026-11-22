@@ -3338,7 +3338,7 @@
   {
    "id": "DK122",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The court draw can be gamed and is the operator's: a rejecting party chooses the wording that seeds the draw, a juror may carry any number of open cases, and community jurors have no observer phase.",
    "bucket": "after",
    "hours": 0,
