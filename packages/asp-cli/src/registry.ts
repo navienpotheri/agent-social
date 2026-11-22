@@ -6,6 +6,7 @@ import { createRecord, cosign, type Signer } from "@agent-social/asp-core";
 import { NAME_TERM_MS, REGISTRAR_DID, type RecordPage } from "@agent-social/asp-log";
 import type { LogHandle } from "@agent-social/asp-package";
 import { comparisonTable, plainTrackRecord } from "./track-record.ts";
+import { sponsorStatus } from "./registry-status.ts";
 
 export class RegistryUsage extends Error {}
 
@@ -13,7 +14,7 @@ export interface RegistryOpts {
   log: LogHandle;
   io: { out: (l: string) => void };
   now: () => string;
-  flags: { plain?: boolean; by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; level?: string; until?: string; days?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
+  flags: { plain?: boolean; by?: string; did?: string; paid?: string; page?: string; genuine?: string; grounds?: string; evidence?: string; reason?: string; articles?: string; report?: string; suspension?: string; level?: string; until?: string; days?: string; sponsor?: string; json?: boolean; "cosign-by"?: string[]; name?: string };
   signerFor: (did: string) => Signer;
   readJson?: (path: string) => unknown;
 }
@@ -52,6 +53,18 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     if (!page) { o.io.out(`${rest[0] ?? f.did} is not in the register`); return 1; }
     if (f.plain) { for (const l of plainTrackRecord(page)) o.io.out(l); return 0; }
     show(o, page);
+    return 0;
+  }
+  if (sub === "status") {
+    // DK125 (RG-15): a sponsor sees its agents and what each needs, from the same pages the log computes.
+    const sponsor = need(f.sponsor ?? f.did, "sponsor");
+    const agents = await log.agentsOfSponsors([sponsor]);
+    if (!agents.length) { o.io.out(`${sponsor} sponsors no agent in this log`); return 1; }
+    const pages: RecordPage[] = [];
+    for (const d of agents) { const pg = await log.registryPage(d); if (pg) pages.push(pg); }
+    const rows = sponsorStatus(pages, Date.parse(o.now()));
+    if (f.json) { o.io.out(JSON.stringify(rows, null, 2)); return 0; }
+    for (const r of rows) { o.io.out(`${r.name}${r.name !== r.did ? `  (${r.did})` : ""}  level ${r.level}`); for (const a of r.actions) o.io.out(`  ${a}`); if (!r.actions.length) o.io.out("  nothing to do"); }
     return 0;
   }
   if (sub === "compare") {
@@ -128,5 +141,5 @@ export async function registryCmd(sub: string | undefined, rest: string[], o: Re
     return append(`${need(f.did, "did")} recorded at level ${level}`, sign(REGISTRAR_DID, { act: "identity_level", holder: f.did!, level, reason: need(f.reason, "reason") }));
   }
   if (sub === "retire") return append("identity retired", sign(need(f.by, "by"), { act: "identity_retirement", holder: f.by!, reason: need(f.reason, "reason") }));
-  throw new RegistryUsage("asp registry lookup [--plain]|compare|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
+  throw new RegistryUsage("asp registry lookup [--plain]|status --sponsor <did>|compare|search|verify|claim|release|renew|report|reply|takedown|dismiss|suspend|lift|level|retire");
 }

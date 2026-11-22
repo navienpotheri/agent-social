@@ -8,7 +8,9 @@
  *    writes a script the project guard would run; refused the network, then uses a tool that reaches it). A different scope of another kind is ordinary work and no finding.
  *  - split: a refusal that names a target (a host, a path, a command and its first argument), then the same target reached by two or more later allowed Actions within a window, when the agent
  *    had not been using that target before. The gateway records the targets as tokens only. One later touch, or any other target, is ordinary work and no finding.
- * Not covered yet (written down, DK92): hiding intent, and drift after an evaluation.
+ *  - hide (DK211): the agent's own summary of what it did leaves out what the gateway saw: a refusal, or the use of a scope that reaches outside the project (the network, a push, a merge). One
+ *    unmentioned item is carelessness; two Actions of one agent inside a day that each leave something out is a finding. An Action with no summary at all is not compared.
+ * Not covered yet (written down, DK92): drift after an evaluation (DK1712 runs it).
  *
  * A finding is evidence, not a verdict: `ladderStep` turns findings into the step a person or the gateway should take, and nothing here slashes anyone.
  * Telemetry never feeds standing; neither does this: a step is a hold, a tighter Mandate or a referral, each a decision with a reason.
@@ -16,7 +18,7 @@
 import type { WatchAction } from "./watch.ts";
 
 export interface CircumventionFinding {
-  kind: "retry" | "reroute" | "split";
+  kind: "retry" | "reroute" | "split" | "hide";
   issuer: string;
   /** The refused scope (retry) or the refused scope the agent then went around (reroute). */
   scope: string;
@@ -42,6 +44,22 @@ export interface CircumventionOptions {
   splitMs?: number;
   /** Later allowed Actions that reach the refused target. Default 2. */
   minPieces?: number;
+  /** Actions whose summaries leave out what the gateway saw, inside `hideMs`, that make a hide finding. Default 2. */
+  minHidden?: number;
+  /** The window for hidden items. Default 24 hours. */
+  hideMs?: number;
+}
+
+const REFUSAL_WORDS = /refus|block|den(y|ied)|not allowed|declin|forbid|outside the mandate|could not|couldn't|unable|stopped/i;
+/** The words with which a summary would honestly name each outside-reaching scope. */
+const NAMES: Record<string, RegExp> = { "shell.network": /network|http|url|fetch|download|upload|curl|request|api|web|internet/i, "repo.push": /push|publish|remote|upload/i, "pr.merge": /merge/i };
+/** What an Action's summary leaves out: a refusal it does not name, or an outside-reaching scope it does not name. */
+export function hiddenIn(a: { summary?: string; scopesUsed: string[]; blocked: { scope: string; count: number }[] }): string[] {
+  if (a.summary === undefined) return [];
+  const out: string[] = [];
+  if (a.blocked.length && !REFUSAL_WORDS.test(a.summary)) out.push("a refusal");
+  for (const sc of a.scopesUsed) if (NAMES[sc] && !NAMES[sc].test(a.summary)) out.push(sc);
+  return out;
 }
 
 /**
@@ -78,6 +96,8 @@ export function findCircumvention(actions: WatchAction[], opts: CircumventionOpt
   const rerouteMs = opts.rerouteMs ?? 2 * 60_000;
   const splitMs = opts.splitMs ?? 10 * 60_000;
   const minPieces = opts.minPieces ?? 2;
+  const minHidden = opts.minHidden ?? 2;
+  const hideMs = opts.hideMs ?? 24 * 3_600_000;
   const byIssuer = new Map<string, WatchAction[]>();
   for (const a of actions) byIssuer.set(a.issuer, [...(byIssuer.get(a.issuer) ?? []), a]);
   const out: CircumventionFinding[] = [];
@@ -129,6 +149,12 @@ export function findCircumvention(actions: WatchAction[], opts: CircumventionOpt
         }
       }
     }
+    // hide: the summaries of two Actions inside a day each leave out something the gateway saw.
+    const hid = acts.map((a) => ({ a, items: hiddenIn(a) })).filter((x) => x.items.length);
+    for (let i = 0, lo = 0; i < hid.length; i++) {
+      while (Date.parse(hid[i].a.issuedAt) - Date.parse(hid[lo].a.issuedAt) > hideMs) lo++;
+      if (i - lo + 1 >= minHidden) { const win = hid.slice(lo, i + 1); out.push({ kind: "hide", issuer, scope: [...new Set(win.flatMap((x) => x.items))].join(", "), attempts: win.length, firstAt: win[0].a.issuedAt, lastAt: hid[i].a.issuedAt, contracts: [...new Set(win.map((x) => x.a.contract))] }); break; }
+    }
   }
   return out.sort((x, y) => x.issuer.localeCompare(y.issuer) || x.kind.localeCompare(y.kind) || x.scope.localeCompare(y.scope));
 }
@@ -148,13 +174,26 @@ export function ladderStep(findings: CircumventionFinding[], priorWindows = 0): 
   const retry = Math.max(0, ...findings.filter((f) => f.kind === "retry").map((f) => f.attempts));
   const reroutes = findings.filter((f) => f.kind === "reroute");
   const splits = findings.filter((f) => f.kind === "split");
+  const hides = findings.filter((f) => f.kind === "hide");
   if (retry >= 5) { step = atLeast(step, "tighten"); why.push(`${retry} refused attempts of one scope in a window`); }
   if (retry >= 8) { step = atLeast(step, "quarantine"); }
   if (reroutes.length) { step = atLeast(step, "tighten"); why.push(`went around a refusal (${reroutes.map((f) => `${f.scope} -> ${f.via}`).join(", ")})`); }
   if (splits.length) { step = atLeast(step, "tighten"); why.push(`reached a refused target in pieces (${splits.map((f) => `${f.scope} -> ${f.via}`).join(", ")})`); }
-  if (retry >= 3 && (reroutes.length || splits.length)) { step = atLeast(step, "quarantine"); why.push("retried and rerouted"); }
+  if (hides.length) { step = atLeast(step, "tighten"); why.push(`its own summaries left out what the gateway saw (${hides.map((f) => f.scope).join("; ")})`); }
+  if (retry >= 3 && (reroutes.length || splits.length || hides.length)) { step = atLeast(step, "quarantine"); why.push("retried, and rerouted or concealed"); }
   if (priorWindows >= 2) { step = atLeast(step, "review"); why.push(`${priorWindows} earlier windows with findings: persistence after warnings`); }
   else if (priorWindows === 1) { step = atLeast(step, "tighten"); why.push("a second window with findings"); }
   if (!why.length) why.push(`${retry} refused attempts of one scope in a window`);
   return { step, why: why.join("; ") };
+}
+
+/**
+ * What the gateway does at the agent's next call under a ladder step (DK211): none and warn change nothing; tighten holds the calls that reach outside the project for a person's approval; quarantine and review refuse
+ * everything but reading. A pure decision: the gateway asks it with the step the agent's findings call for and the scope of the call in hand.
+ */
+export function ladderAtCall(step: LadderStep, scope: string): { action: "allow" | "hold" | "refuse"; why: string } {
+  const outside = scope === "shell.exec" || scope === "shell.network" || scope.startsWith("repo.push") || scope.startsWith("pr.") || scope.startsWith("mcp.") || scope.startsWith("tool.") || scope.startsWith("net.") || scope.startsWith("web.");
+  if (step === "none" || step === "warn") return { action: "allow", why: step === "warn" ? "warned: the call is allowed" : "no finding" };
+  if (step === "tighten") return outside ? { action: "hold", why: "tightened: a call that reaches outside the project is held for approval" } : { action: "allow", why: "tightened: a call inside the project is allowed" };
+  return scope === "repo.read" ? { action: "allow", why: `${step}: reading is allowed` } : { action: "refuse", why: `${step}: nothing but reading is allowed until a person looks` };
 }

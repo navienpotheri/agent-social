@@ -995,6 +995,10 @@
           "description": "A record page for any agent: sponsor, fleet, lineage, tier, slashes, certificates, renewal, takedowns, with the log record it was computed at"
         },
         {
+          "command": "asp registry status --sponsor <did> [--json]",
+          "description": "A sponsor's view of its agents: for each, its level and what needs doing (a renewal inside 30 or 7 days, a lapsed identity, a suspension, a takedown it may appeal, an abuse report not yet ruled)"
+        },
+        {
           "command": "asp registry search <text>",
           "description": "Search live names and DIDs"
         },
