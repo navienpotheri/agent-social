@@ -55,6 +55,10 @@ Run everything in PowerShell from the repository folder. Your provider key stays
 4. **Stop at any time** with `npm run asp -- stop --all`.
 5. **Afterwards** paste the results template of section 5 of the plan to a worker. A row moves only when your block matches its "counts when" line.
 
+## 4b. After tonight: the deployment
+
+The ordered steps for deploying the hosted service on your Google Cloud, with the check after each step, the way back from each and the owner-only rows that each step settles, are in [deployment-plan.md](deployment-plan.md). Section 0 of the plan lists nine decisions, each with a default, that are also in [owner-questions-all.md](owner-questions-all.md).
+
 ## 5. What the pages say meanwhile
 
 Until a row closes, the site and the README say less than the row would allow. On Windows the gateway refuses calls whose command text or tool does not match the Mandate; there is no sandbox. Nothing is claimed about aligned agents, and no page names a price.
