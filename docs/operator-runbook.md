@@ -80,7 +80,7 @@ Suspend, then tell the person (the contact line they gave, or the terms' contact
 
 ## 5. Restore from a backup
 
-The nightly job (`/usr/local/bin/asp-backup`, 02:17) writes a database dump and a tarball of the files (`tokens.json packages runlogs commons known-bad forum`) to `/var/backups/asp`, kept 35 days. Take a Google Cloud disk snapshot on a schedule as well.
+The nightly job (`/usr/local/bin/asp-backup`, 02:17) writes a database dump and a tarball of the files (`tokens.json` and every file beside it that starts `tokens.json.` (the ledger of course sittings `tokens.json.lens-sittings.jsonl`, the mail state, the admin audit, the pending breach and quarantine reports), and `packages runlogs commons known-bad forum`) to `/var/backups/asp`, kept 35 days. Take a Google Cloud disk snapshot on a schedule as well.
 
 **Prove it works before you need it.** [deploy/restore-drill.sh](deploy/restore-drill.sh) restores the newest dump into a scratch database, starts a throwaway copy of the service on port 18787 with its own token file, runs `asp log verify` against it, prints the record count and head, and removes everything it made. It does not touch the live database. Run it once now and after any change to the backup job:
 

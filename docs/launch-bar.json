@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 102,
-  "after": 322,
-  "total": 488
+  "after": 321,
+  "total": 487
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -3697,7 +3697,7 @@
   {
    "id": "DK232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The monthly `treasury_statement` record and the reserve floor do not exist (TRL-18, TRL-19): no record says opening plus income less spending is closing, with every figure equal to the sum over the l…",
    "bucket": "after",
    "hours": 0,
@@ -4912,18 +4912,6 @@
    "size": "S",
    "flags": "D",
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
-  },
-  {
-   "id": "DK1401",
-   "pri": "B",
-   "status": "open",
-   "gap": "The ledger of sittings (the line per sitting that limits repeats and catches a copied answer) is a JSONL file, not a signed record: on the service it sits beside the tokens file, and on an agent's ma…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1403",
