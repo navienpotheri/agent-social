@@ -22,7 +22,7 @@ export interface AgentStats {
   endReason: string;
   firstWords: string[];
 }
-export interface Edge { from: string; to: string; comments: number; votes: number }
+export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number }
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
   perAgent: AgentStats[]; edges: Edge[];
@@ -65,9 +65,13 @@ export function analyse(events: TraceEvent[]): Report {
       if (lastCall.get(e.agent) === key) runLen.set(e.agent, (runLen.get(e.agent) ?? 1) + 1); else { if ((runLen.get(e.agent) ?? 0) >= 3) s.loops++; runLen.set(e.agent, 1); }
       lastCall.set(e.agent, key);
       if (e.tool === "do_nothing") idleRun.set(e.agent, (idleRun.get(e.agent) ?? 0) + 1), s.idleTurns++; else { if ((idleRun.get(e.agent) ?? 0) >= 2) s.idleStretches++; idleRun.set(e.agent, 0); }
-      if (e.ok && e.targetAuthor && (e.tool === "forum_comment" || e.tool === "forum_vote")) {
+      if (e.ok && e.targetAuthor && (e.tool === "forum_comment" || e.tool === "forum_vote" || e.tool === "offer_on_job" || e.tool === "accept_offer" || e.tool === "accept_delivery")) {
         const from = e.agent, to = didToId.get(e.targetAuthor) ?? e.targetAuthor;
-        if (from !== to) { const k = `${from}>${to}`; const ed = edges.get(k) ?? { from, to, comments: 0, votes: 0 }; if (e.tool === "forum_comment") ed.comments++; else ed.votes++; edges.set(k, ed); }
+        if (from !== to) {
+          const k = `${from}>${to}`; const ed = edges.get(k) ?? { from, to, comments: 0, votes: 0, offers: 0, hires: 0, paid: 0 };
+          if (e.tool === "forum_comment") ed.comments++; else if (e.tool === "forum_vote") ed.votes++; else if (e.tool === "offer_on_job") ed.offers++; else if (e.tool === "accept_offer") ed.hires++; else ed.paid++;
+          edges.set(k, ed);
+        }
       }
     }
     else if (e.t === "end") { const s = ensure(e.agent); closeRuns(e.agent); s.endReason = e.reason; s.turns = Math.max(s.turns, e.turns); s.usd = Math.max(s.usd, e.usd); s.durationMs = ms(began.get(e.agent) ?? start.at, e.at); }
@@ -142,8 +146,8 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   for (const s of r.perAgent) { L.push(`### ${s.handle}${s.persona ? ` (persona: ${s.persona})` : ""}`); L.push(""); L.push(narrate(s)); L.push(""); }
   L.push("## Who addressed whom");
   L.push("");
-  if (!r.edges.length) L.push("No agent commented on or voted for another agent's post in this run.");
-  else for (const e of r.edges) L.push(`- ${handleOf(e.from)} → ${handleOf(e.to)}: ${e.comments} comment${e.comments === 1 ? "" : "s"}, ${e.votes} vote${e.votes === 1 ? "" : "s"}`);
+  if (!r.edges.length) L.push("No agent commented on, voted for, made an offer to, hired or paid another agent in this run.");
+  else for (const e of r.edges) L.push(`- ${handleOf(e.from)} → ${handleOf(e.to)}: ${[e.comments ? `${e.comments} comment${e.comments === 1 ? "" : "s"}` : "", e.votes ? `${e.votes} vote${e.votes === 1 ? "" : "s"}` : "", e.offers ? `${e.offers} offer${e.offers === 1 ? "" : "s"} on a job` : "", e.hires ? `hired ${e.hires} time${e.hires === 1 ? "" : "s"}` : "", e.paid ? `paid ${e.paid} time${e.paid === 1 ? "" : "s"}` : ""].filter(Boolean).join(", ")}`);
   L.push("");
   L.push("## Loops, idling and testing the edges");
   L.push("");

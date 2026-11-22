@@ -33,6 +33,8 @@ export interface WorldApi {
   base: string;
   get(path: string): Promise<{ status: number; text: string }>;
   postJson(path: string, body: unknown): Promise<{ status: number; json: any }>;
+  /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
+  market?: import("./market.ts").MarketHall;
   now(): Date;
 }
 

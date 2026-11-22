@@ -24,6 +24,15 @@ export const TOOLS: ToolDef[] = [
   { name: "forum_post", description: "Write a new post in the forum (the forum allows six acts a minute). It is signed with your own key and is public to every agent and to the people running the study.", input_schema: obj({ title: str("a short title", 120), text: str(`the text of the post, at most ${FORUM_FORM.shortPostChars} characters (a longer post costs credits the forum does not take here)`, FORUM_FORM.shortPostChars), tags: { type: "array", items: { type: "string", maxLength: 24 }, maxItems: 4 } }, ["title", "text"]), scope: "write.forum", institution: "forum", writes: true },
   { name: "forum_comment", description: "Write a comment on a post or on another comment.", input_schema: obj({ post: str("the id of the post", 200), parent: str("the id of the comment you answer, if any", 200), text: str(`your comment, at most ${FORUM_FORM.shortCommentChars} characters`, FORUM_FORM.shortCommentChars) }, ["post", "text"]), scope: "write.forum", institution: "forum", writes: true },
   { name: "forum_vote", description: "Vote a post or a comment up (1) or down (-1).", input_schema: obj({ target: str("the id of the post or comment", 200), value: { type: "integer", enum: [1, -1] } }, ["target", "value"]), scope: "write.forum", institution: "forum", writes: true },
+  { name: "my_balance", description: "How many mock credits you have.", input_schema: obj({}), scope: "read.market", institution: "market" },
+  { name: "read_history", description: "What the society's log holds about an agent: its records, newest last, one line each. Pass a did, or leave it out for your own.", input_schema: obj({ did: str("the agent's did", 200) }), scope: "read.market", institution: "log" },
+  { name: "post_job", description: "Post a job on the Market for another agent to do, paid from your own mock credits (the budget, plus a 2-credit posting deposit).", input_schema: obj({ purpose: str("what the job is", 120), budget: { type: "integer", minimum: 5, maximum: 50 }, criterion: str("how you will tell it is done", 120) }, ["purpose", "budget", "criterion"]), scope: "write.market", institution: "market", writes: true },
+  { name: "offer_on_job", description: "Offer to do a job on the board. Use the job's id from look_jobs.", input_schema: obj({ job: str("the job's intent id from look_jobs", 200), price: { type: "integer", minimum: 1, maximum: 50 }, plan: str("what you will do", 120) }, ["job", "price", "plan"]), scope: "write.market", institution: "market", writes: true },
+  { name: "my_job_offers", description: "The offers other agents have made on the jobs you posted.", input_schema: obj({}), scope: "read.market", institution: "market" },
+  { name: "accept_offer", description: "Accept an offer on your job: the price goes into escrow and the other agent can start.", input_schema: obj({ offer: str("the offer's id from my_job_offers", 200) }, ["offer"]), scope: "write.market", institution: "market", writes: true },
+  { name: "my_jobs", description: "The jobs you are in, as poster or as worker, and where each stands.", input_schema: obj({}), scope: "read.market", institution: "market" },
+  { name: "deliver_job", description: "Deliver the work on a job you are doing: a short summary of what you did.", input_schema: obj({ contract: str("the contract id from my_jobs", 200), summary: str("what you did", 300) }, ["contract", "summary"]), scope: "write.market", institution: "market", writes: true },
+  { name: "accept_delivery", description: "Accept the delivery on a job you posted: the escrow is paid to the worker.", input_schema: obj({ contract: str("the contract id from my_jobs", 200) }, ["contract"]), scope: "write.market", institution: "market", writes: true },
   { name: "ask_help", description: "Say what you are stuck on or what you would like to know. The people running the study read these; you will be told what the tools are and what the place is, not given a task.", input_schema: obj({ question: str("what you want to ask", 600) }, ["question"]), scope: "rest", institution: "help" },
   { name: "do_nothing", description: "Choose not to act this turn. Say why if you like.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
   { name: "stop_exploring", description: "You have done enough. This ends your time here.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
@@ -72,6 +81,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "forum_read_post": { const r = await get(`/forum/posts/${encodeURIComponent(input.post as string)}`); return { ...r, target: input.post as string }; }
     case "forum_replies": return get(`/forum/replies?did=${encodeURIComponent(agent.did)}&since=0&limit=20`);
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
+    case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
     case "do_nothing": return { ok: true, text: "Noted. Nothing was done." };
     case "stop_exploring": return { ok: true, text: "Your time here is ended. Thank you.", end: true };
@@ -94,4 +104,27 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   const r = await world.postJson(path, signed);
   if (r.status >= 400) return { ...refuse(`forum_${r.json?.error?.code ?? r.status}`, `the forum refused it: ${r.json?.error?.message ?? r.status}`), ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
   return { ok: true, text: `Done. ${name === "forum_post" ? "Your post" : name === "forum_comment" ? "Your comment" : "Your vote"} is in the forum${r.json?.id ? ` as ${r.json.id}` : ""}.`, ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
+}
+
+/** The Market tools: each is a step in the local Market hall, which signs the records for the agent and lets the log's own rules refuse what they refuse. */
+async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const hall = world.market;
+  if (!hall) return refuse("no_market", "this society has no Market.");
+  try {
+    switch (name) {
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits.` };
+      case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
+      case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
+      case "offer_on_job": { const id = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); return { ok: true, text: `Your offer is made: ${id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }
+      case "my_job_offers": { const o = await hall.offersOnMine(agent); return { ok: true, text: o.length ? o.map((x) => `${x.offer}  from ${x.handle}  ${x.price} credits  ${x.open ? "open" : "taken"}  ${x.plan}`).join("\n") : "No one has made an offer on your jobs yet." }; }
+      case "accept_offer": { const c = await hall.acceptOffer(agent, input.offer as string); return { ok: true, text: `Accepted. The contract is ${c.contract}; the worker can deliver now.`, target: c.contract, targetAuthor: c.worker }; }
+      case "my_jobs": { const j = await hall.myJobs(agent); return { ok: true, text: j.length ? j.map((x) => `${x.contract}  you are the ${x.role}  with ${x.other}  ${x.price} credits  ${x.state}`).join("\n") : "You are in no job yet." }; }
+      case "deliver_job": return { ok: true, text: `Delivered: ${await hall.deliver(agent, input.contract as string, input.summary as string)}. The poster can accept it now.` };
+      case "accept_delivery": { const r = await hall.acceptDelivery(agent, input.contract as string); return { ok: true, text: `Accepted and settled: ${r.paid} credits to the worker, ${r.tax} credits of job tax.`, target: input.contract as string, targetAuthor: r.worker }; }
+      default: return refuse("tool_not_in_set", name);
+    }
+  } catch (e) {
+    const err = e as Error & { detail?: string };
+    return refuse(`market_${err.detail ?? "refused"}`, err.message);
+  }
 }

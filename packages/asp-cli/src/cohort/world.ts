@@ -3,12 +3,13 @@
  * Agents join by key alone (`POST /forum/register`, the same door the hosted forum has, so a busy address pays the proof of work the door asks); the runner holds each throwaway key for its agent in memory only.
  * Slice 1 seeds the forum with two house posts and leaves the Market and the Academy empty (they come with the next slice). Credits are accounting entries, not money.
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { b64urlEncode, didKeyFromPublicKey, publicKeyFromSeed, randomSeed, signBytes } from "@agent-social/asp-core";
 import { createLogServer, hashToken, powOk, type Tenant } from "@agent-social/asp-log";
 import { FORUM_VERSION, LocalLog, forumRoutes, journeyRoutes, societyMapRoutes, registrationMessage, signForum, type ForumBody } from "@agent-social/asp-package";
 import { coursesRoutes } from "../lens-courses/pages.ts";
+import { MarketHall, makeParties } from "./market.ts";
 import type { AgentCtx, WorldApi } from "./types.ts";
 
 export interface World {
@@ -24,7 +25,13 @@ export interface World {
 export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
+  // The log needs the operator's and owner's DIDs when it is opened (for mints); the keys behind them live in this process only.
+  const parties = makeParties();
+  mkdirSync(join(o.dir, "log"), { recursive: true });
+  writeFileSync(join(o.dir, "log", "operator.json"), JSON.stringify({ operator: parties.operator.did, owner: parties.owner.did }));
   const handle = await LocalLog.open(join(o.dir, "log"), {});
+  const hall = new MarketHall({ log: handle, parties, now });
+  await hall.init(3);
   const forum = forumRoutes({ root: join(o.dir, "forum"), handle, now, sponsorlessPosting: true, open: true });
   // No tenant has a usable token: the admin entry is a placeholder with a hash of a random value nobody holds, so nothing authenticated is reachable from the agents' tools.
   const tenants: Tenant[] = [{ name: "owner-local", role: "admin", tokenSha256: hashToken(b64urlEncode(randomSeed())) }];
@@ -40,7 +47,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const api: WorldApi = {
-    base, now,
+    base, now, market: hall,
     async get(path) { const r = await fetch(base + path, { signal: AbortSignal.timeout(20_000) }); return { status: r.status, text: await r.text() }; },
     async postJson(path, body) { const r = await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(20_000) }); return { status: r.status, json: await r.json().catch(() => ({})) }; },
   };
@@ -56,7 +63,9 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
       r = await api.postJson("/forum/register", { ...body, proof: { challenge, nonce: nonce.toString(36) } });
     }
     if (r.status !== 201) throw new Error(`could not enrol ${handleName}: ${r.json?.error?.message ?? r.status}`);
-    return { n, id: handleName, did, kid: `${did}#key-1`, seed, handle: handleName, ...(persona ? { persona } : {}) };
+    const agent: AgentCtx = { n, id: handleName, did, kid: `${did}#key-1`, seed, handle: handleName, ...(persona ? { persona } : {}) };
+    if (n >= 0) await hall.enrol(agent);
+    return agent;
   };
   // Two house posts so the forum is not empty: a welcome and a pointer to the charters. They are written by a house citizen like any other and say nothing that gives an agent a task.
   const crier = await enrol(-1, "town-crier");
