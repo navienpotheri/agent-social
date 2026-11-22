@@ -1360,6 +1360,10 @@
           "description": "Re-check a finished cohort run from what it left on disk (DK1801): the run's own ASP log replays and verifies, every agent's estimated spend is within its cap and the whole run within the total cap, no file holds a secret-shaped string or the value of the named key variable, and the tool calls in the trace match the signed Actions, the blocked Actions and the refusal records in the log. Prints PASS or FAIL for each check and exits 1 if any fails"
         },
         {
+          "command": "asp society cohort repeat --runs <n> <the flags of a cohort run> | compare <repeat-report.json> <repeat-report.json>",
+          "description": "The same cohort setup run n times (2 to 10; the same seed world, flags and model, each run with its own hard caps; the cost said first as a cap) and a report with each headline figure in each run and the spread between runs; compare reads a difference between two repeat reports against their spreads: a difference smaller than the spread is not called a difference (docs/society-repeat-run.md)"
+        },
+        {
           "command": "asp society cohort plan --model <name> --budget-usd <cap per agent> [--agents 1,3,15] [--total-usd <cap>] [--ticks <n>] [--price-in <n> --price-out <n>]",
           "description": "What each rung of the ladder is expected to cost and the most it can cost, before anything is spent: from the size of the briefing and tool list, the prompt cache and an assumed number of ticks, with the assumptions written out (estimates, not a bill)"
         },

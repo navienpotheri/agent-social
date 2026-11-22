@@ -6913,7 +6913,7 @@
   {
    "id": "ENG72",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Repeatability is not measured: there is no baseline variance. A difference between two cohort runs (round 1 against round 2, sponsored against key-only, one briefing wording against another) cannot b…",
    "bucket": "withdraw",
    "hours": 0,
