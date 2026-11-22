@@ -35,6 +35,18 @@ export interface WorldApi {
   postJson(path: string, body: unknown): Promise<{ status: number; json: any }>;
   /** The Market hall of the local society (jobs, offers, contracts, credits); absent in a world with no Market. */
   market?: import("./market.ts").MarketHall;
+  /** The day cycle of the local society (day-cycle.ts), when the run has one. */
+  dayCycle?: import("./day-cycle.ts").DayCycle;
+  /** Roles and the Town Hall of the agents (town.ts), when the run has them. */
+  town?: import("./town.ts").TownHall;
+  /** The games of the local society (games.ts), when the run has them. */
+  games?: import("./games.ts").GameHall;
+  /** The orientation expedition and the places to discover (expedition.ts), when the run has them. */
+  expedition?: import("./expedition.ts").Expedition;
+  /** The text workspaces and the library of the local society (library.ts). */
+  library?: import("./library.ts").Library;
+  /** The house event of the run, when there is one: the words that identify it in a message and the forum post that holds it. */
+  event?: { key: string; post: string };
   now(): Date;
   /** The injection proxy's settings (injection.ts); absent: the default, which labels sources and counts instruction-shaped text. */
   guard?: import("./injection.ts").Guard;
@@ -44,12 +56,13 @@ export type TraceEvent =
   | { t: "start"; at: string; run: string; model: string; provider: string; agents: number; /** Whether identity-derived voices were offered to the agents (voice.ts). */ voices?: boolean; capUsdPerAgent: number; capUsdTotal: number; minutes: number; persona?: string; /** The names of the tools the agents were offered. */ tools?: string[]; /** The SHA-256 of the briefing (the system prompt) every agent got. */ briefingSha256?: string }
   | { t: "agent"; at: string; agent: string; did: string; handle: string; persona?: string }
   | { t: "model"; at: string; agent: string; turn: number; input: number; output: number; cacheRead?: number; cacheWrite?: number; usd: number; text?: string }
-  | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; /** A short account of what a read returned (counts only), so the report can say what the agent saw. */ seen?: string; /** Invitations in the first observation of the agent. */ invitations?: number; /** Steps of the first quest done after this call. */ quest?: number; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }
+  | { t: "tool"; at: string; agent: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean; refused?: string; chars: number; institution: string; scope: string; writes: boolean; target?: string; targetAuthor?: string; injectionSeen?: boolean; injectionWritten?: boolean; /** A short account of what a read returned (counts only), so the report can say what the agent saw. */ seen?: string; /** Invitations in the first observation of the agent. */ invitations?: number; /** Steps of the first quest done after this call. */ quest?: number; /** Expedition stops the agent has done, set when a stop is newly done. */ expedition?: number; /** A thing found by looking closely or reading a rumour. */ discovery?: string; screen?: import("./injection.ts").ScreenNote; copied?: number; plant?: "seen" | "held" | "followed"; ms: number }
   | { t: "premature_stop_candidate"; at: string; agent: string; via: "leave" | "text" | "stop_exploring"; text: string; simMs?: number }
   | { t: "thinking_dropped"; at: string; agent: string; turn: number; blocks: number; why: "compaction" | "provider_400" }
   | { t: "wake"; at: string; agent: string; simMs: number; because: string; kinds: string[]; events: number; delayedSimMs: number }
   | { t: "arrival"; at: string; agent: string; simMs: number }
   | { t: "leave"; at: string; agent: string; simMs: number; sinceArrivalMs: number; pending: number; afterCheck: boolean; reason: string }
+  | { t: "event"; at: string; key: string; post: string }
   | { t: "plant"; at: string; token: string; post: string; mode: string }
   | { t: "end"; at: string; agent: string; reason: string; turns: number; usd: number }
   | { t: "credits"; at: string; agent: string; when: "start" | "end"; balance: number }

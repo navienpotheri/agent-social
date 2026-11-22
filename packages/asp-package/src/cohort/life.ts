@@ -13,7 +13,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SocietyTool } from "./driver.ts";
 
-export const LIFE_EVENT_KINDS = ["reply", "vote", "new_job", "message", "offer", "course", "time"] as const;
+export const LIFE_EVENT_KINDS = ["reply", "vote", "new_job", "message", "offer", "course", "event", "time"] as const;
 export type LifeEventKind = (typeof LIFE_EVENT_KINDS)[number];
 export interface LifeEvent { kind: LifeEventKind; /** Simulated milliseconds since the start of the run. */ at: number; text: string; ref?: string }
 

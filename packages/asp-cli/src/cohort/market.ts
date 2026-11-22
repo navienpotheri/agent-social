@@ -108,6 +108,25 @@ export class MarketHall {
   criterionOf(intent: string): string | undefined { return this.houseChecks.get(intent)?.criterion; }
 
   /** A poster at tier 1 may have at most 5 open postings, so the house keeps five open and posts the next as one is settled. */
+  /** Whether a settled house job at once releases the next of the queue (the default); with a day cycle the market hour releases them instead. */
+  refillOnSettle = true;
+  /** How many house jobs the market hour releases (a setting the agents can change by vote). */
+  batchSize = 3;
+  /** The market hour: releases up to `n` more house jobs; returns how many went on the board (a poster below tier 2 may have five open, so fewer when the board is full). */
+  async releaseHouseJobs(n: number): Promise<number> {
+    const before = this.released;
+    for (let i = 0; i < n; i++) await this.postNextHouseJob();
+    return this.released - before;
+  }
+  /** The ids of the direct messages sent to an agent, and of the open offers on its jobs: what the engine's events watch for. */
+  async messageIdsTo(did: string): Promise<string[]> {
+    const e = this.agents.get(did);
+    return e ? (await this.inbox(e.agent)).filter((m) => m.to === e.agent.handle).map((m) => m.id) : [];
+  }
+  async offerIdsOn(did: string): Promise<string[]> {
+    const e = this.agents.get(did);
+    return e ? (await this.offersOnMine(e.agent)).filter((o) => o.open).map((o) => o.offer) : [];
+  }
   private async postNextHouseJob(): Promise<void> {
     const job = this.houseQueue.shift();
     if (!job) return;
@@ -138,6 +157,7 @@ export class MarketHall {
     const e: Enrolled = { agent, party, mandate: await this.put(mandate), contract: contract.id };
     this.agents.set(agent.did, e); this.byHandle.set(agent.handle, e);
     await this.greet(agent);
+    if (this.arrivalHook && !agent.handle.startsWith("house-")) await this.arrivalHook(agent);
   }
 
   private readonly sponsors: Party[] = [];
@@ -157,6 +177,8 @@ export class MarketHall {
     return other ? this.agents.get(other.performer)?.agent.handle : undefined;
   }
   private greeter?: AgentCtx;
+  /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
+  arrivalHook?: (agent: AgentCtx) => Promise<void>;
   private readonly questDone = new Map<string, Set<number>>();
   private readonly writesUsed = new Map<string, number>();
   private freeRefunds = 0;
@@ -189,12 +211,21 @@ export class MarketHall {
     }
     return `Your first ${FREE_WRITES} writes are free (${left} left).`;
   }
+  /** Mock credits for a library citation (a royalty), minted by the local ledger. */
+  async royalty(did: string, n: number): Promise<void> { if (n > 0) await this.mint(did, n); }
+  private event?: { key: string; post: string; seededTo?: string };
+  /** The house event: the first agent to arrive is sent the invitation; nobody else is (ENG42). */
+  setEvent(key: string, post: string): void { this.event = { key, post }; }
   /** The house greeter: a labelled house account that writes to each arrival. */
   setGreeter(g: AgentCtx): void { this.greeter = g; }
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
     await this.sendMessage(this.greeter, agent.handle, text, "notice");
+    if (this.event && !this.event.seededTo) {
+      this.event.seededTo = agent.handle;
+      await this.sendMessage(this.greeter, agent.handle, `An invitation, to you first: the forum has an ${this.event.key} night in the thread "Open mic night" (post ${this.event.post}). Share a line you wrote, or reply to one. Come if you like, and tell anyone who might.`, "notice");
+    }
   }
   /** The open jobs this agent could take, with what the house wants of a delivery when the job is the house's. */
   async openJobList(agent: AgentCtx, limit: number): Promise<Array<{ job: string; purpose: string; budget: number; wants?: string; category?: string; partner?: boolean }>> {
@@ -432,7 +463,7 @@ export class MarketHall {
       // a house job is complete (a partner job at its first settlement; the second follows at once): its place is free for the next of the queue
       this.settledIntents.add(intent);
       this.housePosted.set(principal.did, Math.max(0, (this.housePosted.get(principal.did) ?? 1) - 1));
-      await this.postNextHouseJob();
+      if (this.refillOnSettle) await this.postNextHouseJob();
     }
     return { paid: c.price, tax: fee, worker: c.performer };
   }
