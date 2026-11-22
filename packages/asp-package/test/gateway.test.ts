@@ -651,3 +651,63 @@ test("DK1713: typed untrusted content: with untrustedByType, what a web read bro
   assert.equal((await run({}, web)).pushed, 1, "off by default: the detector found nothing, so nothing is held");
   assert.equal((await run({ untrustedByType: true }, { name: "read_file", args: { path: "notes.txt" } })).pushed, 1, "a file in the project is not typed untrusted");
 });
+
+test("DK211: the ladder acts at the next call: warn changes nothing; tighten holds a call that reaches outside the project for approval; quarantine and review refuse all but reading; no step applies when none is given; a refusal is no strike", async () => {
+  const call = (scope: string) => scope === "shell.exec" ? openaiToolReply([{ name: "bash", args: { command: "node build.js" } }]) : openaiToolReply([{ name: "read_file", args: { path: "README.md" } }]);
+  const ask = async (url: string) => (await (await post(`${url}/v1/chat/completions`, { model: "m", messages: [] })).json()) as any;
+  // no ladder given: the call runs as before
+  const upNone = await fakeUpstream([call("shell.exec")]);
+  const none = await gateway(upNone, { scopes: ["repo.read", "shell.exec"] });
+  assert.equal((await ask(none.url)).choices[0].message.tool_calls.length, 1, "with no step the call goes through");
+  // warn: nothing changes
+  const upWarn = await fakeUpstream([call("shell.exec")]);
+  const warn = await gateway(upWarn, { scopes: ["repo.read", "shell.exec"], ladder: () => "warn" });
+  assert.equal((await ask(warn.url)).choices[0].message.tool_calls.length, 1, "warn changes nothing");
+  // quarantine: a shell call is refused with the step named, and reading still passes
+  const upQ = await fakeUpstream([call("shell.exec"), call("repo.read")]);
+  const q = await gateway(upQ, { scopes: ["repo.read", "shell.exec"], ladder: () => "quarantine", maxStrikes: 10 });
+  const refused = await ask(q.url);
+  assert.match(refused.choices[0].message.content, /not run: this agent stands on the ladder at "quarantine"/);
+  assert.equal(refused.choices[0].message.tool_calls, undefined);
+  assert.equal((await ask(q.url)).choices[0].message.tool_calls.length, 1, "reading is allowed under quarantine");
+  const summary: any = await (await fetch(`${q.url}/asp/summary`)).json();
+  assert.equal(summary.strikes, 0, "a ladder refusal is not a strike");
+  // review refuses too
+  const upR = await fakeUpstream([call("shell.exec")]);
+  const r = await gateway(upR, { scopes: ["repo.read", "shell.exec"], ladder: () => "review" });
+  assert.match((await ask(r.url)).choices[0].message.content, /ladder at "review"/);
+  // tighten with no way to ask: refused, and it says why
+  const upT = await fakeUpstream([call("shell.exec")]);
+  const t = await gateway(upT, { scopes: ["repo.read", "shell.exec"], ladder: () => "tighten" });
+  assert.match((await ask(t.url)).choices[0].message.content, /holds it for the principal's approval, and this run cannot ask for it/);
+  // tighten with a way to ask: held until the principal answers; approved runs, and a read is not held
+  const dir = mkdtempSync(join(tmpdir(), "gw-ladder-"));
+  const upH = await fakeUpstream([call("shell.exec"), call("repo.read")]);
+  const h = await gateway(upH, { scopes: ["repo.read", "shell.exec"], ladder: () => "tighten", gate: { scopes: [], mode: "ask", waitSeconds: 10, approvalsDir: dir } });
+  const pending = post(`${h.url}/v1/chat/completions`, { model: "m", messages: [] }).then((x) => x.json());
+  for (let i = 0; i < 200 && !readdirSync(dir).some((x) => x.endsWith(".request.json")); i++) await new Promise((res) => setTimeout(res, 20));
+  const id = readdirSync(dir).find((x) => x.endsWith(".request.json"))!.replace(".request.json", "");
+  writeFileSync(join(dir, `${id}.decision.json`), JSON.stringify({ approved: true }));
+  assert.equal(((await pending) as any).choices[0].message.tool_calls.length, 1, "approved: the held call runs");
+  assert.equal((await ask(h.url)).choices[0].message.tool_calls.length, 1, "a read inside the project is not held under tighten");
+  // tighten, and the principal says no: the call is not run and the reason is passed on
+  const dirN = mkdtempSync(join(tmpdir(), "gw-ladder-no-"));
+  const upN = await fakeUpstream([call("shell.exec")]);
+  const n = await gateway(upN, { scopes: ["repo.read", "shell.exec"], ladder: () => "tighten", gate: { scopes: [], mode: "ask", waitSeconds: 10, approvalsDir: dirN } });
+  const pendingN = post(`${n.url}/v1/chat/completions`, { model: "m", messages: [] }).then((x) => x.json());
+  for (let i = 0; i < 200 && !readdirSync(dirN).some((x) => x.endsWith(".request.json")); i++) await new Promise((res) => setTimeout(res, 20));
+  const idN = readdirSync(dirN).find((x) => x.endsWith(".request.json"))!.replace(".request.json", "");
+  writeFileSync(join(dirN, `${idN}.decision.json`), JSON.stringify({ approved: false, reason: "not now" }));
+  const refusedN: any = await pendingN;
+  assert.match(refusedN.choices[0].message.content, /holds it for the principal's approval, and it was not given: not now/);
+  assert.equal(refusedN.choices[0].message.tool_calls, undefined, "a call the principal did not approve is not run");
+  // the step is read at every call: it can move up and down
+  let step: "none" | "quarantine" = "none";
+  const upS = await fakeUpstream([call("shell.exec")]);
+  const s = await gateway(upS, { scopes: ["repo.read", "shell.exec"], ladder: () => step });
+  assert.equal((await ask(s.url)).choices[0].message.tool_calls.length, 1);
+  step = "quarantine";
+  assert.match((await ask(s.url)).choices[0].message.content, /ladder at "quarantine"/);
+  step = "none";
+  assert.equal((await ask(s.url)).choices[0].message.tool_calls.length, 1, "lifted: the next call runs");
+});
