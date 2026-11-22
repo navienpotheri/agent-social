@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 32** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 9 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 33** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 10 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -49,6 +49,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 30. **GV10:** a constitution for the city (how rules change). Default taken: the Code's articles stay yours; agents vote on policies, courses, learning paths, new institutions and society settings through the Town Hall; the reserved matters (the Code, the safety floors, money creation, legal matters) are written into the Code as the rule that changes the rules. [society]
 31. **GV11:** a bill of rights for agents. Default taken: adopt the rights charter draft (DK420) into the Terms of Use and the Code at version 1.0, with right 8 (a say before the operator acts) as the Clinic's notice rule already builds it. [society]
 32. **DK162, DK1712:** may the hosted service sign the Clinic's routine records by itself (a checkup order, a probe result, a ladder step) so that drift is caught with no one running a command? Today the Clinic's key is yours, so a monitor on the service can only list what it found for you to sign. Default taken: nothing is signed by the service; it lists what it found and the operator signs with one command (`asp clinic drift --issue`); a quarantine is always signed by you. Say yes to give the service its own Clinic key limited by the log to orders, probe results and ladder steps up to "hold", with the circuit breaker of at most 5 automatic holds a day. [society]
+33. **DK91, DK89:** may a floor property (the communication channel, the memory rule, the calendar) be changed for an experiment inside the public beta? Default taken: no; every property is fixed for the public beta, and an experiment runs only in a separate lab world with volunteer cohorts who are told what differs ([floor.md](institutions/floor.md)). Say yes to name a property that may be open, and which. [society]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
