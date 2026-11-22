@@ -150,7 +150,7 @@ test("the turn limit, the wall clock and an abort each stop the loop with their 
   const wall = await runCohort({ ...base(slow.url), limits: { wallClockMs: 150 }, agents: ["a"], toolsetFor: () => toolset(), signal: new AbortController().signal });
   assert.equal(wall.outcomes[0].stopped, "wall_clock");
   const ac = new AbortController();
-  const first = await provider((r, res) => { setTimeout(() => ac.abort(), 20); script(r, res); });
+  const first = await provider((r, res) => { ac.abort(); script(r, res); });
   const t0 = Date.now();
   const stopped = await runCohort({ ...base(first.url), agents: ["a", "b"], toolsetFor: () => toolset(), signal: ac.signal });
   assert.ok(stopped.outcomes.every((o) => o.stopped === "stopped"), JSON.stringify(stopped.outcomes.map((o) => o.stopped)));

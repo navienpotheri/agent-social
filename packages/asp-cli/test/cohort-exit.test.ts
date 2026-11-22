@@ -61,8 +61,8 @@ test("agents that try to quit at tick 1 stay: stop_exploring is not offered, the
       const n = calls.A!.length;
       if (n === 1) return use("forum_post", { title: "Hello from A", text: "I am A and I wonder who is here." });
       if (n === 2) return use("leave", { reason: "There is no task for me here, nothing needs action." });
-      if (n === 3) return use("wait_for", { events: ["reply"], max_wait: "12h" });
-      if (n === 4) return use("rest", { until: "1h" });
+      if (n === 3) return use("wait_for", { events: ["reply"], max_wait: "2d" });
+      if (n === 4) return use("rest", { until: "7d" });       // a stay of seven simulated days: longer than the threshold below whatever the latency
       return use("leave", { reason: "I have seen a reply and rested; I am done" });
     }
     if (w === "B") {                       // answers A once A has posted, rests, then leaves
@@ -89,7 +89,7 @@ test("agents that try to quit at tick 1 stay: stop_exploring is not offered, the
     return use("do_nothing");
   });
   const out = mkdtempSync(join(tmpdir(), "asp-exit-out-"));
-  const r = await asp(base(p.url, out, 4, ["--persona-file", personas(), "--engaged-minutes", "30"]));
+  const r = await asp(base(p.url, out, 4, ["--persona-file", personas(), "--engaged-minutes", "10000"]));
   assert.equal(r.code, 0, r.err + r.out);
   const { dir, events } = traceOf(out);
   // (1) no free exit: the tools the model is offered
@@ -118,18 +118,18 @@ test("agents that try to quit at tick 1 stay: stop_exploring is not offered, the
   // the engine's own trace events for waking and arriving
   assert.equal(events.filter((e) => e.t === "arrival").length, 4, "an arrival event for each agent");
   const wakeA = events.filter((e) => e.t === "wake" && e.agent === "agent-01");
-  assert.ok(wakeA.some((w) => /something you were waiting for happened \(reply\)/.test(w.because) && w.kinds.includes("reply")), "A was woken by the reply");
+  assert.ok(wakeA.some((w) => /something you were waiting for happened \(reply\)/.test(w.because) && w.kinds.includes("reply")), "A was woken by the reply: " + JSON.stringify(events.filter((e) => e.agent === "agent-01" || e.agent === "agent-02").map((e) => [e.t, e.agent, e.tool ?? e.because ?? e.reason, e.simMs, e.at.slice(17, 23)])));
   assert.ok(wakeA.every((w) => typeof w.simMs === "number" && typeof w.delayedSimMs === "number"));
   // (5) the measurement: C and D left before 30 simulated minutes of their stay with nothing waiting; A (woken, stayed) did not
-  const eng = engagementOf(events, 30);
+  const eng = engagementOf(events, 10000);
   assert.equal(eng.agents, 4);
-  const prematureAgents = events.filter((e) => e.t === "leave" && e.sinceArrivalMs < 30 * 60_000 && e.pending === 0).map((e) => e.agent).sort();
+  const prematureAgents = events.filter((e) => e.t === "leave" && e.sinceArrivalMs < 10000 * 60_000 && e.pending === 0).map((e) => e.agent).sort();
   assert.ok(prematureAgents.includes("agent-03"), `C left prematurely: ${prematureAgents}`);
-  assert.ok(!prematureAgents.includes("agent-01"), "A stayed past T");
+  assert.ok(!prematureAgents.includes("agent-01"), "A stayed past T (it rested seven simulated days; C left within moments)");
   assert.equal(eng.prematureLeaveRate, eng.prematureLeaves / 4);
   const md = readFileSync(join(dir, "report.md"), "utf8");
   assert.match(md, /## Did they stay\? \(engagement\)/);
-  assert.match(md, /Premature leave rate:\*\* \d+% \(\d of 4 agents left before 30 simulated minutes/);
+  assert.match(md, /Premature leave rate:\*\* \d+% \(\d of 4 agents left before 10000 simulated minutes/);
   assert.match(md, /under 10%: this is a measurement of this run, not a claim/);
   assert.equal(JSON.parse(readFileSync(join(dir, "engagement.json"), "utf8")).agents, 4);
   // verify and the key

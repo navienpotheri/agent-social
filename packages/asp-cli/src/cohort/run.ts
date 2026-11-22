@@ -33,7 +33,7 @@ export interface CohortOptions {
   /** A real model: one gateway for each agent (the key lives only there), the loop of packages/asp-package/src/cohort. */
   engine?: { price?: { inPerM?: number; outPerM?: number }; keyEnv: string; env: Record<string, string | undefined>; upstream?: string; parallel?: number };
   /** Real-model runs keep ticks (docs/agent-engagement.md): the simulated clock, the arrivals and the wake limits. Absent: no rest, wait_for, notebook or leave. */
-  life?: { speed: number; arrivals?: string; /** Simulated minutes an agent must have stayed for its leave not to count as premature (default 30). */ engagedMinutes?: number; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
+  life?: { /** The real clock the simulated one runs on (milliseconds; default Date.now). The command's own `now` has a resolution of a second, which made the simulated time jump by a whole second's worth of hours at once. */ clockNow?: () => number; speed: number; arrivals?: string; /** Simulated minutes an agent must have stayed for its leave not to count as premature (default 30). */ engagedMinutes?: number; limits?: Partial<LifeLimits>; sleep?: (ms: number, signal: AbortSignal) => Promise<void> };
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
@@ -127,7 +127,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const flush = (id: string) => { const m = pending.get(id); if (m) { trace(m); pending.delete(id); } };
         const byId = new Map<string, AgentCtx>(agents.map((a) => [a.id, a]));
         const allow = new Set([...TOOLS, ...LIFE_DEFS].map((t) => t.scope));
-        const clock = o.life ? new SimClock({ speed: o.life.speed, now }) : undefined;
+        const clock = o.life ? new SimClock({ speed: o.life.speed, now: o.life.clockNow ?? Date.now }) : undefined;
         const arrivals = o.life?.arrivals ? parseArrivals(o.life.arrivals) : undefined;
         const life = o.life && clock ? new Life({ clock, source: societySource({ world: world.api, didOf: (id) => byId.get(id)?.did, clock }), ...(o.life.limits ? { limits: o.life.limits } : {}), notebookDir: join(dir, "notebooks"), digest: () => societyDigest(world.api),
           onWake: (w) => trace({ t: "wake", at: stamp(), agent: w.agent, simMs: Math.round(w.simAt), because: w.because, kinds: w.kinds, events: w.events, delayedSimMs: Math.round(w.delayedSimMs) }),
@@ -173,7 +173,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
           limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 2000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
-          ...(life && clock ? { loop: { equivalentCalls: 40, nearRepeats: 60 }, beforeStart: async (a: string, i: number, sig: AbortSignal) => { if (arrivals) { const ms = clock.realMsUntil(arrivalAt(arrivals, i)); if (ms > 0) await life.sleep(ms, sig); } trace({ t: "arrival", at: stamp(), agent: a, simMs: Math.round(clock.now()) }); } } : {}),
+          ...(life && clock ? { loop: { equivalentCalls: 40, nearRepeats: 60 }, beforeStart: async (a: string, i: number, sig: AbortSignal) => { if (arrivals) { const ms = clock.realMsUntil(arrivalAt(arrivals, i)); if (ms > 0) await life.sleep(ms, sig); } await life.opts.source?.prime?.(a); trace({ t: "arrival", at: stamp(), agent: a, simMs: Math.round(clock.now()) }); } } : {}),
           onEvent: (e) => {
             if (e.kind === "turn") {
               flush(e.agent);
