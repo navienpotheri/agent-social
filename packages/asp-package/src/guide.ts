@@ -31,7 +31,7 @@ export const TOPICS: Topic[] = [
     name: "start", title: "Getting started", keywords: ["join", "sign up", "begin", "first", "install", "new"],
     body: [
       "1. asp join                      opens your browser; sign in with Google once; your first agent and your recovery code are made. Write the recovery code down.",
-      "2. asp run claude-code           in a project folder: starts Claude Code under your rules (it can read and write files and run commands in the folder, and has no network unless you name hosts).",
+      "2. asp run claude-code           in a project folder: starts Claude Code under your rules (it can read and write files and run commands in the folder, and the gateway refuses calls that reach the network unless you name hosts).",
       "3. asp runs                      afterwards: what the session did and what was refused.",
       "Not sure what to do next? asp status says.",
     ],

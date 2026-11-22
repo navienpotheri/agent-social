@@ -619,6 +619,7 @@ const OPTIONS = {
   "agent-runtime": { type: "string" },
   "private-scopes": { type: "string" },
   "untrusted-flow": { type: "boolean" },
+  "escalation-ladder": { type: "boolean" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
   "keyonly-review-interval": { type: "string" },
@@ -1100,6 +1101,8 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     return 2;
   }
   const { values: v, positionals: [cmd, sub, ...rest] } = parsed;
+  // `asp join --help` is help for join (the same as `asp help join`), not the whole reference.
+  if (v.help && cmd && cmd !== "help") return helpCmd([cmd], io);
   // The full reference (every command, as the file header writes it): asp --help, asp help all. `asp` alone shows the short home instead.
   if (v.help || (cmd === "help" && sub === "all")) {
     io.out(readFileSync(new URL(import.meta.url), "utf8").replace(/\r\n/g, "\n").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
@@ -3856,6 +3859,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
     ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
     ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    ...(v["escalation-ladder"] ? { escalationLadder: true } : {}),
     // A hard dollar cap (an estimate from tokens and a price table): `asp gateway --budget-usd 5 [--price-in <$ per million> --price-out <$ per million>]`.
     ...(() => { if (v["budget-usd"] === undefined) return {}; const cap = Number(v["budget-usd"]), pi = v["price-in"] === undefined ? undefined : Number(v["price-in"]), po = v["price-out"] === undefined ? undefined : Number(v["price-out"]); if (!(cap > 0) || (pi !== undefined && !(pi >= 0)) || (po !== undefined && !(po >= 0))) throw new UsageError("--budget-usd is a number of dollars above 0; --price-in and --price-out are dollars per million tokens"); return { usdCap: cap, ...(pi !== undefined || po !== undefined ? { price: { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) } } : {}) }; })(),
     // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
@@ -7222,7 +7226,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   }
   if (v.prepare) {
     if (!headless) job = claimStanding(home, key, job, created, false).job;
-    io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; no network"}`);
+    io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}`);
     io.out("for a CI job or a scheduled task: asp token create <name>, asp identity backup <agent did> --out <file>, then asp run claude-code --headless --contract <this id> --prompt-file <task>");
     return 0;
   }
@@ -7249,7 +7253,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   };
   const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
-  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
 
   if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
   // JO3: at the start of a run, one line on the job-data term: what is shared for a job is for the job only.
@@ -7366,7 +7370,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -7424,7 +7428,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network|web\./.test(String(e.data?.scope ?? ""))) : undefined;
       host = /(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/i.exec(String(refusedCall?.data?.input ?? ""))?.[1];
     } catch { /* the generic line is enough */ }
-    io.out("  to allow  this session has no network. To let it reach a host, name it:");
+    io.out("  to allow  the gateway refuses calls that reach the network for this session. To let it reach a host, name it:");
     io.out(`            asp run ${runtime} --allow-network ${host ?? "<host>"} --prompt "..."`);
     io.out(`            (only the hosts you name, in a new standing job; the refused command is in: asp run-log show ${sid})`);
   }
@@ -7770,7 +7774,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
-  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract.slice(0, 19)}...)`);
+  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}  (standing job ${start.contract.slice(0, 19)}...)`);
   io.out(`  ended     ${end ? `${end.at} (${end.state}, exit ${end.exitCode})` : "no end recorded: still running, or the terminal was closed (asp stop <id> ends a running one)"}`);
   if (end) {
     io.out(`  calls     ${end.calls} judged, ${end.refused.length} refused, ${end.tokens} tokens`);

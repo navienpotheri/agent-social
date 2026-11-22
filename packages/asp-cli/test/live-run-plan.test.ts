@@ -59,3 +59,10 @@ test("every flag in the runbook is an option that the command line parser knows"
   }
   assert.deepEqual([...new Set(unknown)], []);
 });
+
+test("the plan makes the rehearsal script the first step and the script exists", () => {
+  assert.match(plan, /First step of the evening: the rehearsal/);
+  assert.match(plan, /evening-rehearsal\.ps1/);
+  assert.match(plan, /Green looks like/);
+  assert.ok(existsSync(new URL("scripts/evening-rehearsal.ps1", root)));
+});

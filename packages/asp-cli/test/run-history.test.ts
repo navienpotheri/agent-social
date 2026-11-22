@@ -60,7 +60,7 @@ test("asp runs lists and explains governed sessions, and asp stop ends a running
     const detail = await call("fake-claude-gateway.mjs", ["runs", id]);
     assert.equal(detail.code, 0, detail.err);
     assert.match(detail.out, /task\s+A finished task/);
-    assert.match(detail.out, /mandate\s+repo\.read, repo\.write, shell\.exec, tests\.run; no network\s+\(standing job sha256:/);
+    assert.match(detail.out, /mandate\s+repo\.read, repo\.write, shell\.exec, tests\.run; the gateway refuses calls that reach the network\s+\(standing job sha256:/);
     assert.match(detail.out, /ended\s+\S+ \(ended, exit 0\)/);
     assert.match(detail.out, /in the log \d+ records on the standing job/);
     assert.equal((await call("fake-claude-gateway.mjs", ["runs", "zzzzzzzz"])).code, 1);
