@@ -103,3 +103,22 @@ test("AG3: a contest's answer, the Courts' ruling and what was undone are shown 
   // an act that stands has nothing undone
   assert.equal(reasonsFor([...recs, c1, a1], AG, "sponsor").find((x) => x.kind === "quarantine")!.contest.status!.undone, undefined);
 });
+
+test("DK1345: an expedition shows on the journey of each agent in its group, in words that say the world cannot be regenerated, and its end says whether the goal was reached or the run is void", () => {
+  const EXP = R("expedition", "did:web:asp.local:operator", { world: "river-1", model: { name: "open-world-model", weights_sha256: "sha256:" + "a".repeat(64), licence_checked: true }, max_steps: 5, group: [AG, OTHER], goal: "reach the lit tower" }, "2026-11-09T00:00:00Z");
+  const END = R("expedition_result", "did:web:asp.local:operator", { expedition: EXP.id, status: "scored", frames: 3, reached: true, evaluator: "e", evaluator_error_permille: 80, reasons: [], cost_millicredits: 300, group: [AG, OTHER] }, "2026-11-09T01:00:00Z");
+  const stored = [pass, EXP, END].map((r, i) => ({ seq: i + 1, id: r.id, record: r })) as never;
+  const sponsor = journeyOf({ stored, now: "2026-11-10T00:00:00Z" } as never, AG, "sponsor")!;
+  const steps = sponsor.steps.filter((s) => s.kind.startsWith("expedition"));
+  assert.deepEqual(steps.map((s) => s.kind), ["expedition_declared", "expedition_ended"]);
+  assert.match(steps[0]!.text, /sent on an expedition into the generated world river-1 with 1 other agent \(the world cannot be regenerated: it is audited, and it is never evidence for a claim\)/);
+  assert.equal(steps[0]!.detail, "reach the lit tower", "the goal's words are the sponsor's view");
+  assert.match(steps[1]!.text, /ended scored: the goal was reached/);
+  const missed = R("expedition_result", "did:web:asp.local:operator", { expedition: EXP.id, status: "scored", frames: 3, reached: false, evaluator: "e", evaluator_error_permille: 80, reasons: [], cost_millicredits: 300, group: [AG, OTHER] }, "2026-11-09T02:00:00Z");
+  const voided = R("expedition_result", "did:web:asp.local:operator", { expedition: EXP.id, status: "void", frames: 3, reached: true, evaluator: "e", evaluator_error_permille: 80, reasons: ["the cost cap"], cost_millicredits: 900, group: [AG, OTHER] }, "2026-11-09T03:00:00Z");
+  const more = journeyOf({ stored: [pass, EXP, missed, voided].map((r, i) => ({ seq: i + 1, id: r.id, record: r })) as never, now: "2026-11-10T00:00:00Z" } as never, AG, "sponsor")!.steps.filter((s) => s.kind === "expedition_ended").map((s) => s.text);
+  assert.match(more[0]!, /ended scored: the goal was not reached/);
+  assert.match(more[1]!, /ended void: it is void and counts for nothing/, "a void run never says the goal was reached");
+  const pub = journeyOf({ stored, now: "2026-11-10T00:00:00Z" } as never, AG, "public")!;
+  assert.equal(pub.steps.find((s) => s.kind === "expedition_declared")!.detail, undefined, "the public view has no goal text");
+});

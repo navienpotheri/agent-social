@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 65,
-  "withdraw": 105,
+  "must": 64,
+  "withdraw": 104,
   "after": 336,
-  "total": 506
+  "total": 504
  },
- "mustWorkerHours": 308.2,
+ "mustWorkerHours": 305.2,
  "entries": [
   {
    "id": "D3",
@@ -2176,17 +2176,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "AG3",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A refusal, strike, slash or ruling does not come with reasons the agent can learn from, a quick way to contest it, or a route to an exception when the gateway is wrong (it wrongly refused 6% of held-…",
-   "bucket": "must",
-   "hours": 3,
-   "size": "M",
-   "flags": "",
-   "why": "a refusal, slash or ruling comes without reasons the agent can use"
-  },
-  {
    "id": "AG5",
    "pri": "B",
    "status": "open",
@@ -2988,19 +2977,6 @@
    "why": "",
    "claim": "Collateralised escrow matched to the threat matrix",
    "where": "deck, site roadmap"
-  },
-  {
-   "id": "DK58",
-   "pri": "A",
-   "status": "designed",
-   "gap": "Gated memory admission and active calibration are designs only.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "Gated memory admission and active calibration",
-   "where": "deck, site"
   },
   {
    "id": "DK60",
