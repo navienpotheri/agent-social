@@ -104,6 +104,10 @@ test("a run that names no step on a Mandate with a clause is unchanged and files
   const none = await gw(g, c2, up, ["--workflow-step", "draft:review"]);
   assert.notEqual(none.code, 0);
   assert.match(none.err, /no workflow clause.*workflow_not_in_mandate/);
+  const envOnly = await gw(g, c2, up, [], { ASP_WORKFLOW_STEP: "draft:review" });
+  assert.equal(envOnly.code, 0, "the environment alone is ignored on a Mandate with no clause: " + envOnly.err);
+  assert.match(envOnly.err, /ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause/);
+  assert.ok((await actionsOf(g)).filter((x) => x.body.contract === c2).every((x) => x.body.workflow_step === undefined));
   const ok2 = await gw(g, c2, up);
   assert.equal(ok2.code, 0, "no clause, no step: the evening path");
 });

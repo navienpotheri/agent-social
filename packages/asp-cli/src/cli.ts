@@ -3735,7 +3735,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       wfStep = { from: m[1], to: m[2] };
       io.err("  workflow    this run is the step " + m[1] + " to " + m[2] + ": its Action reports it");
     }
-  } else if (wfRaw !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  } else if (v["workflow-step"] !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  else if (wfRaw !== undefined) io.err("  workflow    ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause: it is ignored and the Action carries no step");
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
