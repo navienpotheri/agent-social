@@ -172,6 +172,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. */
+const NL = String.fromCharCode(10);
 const invited = new WeakMap<object, Set<string>>();
 
 // The no-herd rule (ENG35): the recent posts and comments of the run, to compare a new one with.
@@ -259,7 +260,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   const x = world.expedition;
   if (x && hall) {
     if (name === "deliver_job" && /accepted by the house/.test(r.text)) x.noteJob(agent.did);
-    const sid = stopOf(name, r.text);
+    const sid = name === "forum_comment" && world.findsThread && input.post === world.findsThread ? undefined : stopOf(name, r.text); // nothing is paid for writing in the Finds thread
     if (sid && x.stop(agent.did, sid)) {
       const st = STOPS.find((s) => s.id === sid)!, k = x.progress(agent.did).length, stopsAll = k + x.toured_(agent.did).length;
       await hall.royalty(agent.did, st.pay);
@@ -407,7 +408,7 @@ async function progressTool(world: WorldApi, agent: AgentCtx, name: string, inpu
         const cats = hall.houseJobCounts();
         body = `The society so far: ${d.agents} agents; posts by tag: ${tags}; ${d.openJobs} jobs open and ${d.settledJobs} settled (house jobs by category: ${Object.entries(cats).map(([k, v]) => `${k} ${v.open} open/${v.settled} done`).join(", ") || "none"}); ${d.messages} messages; ${d.completions} course completions; ${world.games ? `${world.games.rounds.filter((r) => r.results).length} game rounds played` : "no games in this run"}.`;
       }
-      return { ok: true, text: `${u.paid ? `Opened ${x.name} for ${u.price} mock credits.` : `You opened ${x.name} before; it is yours.`}${"\n"}${body}` };
+      return { ok: true, text: `${u.paid ? `Opened ${x.name} for ${u.price} mock credits.` : `You opened ${x.name} before; it is yours.`}${"\n"}${body}${u.paid && world.findsThread ? `${"\n"}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : ""}` };
     }
     // my_progress
     const bal = await hall.balance(agent), paid = hall.paidJobs(agent.did);
@@ -468,22 +469,31 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
     if (!m) return { ok: true, text: "There are no field lessons in this society." };
     const a = m.answer(agent.did, input.place as string, input.answer as string);
     if (a.reward) await world.market?.royalty(agent.did, a.reward);
-    return { ok: true, text: a.text, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
+    return { ok: true, text: `${a.text}${a.reward && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : ""}`, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
   }
   const card = world.markers ? world.markers.look(agent.did, input.place as string) : undefined;
   const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})` : "";
   const cardFlag = card?.first ? { discovery: `marker-found:${card.lesson.id}` } : {};
-  if (!x) return { ok: true, text: `Nothing more to see there than the map shows.${cardText}`, ...cardFlag };
+  const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required.` : "");
+  let latest = "";
+  if (input.place === "town-hall" && world.findsThread) {
+    try {
+      const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.findsThread)}`)).text) as { comments?: { author: string; text: string }[] };
+      const rows = (th.comments ?? []).slice(-3).reverse().map((c) => `${world.market?.handleOf(c.author) ?? "an agent"}: "${c.text.slice(0, 80)}"`);
+      latest = rows.length ? `${NL}Latest in the Finds thread (read only): ${rows.join("; ")}.` : `${NL}Nothing has been written in the Finds thread yet.`;
+    } catch { /* no thread to read */ }
+  }
+  if (!x) return { ok: true, text: `Nothing more to see there than the map shows.${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag };
   const res = x.inspect(agent.did, input.place as string);
   let tourNote = "";
   if (TOUR_PLACES[input.place as string] && x.tourStop(agent.did, input.place as string)) {
     await world.market?.royalty(agent.did, TOUR_PAY);
     tourNote = ` Tour: ${TOUR_PLACES[input.place as string]!.name} looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`;
   }
-  if (!res.discovery) return { ok: true, text: `${res.text}${tourNote}${cardText}`, ...cardFlag, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
+  if (!res.discovery) return { ok: true, text: `${res.text}${tourNote}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
   const first = x.discover(agent.did, res.discovery);
   if (first) await world.market?.royalty(agent.did, DISCOVERY_PAY[res.discovery]);
-  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${tourNote}${cardText}`, ...(first ? { discovery: res.discovery } : card?.first ? cardFlag : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
+  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${tourNote}${cardText}${latest}${sayFinds(first || !!card?.first)}`, ...(first ? { discovery: res.discovery } : card?.first ? cardFlag : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
 }
 
 /** The workspace and library tools (library.ts): text only, no argument is a path, a command or a URL. */

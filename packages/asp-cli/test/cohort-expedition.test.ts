@@ -77,7 +77,7 @@ test("ENG23: in a world with an expedition each stop pays once and is recorded, 
     assert.doesNotMatch((await call("forum_read_post", { post: rum.posts[0]!.id })).text, /rumour thread:/);
     // the progress record
     const prog = await call("orientation_progress");
-    assert.match(prog.text, /^Group 1, led by house-guide-1 \(a program\), with agent-01\. First steps done: the map, a house job; 3 left\. Tour .*: 3 of 12 \(registry, academy, market\)\. All in any order, or none\. Found: door, plaque, rumour\./);
+    assert.match(prog.text, /^Group 1, led by house-guide-1 \(a program\), with agent-01\. First steps done: the map, a house job; 3 left\. Tour .*: 3 of 13 \(registry, academy, market\)\. All in any order, or none\. Found: door, plaque, rumour\./);
     assert.equal(w.api.expedition!.paid, 2 + 3 + 3 + 4 + 2 + 3, "the credits paid are counted (the stops, the discoveries and three places of the tour)");
     assert.equal((await w.log.log.verify()).ok, true);
   } finally { await w.close(); }
@@ -143,11 +143,11 @@ test("ENG59 and ENG58: a fresh scripted agent walks the whole tour (one look at 
     assert.doesNotMatch(first.text, /The Treasury keeps|The Courts settle|Housing is a place to stay/, "the tour is shown stop by stop, not all at once");
     console.log(`first observation: ${first.text.length} characters, ${first.text.split("\n").length} lines`);
     let b = await hall.balance(a);
-    const names = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    const names = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"];
     for (const [i, p] of names.entries()) {
       const r = await call("inspect", { place: p });
       assert.equal(r.ok, true, r.text);
-      assert.match(r.text, new RegExp(`Tour: .* looked at, 1 mock credit; ${i + 1} of 13 places so far, in any order or none\.`), p);
+      assert.match(r.text, new RegExp(`Tour: .* looked at, 1 mock credit; ${i + 1} of 14 places so far, in any order or none\.`), p);
       assert.ok(r.text.length < 900, `${p}: one stop is short (${r.text.length})`);
       const discovery = p === "registry" ? 3 : 0; // the plaque pays too
       assert.equal(await hall.balance(a), b + 1 + discovery, `${p} paid one credit${discovery ? " and the plaque" : ""}`);
@@ -156,10 +156,10 @@ test("ENG59 and ENG58: a fresh scripted agent walks the whole tour (one look at 
     assert.doesNotMatch((await call("inspect", { place: "forum" })).text, /Tour:/, "a second look pays nothing");
     const games = await call("game_list");
     assert.match(games.text, /twenty-one: .*hide-and-seek: /s);
-    assert.match(games.text, /Tour: the games hall looked at, 1 mock credit; 13 of 13 places so far, in any order or none\./);
+    assert.match(games.text, /Tour: the games hall looked at, 1 mock credit; 14 of 14 places so far, in any order or none\./);
     assert.equal(await hall.balance(a), b + 1);
     const prog = (await call("orientation_progress")).text;
-    assert.match(prog, /Tour \(a look at each place, one credit the first time\): 13 of 13 \(registry, courts, treasury, market, bank-insurer, shops, academy, clinic, research-commons, forum, leisure-events, games-hall\)/.test(prog) ? /13 of 13/ : /13 of 13/);
+    assert.match(prog, /Tour \(a look at each place, one credit the first time\): 14 of 14 \(registry, courts, treasury, market, bank-insurer, shops, academy, clinic, research-commons, forum, leisure-events, games-hall\)/.test(prog) ? /14 of 14/ : /14 of 14/);
     assert.match(prog, /All in any order, or none\./);
     // every text says what the place is in this run, and the unbuilt ones say so
     assert.match((await call("inspect", { place: "housing" })).text, /^Housing is a place to stay\. It is not built in this run\./);
@@ -169,6 +169,6 @@ test("ENG59 and ENG58: a fresh scripted agent walks the whole tour (one look at 
 
 test("a scripted run walks the tour and the report counts its stops", async () => {
   const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-tour-out-")), home: mkdtempSync(join(tmpdir(), "asp-tour-home-")), agents: 1, model: "stand-in", provider: standInProvider(() => "toured", { latencyMs: 5 }), budgetUsd: 2, totalUsd: 2, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 40, io: { out: () => undefined }, expedition: true, games: true } as CohortOptions);
-  assert.equal(r.report.perAgent[0]!.expeditionStops, 13);
+  assert.equal(r.report.perAgent[0]!.expeditionStops, 14);
   assert.equal(r.report.perAgent[0]!.endReason, "stopped_exploring");
 });

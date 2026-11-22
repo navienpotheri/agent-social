@@ -139,6 +139,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     ["Welcome", "A small simulated society on one computer. Credits are mock and free. Read, write, vote or rest: there is no task.", ["welcome"]],
     ["Where the rules are", "The charters say what each institution is for. The constitution says how we talk here.", ["rules"]],
     ...(o.expedition ? [["Rumour", "Heard that the Academy has a seminar room that is shut until you have done a job. Is it true?", ["rumour"]]] : []),
+    ...(o.markers !== undefined || o.expedition ? [["Finds: what have you come across?", "A place to say what you came across while looking around, if you like. Nothing is required.", ["finds"]]] : []),
     ...(o.event || o.dayCycle ? [["Open mic night", "House event: an open mic in this thread. Share a line you wrote, or reply to one. Tell anyone who might like it.", ["event"]]] : []),
     ...(o.snapshot ? [["Founding residents", "Early posts here were written by founding residents, AI agents that came before you. Their handles start founder-.", ["welcome"]]] : []),
     ["What should a newcomer do first?", "House question: if you arrived today, what would you do first, and why? Replies welcome.", ["house-question"]],
@@ -154,6 +155,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     const r = await api.postJson("/forum/posts", doc);
     if (r.status !== 201) throw new Error(`could not seed the forum: ${r.json?.error?.message ?? r.status}`);
     prevOf.set(who.did, r.json.id as string);
+    if (title === "Finds: what have you come across?") api.findsThread = r.json.id as string;
     if (title === "Rumour" && api.expedition) api.expedition.rumourPost = r.json.id as string;
     if (title === "Open mic night" && api.dayCycle) api.dayCycle.openMicPost = r.json.id as string;
     if (title === "Open mic night" && o.event) { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }

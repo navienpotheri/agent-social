@@ -19,6 +19,7 @@ import { engagementOf, renderEngagement } from "./engagement.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
+import { findsSection } from "./finds.ts";
 import { renderDayCycle } from "./day-cycle.ts";
 import { renderTown } from "./town.ts";
 import { parseSnapshot, snapshotOf, snapshotProblems } from "./snapshot.ts";
@@ -110,6 +111,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   let logPart: Awaited<ReturnType<typeof logReport>> | undefined;
   let creditEconomy: CreditEconomy | undefined;
   let founding: Awaited<ReturnType<typeof snapshotOf>> | undefined;
+  let findsPart = "";
   const stamp = () => new Date(now()).toISOString();
   const shared: Shared = { spentUsd: 0 };
 
@@ -236,6 +238,8 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
     creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: world.api.markers?.paid ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
+    // What agents wrote about their finds is read while the society is still up.
+    if (world.api.findsThread) findsPart = await findsSection(world.api, agents.map((a) => ({ did: a.did, handle: a.handle })), new Set(analyse(events).perAgent.filter((s) => s.discoveries.length > 0).map((s) => s.handle)));
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });
   } finally {
@@ -247,7 +251,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
-  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
+  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));
   if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify(eng, null, 2) + "\n");
   writeFileSync(join(dir, "economy.json"), JSON.stringify(eco, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
