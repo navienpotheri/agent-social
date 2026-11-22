@@ -130,3 +130,19 @@ test("the replay feed the page embeds is the generated sample, follows the schem
   assert.ok(problems({ ...file, scripted: undefined }).some((p) => /scripted must say/.test(p)));
   assert.match(read("docs/society-replay-feed.md"), /asp\.society-replay\/v1/);
 });
+
+test("no paragraph of a page states anything outside a claim span, except text that makes no claim and is listed in docs/site-unclaimed-text.json", () => {
+  // The footer of each page says that every claim on it is on the list of true claims; a sentence outside a span would be a claim that no test checks (found by a mutation check, 2026-11-22).
+  const allowed = JSON.parse(read("docs/site-unclaimed-text.json")) as { text: Record<string, string[]> };
+  const unlisted: string[] = [];
+  for (const p of SITE_PAGES) {
+    const main = /<main>([\s\S]*?)<\/main>/.exec(read(p))?.[1] ?? "";
+    const body = main.replace(/<div class="draft">[\s\S]*?<\/div>/g, "").replace(/<(script|style)[\s\S]*?<\/\1>/g, "").replace(/<span data-claim="[a-z0-9_]+">[\s\S]*?<\/span>/g, "");
+    for (const m of body.matchAll(/<(p|li|dd)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+      const text = m[2]!.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().replace(/^[\s.;,:·]+|[\s.;,:·]+$/g, "");
+      if (text && !(allowed.text[p] ?? []).some((a) => a.replace(/[\s.;,:·]+$/g, "") === text)) unlisted.push(`${p}: ${text.slice(0, 120)}`);
+    }
+  }
+  assert.deepEqual(unlisted, []);
+  for (const [p, list] of Object.entries(allowed.text)) for (const a of list) assert.ok(read(p).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").includes(a.slice(0, 40)), `${p}: the allowed text is still on the page`);
+});
