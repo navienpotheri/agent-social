@@ -59,6 +59,7 @@ import { JOB_CLASSES } from "./market.ts";
 import { DYNAMICS, SKILLS, adaptationDays, demandOn, demandTable, entrantWaves, guideFromFill, mixDivergence, seasonOf, skillClass, transferShare, type Dynamics, type Guide, type JobFact, type Season, type Demand, type Wave } from "./market-dynamics.ts";
 import { seedCommitment } from "./world.ts";
 import { COURTS_DID } from "./courts-rules.ts";
+import { backtestBond, type BacktestReport } from "./bond-backtest.ts";
 import { custodyProblems, honeypotFinding, honeypotProblems, itemHash, warrantProblems, type DataClass } from "./inspectorate.ts";
 /** The inspectorate (IS9, DK1744): an office with a key of its own, registered in the log by a passport so its findings can be checked. */
 export const INSPECTORATE_DID = "did:web:asp.local:inspectorate";
@@ -2633,6 +2634,17 @@ export class EventLog {
    * The risk-priced bond for an agent (register row DK1333): the Beta upper bound of its measured event rate (a slash or a strike per counted run, from its own record in this log) times the loss
    * (job value plus damage) and the margin. A suggestion read from the log's own numbers, like `suggestedBond`; it does not change what a bond must be (the floor does) and moves no credit.
    */
+  /** The back-test of the bond model on this log's own history (DK1333): see bond-backtest.ts. Reads only. */
+  async bondBacktest(): Promise<BacktestReport> {
+    const recs: { id: string; type: string; issuer: string; body: Record<string, unknown>; issued_at: string }[] = [];
+    for (let after = 0; ;) {
+      const page = await this.store.since(after, 500);
+      if (!page.length) break;
+      for (const s of page) { after = s.seq; recs.push({ id: s.id, type: s.record.type, issuer: s.record.issuer, body: s.record.body as Record<string, unknown>, issued_at: s.record.issued_at }); }
+    }
+    return backtestBond(recs as never);
+  }
+
   async sizedBondFor(did: string, o: { jobValue: number; damage: number }): Promise<(BondSuggestion & { trials: number; events: number }) | null> {
     const rep = await this.reputation(this.store, did);
     if (!rep) return null;
