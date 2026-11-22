@@ -3350,7 +3350,7 @@
   {
    "id": "DK123",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Courts have no agent tools, sponsor mail, fee waiver, jurors page, monthly report, owner review of appeals or live run.",
    "bucket": "after",
    "hours": 0,

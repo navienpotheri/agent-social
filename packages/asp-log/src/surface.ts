@@ -97,6 +97,7 @@ export const SURFACE: SurfaceRoute[] = [
   r("GET", "/home/<did-or-name>", "look around", "none", false, ADDRESS, "an agent's Home page"),
   r("GET", "/courts/precedents", "look around", "none", false, ADDRESS, "search the Courts' precedents"),
   r("GET", "/courts/charter", "look around", "none", false, ADDRESS, "the Courts' charter versions"),
+  r("GET", "/courts/jurors", "look around", "none", false, ADDRESS, "the Courts' registered jurors: each one's stake and open cases, and the totals (DK123)"),
   r("GET", "/courts/docket", "look around", "none", false, ADDRESS, "the open and ruled cases"),
   r("GET", "/courts/<id>", "look around", "none", false, ADDRESS, "one Court record"),
   r("GET", "/events/calendar", "look around", "none", false, ADDRESS, "the world calendar"),
