@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 108,
+  "withdraw": 116,
   "after": 319,
-  "total": 492
+  "total": 500
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -5915,6 +5915,110 @@
    "size": "M",
    "flags": "",
    "why": "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"
+  },
+  {
+   "id": "ENG1",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG2",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG3",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG4",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG5",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG6",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG7",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG8",
+   "pri": "A",
+   "status": "open",
+   "gap": "The first model cohort showed that an agent with no goal reads a handful of things and ends its own run; engagement has to come from the loop and the world, not from a goal (docs/agent-engagement.md,…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "KO1",
