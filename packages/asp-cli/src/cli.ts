@@ -356,7 +356,8 @@ import { sitRoutes } from "./lens-courses/sit-routes.ts";
 import { Ledger as SittingLedger } from "./lens-courses/sitting.ts";
 import { cohortRoutes } from "./lens-courses/cohort-pages.ts";
 import { RegistryUsage, registryCmd } from "./registry.ts";
-import { httpEnrol, readLadderFile } from "@agent-social/asp-package";
+import { CRITERIA_TEMPLATES, criteriaProblems, httpEnrol, readLadderFile } from "@agent-social/asp-package";
+import { buildStatement } from "./sponsor-statement.ts";
 import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
 import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
 import { readFleetCeiling } from "./fleet-ceiling.ts";
@@ -865,6 +866,8 @@ const OPTIONS = {
   "parent-contract": { type: "string" },
   fees: { type: "string" },
   criteria: { type: "string", multiple: true },
+  criterion: { type: "string", multiple: true },
+  template: { type: "string" },
   intent: { type: "string" },
   offer: { type: "string" },
   plan: { type: "string" },
@@ -1366,6 +1369,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
     if (cmd === "lens") return await lensCommand(sub, v, io);
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "sponsor" && sub === "statement") return await sponsorStatementCommand(home, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
     if (cmd === "message") {
       const local = await openLog(home, logEnv);
@@ -1423,7 +1427,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "pack" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "pack" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "criterion" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -5948,6 +5952,25 @@ async function clinicCommand(home: string, sub: string | undefined, v: Values, i
   }
 }
 
+/** `asp sponsor statement --agent <did> [--month YYYY-MM] [--json]` (DK1225): the month's credits earned and spent for one agent, read from the log and checked against it. */
+async function sponsorStatementCommand(home: string, v: Values, io: Io): Promise<number> {
+  const agent = v.agent ?? v.did;
+  if (!agent) throw new UsageError("asp sponsor statement --agent <did> [--month YYYY-MM] [--json]");
+  const month = v.month ?? new Date(now()).toISOString().slice(0, 7);
+  const local = await openLog(home, logEnv);
+  let built: Awaited<ReturnType<typeof buildStatement>>;
+  try { built = await buildStatement(local.log as never, agent, month); } catch (e) { throw new UsageError((e as Error).message); }
+  const s = built.statement;
+  if (v.json) { io.out(JSON.stringify({ ...s, verification: built.verification }, null, 2)); return built.verification.ok ? 0 : 1; }
+  io.out(`${agent}  ${s.month}`);
+  io.out(`  credits  opening ${s.opening}, earned ${s.earned}, spent ${s.spent}, closing ${s.closing}`);
+  io.out(`  services hired ${s.servicesHired.count} for ${s.servicesHired.total}; disputes won ${s.disputes.won}, lost ${s.disputes.lost}, split ${s.disputes.split}`);
+  io.out("  not read from the log: held-out gains per course and the bond floor's history (no figure of either is recorded)");
+  io.out(built.verification.ok ? `  checked  the statement reconciles to the log's ledger of ${s.ledgerEntries} entries (head ${s.ledgerHead.slice(0, 19)})` : `  FAILED   ${built.verification.reason}`);
+  io.out("  credits are accounting entries, not money");
+  return built.verification.ok ? 0 : 1;
+}
+
 async function registryCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
@@ -6108,6 +6131,23 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return s;
   };
 
+  if (sub === "criteria") {
+    // JO1: acceptance-criteria templates, and a check of criteria you have written.
+    if (v.criterion?.length) {
+      const bad = criteriaProblems(v.criterion, v.purpose);
+      for (const p of bad) io.out(`#${p.index + 1} "${p.criterion}": ${p.problem}`);
+      io.out(bad.length ? `${bad.length} of ${v.criterion.length} criteria to rewrite` : `all ${v.criterion.length} criteria read as checks`);
+      return bad.length ? 1 : 0;
+    }
+    const wanted = v.template ? CRITERIA_TEMPLATES.filter((x) => x.id === v.template) : CRITERIA_TEMPLATES;
+    if (v.template && !wanted.length) { io.err(`no template ${v.template}: ${CRITERIA_TEMPLATES.map((x) => x.id).join(", ")}`); return 1; }
+    for (const x of wanted) {
+      io.out(`${x.id}: ${x.title} (for ${x.for})`);
+      if (v.template) for (const c of x.criteria) io.out(`  --criteria ${JSON.stringify(c)}`);
+    }
+    if (!v.template) io.out("asp market criteria --template <id> prints the criteria as flags for asp market intent; asp market criteria --criterion <text> [--criterion <text> ...] checks your own");
+    return 0;
+  }
   if (sub === "intent") {
     const by = need("by");
     const verification: Record<string, unknown> = { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" };
@@ -6128,6 +6168,10 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`intent ${res.id} by ${by} (log seq ${res.seq})`);
+    // JO1: advice, never a refusal: which criterion reads as a judgement and not as a check, and where the templates are.
+    const vague = criteriaProblems(body.acceptance_criteria, body.purpose);
+    for (const p of vague) io.err(`  criteria  #${p.index + 1} "${p.criterion.length > 60 ? p.criterion.slice(0, 57) + "..." : p.criterion}": ${p.problem}`);
+    if (vague.length) io.err("  criteria  a performer and a reviewer can only agree on what they can check: asp market criteria lists templates to start from");
     // JO3: say, once, what the job-data term covers, at the point where the poster describes the job.
     io.err(`  data     what you share for this job is shared for the job only: the performer uses it only to do the job and deletes its copies when the job settles. Do not put secrets or personal data of other people in the purpose, the criteria or any file that the job does not need; the contract can allow the commons (--commons-sharing) or a retention period (--retain-days).`);
     return 0;

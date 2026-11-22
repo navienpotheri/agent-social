@@ -26,7 +26,8 @@ import { velocityOf, type VelocityReport } from "./velocity.ts";
 import { auditLedger, creditFlowsOf, starterPoolOf, topBalanceShare, type BalanceConcentration, type CreditAudit, type CreditFlows, type StarterPoolState } from "./credit-audit.ts";
 import { bondFloorPermille, bondFloorV3, floorIsV2, floorMeasuredActive, measuredTerms, type FloorInputsV3, type TaskClass } from "./bond-floor.ts";
 import { QUALIFYING_MIN_PRICE, admitEligibleJob, moreUnderCap, independent, relatedKind, type PartyFacts, type RecentJob, type RelatedKind } from "./qualifying.ts";
-import { CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
+import { FAILURE_GRACE_MS, FAILURE_SLASH_PERMILLE, failureSlash } from "./contract-failure.ts";
+import { AUTHOR_MIN_LEARNERS, AUTHOR_STRIKE_DAYS, AUTHOR_STRUCK_MIN, AUTHOR_STRUCK_SHARE_PERMILLE, AUTHOR_WINDOW_DAYS, CERT_MAX_DAYS, EXAM_MIN_POOL, PROMOTION_DISTINCT_PRINCIPALS_2_TO_3, PROMOTION_QUALIFYING_JOBS_2_TO_3, PROMOTION_SLASH_FREE_DAYS_2_TO_3, examSeed, examVariant, inTopHalf, prizeFor } from "./academy.ts";
 import { moveCommit } from "./game-moves.ts";
 import { AUTO_REFUND_AFTER_MS, buyerOf } from "./purchase-buyer.ts";
 import { breadthProblem } from "./tier-breadth.ts";
@@ -380,6 +381,9 @@ export class EventLog {
     }
     const root = chain?.root ?? verified.id;
     const kind = chain?.kind ?? type!;
+    // A contract cancelled by consent (JO5, S1701) takes no further step in its chain: only its settlement, which must follow the cancellation.
+    if (chain && kind === "contract" && type !== "settlement" && (await tx.getMarker(`cancellation:${root}`))) throw rule("contract_cancelled", `the contract ${root} was cancelled by consent (${await tx.getMarker(`cancellation:${root}`)}): nothing more is delivered, checkpointed or ruled on it; the Bank settles it`);
+    if (chain && kind === "contract" && type !== "settlement" && (await tx.getMarker(`failure:${root}`))) throw rule("contract_failed", `the contract ${root} was declared failed by its principal (${await tx.getMarker(`failure:${root}`)}): nothing more is delivered, checkpointed or ruled on it; the Bank settles it`);
 
     let snapshot: JobSnapshot | null = null;
     if (type === "notice_ack") await this.checkNoticeAck(tx, verified);
@@ -494,6 +498,10 @@ export class EventLog {
     if (type === "tier_promotion") await this.projectTierPromotion(tx, verified);
     if (type === "exam") await this.projectExam(tx, verified);
     if (type === "exam_result") await this.projectExamResult(tx, verified);
+    if (type === "exam_retirement") await this.projectExamWithdrawal(tx, verified);
+    if (type === "contract_cancellation" || type === "contract_amendment") await this.projectContractChange(tx, verified, type);
+    if (type === "team_split") await this.projectTeamSplit(tx, verified);
+    if (type === "contract_failure") await this.projectContractFailure(tx, verified);
     if (type === "certificate_revocation") await this.projectCertificateRevocation(tx, verified);
     if (type === "course") await this.projectCourse(tx, verified);
     if (type === "enrolment") await this.projectEnrolment(tx, verified);
@@ -545,6 +553,7 @@ export class EventLog {
     if (type === "world") { checkWorldRecord(verified); await this.projectWorldHalt(tx, verified); }
     if (type === "proposal") await this.checkProposerTier(tx, verified);
     if (type === "contract") await this.checkSubcontract(tx, verified);
+    if (type === "contract") await this.checkReplacement(tx, verified);
     await tx.putChain({
       root, kind, head: verified.id, length: (chain?.length ?? 0) + 1, lastIssuedAt: verified.issued_at,
       state: snapshot?.state ?? null, snapshot,
@@ -1802,6 +1811,20 @@ export class EventLog {
     // a real adjudication, not a rubber stamp on top of it — docs/backlog.md).
     // A settlement because no ruling came in time (gap M10) follows a stated split, so a bank cannot pick who bears the cost of a slow ruling: half the escrow released, nothing
     // slashed, the bond left to return. Neither side is found at fault for the delay.
+    if (body.basis === "revoked") {
+      const cancelled = await tx.getMarker(`cancellation:${body.contract}`);
+      if (cancelled) {
+        const agreed = (JSON.parse(cancelled) as { fee: number }).fee;
+        const price = ((await tx.getRecord(body.contract))!.record.body as { price: { value: number } }).price.value;
+        const share = price > 0 ? Math.floor((agreed * 1000) / price) : 0, stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
+        if (body.escrow_released.value !== agreed || fees !== 0 || body.bond_slashed.value !== 0 || stated !== share) throw rule("settlement_mismatches_cancellation", `the contract was cancelled by consent with a fee of ${agreed} (${share} permille of the price): the settlement releases exactly that, states that share, takes no job tax and slashes nothing (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
+      }
+    }
+    if (body.basis === "revoked" && (await tx.getMarker(`failure:${body.contract}`))) {
+      const slash = failureSlash(escrow.bondLocked);
+      const stated = (r.body as { pro_rata_permille?: number }).pro_rata_permille;
+      if (body.escrow_released.value !== 0 || fees !== 0 || body.bond_slashed.value !== slash || stated !== 0) throw rule("settlement_mismatches_failure", `the contract was declared failed: the whole escrow of ${escrow.escrowLocked} goes back to the principal, nothing is paid as work, no job tax is taken and ${FAILURE_SLASH_PERMILLE} permille of the locked bond (${slash}) is slashed to the principal (got released ${body.escrow_released.value}, share ${stated}, fees ${fees}, slashed ${body.bond_slashed.value})`);
+    }
     if (body.basis === "ruling_timeout") {
       const expectedReleased = Math.floor(escrow.escrowLocked / 2);
       if (body.escrow_released.value !== expectedReleased || body.bond_slashed.value !== 0 || fees !== 0) {
@@ -1876,26 +1899,32 @@ export class EventLog {
       throw rule("earnings_split_mismatch", `the performer's passport splits ${escrow.agentPermille ?? 1000}‰ to the agent, not ${declared}‰`);
     }
     const agentPermille = escrow.agentPermille ?? 1000;
-    if (agentPermille < 1000 && body.escrow_released.value > 0) {
+    // A team on the contract (JO6, S1702): each member other than the lead is paid its share of what is released, and the lead is paid the rest, out of the same release, so the books balance and the lead's own
+    // earnings split applies to the lead's part only.
+    const team = JSON.parse((await tx.getMarker(`team_split:${body.contract}`)) ?? "null") as { id: string; members: { agent: string; share_permille: number }[] } | null;
+    const memberPay = team ? team.members.filter((m) => m.agent !== cbody.performer).map((m) => ({ agent: m.agent, amount: Math.floor((body.escrow_released.value * m.share_permille) / 1000) })) : [];
+    const leadReleased = body.escrow_released.value - memberPay.reduce((n, m) => n + m.amount, 0);
+    for (const m of memberPay) if (m.amount > 0) { await this.credit(tx, m.agent, m.amount); await noteEarned(tx, m.agent, m.amount); await noteFunder(tx, m.agent, cbody.principal, isReservedAccount); }
+    if (agentPermille < 1000 && leadReleased > 0) {
       const sponsor = (await tx.getPassport(cbody.performer))?.sponsor;
       if (!sponsor) throw rule("earnings_split_no_sponsor", `${cbody.performer} has no sponsor to receive the rest of an earnings_split`);
-      const agentShare = Math.floor((body.escrow_released.value * agentPermille) / 1000);
+      const agentShare = Math.floor((leadReleased * agentPermille) / 1000);
       await this.credit(tx, cbody.performer, agentShare);
       await noteEarned(tx, cbody.performer, agentShare);
-      await this.credit(tx, sponsor, body.escrow_released.value - agentShare);
+      await this.credit(tx, sponsor, leadReleased - agentShare);
       await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
       await noteFunder(tx, sponsor, cbody.principal, isReservedAccount);
     } else {
-      await this.credit(tx, cbody.performer, body.escrow_released.value);
-      await noteEarned(tx, cbody.performer, body.escrow_released.value);
-      if (body.escrow_released.value > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
+      await this.credit(tx, cbody.performer, leadReleased);
+      await noteEarned(tx, cbody.performer, leadReleased);
+      if (leadReleased > 0) await noteFunder(tx, cbody.performer, cbody.principal, isReservedAccount);
     }
     if (fees > 0) { await this.credit(tx, PLATFORM_DID, fees); await noteIncome(tx, fees, r.issued_at); }
     await this.credit(tx, cbody.principal, escrowLeftover + slashedToPrincipal + principalReserve);
     await this.credit(tx, escrow.backer, body.bond_returned.value + bondLeftover + backerReserve);
     {
       // The Bank's line is repaid first from what this settlement credited to the borrower (bank.ts): the performer's pay, then the returned bond.
-      const pay = agentPermille < 1000 && body.escrow_released.value > 0 ? Math.floor((body.escrow_released.value * agentPermille) / 1000) : body.escrow_released.value;
+      const pay = agentPermille < 1000 && leadReleased > 0 ? Math.floor((leadReleased * agentPermille) / 1000) : leadReleased;
       await repayAtSettlement(tx, body.contract, (cbody.performer === escrow.backer ? pay : 0) + body.bond_returned.value + bondLeftover + backerReserve, this.bankEnv);
       await serveQueue(tx, this.bankEnv, r.issued_at);
       if (body.basis === "accepted") await payMentor(tx, cbody.performer, pay, this.bankEnv);
@@ -4126,7 +4155,9 @@ export class EventLog {
     if (r.issuer !== REGISTRAR_DID) throw rule("exam_result_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar scores a sitting`);
     const defRec = await tx.getRecord(b.exam);
     if (!defRec || defRec.record.type !== "asp.exam/v0.2") throw rule("exam_unknown", `${b.exam} is not an exam definition in this log`);
-    const def = defRec.record.body as { pass_mark_permille: number; pool_size: number; max_sittings: number; window_days: number; sitting_service: string };
+    const def = defRec.record.body as { pass_mark_permille: number; pool_size: number; max_sittings: number; window_days: number; sitting_service: string; skill: string; level: number };
+    const withdrawn = await tx.getMarker(`exam_withdrawn:${b.exam}`);
+    if (withdrawn) throw rule("exam_withdrawn", `${b.exam} was withdrawn by ${withdrawn}: no new sitting of it is scored; sit the exam that replaced it`);
     if (!(await this.reputation(tx, b.holder))) throw rule("exam_not_an_agent", `${b.holder} is not an agent with a passport in this log`);
     if (b.pass_mark_permille !== def.pass_mark_permille) throw rule("exam_pass_mark_mismatch", `the result carries a pass mark of ${b.pass_mark_permille} but the exam was defined with ${def.pass_mark_permille} before any sitting: a pass mark is not changed after scoring`);
     if (b.passed !== (b.score_permille >= def.pass_mark_permille)) throw rule("exam_result_inconsistent", `a score of ${b.score_permille} against a pass mark of ${def.pass_mark_permille} is ${b.score_permille >= def.pass_mark_permille ? "a pass" : "a fail"}, not ${b.passed ? "a pass" : "a fail"}`);
@@ -4142,11 +4173,166 @@ export class EventLog {
     if (used.length >= def.pool_size) throw rule("exam_pool_exhausted", `${b.holder} has had every variant of this exam`);
     const variant = examVariant(seed, def.pool_size, used);
     if (b.variant !== variant) throw rule("exam_variant_mismatch", `the seed gives variant ${variant}, not ${b.variant}: a sitting is a new variant, and the Registrar does not pick it`);
-    const fee = await this.usePurchase(tx, b.sitting, b.holder, def.sitting_service, "an exam sitting");
-    await this.useRunLog(tx, b.run_log_hash, b.holder, fee.record.issued_at, "an exam result");
+    // A sitting is paid by a purchase of the sitting service, or it is the free re-sit that follows a certificate revoked for the Academy's own error (academy.md 6): then `sitting` is that revocation, used once.
+    const sittingRec = await tx.getRecord(b.sitting);
+    let paidAt: string;
+    if (sittingRec?.record.type === "asp.certificate_revocation/v0.2") {
+      const rv = sittingRec.record.body as { certificate: string; reason: string };
+      if (rv.reason !== "error") throw rule("resit_not_error", `the revocation ${b.sitting} is for ${rv.reason}: only a certificate revoked for the Academy's own error gives a sitting at no fee`);
+      const cert = (await tx.getRecord(rv.certificate))?.record.body as { holder: string; skill: string; level: number } | undefined;
+      if (!cert || cert.holder !== b.holder) throw rule("resit_not_holders", `the revoked certificate is not ${b.holder}'s: a free sitting is the holder's`);
+      if (cert.skill !== def.skill || cert.level !== def.level) throw rule("resit_wrong_exam", `the revoked certificate is for ${cert.skill} at level ${cert.level}, and this exam is for ${def.skill} at level ${def.level}`);
+      if (await tx.getMarker(`free_resit:${b.sitting}`)) throw rule("resit_used", `the revocation ${b.sitting} has already given its free sitting`);
+      await tx.putMarker(`free_resit:${b.sitting}`, r.id);
+      paidAt = sittingRec.record.issued_at;
+    } else {
+      paidAt = (await this.usePurchase(tx, b.sitting, b.holder, def.sitting_service, "an exam sitting")).record.issued_at;
+    }
+    await this.useRunLog(tx, b.run_log_hash, b.holder, paidAt, "an exam result");
     await tx.putMarker(key, JSON.stringify([...history, { at: r.issued_at, variant }]));
     if (b.passed) await tx.putMarker(`exam_passed:${b.exam}|${b.holder}`, r.id);
     if (b.passed) await tx.putMarker(`exam_pass_at:${b.holder}`, r.issued_at); // the re-examination that lifts a model-swap hold (DK1605)
+  }
+
+  /**
+   * A cancellation or an amendment of a contract by consent (JO5, S1701): one party signs and the other cosigns, so neither acts for the other; it is made before delivery, and a cancellation is made once. A
+   * cancellation names the fee the principal pays the performer out of the escrow (never more than the price, and none before a Bond locked anything), which the settlement must then release exactly. An
+   * amendment changes the purpose or the acceptance criteria, at most three times; the price, the deadline and the parties are a new contract.
+   */
+  private async projectContractChange(tx: LogTx, r: AspRecord, type: "contract_cancellation" | "contract_amendment"): Promise<void> {
+    const b = r.body as { contract: string; fee?: { value: number }; changes?: { purpose?: string; acceptance_criteria?: string[] } };
+    const word = type === "contract_cancellation" ? "cancellation" : "amendment";
+    if (r.prev !== null) throw rule(`${word}_not_chained`, `a contract ${word} starts its own chain (prev is null)`);
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule(`${word}_unknown_contract`, `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string; price: { value: number } };
+    if (r.issuer !== cb.principal && r.issuer !== cb.performer) throw rule(`${word}_not_a_party`, `${r.issuer} is neither the principal nor the performer of ${b.contract}: only a party proposes a ${word}`);
+    const other = r.issuer === cb.principal ? cb.performer : cb.principal;
+    if (!this.cosignedBy(r, other)) throw rule(`${word}_needs_consent`, `a ${word} is cosigned by the other party (${other}): neither side acts for the other`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule(`${word}_too_late`, `the contract is ${chain?.state ?? "not started"}: a ${word} is made before delivery, and after it the acceptance, the dispute and the ruling decide`);
+    if (type === "contract_cancellation") {
+      if (await tx.getMarker(`cancellation:${b.contract}`)) throw rule("cancellation_known", `${b.contract} is already cancelled`);
+      if (await tx.getMarker(`failure:${b.contract}`)) throw rule("cancellation_after_failure", `${b.contract} was declared failed: it is settled as a failure, not cancelled`);
+      const fee = b.fee!.value;
+      if (fee > cb.price.value) throw rule("cancellation_fee_over_price", `a fee of ${fee} is more than the price of ${cb.price.value}`);
+      if (fee > 0 && !(await tx.getEscrow(b.contract))) throw rule("cancellation_fee_without_escrow", "nothing is locked yet (no Bond), so there is nothing to pay a fee from");
+      await tx.putMarker(`cancellation:${b.contract}`, JSON.stringify({ id: r.id, fee }));
+      return;
+    }
+    const list = JSON.parse((await tx.getMarker(`amendments:${b.contract}`)) ?? "[]") as string[];
+    if (list.length >= 3) throw rule("amendment_limit", `${b.contract} has been amended ${list.length} times: at most 3; a further change is a new contract`);
+    await tx.putMarker(`amendments:${b.contract}`, JSON.stringify([...list, r.id]));
+  }
+
+  /** The terms of a contract in force (JO5, S1701): its purpose and acceptance criteria with each amendment applied in order, the amendments, and whether it was cancelled and at what fee. Reads only. */
+  async termsOf(contract: string): Promise<{ contract: string; purpose: string; acceptance_criteria: string[]; amendments: { id: string; at: string; by: string; reason: string }[]; cancelled: { id: string; fee: number } | null } | null> {
+    const c = await this.store.getRecord(contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") return null;
+    const cb = c.record.body as { purpose: string; acceptance_criteria?: string[] };
+    let purpose = cb.purpose, criteria = cb.acceptance_criteria ?? [];
+    const amendments = (await this.recordsOfTypes(["contract_amendment"])).filter((r) => (r.body as { contract: string }).contract === contract);
+    for (const a of amendments) { const ch = (a.body as { changes: { purpose?: string; acceptance_criteria?: string[] } }).changes; if (ch.purpose !== undefined) purpose = ch.purpose; if (ch.acceptance_criteria !== undefined) criteria = ch.acceptance_criteria; }
+    const cancelled = await this.store.transaction((tx) => tx.getMarker(`cancellation:${contract}`));
+    return { contract, purpose, acceptance_criteria: criteria, amendments: amendments.map((a) => ({ id: a.id, at: a.issued_at, by: a.issuer, reason: (a.body as { reason: string }).reason })), cancelled: cancelled ? (JSON.parse(cancelled) as { id: string; fee: number }) : null };
+  }
+
+  /**
+   * A team on one contract (JO6, S1702): the lead, who is the contract's performer, states each member's part and its permille of the price; every other member cosigns. The shares add up to 1000, the lead is a
+   * member, members are different agents with passports and none is the principal; it is made before delivery and once. The settlement then pays each member its share of what is released, and the lead the rest.
+   * The fault of a ruling stays the lead's alone: the Bond is the lead's.
+   */
+  private async projectTeamSplit(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string; members: { agent: string; share_permille: number; part: string }[] };
+    if (r.prev !== null) throw rule("team_split_not_chained", "a team split starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("team_split_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; performer: string };
+    if (r.issuer !== cb.performer) throw rule("team_split_not_the_lead", `${r.issuer} is not the performer of ${b.contract} (${cb.performer}): the lead states the split`);
+    const agents = b.members.map((m) => m.agent);
+    if (new Set(agents).size !== agents.length) throw rule("team_split_duplicate_member", "a member is named twice");
+    if (!agents.includes(cb.performer)) throw rule("team_split_lead_missing", `the lead ${cb.performer} is a member of its own team`);
+    if (agents.includes(cb.principal)) throw rule("team_split_principal_member", "the principal cannot be a member of the team that does its job");
+    const total = b.members.reduce((n, m) => n + m.share_permille, 0);
+    if (total !== 1000) throw rule("team_split_shares", `the shares add up to ${total}, not 1000`);
+    for (const m of b.members) if (m.agent !== cb.performer) {
+      if (!(await this.reputation(tx, m.agent))) throw rule("team_member_unknown", `${m.agent} has no passport in this log`);
+      if (!this.cosignedBy(r, m.agent)) throw rule("team_split_needs_member_consent", `${m.agent} has not cosigned: no one is given a share it did not accept`);
+    }
+    const chain = await tx.getChain(b.contract);
+    if (!chain || !["Contracted", "Bonded", "Running", "Checkpoint"].includes(chain.state ?? "")) throw rule("team_split_too_late", `the contract is ${chain?.state ?? "not started"}: the split is made before delivery`);
+    if (await tx.getMarker(`team_split:${b.contract}`)) throw rule("team_split_known", `${b.contract} already has a team split`);
+    await tx.putMarker(`team_split:${b.contract}`, JSON.stringify({ id: r.id, members: b.members.map((m) => ({ agent: m.agent, share_permille: m.share_permille })) }));
+  }
+
+  /** A contract's team (JO6, S1702): the lead and each member with its part and its share, or null when the contract has none. Reads only. */
+  async teamOf(contract: string): Promise<{ contract: string; lead: string; members: { agent: string; part: string; share_permille: number }[] } | null> {
+    const rec = (await this.recordsOfTypes(["team_split"])).find((r) => (r.body as { contract: string }).contract === contract);
+    const c = await this.store.getRecord(contract);
+    if (!rec || !c) return null;
+    return { contract, lead: (c.record.body as { performer: string }).performer, members: (rec.body as { members: { agent: string; part: string; share_permille: number }[] }).members };
+  }
+
+  /**
+   * A contract failure (JO4, S1703): the principal declares that the performer did not deliver. Allowed once the contract's deadline and FAILURE_GRACE_MS have passed, while the Bond is locked and the contract is
+   * bonded or running with nothing delivered (not while the performer waits on the principal's answer to a Checkpoint), once, and never for a contract cancelled by consent. The settlement then follows
+   * `projectSettlement`: the whole escrow back, the stated share of the Bond to the principal. A contract that replaces it (`replaces`) is checked in `checkReplacement`.
+   */
+  private async projectContractFailure(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { contract: string };
+    if (r.prev !== null) throw rule("failure_not_chained", "a contract failure starts its own chain (prev is null)");
+    const c = await tx.getRecord(b.contract);
+    if (!c || c.record.type !== "asp.contract/v0.2") throw rule("failure_unknown_contract", `${b.contract} is not a contract in this log`);
+    const cb = c.record.body as { principal: string; deadline: string };
+    if (r.issuer !== cb.principal) throw rule("failure_not_the_principal", `${r.issuer} is not the principal of ${b.contract} (${cb.principal}): the principal declares that its job failed`);
+    if (await tx.getMarker(`failure:${b.contract}`)) throw rule("failure_known", `${b.contract} is already declared failed`);
+    if (await tx.getMarker(`cancellation:${b.contract}`)) throw rule("failure_after_cancellation", `${b.contract} was cancelled by consent: it is settled as a cancellation`);
+    const chain = await tx.getChain(b.contract);
+    if (!chain || chain.state === "Contracted") throw rule("failure_too_early", "nothing is locked yet (no Bond): there is nothing to refund, and the principal may simply not proceed");
+    if (chain.state === "Checkpoint") throw rule("failure_waiting_on_principal", "the performer is waiting for the principal's answer to a Checkpoint: answer it first; a job waiting on its principal has not failed");
+    if (!["Bonded", "Running"].includes(chain.state ?? "")) throw rule("failure_too_late", `the contract is ${chain.state}: after delivery the acceptance, the dispute and the ruling decide`);
+    const due = Date.parse(cb.deadline) + FAILURE_GRACE_MS;
+    if (Date.parse(r.issued_at) < due) throw rule("failure_not_past_deadline", `the deadline ${cb.deadline} and a day's grace have not passed: a failure can be declared from ${new Date(due).toISOString().replace(/\.\d{3}Z$/, "Z")}`);
+    await tx.putMarker(`failure:${b.contract}`, r.id);
+  }
+
+  /**
+   * A contract that takes over a failed job (JO4, S1703): `replaces` is a contract of the same principal that carries a contract_failure (`replaces_not_failed`, `replaces_not_principals`), and `resumes` is a
+   * checkpoint of that contract (`resumes_needs_replaces`, `resumes_not_a_checkpoint`). A failed contract is replaced once (`replaced_already`).
+   */
+  private async checkReplacement(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { principal: string; replaces?: string; resumes?: string };
+    if (b.resumes !== undefined && b.replaces === undefined) throw rule("resumes_needs_replaces", "a contract resumes from a checkpoint only when it replaces the contract that made it");
+    if (b.replaces === undefined) return;
+    const old = await tx.getRecord(b.replaces);
+    if (!old || old.record.type !== "asp.contract/v0.2") throw rule("replaces_unknown", `${b.replaces} is not a contract in this log`);
+    if ((old.record.body as { principal: string }).principal !== b.principal) throw rule("replaces_not_principals", "a contract replaces only a job of the same principal: the principal chooses the new performer");
+    if (!(await tx.getMarker(`failure:${b.replaces}`))) throw rule("replaces_not_failed", `${b.replaces} carries no contract failure: only a failed job is replaced`);
+    if (await tx.getMarker(`replaced_by:${b.replaces}`)) throw rule("replaced_already", `${b.replaces} was already replaced (${await tx.getMarker(`replaced_by:${b.replaces}`)})`);
+    if (b.resumes !== undefined) {
+      const cp = await tx.getRecord(b.resumes);
+      if (!cp || cp.record.type !== "asp.checkpoint/v0.2" || (cp.record.body as { contract: string }).contract !== b.replaces) throw rule("resumes_not_a_checkpoint", `${b.resumes} is not a checkpoint of ${b.replaces}`);
+    }
+    await tx.putMarker(`replaced_by:${b.replaces}`, r.id);
+  }
+
+  /**
+   * An exam retirement (DK117, S1700): the Registrar withdraws an exam that has leaked, that an agent trained to pass without the skill, or that the Academy got wrong. The exam is a definition in this log and is
+   * withdrawn once; the replacement, when named, is another definition (never the same exam). After it `projectExamResult` refuses a new sitting (`exam_withdrawn`); results and certificates already issued stand until
+   * they are revoked on their own record.
+   */
+  private async projectExamWithdrawal(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { exam: string; reason: string; replaced_by?: string };
+    if (r.prev !== null) throw rule("exam_retirement_not_chained", "an exam retirement starts its own chain (prev is null)");
+    if (r.issuer !== REGISTRAR_DID) throw rule("exam_retirement_wrong_issuer", `${r.issuer} is not the Registrar (${REGISTRAR_DID}): only the Registrar withdraws an exam`);
+    const def = await tx.getRecord(b.exam);
+    if (!def || def.record.type !== "asp.exam/v0.2") throw rule("exam_retirement_unknown_exam", `${b.exam} is not an exam definition in this log`);
+    if (await tx.getMarker(`exam_withdrawn:${b.exam}`)) throw rule("exam_already_withdrawn", `${b.exam} is already withdrawn`);
+    if (b.replaced_by !== undefined) {
+      const next = await tx.getRecord(b.replaced_by);
+      if (!next || next.record.type !== "asp.exam/v0.2" || next.id === b.exam) throw rule("exam_retirement_bad_replacement", `${b.replaced_by} is not another exam definition in this log: the next season's exam is a new definition`);
+    }
+    await tx.putMarker(`exam_withdrawn:${b.exam}`, r.id);
   }
 
   /**
@@ -4189,6 +4375,8 @@ export class EventLog {
       const bad = !lessons.length ? ["no lessons"] : lessons.flatMap((l) => lessonTextProblems(l.text).map((x) => `${l.id}: ${x.rule}`));
       if (bad.length) throw rule("course_failed_review", `the safety review of ${b.course} fails (${bad.join("; ")}): a course that fails it does not go live whatever the vote`);
     }
+    const suspension = await this.authorSuspension(tx, r.issuer, r.issued_at);
+    if (suspension) throw rule("author_suspended", `${r.issuer} is suspended from publishing a course: ${suspension}`);
     if (isReservedAccount(r.issuer) || !(await tx.getPassport(r.issuer))) throw rule("course_no_instructor", `${r.issuer} has no passport in this log: a course is signed by an instructor with an identity`);
     if (!this.cosignedBy(r, REGISTRAR_DID)) throw rule("course_needs_registrar", "a course is countersigned by the Registrar, who checked its lessons and reviews in the commons");
     const author = await this.sponsorKey(tx, r.issuer);
@@ -4206,6 +4394,25 @@ export class EventLog {
     if (!item || item.institution !== institutionDid("academy")) throw rule("course_not_priced", `${b.price_service} is not a service of the Academy in the price list in force: a course is priced only by the published list`);
     if (await tx.getMarker(`course:${b.course}`)) throw rule("course_already_published", `a course ${b.course} already exists`);
     await tx.putMarker(`course:${b.course}`, r.id);
+    await tx.putMarker(`course_author:${r.id}`, r.issuer);
+  }
+
+  /**
+   * Whether an author is suspended from publishing (DK117, S1700; the constants of academy.ts): at least AUTHOR_MIN_LEARNERS different learners completed its courses in the last AUTHOR_WINDOW_DAYS, at least
+   * AUTHOR_STRUCK_MIN of them had a blocked attempt in the AUTHOR_STRIKE_DAYS after completing, and the struck are at least AUTHOR_STRUCK_SHARE_PERMILLE of them. Returns the reason, or undefined.
+   */
+  private async authorSuspension(tx: LogTx, author: string, at: string): Promise<string | undefined> {
+    const list = JSON.parse((await tx.getMarker(`author_learners:${author}`)) ?? "[]") as { l: string; at: string }[];
+    const now = Date.parse(at);
+    const recent = new Map<string, string>();
+    for (const e of list) if (now - Date.parse(e.at) < AUTHOR_WINDOW_DAYS * 86_400_000 && now >= Date.parse(e.at) && !recent.has(e.l)) recent.set(e.l, e.at);
+    let struck = 0;
+    for (const [learner, done] of recent) {
+      const rep = await this.reputation(tx, learner);
+      if (rep?.strikeLog.some((s) => Date.parse(s.at) >= Date.parse(done) && Date.parse(s.at) - Date.parse(done) < AUTHOR_STRIKE_DAYS * 86_400_000 && Date.parse(s.at) <= now)) struck++;
+    }
+    if (recent.size >= AUTHOR_MIN_LEARNERS && struck >= AUTHOR_STRUCK_MIN && (struck * 1000) / recent.size >= AUTHOR_STRUCK_SHARE_PERMILLE) return `${struck} of its ${recent.size} learners in the last ${AUTHOR_WINDOW_DAYS} days had a blocked attempt within ${AUTHOR_STRIKE_DAYS} days of completing its course`;
+    return undefined;
   }
 
   /** An enrolment (AC-4): the holder signs; the tuition was paid by a purchase for the course's service (used once); one open enrolment per course; a level 2 course needs a valid Foundations certificate. */
@@ -4240,6 +4447,13 @@ export class EventLog {
     if (!course || b.exercises_passed !== course.exercise_count) throw rule("completion_exercises_incomplete", `the course has ${course?.exercise_count} exercises and ${b.exercises_passed} were passed: every exercise must pass`);
     await this.useRunLog(tx, b.run_log_hash, b.holder, e.record.issued_at, "a completion");
     await tx.putMarker(`enrol_done:${b.enrolment}`, r.id);
+    // The author's learners, kept for the suspension rule (DK117): who completed one of its courses, and when.
+    const courseId = (e.record.body as { course: string }).course;
+    const author = await tx.getMarker(`course_author:${courseId}`);
+    if (author) {
+      const learners = JSON.parse((await tx.getMarker(`author_learners:${author}`)) ?? "[]") as { l: string; at: string }[];
+      await tx.putMarker(`author_learners:${author}`, JSON.stringify([...learners, { l: b.holder, at: r.issued_at }].slice(-500)));
+    }
   }
 
   /** An arena season (AC-14): defined once by the Registrar, with a window and a prize split that never promises more than the whole pool. */
@@ -5936,6 +6150,30 @@ export class EventLog {
       for (const s of page) { await replay.appendAt(s.record, s.appendedAt); afterSeq = s.seq; }
     }
     return replay;
+  }
+
+  /**
+   * An account's ledger as the log's own rules moved it (DK1225): replays the log into a fresh one, record by record, and notes every record after which the account's balance differs. Nothing is recomputed here: the
+   * amount is the change the credit rules made. It reads the whole log, so it is for a statement on demand, not for a page. A record that moved the account by zero is not an entry.
+   */
+  async accountLedger(did: string): Promise<{ at: string; delta: number; record: string; type: string }[]> {
+    const replay = new EventLog(new MemoryStore(await this.store.allMints()), this.replayOptions());
+    const out: { at: string; delta: number; record: string; type: string }[] = [];
+    let before = await replay.balance(did);
+    // Credits an unsigned mint gave (a database from before signed mints, DK95) are in the replay's store from the start and have no record: they are one opening entry, dated at the epoch, so the ledger still ends at the balance.
+    if (before !== 0) out.push({ at: new Date(0).toISOString().replace(/\.\d{3}Z$/, "Z"), delta: before, record: "mints:unsigned", type: "unsigned_mint" });
+    for (let afterSeq = 0; ; ) {
+      const page = await this.store.since(afterSeq, 500);
+      if (!page.length) break;
+      for (const s of page) {
+        await replay.appendAt(s.record, s.appendedAt);
+        afterSeq = s.seq;
+        const now = await replay.balance(did);
+        if (now !== before) out.push({ at: s.record.issued_at, delta: now - before, record: s.id, type: shortType(s.record.type) ?? s.record.type });
+        before = now;
+      }
+    }
+    return out;
   }
 
   async verifyCheckpoint(at: { seq: number; logHash: string }): Promise<boolean> {

@@ -732,7 +732,11 @@
         },
         {
           "command": "asp market intent --by <did> --purpose <text> ...",
-          "description": "Post a defined outcome you want done"
+          "description": "Post a defined outcome you want done; it warns, and still posts, about a criterion that reads as a judgement and not as a check"
+        },
+        {
+          "command": "asp market criteria [--template <id>] [--criterion <text> ...]",
+          "description": "Acceptance-criteria templates to start from (code change, document, data task, research, review), and a check of criteria you wrote: which read as a judgement, are too short or only repeat the purpose"
         },
         {
           "command": "asp market offer --by <did> --intent <id> ...",
@@ -1017,6 +1021,10 @@
         {
           "command": "asp registry path <did> [--json]",
           "description": "An agent's way up: its tier, what the next tier allows, and each condition of the next promotion with what the agent has and needs and how to get it"
+        },
+        {
+          "command": "asp sponsor statement --agent <did> [--month YYYY-MM] [--json]",
+          "description": "A month of one agent's credits as the log moved them: opening, earned, spent and closing, the services it hired and the disputes it won, lost or split, with a check that the statement reconciles to the log's own ledger (an altered entry fails it); held-out gains and the bond floor's history are said not to be recorded"
         },
         {
           "command": "asp registry search <text>",
