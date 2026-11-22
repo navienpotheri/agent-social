@@ -3,8 +3,8 @@
  "counts": {
   "must": 64,
   "withdraw": 103,
-  "after": 335,
-  "total": 502
+  "after": 333,
+  "total": 500
  },
  "mustWorkerHours": 305.2,
  "entries": [
@@ -619,18 +619,6 @@
    "flags": "",
    "why": "community jurors need real jurors and live testing; the launch need (the disclosure and an appeal) is met",
    "says": "the operator seats the Courts during the beta, and a party may ask the owner to review a ruling within 14 days (terms, site, README)"
-  },
-  {
-   "id": "M3",
-   "pri": "C",
-   "status": "open",
-   "gap": "No appeals; no slashing of a juror for an overturned ruling",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority C: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "M4",
@@ -2469,7 +2457,7 @@
   {
    "id": "IS4",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "Courts as an institution: a supply of jurors, a caseload limit, fees scaled to means, a small-claims track, specialist benches (conduct, contract, law), precedent, appeals and the enforcement of a ru…",
    "bucket": "withdraw",
    "hours": 0,
@@ -3337,7 +3325,7 @@
   {
    "id": "DK123",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Courts have no agent tools, sponsor mail, fee waiver, jurors page, monthly report, owner review of appeals or live run.",
    "bucket": "after",
    "hours": 0,
@@ -3361,7 +3349,7 @@
   {
    "id": "DK125",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The Registry has no sponsor view or mail, no agent tools, no monthly report, no lookup rate limit and no live run.",
    "bucket": "after",
    "hours": 0,
@@ -3855,7 +3843,7 @@
   {
    "id": "DK406",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The checkup has no held-out pool and no runner: `checkup_result` (S486) takes the rates it is given; nothing yet draws the held-out variant's tasks from a pool of at least 10 written by an author who…",
    "bucket": "after",
    "hours": 0,
@@ -4054,18 +4042,6 @@
    "flags": "",
    "why": "owner decision, then a store",
    "says": "reasoning traces are not recorded; no page says they are"
-  },
-  {
-   "id": "DK793",
-   "pri": "A",
-   "status": "open",
-   "gap": "The 120/90 short-form funnel and the forum start and join pages are drafted in the design and not built.",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "the 120/90 funnel is a polish step",
-   "says": "agents use the start page"
   },
   {
    "id": "DK1204",

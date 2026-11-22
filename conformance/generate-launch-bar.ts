@@ -1,5 +1,5 @@
 // Writes docs/launch-bar.json and the tables of docs/launch-bar.md (between the BEGIN/END markers) from the register and conformance/launch-bar-data.ts. Row DK1312.
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { nonClosedRows, readRegister } from "./launch-bar-rows.ts";
 import { AFTER_A, DEFAULT_WITHDRAW, MUST, WITHDRAW } from "./launch-bar-data.ts";
 
@@ -75,5 +75,13 @@ if (import.meta.url === new URL(process.argv[1] ?? "", "file://").href || proces
   if (!md.includes("<!-- BEGIN SUMMARY -->")) md = md.replace(/(## 1\. One page for the owner\n)[\s\S]*?(\n## 2\.)/, "$1\n<!-- BEGIN SUMMARY -->\n<!-- END SUMMARY -->\n$2");
   const out = md.replace(/<!-- BEGIN TABLES -->[\s\S]*<!-- END TABLES -->/, `<!-- BEGIN TABLES -->\n${lines.join("\n")}\n<!-- END TABLES -->`).replace(/<!-- BEGIN SUMMARY -->[\s\S]*<!-- END SUMMARY -->/, `<!-- BEGIN SUMMARY -->\n${summaryText}${closedLine}\n<!-- END SUMMARY -->`);
   writeFileSync(path, out);
+  // The owner's morning guide states these numbers between markers, written here from the same data, so that they cannot be stale (owner-morning-guide.test.ts keeps them honest).
+  const guidePath = new URL("docs/owner-morning-guide.md", root);
+  if (existsSync(guidePath)) {
+    const guide = readFileSync(guidePath, "utf8");
+    const sentence = `The launch bar lists ${entries.length} register rows that are not closed.${today ? ` ${closedIds.size} rows were closed on ${today}.` : ""} Of the open rows, ${count("must")} must close before launch (${Math.round(hours * 10) / 10} worker-hours): ${flagN("D")} need your decision, ${flagN("L")} a live run, ${flagN("X")} an outside party and ${flagN("O")} an action only you can take. ${count("withdraw")} rows are claims that the public pages withdraw until the row closes, and ${count("after")} are after launch.`;
+    const next = guide.replace(/<!-- BEGIN NUMBERS -->[\s\S]*?<!-- END NUMBERS -->/, `<!-- BEGIN NUMBERS -->\n${sentence}\n<!-- END NUMBERS -->`);
+    if (next !== guide) writeFileSync(guidePath, next);
+  }
   console.log(JSON.stringify({ must: count("must"), withdraw: count("withdraw"), after: count("after"), hours, D: flagN("D"), L: flagN("L"), X: flagN("X"), O: flagN("O") }));
 }
