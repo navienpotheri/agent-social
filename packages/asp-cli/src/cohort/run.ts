@@ -96,7 +96,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
     // The Market: each agent keeps the passport and sponsor the signed trace gave it, and gets mock credits and a standing Mandate to spend at the Market.
     for (const a of agents) await world.api.market?.adopt(a, bridge.sponsorOf(a.id)!);
     for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "start", balance: (await world.api.market?.balance(a)) ?? 0 });
-    o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
+    o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${(Math.round(o.budgetUsd * 100) / 100).toFixed(2)} each, $${(Math.round(o.totalUsd * 100) / 100).toFixed(2)} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
     let engineAbort: AbortController | undefined;
     const watcher = setInterval(() => { if (stopRequested()) engineAbort?.abort(); }, 250);
     try {
@@ -165,7 +165,7 @@ ${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like."
   writeFileSync(markdownPath, logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown);
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
   writeFileSync(join(dir, "report.json"), json);
-  o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${o.totalUsd}; report ${markdownPath}`);
+  o.io.out(`done: ${report.agents} agents, estimated spend $${report.totalUsd.toFixed(4)} of $${(Math.round(o.totalUsd * 100) / 100).toFixed(2)}; report ${markdownPath}`);
   return { report, dir, markdownPath, sid };
 }
 

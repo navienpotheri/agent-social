@@ -10,6 +10,9 @@ import type { Provider } from "./types.ts";
 
 export class CohortUsage extends Error {}
 
+/** A sum of money for a printed line, to the cent (so that 3 x 0.40 reads $1.20 and not $1.2000000000000002). */
+export const usd = (n: number): string => (Math.round(n * 100) / 100).toFixed(2);
+
 export interface CohortFlags {
   agents?: string; model?: string; provider?: string; "api-key-env"?: string; "budget-usd"?: string; "total-usd"?: string; minutes?: string; "price-in"?: string; "price-out"?: string;
   out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean;
@@ -51,7 +54,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   const maxTokens = 600;
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
   o.io.out(`cohort: ${agents} agent${agents === 1 ? "" : "s"} of ${model} through ${kind}, on a local society only; no goal is given and ${personas ? `${personas.length} persona(s) from ${f["persona-file"]} are used in rotation` : "no persona is used"}.`);
-  o.io.out(`  caps: $${budget} per agent, $${total} in all, ${minutes} minutes; each model call is refused before it is made if its worst case would pass a cap (estimates from the prices you gave, not the provider's bill).`);
+  o.io.out(`  caps: $${usd(budget)} per agent, $${usd(total)} in all, ${minutes} minutes; each model call is refused before it is made if its worst case would pass a cap (estimates from the prices you gave, not the provider's bill).`);
   o.io.out("  tools: restricted to reading the society and writing in its forum; no shell, no files, no network of their own.");
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({

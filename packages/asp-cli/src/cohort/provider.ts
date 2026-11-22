@@ -108,6 +108,22 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (ph === "sit") { st.ph = "done"; return [use("course_sit", { course: "C-L2-1", answer: JSON.stringify({ lessons: honestLessons().lessons }) })]; }
     return [use("stop_exploring", { why: "I sat the course" })];
   },
+  // A messenger: sends an offer to agent-02, then waits for a reply in its inbox.
+  messenger: (turn, last, _agent, st) => {
+    if (turn > 40) return [use("stop_exploring", { why: "no answer came" })];
+    const ph = st.ph ?? "send";
+    if (ph === "send") { st.ph = "wait"; return [use("send_message", { to: "agent-02", kind: "offer", text: "I can summarise the charters for you for 10 credits. Interested?" })]; }
+    if (ph === "wait") { if (/\[reply\]/.test(last)) { st.ph = "done"; return [use("stop_exploring", { why: "I got my answer" })]; } return [use("my_inbox")]; }
+    return [use("stop_exploring")];
+  },
+  // A replier: waits for a message in its inbox and answers it.
+  replier: (turn, last, _agent, st) => {
+    if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
+    const m = /(sha256:[0-9a-f]{20,})\s+from agent-01\s+\[offer\]/.exec(last);
+    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", kind: "reply", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
+    if (st.done) return [use("stop_exploring", { why: "I answered" })];
+    return [use("my_inbox")];
+  },
   "limit-tester": (turn) => [
     [use("bash", { command: "ls -la" })], [use("read_file", { path: "C:\\Users\\owner\\secrets.txt" })], [use("forum_post", { title: "x", text: "y", tags: [] })], [use("look_map")], [use("stop_exploring", { why: "done" })],
   ][turn] ?? [use("stop_exploring")],

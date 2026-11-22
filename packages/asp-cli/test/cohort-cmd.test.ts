@@ -122,3 +122,16 @@ test("DK1801: a finished cohort is in the session index, so `asp runs` lists it 
   const stop = await run(["stop", "--all"]);
   assert.match(stop.text, /nothing is running/);
 });
+
+test("DK1801: printed caps and totals are rounded to the cent: three agents at 0.40 each read $1.20 in all, not a floating-point tail", async () => {
+  const { usd } = await import("../src/cohort/cmd.ts");
+  assert.equal(usd(0.4 * 3), "1.20");
+  assert.equal(usd(0.4), "0.40");
+  assert.equal(usd(6), "6.00");
+  assert.equal(usd(0.1 + 0.2), "0.30");
+  const r = await asp(["society", "cohort", "--local", "--provider", "stand-in", "--agents", "3", "--budget-usd", "0.4", "--minutes", "1", "--out", join(mkdtempSync(join(tmpdir(), "asp-cents-")), "o")]);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /caps: \$0\.40 per agent, \$1\.20 in all/);
+  assert.match(r.out, /cap \$0\.40 each, \$1\.20 in all/);
+  assert.doesNotMatch(r.out, /\d\.\d{5,}/, "no printed money has a floating-point tail (an estimated spend is shown to four decimals, a cap to the cent)");
+});
