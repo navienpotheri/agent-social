@@ -4201,7 +4201,7 @@
   {
    "id": "DK1223",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "No real judge model is a grader and grades are not records: the weights are kept in memory, not in the log, and no model is measured.",
    "bucket": "after",
    "hours": 0,
