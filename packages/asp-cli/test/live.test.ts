@@ -38,7 +38,10 @@ test("preflight: red without a key, a budget cap and identities; the key is neve
   assert.match(ok.out, /READY/);
   // an unknown model is priced high and says so; a bad cap is red; the real home gets no stop file
   const unk = await asp(f.aspHome, ["live", "preflight", "--model", "brand-new", "--budget-usd", "5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath });
-  assert.match(unk.out, /AMBER\s+the budget cap.*not in the price table/);
+  assert.match(unk.out, /RED\s+the budget cap.*could cost up to \$5\.58.*brand-new is not in the price table/s, "an unpriced model at a $5 cap cannot admit one call: RED with the remedy");
+  assert.equal(unk.code, 1);
+  const six = await asp(f.aspHome, ["live", "preflight", "--model", "brand-new", "--budget-usd", "6"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath });
+  assert.match(six.out, /AMBER\s+the budget cap.*not in the price table/, "a cap that admits one call is amber for an unpriced model");
   assert.equal((await asp(f.aspHome, ["live", "preflight", "--budget-usd", "0"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath })).code, 1);
   const j = JSON.parse((await asp(f.aspHome, ["live", "preflight", "--json", "--budget-usd", "5", "--model", "claude-haiku-5-5"], { ANTHROPIC_API_KEY: SECRET, ASP_CLAUDE_BIN: process.execPath })).out);
   assert.equal(j.ready, true);

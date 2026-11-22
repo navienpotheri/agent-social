@@ -13,7 +13,28 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { createGateway, priceFor, readRunLog, type RunEvent } from "@agent-social/asp-package";
+import { createGateway, isPricedModel, priceFor, readRunLog, worstCaseUsd, type RunEvent } from "@agent-social/asp-package";
+
+
+/**
+ * The most ONE model call of a real Claude Code run could cost under the gateway's own rule (the whole request as input, about one token a three characters, and the largest reply the request allows: 32,000 tokens for
+ * Claude Code). The request size is the one the owner's first real run showed: the gateway refused its first call as "could cost up to $5.5810" at the default price of $15 and $75 a million, which is a request of
+ * about 636,000 characters; the same size priced for a mid model (3.5 and 17.5) is the 1.35 dollars measured earlier. A cap that cannot admit one such call refuses EVERY call, at the first one.
+ */
+export const CLAUDE_CODE_REQUEST_CHARS = 636_000;
+export const CLAUDE_CODE_MAX_REPLY_TOKENS = 32_000;
+export interface CapProblem { worstUsd: number; price: { inPerM: number; outPerM: number }; priced: boolean; text: string }
+export function capProblem(o: { cap: number; model?: string; priceIn?: number; priceOut?: number }): CapProblem | undefined {
+  const price = priceFor(o.model, { ...(o.priceIn !== undefined ? { inPerM: o.priceIn } : {}), ...(o.priceOut !== undefined ? { outPerM: o.priceOut } : {}) });
+  const known = isPricedModel(o.model);
+  const priced = (o.priceIn !== undefined || known) && (o.priceOut !== undefined || known);
+  const worstUsd = worstCaseUsd({ max_tokens: CLAUDE_CODE_MAX_REPLY_TOKENS, messages: [{ role: "user", content: "x".repeat(CLAUDE_CODE_REQUEST_CHARS) }] }, price);
+  if (!(worstUsd > o.cap)) return undefined;
+  const w = worstUsd.toFixed(2);
+  const why = priced ? "" : (o.model ? `the model ${o.model} is not in the price table, so the high default ($${price.inPerM} in and $${price.outPerM} out per million tokens) is used; ` : "no --model is named, so if the model Claude Code picks is not in the price table the high default ($" + price.inPerM + " in and $" + price.outPerM + " out per million tokens) is used; ");
+  const text = `one worst-case model call could cost up to $${w} (a typical Claude Code request plus the largest reply it allows, at $${price.inPerM} in and $${price.outPerM} out per million tokens), which is more than your $${o.cap} cap. ${why}If so the gateway refuses EVERY model call, the first one included ("the next model call is refused: ... this call could cost up to $${w}"); that is the cap, not a fault of your key. Fix one of these: (1) name the real prices from the provider's price page: --price-in <dollars per million tokens> --price-out <dollars per million tokens>; (2) pin a model that is in the table with --model (for example a haiku or sonnet model); (3) raise --budget-usd to at least $${w} plus what you want to spend`;
+  return { worstUsd, price, priced, text };
+}
 
 export interface LiveCtx {
   home: string;
@@ -122,9 +143,11 @@ export async function preflightChecks(c: LiveCtx): Promise<Check[]> {
   }
 
   // The budget cap.
+  const capProblemOf = (f: { model?: string; priceIn?: string; priceOut?: string }, capUsd: number) => capProblem({ cap: capUsd, ...(f.model !== undefined ? { model: f.model } : {}), ...(f.priceIn !== undefined ? { priceIn: Number(f.priceIn) } : {}), ...(f.priceOut !== undefined ? { priceOut: Number(f.priceOut) } : {}) });
   const cap = c.flags.budgetUsd === undefined ? undefined : Number(c.flags.budgetUsd);
   if (cap === undefined) add("the budget cap", "fail", "no --budget-usd: a live run with a real model must have a hard dollar cap");
   else if (!(cap > 0)) add("the budget cap", "fail", "--budget-usd must be a number of dollars above 0");
+  else if (capProblemOf(c.flags, cap)) add("the budget cap", "fail", capProblemOf(c.flags, cap)!.text);
   else if (cap < 3) add("the budget cap", "warn", `${cap} dollars is a small cap: the gateway also refuses a call whose WORST case (the whole request plus the largest reply it allows, 32,000 tokens for Claude Code) could pass the cap, and one such call was measured at about 1.35 dollars with Claude Code, so a cap this small can stop the run at its first call; use 3 dollars or more (the runbook uses 5)`);
   else {
     const pi = c.flags.priceIn === undefined ? undefined : Number(c.flags.priceIn), po = c.flags.priceOut === undefined ? undefined : Number(c.flags.priceOut);

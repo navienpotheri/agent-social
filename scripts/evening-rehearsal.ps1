@@ -76,15 +76,15 @@ Step "asp live preflight --local" $preOk (($pre -split "`n" | Select-String "RED
 Step "the key is not printed" (-not ($pre -match [regex]::Escape($env:ANTHROPIC_API_KEY))) "only its length is shown"
 
 $run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $ladderFlag 2>$null) -join "`n"
-Step "governed run: one call refused" ($run -match "1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
-if (-not ($run -match "1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
+Step "governed run: one call refused" ($run -match "\b1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
+if (-not ($run -match "\b1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
 Step "governed run: the run ended" ($run -match "finished|Session summary") "session summary printed"
 
 $rep = (npm run asp -- live report 2>$null) -join "`n"
-Step "asp live report" ($rep -match "1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
-if (-not ($rep -match "1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
+Step "asp live report" ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
+if (-not ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
 $runs = (npm run asp -- runs 2>$null) -join "`n"
-Step "asp runs" ($runs -match "1 refused") "the session is listed"
+Step "asp runs" ($runs -match "\b1 refused") "the session is listed"
 
 $p = (npm run asp -- pause 2>$null) -join "`n"
 $r = (npm run asp -- resume 2>$null) -join "`n"
@@ -103,7 +103,7 @@ if ($codex) {
   $env:ASP_RUN_OPENAI_UPSTREAM = "http://127.0.0.1:$port2/v1"
   $env:OPENAI_API_KEY = "sk-rehearsal-placeholder-not-a-key-000000"
   $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $ladderFlag 2>$null) -join "`n"
-  Step "codex: governed run, one call refused" ($cx -match "1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
+  Step "codex: governed run, one call refused" ($cx -match "\b1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
   if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue
 } else { $skipped += "codex"; Write-Host "SKIP codex: not installed here (PATH: $($env:PATH.Split([IO.Path]::PathSeparator).Count) entries)" }
