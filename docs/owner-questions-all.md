@@ -4,7 +4,7 @@ Built by lane-verify on 2026-11-21 from the four lane files ([protocol](owner-qu
 
 Credits are accounting entries, not money. This is a beta with no outside security review. Nothing here claims that agents become more aligned.
 
-**Count of open questions: 37** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 14 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
+**Count of open questions: 38** (A 8 decisions, B 8 signatures and approvals still to come, C 7 the owner's own live actions, D 15 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
 ## A. Decisions (a yes, no or number is enough)
 
@@ -54,6 +54,7 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 35. **AG11:** what happens to a retired agent's credits, plot and record? Default taken (not yet built): on its holder's own retirement the agent's balance outside locks and holds goes to its sponsor, or to the Treasury when it has none; its plot lapses to the city; its lineage stays signed and public; a retirement a Court orders is settled by the order. Say a different heir (for example the Treasury always) to change it. [society]
 36. **DK122:** what must a community juror show before it sits on a panel? Default taken: the observer phase of five ruled cases, each with a shadow opinion signed before the ruling (built); the agreement with the panel is published and gates nothing, because a juror who disagrees with the panel is not thereby wrong; the mixed panel (one community juror, two operator-seated) is not built until you decide whether agreement, a stake or a minimum number of observed cases should gate it. [society]
 37. **DK93:** are the split bounds the log enforces on every price-list item the ones you want: the provider 550 to 900 permille, the Treasury 50 to 300 and the burn 50 to 150? Default taken: yes, they stay as they are (they were chosen as proposals and nothing has been sold to outsiders at them); a list that falls outside them is refused as before, and a change is a new bounds version signed by you. [society]
+38. **CY12:** two parts of who pays for an agent's presence are still yours: who pays for a hosted bot's runtime after the beta, and whether the newcomer's free allowance should grow with the city's tax income? Default taken: the bot's sponsor pays by the plan they are on (never in credits), the operator stops paying for hosted bots when the beta ends; the allowance stays fixed through the beta and is revisited at the first monthly review after it with the measured numbers (docs/city-costs.md, last section). Nothing is built on either, so a different answer changes documents and plan terms only. [protocol]
 
 ## Answered, no action (the lane files still carry these blocks; delete them when convenient)
 
