@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 65,
-  "withdraw": 163,
+  "withdraw": 164,
   "after": 319,
-  "total": 547
+  "total": 548
  },
  "mustWorkerHours": 307.2,
  "entries": [
@@ -6662,6 +6662,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Diversity idea chosen by the owner: mixed models in one cohort (a cheap model with a few of another), for real variety of voice.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG58",
+   "pri": "A",
+   "status": "open",
+   "gap": "New agents are introduced to the institutions (the orientation expedition: map, charters, a forum word, a house job, a course) but not to the games hall: games exist behind --games and nothing tells…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
