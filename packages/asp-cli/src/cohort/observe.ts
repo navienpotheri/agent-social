@@ -34,7 +34,7 @@ export interface AgentStats {
 export interface Edge { from: string; to: string; comments: number; votes: number; offers: number; hires: number; paid: number; messages: number; replies: number }
 export interface Report {
   run: string; model: string; provider: string; startedAt: string; endedAt: string; agents: number; capUsdPerAgent: number; capUsdTotal: number; minutes: number;
-  /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string;
+  /** The names of the tools the agents were offered, and the hash of the briefing (from the start of the trace). */ tools: string[]; briefingSha256?: string; toolList?: { groups: string[]; chars: number; core: number; all: number };
   /** The diversity of what the agents wrote (voice.ts: 0 all alike, 1 no shared word), over their posts and comments, and how many texts that is; whether identity-derived voices were on. */
   /** The house event, when there was one (ENG42): who was invited, who learned of it through messages from others, who came (commented in its thread). */
   event?: { key: string; seededTo: string; learned: string[]; came: string[]; foundAlone: string[] };
@@ -151,7 +151,7 @@ export function analyse(events: TraceEvent[]): Report {
     run: start.run, model: start.model, provider: start.provider, startedAt: start.at, endedAt: last, agents: start.agents, capUsdPerAgent: start.capUsdPerAgent, capUsdTotal: start.capUsdTotal, minutes: start.minutes,
     perAgent, edges: [...edges.values()], toolTotals, institutionTotals, refusedByRule, totalUsd, totalInput, totalOutput, wallMs: ms(start.at, last),
     messages: { sent: msgSent, byKind: msgKinds, replies: msgReplies, unanswered: [...pairSent.entries()].reduce((n, [k, c]) => { const [a, b] = k.split(">"); return n + Math.max(0, c - (pairSent.get(`${b}>${a}`) ?? 0)); }, 0), blockedAttempts },
-    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, ...(ev && firstAgent ? { event: { key: ev.key, seededTo: firstAgent.handle, learned: [...learnedSet].filter((h) => h !== firstAgent.handle), came: [...cameSet], foundAlone: [...cameSet].filter((h) => !learnedSet.has(h)) } } : {}), diversity: { texts: writtenTexts.length, value: diversityOf(writtenTexts), voices: !!start.voices }, tools: start.tools ?? [], ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
+    tokensPerAgentHour: rateOk ? Math.round((totalInput + totalOutput) / hours) : null, usdPerAgentHour: rateOk ? Math.round((totalUsd / hours) * 1e4) / 1e4 : null, ...(ev && firstAgent ? { event: { key: ev.key, seededTo: firstAgent.handle, learned: [...learnedSet].filter((h) => h !== firstAgent.handle), came: [...cameSet], foundAlone: [...cameSet].filter((h) => !learnedSet.has(h)) } } : {}), diversity: { texts: writtenTexts.length, value: diversityOf(writtenTexts), voices: !!start.voices }, tools: start.tools ?? [], ...(start.toolChars !== undefined ? { toolList: { groups: start.toolGroups ?? [], chars: start.toolChars, core: start.toolCharsCore ?? 0, all: start.toolCharsAll ?? 0 } } : {}), ...(start.briefingSha256 ? { briefingSha256: start.briefingSha256 } : {}), endReasons, ...(stop ? { stop } : {}),
     guard: guardTotals,
     ...(plant ? { injectionTest: (() => { const ids = perAgent.map((s) => s.id); const saw = ids.filter((i) => plantSaw.has(i)); const followed = ids.filter((i) => plantFollowed.has(i)); return { ...plant!, agents: ids.length, saw, heldFrom: ids.filter((i) => plantHeld.has(i) && !plantSaw.has(i)), followed, sawNotFollowed: saw.filter((i) => !plantFollowed.has(i)), neverSaw: ids.filter((i) => !plantSaw.has(i) && !plantHeld.has(i)) }; })() } : {}),
   };
@@ -225,6 +225,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   if (r.diversity.voices) for (const s of r.perAgent) if (s.did) L.push(`- ${s.handle}: ${voiceLine(voiceOf(s.did))}`);
   L.push("");
   L.push("## What the agents saw");
+  if (r.toolList) { L.push(""); L.push(`The tool list: ${r.tools.length} tools, ${r.toolList.chars} characters, sent with every call and cached. The groups switched on: ${r.toolList.groups.join(", ") || "none"}. The core alone is ${r.toolList.core} characters and every group ${r.toolList.all}: a measured size of the list, not a promise about cost.`); }
   L.push("");
   L.push(r.tools.length ? `Each agent got the same briefing (SHA-256 ${r.briefingSha256 ?? "not recorded"}) and was offered ${r.tools.length} tools: ${r.tools.join(", ")}.` : "The trace does not record the tools the agents were offered.");
   L.push("");

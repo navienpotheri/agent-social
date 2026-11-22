@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { anthropicProvider } from "../src/cohort/provider.ts";
 import { runCohort } from "../src/cohort/run.ts";
-import { TOOLS, toolNames } from "../src/cohort/tools.ts";
+import { TOOLS, toolNames, offeredTools } from "../src/cohort/tools.ts";
 
 const SECRET = "sk-test-NOT-A-REAL-KEY-0123456789abcdef";
 const servers: Server[] = [];
@@ -40,7 +40,7 @@ test("DK1801: the provider needs the named variable, sends the key as a header o
   assert.equal(first.headers["anthropic-version"], "2023-06-01");
   for (const [h, v] of Object.entries(first.headers)) if (h !== "x-api-key") assert.ok(!String(v).includes(SECRET), `the key is in the ${h} header too`);
   assert.equal(first.body.model, "claude-haiku-5-5");
-  assert.deepEqual(first.body.tools.map((t: { name: string }) => t.name), toolNames(), "exactly the restricted set");
+  assert.deepEqual(first.body.tools.map((t: { name: string }) => t.name), offeredTools(new Set()).map((t) => t.name), "exactly the restricted set: the core, with no optional group switched on");
   for (const banned of ["bash", "shell", "read_file", "write_file", "edit", "fetch", "web"]) assert.ok(!first.body.tools.some((t: { name: string }) => t.name.includes(banned)), `no ${banned} tool`);
   assert.ok(!JSON.stringify(first.body).includes(SECRET), "the key is not in the request body");
   assert.equal(r.report.perAgent[0].inputTokens, 2400, "tokens come from the reply's usage");

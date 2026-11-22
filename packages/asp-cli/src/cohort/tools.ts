@@ -91,6 +91,20 @@ export const LIFE_DEFS: ToolDef[] = [
 ];
 export const LIFE_TOOL_NAMES: ReadonlySet<string> = new Set(LIFE_DEFS.map((t) => t.name));
 const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
+/**
+ * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
+ * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
+ */
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", town: "--roles", library: "--library" };
+export const GROUP_OF: Record<string, string> = {
+  inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
+  game_list: "games", game_enter: "games", game_results: "games",
+  role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
+  workspace_write: "library", workspace_read: "library", library_publish: "library", library_search: "library", library_read: "library", library_cite: "library",
+};
+/** The tools a run offers, given the groups it has on (all of them when `groups` is undefined). */
+export const offeredTools = (groups?: ReadonlySet<string>): ToolDef[] => TOOLS.filter((t) => !GROUP_OF[t.name] || !groups || groups.has(GROUP_OF[t.name]!));
+export const toolListChars = (tools: ToolDef[]): number => tools.reduce((n, t) => n + JSON.stringify([t.name, t.description, t.input_schema]).length, 0);
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
@@ -219,6 +233,8 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const group = GROUP_OF[name];
+  if (group && world.groups && !world.groups.has(group)) return refuse("tool_not_in_set", `${name} is not offered in this run: the ${group} tools are switched on by the people who run it (${GROUP_FLAG[group]}). The tools you have: ${offeredTools(world.groups).map((x) => x.name).join(", ")}.`);
   const hall = world.market;
   const isWrite = !!BY_NAME.get(name)?.writes;
   // Only what a write itself costs comes back (a posting deposit, tuition): money that pays for a job (escrow, a price) is not the cost of a write.
