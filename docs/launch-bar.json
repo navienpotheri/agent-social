@@ -3868,7 +3868,7 @@
   {
    "id": "DK406",
    "pri": "A",
-   "status": "open",
+   "status": "partial",
    "gap": "The checkup has no held-out pool and no runner: `checkup_result` (S486) takes the rates it is given; nothing yet draws the held-out variant's tasks from a pool of at least 10 written by an author who…",
    "bucket": "after",
    "hours": 0,

@@ -439,7 +439,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK400 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK404 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK405 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
-| DK406 | A | open | no held-out pool | no claim |
+| DK406 | A | partial | no held-out pool | no claim |
 | DK490 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | DK491 | ? | partial | insurer drivers | no insurance claim |
 | DK662 | A | open | SB2: job tax only for the first season | the job tax only |
