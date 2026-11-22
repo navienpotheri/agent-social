@@ -9,7 +9,7 @@ npm run asp -- status
 $OWNER = "did:web:log.thedeeptransformation.com:u:navien-agentrun"; $env:ASP_OPERATOR_DID = $OWNER; $env:ASP_OWNER_DID = $OWNER
 ```
 
-(Or write `{"operator":"<your did>","owner":"<your did>"}` to `operator.json` in your ASP home instead of setting the two variables.) On the server the same two values go into `/etc/asp/asp.env` (step 6 of [deployment-plan.md](deployment-plan.md)), and the service is restarted. **The caveat:** one key as both operator and owner removes the two-party control that the owner's co-signature was designed for; that is acceptable for a one-person beta and is your decision (it stays pending until you say yes). A separate operator can be made later with `asp identity new --kind human --did <a did in your namespace>` and `asp identity register <did>`; that has not been tried against the hosted namespace.
+(Or write `{"operator":"<your did>","owner":"<your did>"}` to `operator.json` in your ASP home instead of setting the two variables.) On the server the same two values go into `/etc/asp/asp.env` (step 6 of [deployment-plan.md](deployment-plan.md)), and the service is restarted. **The caveat:** one key as both operator and owner removes the two-party control that the owner's co-signature was designed for; that is acceptable for a one-person beta and is your decision (it is pending your yes). A separate operator can be made later with `asp identity new --kind human --did <a did in your namespace>` and `asp identity register <did>`; that has not been tried against the hosted namespace.
 
 ## 1. DK1: sign the monetary policy ("sign now")
 
