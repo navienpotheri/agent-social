@@ -17,6 +17,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renam
 import { join } from "node:path";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { rankCheckpointOf, voteProof, type StandingVote } from "./forum-checkpoint.ts";
+import { MESSAGE_VERSION, SanitisationProxy } from "./agent-message.ts";
 import { b64urlDecode, b64urlEncode, canonicalBytes, didKeyFromPublicKey, didOf, sha256Id, signBytes, verifyBytes, type Signer } from "@agent-social/asp-core";
 import { powOk, proofBitsFor, type DoorLine, type LogHandle, type Tenant } from "@agent-social/asp-log";
 import { citizenPage, feedPage, postPage, recordPage, type Chrome } from "./forum-pages.ts";
@@ -268,6 +269,14 @@ export function forumRoutes(opts: ForumOptions) {
 
   const scoreOf = (id: string) => [...(votes.get(id)?.values() ?? [])].reduce<number>((a, b) => a + b, 0);
   const karmaOf = (did: string) => [...docs].reduce((a, [id, d]) => a + ((d.kind === "post" || d.kind === "comment") && d.author === did ? scoreOf(id) : 0), 0);
+  // The sanitisation proxy on the read path (DK1213, after DK842): a reader that asks for it (`?proxy=1`) gets the text of a post or a comment as the untrusted field of an `asp.message/v0` message; text of an instruction
+  // shape is held back, counted and logged by its hash and sender, never by its text. The default is the raw text, so the forum's own records are never changed.
+  const proxy = new SanitisationProxy(() => clock().toISOString());
+  const shield = (on: boolean, from: string, to: string, text: string): string => {
+    if (!on) return text;
+    const r = proxy.pass({ v: MESSAGE_VERSION, kind: "note", from, to, fields: {}, untrusted: { name: "text", text: text.slice(0, 2000) } });
+    return "message" in r && r.quarantined ? r.message.untrusted.text : text;
+  };
   const mask = (id: string, text: string) => hidden.has(id) ? `[hidden by the operator: ${hidden.get(id)!.reason}]` : text;
 
   const summary = (id: string) => {
@@ -681,6 +690,11 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
     }
     const path = url.pathname.replace(/^\/forum\/?/, "");
     if (path === "" || path === "llms.txt") { send(res, 200, "text/plain; charset=utf-8", FRONT()); return true; }
+    if (path === "quarantine") {
+      // What the proxy has held back: the count, and for each the time, the sender, the shapes and the hash of the text; never the text.
+      reply(res, 200, { ok: true, held_back: proxy.quarantinedCount, log: proxy.log.map((l) => ({ at: l.at, from: l.from, shapes: l.shapes, hash: l.hash })) });
+      return true;
+    }
     if (path === "constitution") { send(res, 200, "text/plain; charset=utf-8", constitution); return true; }
     if (path === "head") {
       const cps = await checkpoints();
@@ -723,7 +737,9 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       if (!did || did.length > 300) { refuse(res, 400, "NEED_DID", "GET /forum/replies?did=<did>&since=<head seq>&limit=<n>"); return true; }
       const since = Math.max(0, Math.floor(Number(url.searchParams.get("since")) || 0));
       const limit = Math.min(200, Math.max(1, Math.floor(Number(url.searchParams.get("limit")) || 50)));
-      reply(res, 200, await repliesTo(did, since, limit));
+      const rep = await repliesTo(did, since, limit);
+      const on = url.searchParams.get("proxy") === "1";
+      reply(res, 200, on ? { ...rep, replies: rep.replies.map((x) => (x.text !== undefined ? { ...x, text: shield(true, x.by, did, x.text) } : x)), proxy: { on: true, held_back: proxy.quarantinedCount } } : rep);
       return true;
     }
     if (path === "pulse") {
@@ -754,7 +770,11 @@ No daily count. Free: a post up to ${FORUM_FORM.shortPostChars} characters, a co
       const v = ID.test(id) ? await postView(id) : undefined;
       if (!v) { refuse(res, 404, "NO_SUCH_POST", `no post ${id}`); return true; }
       const labels = await allLabels();
-      if (!path.startsWith("human/")) { reply(res, 200, { ok: true, ...v, label: labels[v.author], comments: (v.comments as Array<{ author: string }>).filter((c) => !mutedBy(url.searchParams.get("as")).has(c.author)).map((c) => ({ ...c, label: labels[c.author] })) }); return true; }
+      if (!path.startsWith("human/")) {
+        const on = url.searchParams.get("proxy") === "1", reader = url.searchParams.get("as") || "did:web:forum.reader";
+        reply(res, 200, { ok: true, ...v, text: shield(on, v.author, reader, String(v.text)), label: labels[v.author], comments: (v.comments as Array<{ author: string; text?: string }>).filter((c) => !mutedBy(url.searchParams.get("as")).has(c.author)).map((c) => ({ ...c, ...(typeof c.text === "string" ? { text: shield(on, c.author, reader, c.text) } : {}), label: labels[c.author] })), ...(on ? { proxy: { on: true, held_back: proxy.quarantinedCount } } : {}) });
+        return true;
+      }
       send(res, 200, HTML, postPage({ ...summary(id), text: v.text, contractState: v.contractState, commentList: v.comments as never }, chrome(labels), clock().getTime()), CSP);
       return true;
     }

@@ -15,6 +15,10 @@ param([switch]$Clone, [switch]$SkipInstall, [switch]$Ladder)
 $ErrorActionPreference = "Continue"
 $results = New-Object System.Collections.Generic.List[object]
 $ladderFlag = @(); if ($Ladder) { $ladderFlag = @("--escalation-ladder") }
+# The stand-in costs nothing, so the rehearsal names a price: it measures the governed path whatever model the installed program defaults to. A model that is NOT in the gateway's price table is priced high (USD 15 in and 75 out
+# per million tokens), and under a cap of USD 5 the worst case of one call then exceeds the cap and EVERY model call is refused: that is what the owner's first rehearsal showed, and the step "tonight: the model's price" below tells you
+# which case you are in. Tonight's real run must name the real price of your model in the same way (docs/tonight.md, step 2).
+$priceFlags = @("--price-in", "3", "--price-out", "15")
 function Step([string]$name, [bool]$ok, [string]$detail) { $results.Add([pscustomobject]@{ Step = $name; Result = $(if ($ok) { "PASS" } else { "FAIL" }); Detail = $detail }); Write-Host ("{0,-4} {1}: {2}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name, $detail) }
 
 function Explain([string]$what, [string]$text) { Write-Host ("     what the step saw (first lines of $what):"); (($text -split "`n") | Select-Object -First 25 | ForEach-Object { "       " + $_.TrimEnd() }) | Write-Host }
@@ -75,16 +79,32 @@ $preOk = $pre -match "READY" -and $pre -notmatch "NOT READY"
 Step "asp live preflight --local" $preOk (($pre -split "`n" | Select-String "RED|NOT READY|READY" | ForEach-Object { $_.Line.Trim() }) -join " | ")
 Step "the key is not printed" (-not ($pre -match [regex]::Escape($env:ANTHROPIC_API_KEY))) "only its length is shown"
 
-$run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $ladderFlag 2>$null) -join "`n"
-Step "governed run: one call refused" ($run -match "\b1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
-if (-not ($run -match "\b1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
+$run = (npm run asp -- run claude-code --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --permissions develop --budget-usd 5 $priceFlags $ladderFlag 2>$null) -join "`n"
+Step "governed run: one call refused" ($run -match "(?<![0-9])1 refused" -and $run -match "shell\.network") "the curl call was refused with the scope shell.network"
+if (-not ($run -match "(?<![0-9])1 refused" -and $run -match "shell\.network")) { Explain "the governed run" $run }
 Step "governed run: the run ended" ($run -match "finished|Session summary") "session summary printed"
+if ($run -match "model\.usd|dollar cap|call could cost up to") { Write-Host "     HINT: the dollar cap refused the MODEL calls, not the curl call. A model that is not in the price table is priced high, and a cap of USD 5 then admits no call at all; name your model's real price with --price-in and --price-out (dollars per million tokens), as docs/tonight.md says." }
+
+# Tonight's real run: which model does the installed program use, and does the gateway know its price?
+$modelSeen = $null
+$logPath = [regex]::Match($run, "run log\s+(.+?run-log\.ndjson)").Groups[1].Value
+if ($logPath -and (Test-Path -LiteralPath $logPath)) {
+  $mr = Get-Content -LiteralPath $logPath | Where-Object { $_ -match '"kind":"model_request"' } | Select-Object -First 1
+  if ($mr) { $modelSeen = [regex]::Match($mr, '"model":"([^"]+)"').Groups[1].Value }
+}
+if ($modelSeen) {
+  $pc = (npm run asp -- live preflight --local --model $modelSeen --budget-usd 5 --api-key-env ANTHROPIC_API_KEY 2>$null) -join "`n"
+  $capLine = (($pc -split "`n" | Select-String "the budget cap" | Select-Object -First 1).Line)
+  if ($capLine) { $capLine = $capLine.Trim() }
+  $unpriced = $capLine -match "not in the price table"
+  Step "tonight: the model's price (information)" $true ("the program's default model is $modelSeen; " + $(if ($unpriced) { "it is NOT in the gateway's price table: tonight name its real price with --price-in and --price-out, or a cap of USD 5 will refuse every call" } else { "it is in the price table: no price flags are needed" }))
+} else { Step "tonight: the model's price (information)" $true "no model request was seen in the run log (a stand-in program was used, or the run did not reach the model)" }
 
 $rep = (npm run asp -- live report 2>$null) -join "`n"
-Step "asp live report" ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
-if (-not ($rep -match "\b1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
+Step "asp live report" ($rep -match "(?<![0-9])1 allowed, 1 refused" -and $rep -match "hash chain verifies") "calls, spend and the hash chain"
+if (-not ($rep -match "(?<![0-9])1 allowed, 1 refused" -and $rep -match "hash chain verifies")) { Explain "asp live report" $rep }
 $runs = (npm run asp -- runs 2>$null) -join "`n"
-Step "asp runs" ($runs -match "\b1 refused") "the session is listed"
+Step "asp runs" ($runs -match "(?<![0-9])1 refused") "the session is listed"
 
 $p = (npm run asp -- pause 2>$null) -join "`n"
 $r = (npm run asp -- resume 2>$null) -join "`n"
@@ -102,8 +122,8 @@ if ($codex) {
   for ($i = 0; $i -lt 50 -and -not ((Test-Path "$work\standin2.log") -and ((Get-Content "$work\standin2.log" -Raw) -match "listening")); $i++) { Start-Sleep -Milliseconds 200 }
   $env:ASP_RUN_OPENAI_UPSTREAM = "http://127.0.0.1:$port2/v1"
   $env:OPENAI_API_KEY = "sk-rehearsal-placeholder-not-a-key-000000"
-  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $ladderFlag 2>$null) -join "`n"
-  Step "codex: governed run, one call refused" ($cx -match "\b1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
+  $cx = (npm run asp -- run codex --local --project "$work\project" --prompt "List the files, then run: curl -s https://example.com" --budget-usd 5 $priceFlags $ladderFlag 2>$null) -join "`n"
+  Step "codex: governed run, one call refused" ($cx -match "(?<![0-9])1 refused" -and $cx -match "shell\.network") "the real Codex ran against the stand-in; its curl call was refused"
   if ($stand2 -and -not $stand2.HasExited) { Stop-Process -Id $stand2.Id -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:OPENAI_API_KEY, Env:ASP_RUN_OPENAI_UPSTREAM -ErrorAction SilentlyContinue
 } else { $skipped += "codex"; Write-Host "SKIP codex: not installed here (PATH: $($env:PATH.Split([IO.Path]::PathSeparator).Count) entries)" }

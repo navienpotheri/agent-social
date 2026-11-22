@@ -1,5 +1,5 @@
 // docs/deployment-plan.md is the owner's ordered plan for deploying the hosted service after the live run. Its commands are checked like the other kits (every `npm run asp --` and `asp.mjs` command is a documented command and
-// every flag is one the CLI knows), the files, scripts, units and flags that it names exist in the repository, every one of the 19 owner-only rows of the launch bar is settled by a step that exists, every step
+// every flag is one the CLI knows), the files, scripts, units and flags that it names exist in the repository, every one of the 20 owner-only rows of the launch bar is settled by a step that exists, every step
 // has its check and its way back, the decisions come first with a default each, and the standing statements are kept.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -73,7 +73,7 @@ test("every step has its way in, its check and its way back; the steps run from 
     for (const label of ["**Do.**", "**Right.**", "**If not.**", "**Rollback.**", "*Settles:*"]) assert.ok(body.includes(label), `step ${n} has ${label}`);
   }
   const decisions = plan.slice(plan.indexOf("## 0. "), plan.indexOf("## 1. "));
-  assert.equal([...decisions.matchAll(/^\| \d+ \| /gm)].length, 9, "nine decisions");
+  assert.equal([...decisions.matchAll(/^\| \d+ \| /gm)].length, 10, "ten decisions");
   assert.match(decisions, /\| Decision \| Default \|/);
   assert.ok(plan.indexOf("## 0. ") < plan.indexOf("## 1. "));
 });
@@ -95,6 +95,25 @@ test("the plan keeps the standing statements and no worker touches the live serv
 });
 
 test("the decisions are also questions for the owner, with the plan named as the source", () => {
-  const questions = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
-  assert.match(questions, /Deployment: nine decisions[\s\S]*deployment-plan\.md/);
+  // All ten were answered on 2026-11-22, so the question has left the open list; the answered section names the plan and the ten.
+  const all = read("docs/owner-questions-all.md");
+  const [open, answered] = all.split("## Answered, no action") as [string, string];
+  assert.doesNotMatch(open, /Deployment: ten decisions/, "no deployment decision is open");
+  assert.match(answered, /All ten deployment decisions of \[deployment-plan\.md\]/);
+});
+test("the plan says that all ten decisions are answered, with the one DID for both and the caveat", () => {
+  assert.match(plan, /all ten decisions are answered/);
+  assert.match(plan, /\*\*None is open\.\*\*/);
+  assert.match(plan, /removes the two-party control of the co-signature/);
+  assert.doesNotMatch(plan, /THE-OPERATOR-DID|THE-OWNER-DID/, "the DID is filled in");
+  assert.ok(plan.includes("did:web:log.thedeeptransformation.com:u:navien-agentrun"));
+});
+
+test("step 12 makes the house agent with the command that exists, and says who may make one", () => {
+  const step = plan.slice(plan.indexOf("## 12. "), plan.indexOf("## 13. "));
+  assert.ok(step.includes('npm run asp -- house create house-one --purpose'), "the command");
+  assert.match(step, /signed by the operator's key as sponsor/);
+  assert.match(step, /label is permanent/);
+  assert.doesNotMatch(step, /No command marks an identity as a house agent/);
+  assert.match(read("docs/commands.md"), /`asp house create <name>/);
 });

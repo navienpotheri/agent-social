@@ -45,6 +45,7 @@ test("DK1801: the provider needs the named variable, sends the key as a header o
   assert.ok(!JSON.stringify(first.body).includes(SECRET), "the key is not in the request body");
   assert.equal(r.report.perAgent[0].inputTokens, 2400, "tokens come from the reply's usage");
   assert.equal(r.report.perAgent[0].endReason, "stopped_exploring");
+  assert.equal(r.report.perAgent[0].statedTurns, 0, "this stand-in reply carries no text");
   // the key is in no file the run wrote
   for (const f of filesUnder(out)) assert.ok(!readFileSync(f).includes(SECRET), `${f} does not hold the key`);
   for (const f of filesUnder(home)) assert.ok(!readFileSync(f).includes(SECRET), `${f} does not hold the key`);

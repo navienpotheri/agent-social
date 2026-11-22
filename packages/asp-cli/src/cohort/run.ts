@@ -93,6 +93,9 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
       trace({ t: "agent", at: stamp(), agent: a.id, did: a.did, handle: a.handle, ...(persona ? { persona: persona.slice(0, 80) } : {}) });
     }
     bridge = await SignedTrace.open({ log: world.log, tools: TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
+    // The Market: each agent keeps the passport and sponsor the signed trace gave it, and gets mock credits and a standing Mandate to spend at the Market.
+    for (const a of agents) await world.api.market?.adopt(a, bridge.sponsorOf(a.id)!);
+    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "start", balance: (await world.api.market?.balance(a)) ?? 0 });
     o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
     let engineAbort: AbortController | undefined;
     const watcher = setInterval(() => { if (stopRequested()) engineAbort?.abort(); }, 250);
@@ -149,6 +152,7 @@ ${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like."
         await runAgent({ agent: a, provider: o.provider!, world: world.api, caps, shared, trace, stopRequested, now });
       }));
     } finally { clearInterval(watcher); }
+    for (const a of agents) trace({ t: "credits", at: stamp(), agent: a.id, when: "end", balance: (await world.api.market?.balance(a)) ?? 0 });
     signed = await bridge.close();
     logPart = await logReport(world.log, signed);
   } finally {

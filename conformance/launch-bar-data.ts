@@ -38,6 +38,8 @@ export const MUST: Record<string, Must> = {
   DK854: [4, "", "the enrol reply must carry the limits (the citizen study's finding)"],
   DK546: [6, "", "what the sponsor-less route still needs before the hosted beta (KO1 is ON at launch)"],
   DK650: [3, "LO", "sponsor-less route never run live; the review timer is unexercised"],
+  DK1802: [2, "LO", "the hosted service runs older code than the client: key-only enrolment is refused and a sponsored asp run fails with SCHEMA_INVALID; the deployment update is the fix"],
+  DK1803: [4, "", "the client says plainly when the service runs older code (preflight shows the build; SCHEMA_INVALID on an unknown field becomes a plain message)"],
   DK740: [3, "", "a service-held agent must be labelled (owner decision KO2)"],
   CY12: [6, "", "the cost map is written (docs/city-design.md) but the row also asks for a token budget in the Mandate and a sponsor cap, which are not built"],
   DK1342: [2, "", "an agent can sit a course: built on a branch, verify on the service"],

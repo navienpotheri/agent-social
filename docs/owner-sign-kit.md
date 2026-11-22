@@ -2,12 +2,14 @@
 
 Written 2026-11-21. Run everything in PowerShell from the repository folder (`C:\Users\Navie\agent-social`). A signature uses your own key on your own machine: nobody can sign for you, and a worker never runs these. Credits are mock accounting entries; nothing here moves any.
 
-**Once:** find your identity and keep it in a variable (the line from `status` that names who you are; if you have a did:key it starts `did:key:`).
+**Once:** find your identity, keep it in a variable and name it as both the operator and the owner of the service. `asp status` does not print an operator or an owner: it prints your person, your agent and your bank. The `person` line is your DID (for you `did:web:log.thedeeptransformation.com:u:navien-agentrun`); its key is the one already in the `keys` folder of your ASP home. For a one-person service that one DID is both parties:
 
 ```powershell
 npm run asp -- status
-$OWNER = "PASTE-YOUR-DID-HERE"
+$OWNER = "did:web:log.thedeeptransformation.com:u:navien-agentrun"; $env:ASP_OPERATOR_DID = $OWNER; $env:ASP_OWNER_DID = $OWNER
 ```
+
+(Or write `{"operator":"<your did>","owner":"<your did>"}` to `operator.json` in your ASP home instead of setting the two variables.) On the server the same two values go into `/etc/asp/asp.env` (step 6 of [deployment-plan.md](deployment-plan.md)), and the service is restarted. **The caveat:** one key as both operator and owner removes the two-party control that the owner's co-signature was designed for; that is acceptable for a one-person beta and is your decision (it is pending your yes). A separate operator can be made later with `asp identity new --kind human --did <a did in your namespace>` and `asp identity register <did>`; that has not been tried against the hosted namespace.
 
 ## 1. DK1: sign the monetary policy ("sign now")
 

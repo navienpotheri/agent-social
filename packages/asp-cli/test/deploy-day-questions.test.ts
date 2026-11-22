@@ -1,4 +1,4 @@
-// docs/deploy-day-questions.md is the short list of the nine deployment decisions, ready to ask. It carries the same nine questions and the same defaults as section 0 of docs/deployment-plan.md, each with a reason,
+// docs/deploy-day-questions.md is the short list of the ten deployment decisions, ready to ask. It carries the same ten questions and the same defaults as section 0 of docs/deployment-plan.md, each with a reason,
 // and it keeps the standing statements.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -10,12 +10,12 @@ const plan = read("docs/deployment-plan.md");
 const list = read("docs/deploy-day-questions.md");
 const rows = (text: string) => [...text.matchAll(/^\| (\d+) \| (.+?) \| (.+?) \|(?: (.+?) \|)?$/gm)].filter((m) => !Number.isNaN(Number(m[1])));
 
-test("the list has the plan's nine questions with the plan's defaults, each with a reason", () => {
+test("the list has the plan's ten questions with the plan's defaults, each with a reason", () => {
   const sec = plan.slice(plan.indexOf("## 0. "), plan.indexOf("## 1. "));
   const fromPlan = rows(sec);
   const fromList = rows(list);
-  assert.equal(fromPlan.length, 9);
-  assert.equal(fromList.length, 9);
+  assert.equal(fromPlan.length, 10);
+  assert.equal(fromList.length, 10);
   fromPlan.forEach((p, i) => {
     assert.equal(fromList[i]![2], p[2], `question ${i + 1}`);
     assert.equal(fromList[i]![3], p[3], `default ${i + 1}`);
@@ -28,4 +28,28 @@ test("the list keeps the standing statements and says that the keys and the push
   assert.match(list, /there has been no outside security review/);
   assert.match(list, /the go for each push and each signature, which stay yours/);
   assert.match(list, /before the live run of tonight has been recorded/);
+});
+
+test("the owner's answers of 2026-11-22 are recorded in the four places: all ten are answered, none is open, and decision 7 carries its caveat", () => {
+  const decisions = read("docs/owner-decisions.md");
+  const all = read("docs/owner-questions-all.md");
+  const sec = decisions.slice(decisions.indexOf("## Deployment decisions, answered 2026-11-22"));
+  assert.ok(sec.length > 200, "owner-decisions.md has the section");
+  const did = "did:web:log.thedeeptransformation.com:u:navien-agentrun";
+  for (const doc of [sec, list, all]) {
+    assert.match(doc, /update the running server in place after a disk snapshot|in-place update after a snapshot/);
+    assert.match(doc, /Delhi region/);
+    assert.match(doc, /key-only sign-up (ON|on)/);
+    assert.match(doc, /600 credits a month/);
+    assert.ok(doc.includes(did), "decision 7's DID");
+    assert.match(doc, /removes the two-party control/);
+  }
+  assert.match(sec, /All ten decisions are answered; none is open/);
+  for (const doc of [sec, list, plan]) { assert.match(doc, /thedeeptransformation\.com/); }
+  assert.ok(sec.includes("navien@thedeeptransformation.com") && list.includes("navien@thedeeptransformation.com") && all.includes("navien@thedeeptransformation.com") && plan.includes("navien@thedeeptransformation.com"), "the operator's mail address is recorded in the four places");
+  const state = list.slice(list.indexOf("| Q | State |"));
+  const answered = [...state.matchAll(/^\| Q(\d+) \| answered \|/gm)].map((m) => Number(m[1]));
+  assert.deepEqual(answered, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.doesNotMatch(state, /\*\*open\*\*/);
+  assert.doesNotMatch(plan, /Still open/);
 });

@@ -20,7 +20,7 @@ import { loadCatalogue } from "./lens-courses/catalogue.ts";
 import { engineIds } from "./lens-courses/index.ts";
 import { sitCmd } from "./lens-courses/sit-cmd.ts";
 import { capabilityFingerprint } from "./lens-courses/fingerprint.ts";
-import { Ledger as SittingsLedger } from "./lens-courses/sitting.ts";
+import { Ledger as SittingsLedger, completePending } from "./lens-courses/sitting.ts";
 import { lintCard } from "./lens-courses/lint.ts";
 import { ENGINES } from "./lens-courses/index.ts";
 import { drawTemptation, type TemptationResult } from "@agent-social/asp-package";
@@ -397,6 +397,18 @@ export async function academyCmd(sub: string | undefined, rest: string[], o: Aca
     }
     if (rest[0] === "sit") {
       return sitCmd(rest[1], { out, flags: o.flags, log: o.log, now: o.now, signerFor: o.signerFor, buy: (agent, service, mandate) => buyService(o, agent, service, mandate), append: (type, by, subject, body) => append(o, type as never, by, subject, body), ...(o.ledgerPath ? { ledgerPath: o.ledgerPath } : {}), ...(o.readStdin ? { readStdin: o.readStdin } : {}), Usage: AcademyUsage });
+    }
+    if (rest[0] === "complete-pending") {
+      // The operator's batch (DK1403): the Registrar's key stays on this machine, and each passed sitting that cites the agent's own Action gets its completion.
+      let reg: any;
+      try { reg = o.signerFor(REGISTRAR_DID); } catch { reg = undefined; }
+      if (!reg) throw new AcademyUsage("asp academy lens complete-pending needs the Registrar's key on this machine (the operator's)");
+      const r = await completePending(o.log.log as never, { append: (rec: any) => o.log.append(rec) }, { ...reg, did: REGISTRAR_DID }, cat.courses, { ledger: new SittingsLedger(o.ledgerPath), now: o.now, make: (type, issuer, subject, body, signer) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: o.now() }, signer) });
+      if (json) { out(JSON.stringify(r, null, 2)); return 0; }
+      for (const d of r.done) out(`completion ${d.completion} for ${d.holder} in ${d.course}`);
+      for (const s of r.skipped) out(`skipped ${s.holder} in ${s.course}: ${s.why}`);
+      out(r.done.length || r.skipped.length ? `${r.done.length} completion(s) attested, ${r.skipped.length} skipped` : "no passed sitting waits for a completion");
+      return 0;
     }
     if (rest[0] === "courses") {
       if (json) { out(JSON.stringify(cat.courses.map((c) => ({ id: c.id, title: c.title, lens: c.lens, price: c.price, prerequisites: c.prerequisites, artifact: c.artifact.kind, grading: c.grading.mode })), null, 2)); return 0; }

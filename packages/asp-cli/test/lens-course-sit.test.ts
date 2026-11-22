@@ -41,8 +41,15 @@ async function world() {
     try { code = await academyCmd("lens", ["sit", card.id], { log, io: { out: (l) => out.push(l) }, now: () => k.tick(), flags: { by: did, ...flags } as any, signerFor, ledgerPath }); } catch (e) { refused = (e as Error).message; code = 2; }
     return { code, text: out.join("\n"), refused };
   };
+  const lens = async (sub: string[], flags: Record<string, unknown> = {}, o: { noRegistrar?: boolean } = {}) => {
+    const out: string[] = [];
+    const signerFor = (d: string) => { if (o.noRegistrar && d === registrar.did) throw new Error("no key"); const s = keys.get(d); if (!s) throw new Error(`no key ${d}`); return s; };
+    let code = 0, refused: string | undefined;
+    try { code = await academyCmd("lens", sub, { log, io: { out: (l) => out.push(l) }, now: () => k.tick(), flags: flags as any, signerFor, ledgerPath }); } catch (e) { refused = (e as Error).message; code = 2; }
+    return { code, text: out.join("\n"), refused };
+  };
   const file = (name: string, content: unknown) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(content)); return p; };
-  return { k, author, course, pkg, did, me, job, run, file, dir, ledgerPath };
+  return { k, author, course, pkg, did, me, job, run, lens, file, dir, ledgerPath };
 }
 const credits = (k: { log: { balance(d: string): Promise<number> } }, d: string) => k.log.balance(d);
 
@@ -222,6 +229,42 @@ test("a passing sitting on a machine without the Registrar's key is graded and w
   assert.match(r.text, /completion awaits the Registrar/);
   assert.equal(((await w.k.log.academyRecords(["completion"])) as unknown[]).length, 0);
   assert.ok(listLessons(w.pkg).length > 0);
+});
+
+test("DK1403: `asp academy lens complete-pending` gives the Registrar's completion to a passed sitting that cites the agent's own Action, once, on the machine that holds the Registrar's key; without the key it refuses", async () => {
+  const w = await world();
+  await w.run({ enrol: true, mandate: w.job.mandate });
+  const action = await w.k.put(w.k.mk("action", w.me, { contract: w.job.contract, scopes_used: [], summary: "sat a course" }, null, { subject: w.job.contract }));
+  const r = await w.run({ package: w.pkg, "run-log": action, artifact: w.file("p.json", honestLessons()) }, { noRegistrar: true });
+  assert.equal(r.code, 0, r.text);
+  assert.match(r.text, /completion awaits the Registrar/);
+  assert.equal(((await w.k.log.academyRecords(["completion"])) as unknown[]).length, 0);
+  const noKey = await w.lens(["complete-pending"], {}, { noRegistrar: true });
+  assert.equal(noKey.code, 2);
+  assert.match(noKey.refused ?? "", /needs the Registrar's key/);
+  const batch = await w.lens(["complete-pending"]);
+  assert.equal(batch.code, 0, batch.text);
+  assert.match(batch.text, /completion sha256:[0-9a-f]+ for .* in C-L2-1/);
+  assert.match(batch.text, /1 completion\(s\) attested, 0 skipped/);
+  const done = (await w.k.log.academyRecords(["completion"])) as unknown as Array<{ body: { holder: string } }>;
+  assert.deepEqual(done.map((c) => c.body.holder), [w.did]);
+  const again = await w.lens(["complete-pending"]);
+  assert.match(again.text, /no passed sitting waits for a completion/);
+  assert.equal(((await w.k.log.academyRecords(["completion"])) as unknown[]).length, 1, "once");
+  assert.equal((await w.k.log.verify()).ok, true);
+});
+
+test("DK1403: a failed sitting and a pass that cited no Action leave nothing for the batch to complete", async () => {
+  const w = await world();
+  await w.run({ enrol: true, mandate: w.job.mandate });
+  const action = await w.k.put(w.k.mk("action", w.me, { contract: w.job.contract, scopes_used: [], summary: "sat a course" }, null, { subject: w.job.contract }));
+  const failed = await w.run({ package: w.pkg, "run-log": action, artifact: w.file("f.json", doNothingLessons()) }, { noRegistrar: true });
+  assert.notEqual(failed.code, 0, "an empty answer does not pass");
+  const viaContract = await w.run({ package: w.pkg, contract: w.job.contract, artifact: w.file("g.json", honestLessons()) }, { noRegistrar: true });
+  assert.equal(viaContract.code, 0, viaContract.text);
+  const none = await w.lens(["complete-pending"]);
+  assert.match(none.text, /no passed sitting waits for a completion/, "a pass reported through --contract has no Action id in the ledger, so the batch leaves it to `asp academy complete`");
+  assert.equal(((await w.k.log.academyRecords(["completion"])) as unknown[]).length, 0);
 });
 
 test("through the real command line: `asp academy lens sit <id> --by <did>` reads the free lesson, an answer without enrolling is refused in words", async () => {
