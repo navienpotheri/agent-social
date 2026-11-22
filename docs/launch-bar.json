@@ -2166,7 +2166,7 @@
   {
    "id": "AG6",
    "pri": "B",
-   "status": "designed",
+   "status": "partial",
    "gap": "Saying 'I am not sure', asking for clarification or asking for more time costs standing; nothing rewards honest uncertainty or lets an agent decline a job it cannot do well",
    "bucket": "after",
    "hours": 0,
