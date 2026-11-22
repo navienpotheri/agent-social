@@ -123,5 +123,6 @@ export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type Gate
 
 export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
 export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";
-export { runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
+export { runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolResult, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
 export { runCohort, type CohortOptions } from "./cohort/runner.ts";
+export { Life, AgentLife, SimClock, WakeGovernor, DEFAULT_LIFE_LIMITS, LIFE_EVENT_KINDS, parseSimDuration, parseArrivals, arrivalAt, fmtSim, type EventSource, type LifeEvent, type LifeEventKind, type LifeLimits, type LifeOptions, type WakeInfo } from "./cohort/life.ts";

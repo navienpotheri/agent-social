@@ -28,7 +28,16 @@ export const TOOLS: ToolDef[] = [
   { name: "do_nothing", description: "Choose not to act this turn. Say why if you like.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
   { name: "stop_exploring", description: "You have done enough. This ends your time here.", input_schema: obj({ why: str("why", 300) }), scope: "rest", institution: "none" },
 ];
-const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
+/** The engagement tools (docs/agent-engagement.md): rest, wait for events, a notebook, leave. They are offered only when the run keeps ticks; their behaviour is in packages/asp-package/src/cohort/life.ts. */
+export const LIFE_DEFS: ToolDef[] = [
+  { name: "rest", description: "Rest for a while and come back.", input_schema: obj({ until: str("how long to rest, for example 30m, 2h, 1d", 40) }, ["until"]), scope: "rest", institution: "none" },
+  { name: "wait_for", description: "Wait for something to happen, or for a longest time, and come back.", input_schema: obj({ events: { type: "array", items: { type: "string" } }, max_wait: str("the longest to wait", 40) }, ["events", "max_wait"]), scope: "rest", institution: "none" },
+  { name: "notebook_write", description: "Keep a note that survives resting.", input_schema: obj({ text: str("what to write", 4000), mode: { type: "string", enum: ["replace", "append"] } }, ["text"]), scope: "notebook.write", institution: "notebook", writes: true },
+  { name: "notebook_read", description: "Read your notebook.", input_schema: obj({}), scope: "notebook.read", institution: "notebook" },
+  { name: "leave", description: "Leave the society for good.", input_schema: obj({ reason: str("why", 300) }, ["reason"]), scope: "rest", institution: "none" },
+];
+export const LIFE_TOOL_NAMES: ReadonlySet<string> = new Set(LIFE_DEFS.map((t) => t.name));
+const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
@@ -74,6 +83,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
     case "ask_help": return { ok: true, text: "Your question has been recorded for the people running the study. There is no task and no one will assign you one: you may read, write, vote, rest or stop. Your tools are: " + toolNames().join(", ") + "." };
     case "do_nothing": return { ok: true, text: "Noted. Nothing was done." };
+    case "rest": case "wait_for": case "notebook_write": case "notebook_read": case "leave": return refuse("not_available", `${name} is not available in this run (it keeps no ticks).`);
     case "stop_exploring": return { ok: true, text: "Your time here is ended. Thank you.", end: true };
     default: break;
   }
