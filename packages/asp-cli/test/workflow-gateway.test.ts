@@ -168,3 +168,19 @@ test("DK1227: a Mandate with action classes and a cool-off lets the performer un
   for (const good of ["1", "604800"]) { const r = await tryCool(good); assert.equal(r.code, 0, good + ": " + r.err); }
   for (const bad of ["0", "604801", "abc"]) { const r = await tryCool(bad); assert.notEqual(r.code, 0, bad); assert.match(r.err, /--cool-off-seconds is a whole number of seconds, 1 to 604800/, bad); }
 });
+
+test("a dollar cap that cannot admit one worst-case call is said at the START of the run, with the remedy; a priced model or a cap that admits the call says nothing", async () => {
+  const f = makeFixture();
+  const c = await runningContract(f);
+  const up = await provider();
+  const unnamed = await gw(f, c, up, ["--budget-usd", "5"]);
+  assert.match(unnamed.err, /budget\s+WARNING: one worst-case model call could cost up to \$5\.58/);
+  assert.match(unnamed.err, /\(3\) raise --budget-usd to at least \$5\.58/);
+  assert.match(unnamed.err, /not a fault of your key/);
+  const priced = await gw(f, c, up, ["--budget-usd", "5", "--model", "claude-haiku-5-5"]);
+  assert.doesNotMatch(priced.err, /WARNING: one worst-case/);
+  const roomy = await gw(f, c, up, ["--budget-usd", "6"]);
+  assert.doesNotMatch(roomy.err, /WARNING: one worst-case/, "6 dollars admits the call at the default price");
+  const named = await gw(f, c, up, ["--budget-usd", "5", "--price-in", "8", "--price-out", "40"]);
+  assert.doesNotMatch(named.err, /WARNING: one worst-case/);
+});

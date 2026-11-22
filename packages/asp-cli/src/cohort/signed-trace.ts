@@ -20,7 +20,7 @@ export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8
 /** What a cohort engine tells the bridge about one tool call. */
 export interface ToolObservation {
   agent: string; at: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean;
-  /** The rule that refused the call: `tool_not_in_set`, `scope_not_granted` and `bad_input` are the tool set's and the Mandate's own refusals; any other is a refusal by the society's service. */
+  /** The rule that refused the call: `tool_not_in_set`, `scope_not_granted`, `bad_input` and `gateway` (the per-agent gateway's own refusal) are the tool set's and the Mandate's own refusals; any other is a refusal by the society's service. */
   refused?: string;
   scope: string; institution: string; writes?: boolean;
   /** The post or comment an act answers, and the author of it (a did), for the interaction graph. */
@@ -28,7 +28,7 @@ export interface ToolObservation {
 }
 
 /** The refusals the tool set and the Mandate make themselves (as opposed to the society's service). */
-export const MANDATE_REFUSALS: ReadonlySet<string> = new Set(["tool_not_in_set", "scope_not_granted", "bad_input"]);
+export const MANDATE_REFUSALS: ReadonlySet<string> = new Set(["tool_not_in_set", "scope_not_granted", "bad_input", "gateway"]);
 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "unnamed";
 /** The scope a tool is granted under in the cohort's Mandate. */

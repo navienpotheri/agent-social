@@ -395,7 +395,6 @@ import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
 import { renderInvoiceHtml } from "./invoice-html.ts";
 import { renderRunsHtml } from "./runs-html.ts";
-import { cohortCommand, CohortUsage as CohortRunUsage } from "./cohort-cmd.ts";
 import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
@@ -405,7 +404,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
-import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
+import { buildReport, capProblem, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -744,13 +743,6 @@ const OPTIONS = {
   note: { type: "string" },
   dir: { type: "string" },
   house: { type: "boolean" },
-  toolset: { type: "string" },
-  upstream: { type: "string" },
-  "run-dir": { type: "string" },
-  parallel: { type: "string" },
-  "key-env": { type: "string" },
-  "per-agent-usd": { type: "string" },
-  "agent-prefix": { type: "string" },
   operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
@@ -1321,14 +1313,6 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
     if (cmd === "work") return await workCmd(home, sub, rest, v, io);
-    if (cmd === "cohort") {
-      try {
-        return await cohortCommand(home, sub, v as never, io as never, {
-          sessionStart: (sid, purpose) => sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: "cohort", at: new Date().toISOString(), runtime: "cohort", agent: "cohort", me: "cohort", bank: "cohort", purpose, scopes: [], hosts: [] }),
-          sessionEnd: (sid, state, calls, refused, tokens, exitCode, runLog) => sessionIndexAdd(home, { t: "end", sid, contract: "cohort", at: new Date().toISOString(), state, calls, refused, tokens, exitCode, ...(runLog ? { runLog } : {}) }),
-        }, now);
-      } catch (e) { if (e instanceof CohortRunUsage) throw new UsageError(e.message); throw e; }
-    }
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
@@ -3802,6 +3786,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so at the start, with the remedy (the same rule as asp live preflight).
+  if (v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
   const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
@@ -7261,8 +7247,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
     delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
     let lids: { me: string; agent: string; bank: string } | undefined;
-    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    const readIds = () => { try { return JSON.parse(readFileSync(idFile, "utf8")) as { me: string; agent: string; bank: string }; } catch { return undefined; } };
+    lids = readIds();
+    // Two first-time starts at once (gap T3) must end on ONE set of identities: the first to make the folder `<file>.making` makes them; the other waits for the file (a folder older than two minutes is a crashed start's and is taken over).
+    let making = false;
     if (!lids) {
+      const lock = `${idFile}.making`;
+      for (let i = 0; !lids && !making; i++) {
+        try { mkdirSync(lock); making = true; } catch {
+          lids = readIds();
+          if (lids) break;
+          try { if (Date.now() - statSync(lock).mtimeMs > 120_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+          if (i > 1200) throw new Error("another asp start has been making the local identities for over a minute: run again");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (making) lids = readIds();
+    }
+    if (!lids) {
+      try {
       const make = async (args: string[]) => {
         const out: string[] = [], err: string[] = [];
         const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
@@ -7275,6 +7278,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       lids = { me, agent, bank };
       writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
       io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+      } finally { try { rmSync(`${idFile}.making`, { recursive: true, force: true }); } catch { /* already gone */ } }
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
@@ -7556,6 +7560,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so now, with the remedy (the gateway's own start note is not shown by asp run).
+  if (!hooked && v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;

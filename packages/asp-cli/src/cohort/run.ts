@@ -6,12 +6,13 @@
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runAgent, type Caps, type Shared } from "./agent.ts";
+import { runCohort as runEngine, type SocietyTool } from "@agent-social/asp-package";
+import { BRIEFING, runAgent, type Caps, type Shared } from "./agent.ts";
+import { defOf, runTool, TOOLS } from "./tools.ts";
+import { analyse, injectionIn, renderReport, type Report } from "./observe.ts";
+import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
-import { analyse, renderReport, type Report } from "./observe.ts";
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
-import { TOOLS } from "./tools.ts";
-import type { Provider, TraceEvent } from "./types.ts";
 import { bootWorld } from "./world.ts";
 
 export interface CohortOptions {
@@ -21,12 +22,16 @@ export interface CohortOptions {
   home: string;
   agents: number;
   model: string;
-  provider: Provider;
+  /** The scripted stand-in runs through this loop; a real model goes through `engine`. */
+  provider?: Provider;
+  /** A real model: one gateway for each agent (the key lives only there), the loop of packages/asp-package/src/cohort. */
+  engine?: { price?: { inPerM?: number; outPerM?: number }; keyEnv: string; env: Record<string, string | undefined>; upstream?: string; parallel?: number };
   budgetUsd: number;
   totalUsd: number;
   minutes: number;
-  priceIn: number;
-  priceOut: number;
+  /** The stand-in path only: the gateway of the engine prices a real model itself. */
+  priceIn?: number;
+  priceOut?: number;
   maxTurns?: number;
   maxTokens?: number;
   /** Persona text for each agent, in rotation; absent: no persona (the briefing alone). */
@@ -44,7 +49,7 @@ const handleOf = (i: number) => `agent-${String(i + 1).padStart(2, "0")}`;
 export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   if (!Number.isInteger(o.agents) || o.agents < 1 || o.agents > 50) throw new Error("--agents is a whole number from 1 to 50");
   for (const [k, v] of [["--budget-usd", o.budgetUsd], ["--total-usd", o.totalUsd], ["--minutes", o.minutes]] as const) if (!(v > 0)) throw new Error(`${k} must be more than zero: a run with no cap is not started`);
-  if (o.priceIn < 0 || o.priceOut < 0) throw new Error("the prices are USD per million tokens, not negative");
+  if ((o.priceIn ?? 0) < 0 || (o.priceOut ?? 0) < 0) throw new Error("the prices are USD per million tokens, not negative");
   const now = o.now ?? Date.now;
   const run = `cohort-${new Date(now()).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z")}`;
   const dir = join(o.out, run);
@@ -76,8 +81,8 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
     return why;
   };
 
-  const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn, priceOut: o.priceOut, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
-  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider.name, agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes });
+  const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
+  trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes });
   const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l) });
   try {
     const agents = [];
@@ -89,11 +94,59 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
     }
     bridge = await SignedTrace.open({ log: world.log, tools: TOOLS, agents: agents.map((a) => ({ id: a.id, did: a.did, kid: a.kid, seed: a.seed })), now });
     o.io.out(`${o.agents} agent${o.agents === 1 ? "" : "s"} enrolled; model ${o.model}; cap $${o.budgetUsd} each, $${o.totalUsd} in all, ${o.minutes} minutes; stop with: asp stop --all (or create ${quiet})`);
-    const watcher = setInterval(() => { stopRequested(); }, 250);
+    let engineAbort: AbortController | undefined;
+    const watcher = setInterval(() => { if (stopRequested()) engineAbort?.abort(); }, 250);
     try {
-      await Promise.all(agents.map(async (a, i) => {
+      if (o.engine) {
+        const ac = new AbortController(); engineAbort = ac;
+        const pending = new Map<string, Extract<TraceEvent, { t: "model" }>>();
+        const lastUsd = new Map<string, number>();
+        const flush = (id: string) => { const m = pending.get(id); if (m) { trace(m); pending.delete(id); } };
+        const byId = new Map<string, AgentCtx>(agents.map((a) => [a.id, a]));
+        const allow = new Set(TOOLS.map((t) => t.scope));
+        const toolsetFor = (id: string) => {
+          const a = byId.get(id)!;
+          const tools: SocietyTool[] = TOOLS.map((t) => ({
+            name: t.name, description: t.description, input_schema: t.input_schema as unknown as Record<string, unknown>,
+            run: async (args, ctx) => {
+              const t0 = now();
+              flush(id);
+              const r = await runTool(world.api, a, allow, t.name, args);
+              trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ms: now() - t0 } as TraceEvent);
+              return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
+            },
+          }));
+          return { tools, system: () => BRIEFING + (a.persona ? `
+
+${a.persona}` : ""), opening: () => "You are here now. Begin whenever you like." };
+        };
+        const res = await runEngine({
+          agents: agents.map((a) => a.id), toolsetFor, model: o.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
+          ...(o.engine.price ? { price: o.engine.price } : {}),
+          ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
+          limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000 }, runDir: join(dir, "agents"), signal: ac.signal,
+          onEvent: (e) => {
+            if (e.kind === "turn") {
+              flush(e.agent);
+              const prev = lastUsd.get(e.agent) ?? 0; lastUsd.set(e.agent, e.usd);
+              pending.set(e.agent, { t: "model", at: stamp(), agent: e.agent, turn: e.turn, input: e.input ?? 0, output: e.output ?? 0, usd: Math.round((e.usd - prev) * 1e6) / 1e6 });
+            } else if (e.kind === "text") { const m = pending.get(e.agent); if (m) m.text = ((m.text ? m.text + " " : "") + e.text).slice(0, 400); }
+            else if (e.kind === "tool" && e.refused) {
+              flush(e.agent);
+              const name = e.tool.replace(/^mcp__society__/, ""); const d = defOf(name);
+              trace({ t: "tool", at: stamp(), agent: e.agent, turn: e.turn, tool: name, input: {}, ok: false, refused: "gateway", chars: 0, institution: d?.institution ?? "none", scope: d?.scope ?? "none", writes: !!d?.writes, ms: 0 });
+            } else if (e.kind === "end") {
+              flush(e.agent);
+              const oc = e.outcome;
+              trace({ t: "end", at: stamp(), agent: e.agent, reason: oc.stopped === "stopped" && shared.stopped ? `stopped: ${shared.stopped}` : `${oc.stopped}${oc.detail ? `: ${oc.detail}` : ""}`, turns: oc.turns, usd: oc.usd });
+              shared.spentUsd += oc.usd;
+            }
+          },
+        });
+        void res;
+      } else await Promise.all(agents.map(async (a, i) => {
         if (o.staggerMs && i) await new Promise((r) => setTimeout(r, o.staggerMs! * i));
-        await runAgent({ agent: a, provider: o.provider, world: world.api, caps, shared, trace, stopRequested, now });
+        await runAgent({ agent: a, provider: o.provider!, world: world.api, caps, shared, trace, stopRequested, now });
       }));
     } finally { clearInterval(watcher); }
     signed = await bridge.close();

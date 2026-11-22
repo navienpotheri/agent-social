@@ -39,3 +39,7 @@ A test that compares the code with its own constants cannot tell `>=` from `>`. 
 | The approval pile: 2 unanswered, 6 refusals, the one notice, the one stop, the environment's positive number rounded down, the unanswered phrase | approval-pile.ts | 11 | 1 survived (the word boundary of the unanswered phrase); killed by `approval-pile-boundary.test.ts` |
 
 Not mutation-checked, with the reason: the key vault (`account.ts`, `home.ts`) hands the seed to an external program and its tests stand on that program's answers, so a mutant there is judged by a real vault, which needs the owner's machine.
+
+## The cap rule of the preflight (2026-11-22, P1 of the first real run)
+
+`capProblem` (packages/asp-cli/src/live-cmd.ts): 9 mutants (the boundary `>` against `>=`, one cent either side, the request size, the reply size, the priced test, the rounding of the figure in the remedy, the wiring into the preflight, the named prices), all killed by `cap-problem.test.ts` (exact: a cap equal to the worst case passes, one cent under is RED).

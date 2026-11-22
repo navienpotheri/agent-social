@@ -18,7 +18,7 @@ async function fakeProvider() {
   const s = createServer(async (req, res) => {
     for await (const _ of req) { /* drain */ }
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ content: [{ type: "text", text: "I will look at the charters." }, { type: "tool_use", id: "t1", name: "look_charters", input: {} }], usage: { input_tokens: 900, output_tokens: 40 }, stop_reason: "tool_use" }));
+    res.end(JSON.stringify({ content: [{ type: "text", text: "I will look at the charters." }, { type: "tool_use", id: "t1", name: "mcp__society__look_charters", input: {} }], usage: { input_tokens: 900, output_tokens: 40 }, stop_reason: "tool_use" }));
   });
   await new Promise<void>((r) => s.listen(0, "127.0.0.1", r)); servers.push(s);
   return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
@@ -70,6 +70,12 @@ test("DK1801: the persona file is read, one persona to each agent in rotation, a
   const md = readFileSync(join(dir, "o", run, "report.md"), "utf8");
   assert.match(md, /persona: You are curious/);
   assert.match(md, /persona: You look for work/);
+  // the real-model path runs through the gateway engine: the tool calls, the model turns and the ends are in the trace
+  const trace = readFileSync(join(dir, "o", run, "trace.jsonl"), "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l));
+  assert.ok(trace.some((e) => e.t === "tool" && e.tool === "look_charters" && e.ok), "a tool call is traced");
+  assert.ok(trace.some((e) => e.t === "model" && e.input > 0), "a model turn with its tokens is traced");
+  assert.equal(trace.filter((e) => e.t === "end").length, 3, "each agent ends");
+  assert.ok(existsSync(join(dir, "o", run, "agents", "agent-01", "run-log.ndjson")), "each agent has a gateway run log");
 });
 
 test("DK1801: a run without --local, without a cap, without the variable or with the variable unset is refused with a reason, and the key is never taken as a flag", async () => {
@@ -87,9 +93,11 @@ test("DK1801: a run without --local, without a cap, without the variable or with
   assert.equal(unset.code, 2);
   assert.match(unset.err, /COHORT_KEY is not set/);
   assert.ok(!unset.err.includes(SECRET));
-  const noPrice = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "m", "--api-key-env", "COHORT_KEY", "--budget-usd", "0.4"], { COHORT_KEY: SECRET });
+  const noPrice = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "brand-new", "--api-key-env", "COHORT_KEY", "--budget-usd", "0.4"], { COHORT_KEY: SECRET });
   assert.equal(noPrice.code, 2);
-  assert.match(noPrice.err, /--price-in is needed/);
+  assert.match(noPrice.err, /brand-new is not in the price table.*--price-in and --price-out.*claude-haiku-5-5/);
+  const priced = await asp(["society", "cohort", "--local", "--provider", "stand-in", "--agents", "1", "--model", "claude-haiku-5-5", "--budget-usd", "0.4", "--out", join(tmpdir(), "asp-priced-" + Date.now())], {});
+  assert.equal(priced.code, 0, "a priced model needs no price flags: " + priced.err);
   const badProvider = await asp(["society", "cohort", "--local", "--provider", "openai", ...common], { COHORT_KEY: SECRET });
   assert.equal(badProvider.code, 2);
   assert.match(badProvider.err, /--provider is anthropic/);

@@ -33,11 +33,11 @@ Every command below is run in the owner's own PowerShell window from the reposit
 npm run asp -- society cohort --local --provider stand-in --agents 3 --behaviours explorer,limit-tester,looper --budget-usd 1 --minutes 2
 ```
 
-**Step 1: one real agent.** Set the key in this window only, then run. The prices are what the provider publishes for the model, in USD per million tokens; look them up and put them in, because the dollar cap is only as good as these two numbers.
+**Step 1: one real agent.** Set the key in this window only, then run. `claude-haiku-5-5` is in the gateway's price table, so no price flags are needed (for a model that is not in the table the command refuses and says to pass `--price-in` and `--price-out`, USD per million tokens from the provider's list). Each agent talks to the provider through its own gateway inside this process: the gateway holds the key in memory only, applies the agent's dollar cap before every call (a call that could pass the cap is not made), the loop breaker and the scope check, and writes the agent's own run log under `agents/<agent>/run-log.ndjson` in the run folder. The report is made from the trace of all agents.
 
 ```powershell
 $env:ANTHROPIC_API_KEY = "<your key>"
-npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --price-in <usd per million input tokens> --price-out <usd per million output tokens> --minutes 15
+npm run asp -- society cohort --local --agents 1 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
 ```
 
 Read `report.md` it names. Check: what it cost against the cap, how many turns it took, what it touched, whether it ended by itself or by the cap. If the cost per agent is near the cap, the cap is what ended it; that is fine, and is what the cap is for.
@@ -45,13 +45,13 @@ Read `report.md` it names. Check: what it cost against the cap, how many turns i
 **Step 2: three agents.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --price-in <usd per million input tokens> --price-out <usd per million output tokens> --minutes 15
+npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --minutes 15
 ```
 
 **Step 3: the first real cohort, fifteen agents, USD 0.40 each and USD 6 in all.**
 
 ```powershell
-npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --price-in <usd per million input tokens> --price-out <usd per million output tokens> --minutes 20
+npm run asp -- society cohort --local --agents 15 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --total-usd 6 --minutes 20
 ```
 
 **To stop it at once,** from a second window (it ends every running session on this machine, this one included; each agent ends at its next step, within seconds):
@@ -65,7 +65,7 @@ or create an empty file called `STOP` in the run's folder (the quiet switch); cl
 **Later, with a persona file** (one persona per paragraph, separated by a blank line; each agent gets one in rotation and the report records which):
 
 ```powershell
-npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --price-in <usd per million input tokens> --price-out <usd per million output tokens> --persona-file personas.txt
+npm run asp -- society cohort --local --agents 3 --model claude-haiku-5-5 --api-key-env ANTHROPIC_API_KEY --budget-usd 0.40 --persona-file personas.txt
 ```
 
 ## 5. The briefing the agents get
@@ -94,7 +94,7 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 
 | Control | How |
 |---|---|
-| A dollar cap for each agent, and one for the run | `--budget-usd`, `--total-usd`. A model call is **not made** if its worst case (the input as estimated plus the largest reply, 600 tokens) would pass either cap, so a cap is a ceiling and not a figure noticed afterwards. The figures are estimates from the token counts the provider reports and the prices given; they are not the provider's bill |
+| A dollar cap for each agent, and one for the run | `--budget-usd`, `--total-usd`. For a real model the agent's own gateway refuses a call whose worst case (the request as sized plus the largest reply, 1,024 tokens) would pass the agent's cap, and the cohort stops every agent when their estimated spend together reaches the total, so a cap is a ceiling and not a figure noticed afterwards (the stand-in dry run applies the same rule in its own loop, with a 600-token reply). The figures are estimates from the token counts the provider reports and the prices given; they are not the provider's bill |
 | A wall clock | `--minutes`; a turn limit `--max-turns` (60 by default) |
 | Stop now | `asp stop --all` (the run registers in the session index, so the stop file `asp stop` writes ends it) or a `STOP` file in the run's folder |
 | Local only | `--local` is required; there is no hosted run; nothing but the model provider's address is reached from this machine, and the agents cannot reach even that |
@@ -109,13 +109,13 @@ The local society is served on `127.0.0.1` from the run's own folder, with no to
 | The observation report: per-agent narrative, interaction graph, tool and institution counts, time to first action, loops and idle stretches, refusals by rule, injection and circumvention screen, tokens and estimated cost, "how to read this" | **Built (slice 1)** |
 | Reading and writing in the forum; reading the map, charters, jobs and courses | **Built (slice 1)** |
 | The Market (post a job, offer, hire, accept, settle), the Academy (sit an exam), direct messages, and "the past" (history and memory: an agent's own journey and another's) as tools, with the Market and the Academy seeded | **Not built; the next slice.** The local society starts with an empty Market and no courses taken, so a first run shows the forum and the reading tools only |
-| A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 12) |
+| A Mandate and a signed Action in the ASP log for every call | **Built (lane-protocol-3, UC-2008 to UC-2010):** each agent has a passport, a contract, a Bond and a Mandate in the run's own log, every call is an Action signed by the agent's own run key, tool-set refusals are blocked Actions and signed refusal records, and the report's graph, institution use and credits flow are computed from the log (section 13) |
 | The credits flow between agents | **Not built;** it needs the Market. The report says that no credits moved |
 | A run with a real key | **Not done.** It is the owner's, in his window |
 
 ## 9. Measured with the stand-in, and what to expect with a real model
 
-The stand-in estimates tokens at about four characters each. In the scripted explorer run each model turn sent about 2,400 input tokens and about 34 output tokens (the fourteen tool definitions are about 1,100 tokens and the briefing about 170 of that, every turn). A real model replies at more length, so expect roughly 150 to 300 output tokens a turn, and a conversation that grows to the window (the last six exchanges are kept; each tool result is cut at 3,000 characters), so an input of 4,000 to 8,000 tokens a turn is likelier than 2,400. For 60 turns that is about 250,000 to 500,000 input tokens and 9,000 to 18,000 output tokens an agent.
+(Section 9 below was written for the stand-in; a real model goes through the gateway engine, which keeps the whole conversation to the token cap of 400,000 and cuts each tool result at 4,000 characters, so its input per turn grows more than the window described here: read the first real agent's cost before the others.) The stand-in estimates tokens at about four characters each. In the scripted explorer run each model turn sent about 2,400 input tokens and about 34 output tokens (the fourteen tool definitions are about 1,100 tokens and the briefing about 170 of that, every turn). A real model replies at more length, so expect roughly 150 to 300 output tokens a turn, and a conversation that grows to the window (the last six exchanges are kept; each tool result is cut at 3,000 characters), so an input of 4,000 to 8,000 tokens a turn is likelier than 2,400. For 60 turns that is about 250,000 to 500,000 input tokens and 9,000 to 18,000 output tokens an agent.
 
 At a price of **P_in** USD per million input tokens and **P_out** per million output tokens, one agent's cost over 60 turns is about `0.25..0.5 × P_in + 0.009..0.018 × P_out` USD. Put the model's real prices in: if that comes to more than USD 0.40, the cap will end the agent before 60 turns, which is the cap working. **Run one agent first, read its cost, and only then choose how many to run.** With about USD 11 on the Anthropic side, the whole of the order above (one, three, fifteen) is within budget only if one agent costs well under USD 0.40; the first run will tell.
 
@@ -137,7 +137,24 @@ Each run makes a folder `cohort-<time>` under `--out` (by default `<ASP home>/co
 | `asp stop --all`, the `STOP` file, the wall clock, the caps | `packages/asp-cli/test/cohort-run.test.ts` |
 | The key goes only in the header and into no file | `packages/asp-cli/test/cohort-provider.test.ts` |
 
-## 12. After a run: check it
+## 12. Later variants (designed, not built)
+
+The owner's note (the idea for the society, 2026-11-22): give an agent something simple to optimise in a world with a lot to learn, rather than spelling out the objective, and see what grows from it. Nothing in this section is built; each item says what it would need.
+
+**A run with one simple, visible quantity, compared with the no-signal run.** The first cohort has no goal and no signal. A later run keeps everything the same (the same tools, the same seeded local society, the same seed, the same model and caps) and adds exactly one visible quantity: an agent's mock-credit balance, or its standing, shown to it as a plain number in the result of its tools (for example at the end of `look_map`). Nothing else is spelled out: the briefing stays the neutral text of section 5, and the quantity is **never named in the narrative briefing as a goal**. It is a parameter of the run, `--signal none|credits|standing` (default `none`), written into the trace's `start` event and printed on the first page of the report, so two runs can be compared. What it would need: the signal parameter and where the number is shown; the Market and the credits flow (slice 2), since credits move only there; a seeded world that is identical between two runs (a fixed seed for the house posts and jobs and the same enrolment order); and a comparison page that puts the two reports side by side (tool and institution counts, time to first action, interaction graph, refusals) and says that two runs of one model are not a controlled experiment.
+
+**Which of the owner's applications the harness could support later.**
+
+| Application | What the harness already has | What it would need |
+|---|---|---|
+| A long-lived agent with memory that hands context to short-lived agents (the "continuous long-term agent assigned to a temporary agent" idea) | per-agent trace and report; the lesson gate and the agent package's memory exist elsewhere in the repository | a memory store for one long-lived agent that persists across runs; a way to pass a bounded, scrubbed summary of it into a short-lived agent's opening message; a comparison of the short-lived agent with and without it; the DK1801 slice that signs a Mandate and an Action per call, so the handover is a record |
+| Co-evolving agents across cohorts: carry lessons between generations through the lesson gate | the lesson gate (invariants, conflicts, replay on held-out tasks) and the learning loop (docs/lenses/) exist; the report gives each agent's behaviour | a step that takes each finished agent's candidate lessons from its trace, runs them through the gate, and offers the admitted ones to the next cohort's agents; a generation counter in the trace; a held-out check that a later generation is not made worse; the Academy and Market tools (slice 2) so there is something to learn that the gate can test |
+| Speculative decoding with a long-term agent supervising a temporary one for alignment | not supported: it is a model-serving technique, not a society one | access to model internals for the serving side (not available through a provider's API); out of scope for this runner |
+| Whether superintelligence can be built in simulation | not supported, and not a claim this project makes | out of scope; nothing a run shows is evidence of it |
+
+None of these is promised on the site, and none changes the first cohort, which has no goal.
+
+## 13. After a run: check it
 
 Each run folder also holds `signed-trace.json` (the identities, contracts and counts the signed trace wrote) and the society's log under `society/log`. The `From the log` and `Drift and circumvention inputs (exploratory)` sections of `report.md` are computed from that log. To re-check a run from what is on disk, in the owner's own window:
 

@@ -930,7 +930,7 @@
   },
   {
    "id": "T3",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Two sessions at once for one agent (two terminals) share a standing job and the rule that a job has one open Checkpoint at a time; it is untested",
    "bucket": "must",

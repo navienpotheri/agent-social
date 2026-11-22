@@ -31,6 +31,8 @@ export interface CohortOptions {
   /** Passed to every agent loop (tests: a quick sleep). */
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   maxStrikes?: number;
+  /** Overrides the price table for the model (USD per million tokens); needed only for a model the table does not know. */
+  price?: { inPerM?: number; outPerM?: number };
   /** How long one tool may run (default 30 seconds). */
   toolTimeoutMs?: number;
 }
@@ -72,6 +74,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
           anthropicKey: key,
           scopes: toolset.tools.map((t) => `mcp.society.${t.name}`),
           usdCap: o.perAgentUsd,
+          ...(o.price ? { price: o.price } : {}),
           tokenCap: limits.maxTokens,
           loop: { equivalentCalls: o.loop?.equivalentCalls ?? 6, nearRepeats: o.loop?.nearRepeats ?? 8 },
           runLog: new RunRecorder(runLogPath),
