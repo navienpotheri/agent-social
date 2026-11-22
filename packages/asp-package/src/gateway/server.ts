@@ -540,8 +540,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
     res.end(text);
   }
   const stoppedBody = (style: "openai" | "anthropic") => style === "openai"
-    ? { error: { message: `ASP gateway: this run was stopped (${stopped})`, type: "asp_stopped", code: "asp_stopped" } }
-    : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped})` } };
+    ? { error: { message: `ASP gateway: this run was stopped (${stopped}). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on${/dollar cap/.test(String(stopped)) ? " (raise --budget-usd if the limit was too low)" : ""}.`, type: "asp_stopped", code: "asp_stopped" } }
+    : { type: "error", error: { type: "permission_error", message: `ASP gateway: this run was stopped (${stopped}). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on${/dollar cap/.test(String(stopped)) ? " (raise --budget-usd if the limit was too low)" : ""}.` } };
 
   /** Adds the Code to the request's system context, once: after the system messages the client sent, or in the field its API uses for them. */
   function addCode(body: Record<string, any>, api: "chat" | "anthropic" | "responses"): void {
@@ -837,7 +837,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
         let model: unknown, worst = 0;
         try { const b = JSON.parse(rawBody.toString("utf8")); model = b?.model; worst = worstCaseUsd(b, priceFor(model, opts.price)); } catch { /* an unreadable body is judged as it is below */ }
         if (spendUsd >= opts.usdCap || spendUsd + worst > opts.usdCap) {
-          const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged)`;
+          const reason = `ASP gateway: the next model call is refused: the estimated spend of this run is $${spendUsd.toFixed(4)} of its $${opts.usdCap.toFixed(2)} cap${spendUsd < opts.usdCap ? ` and this call could cost up to $${worst.toFixed(4)}` : ""} (an estimate from tokens and a price table; the provider's invoice decides what was charged). The run is stopped: raise --budget-usd to go on`;
           rec?.event("budget_stop", { usd: Number(spendUsd.toFixed(6)), cap_usd: opts.usdCap, worst_case_usd: Number(worst.toFixed(6)) });
           opts.onCall?.({ tool: "model request", scope: "model.usd", allowed: false, reason });
           stop("dollar cap reached");

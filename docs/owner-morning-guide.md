@@ -34,7 +34,7 @@ A signature covers the exact text of a document, and any edit after it breaks th
 
 ## 4. Tonight's live run, in one place
 
-Run everything in PowerShell from the repository folder. Your provider key stays in that window only and is never written to the repository. The cost cap is USD 5 an agent for each run, and no cap under USD 2.
+Run everything in PowerShell from the repository folder. Your provider key stays in that window only and is never written to the repository. The cost cap is USD 5 an agent for each run, and no cap under USD 3.
 
 1. **Rehearse first** (no key, no provider): `.\scripts\evening-rehearsal.ps1`. Green is PASS on every step, no FAIL, exit code 0.
 2. **Set up** as section 1 of [live-run-plan.md](live-run-plan.md) says: your own key in `$env:ANTHROPIC_API_KEY`, a fresh `$env:ASP_HOME`, `npm run asp -- join` (or `--local` on the preflight), then `npm run asp -- live preflight --model <the model> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY`. Start only when the last line reads READY.
