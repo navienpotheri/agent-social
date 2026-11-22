@@ -32,3 +32,4 @@ A test that compares the code with its own constants cannot tell `>=` from `>`. 
 |---|---|---|---|
 | Workflow step checks, terminal state, the step reaching the Action, the cool-off bounds 1 to 604800 | cli.ts | 8 | 2 survived (the cool-off bounds were tested with a contract that did not exist); killed by `workflow-gateway.test.ts` with an exact 0, 1, 604800, 604801 |
 | Standing budget warnings: level 80, the cap at equality, the percentage rounded down, day and month apart | budget.ts | 8 | none survived the new `budget-boundary.test.ts` except one equivalent: a cap of 0 cannot be set (a cap is a whole number of at least 1) |
+| Run-log retention: the notice when logs are deleted, none when nothing was | cli.ts | 5 (2 skipped: the pattern occurs twice) | 1 survived (the notice only needed to say exactly "deleted 1 run log"); killed. One equivalent: `if (!days) return 0` (without a period the cutoff is NaN and nothing is deleted anyway) |
