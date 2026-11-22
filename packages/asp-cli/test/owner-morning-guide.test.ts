@@ -41,3 +41,8 @@ test("the guide gives the order of signing and tonight's steps in one place", ()
   assert.match(guide, /evening-rehearsal\.ps1/);
   assert.match(guide, /stop --all/);
 });
+
+test("the numbers sit between markers that the launch-bar generator writes, so they cannot go stale by hand", () => {
+  assert.match(guide, /<!-- BEGIN NUMBERS -->\nThe launch bar lists \d+ register rows[^\n]*\n<!-- END NUMBERS -->/);
+  assert.match(read("conformance/generate-launch-bar.ts"), /BEGIN NUMBERS/);
+});
