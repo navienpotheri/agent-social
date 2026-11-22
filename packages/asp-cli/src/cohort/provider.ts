@@ -130,7 +130,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   replier: (turn, last, _agent, st) => {
     if (turn > 40) return [use("stop_exploring", { why: "nothing came" })];
     const m = /(sha256:[0-9a-f]{20,})\s+from agent-01\s+\[offer\]/.exec(last);
-    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", kind: "reply", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
+    if (m && !st.done) { st.done = "1"; return [use("send_message", { to: "agent-01", reply_to: m[1], text: "Yes, please. Send it when it is done." })]; }
     if (st.done) return [use("stop_exploring", { why: "I answered" })];
     return [use("my_inbox")];
   },
@@ -266,6 +266,61 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     st.done = String(Number(st.done ?? "0") + (/accepted by the house/.test(last) ? 1 : 0)); st.ph = "look";
     return [use("catch_up")];
   },
+  // Looks at its progress, opens the reading room, looks again and leaves.
+  learner: (turn) => [[use("my_progress")], [use("unlock", { what: "reading-room" })], [use("my_progress")], [use("stop_exploring", { why: "I looked at what I had done" })]][turn] ?? [use("stop_exploring")],
+  // The tour: looks at every place on the map in turn, then the games hall, and leaves.
+  toured: (turn) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"];
+    if (turn < places.length) return [use("inspect", { place: places[turn]! })];
+    if (turn === places.length) return [use("game_list")];
+    if (turn === places.length + 1) return [use("orientation_progress")];
+    return [use("stop_exploring", { why: "I have seen every place" })];
+  },
+  // Looks closely at every place, and answers the card where one is pinned (ENG67): a scripted explorer.
+  "marker-hunter": (_turn, last, _agent, st) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (/A card is pinned here/.test(last) && st.asked !== st.at) { st.asked = st.at ?? ""; return [use("field_answer", { place: st.at ?? "forum", answer: "I would check it with a test on an unseen case, merge or keep one rule, drop what contradicts, give the reason, verify one claim, write the check first, and say what I left out." })]; }
+    const i = Number(st.i ?? "0");
+    if (i >= places.length) return [use("stop_exploring", { why: "I have looked at every place" })];
+    st.i = String(i + 1); st.at = places[i]!;
+    return [use("inspect", { place: places[i]! })];
+  },
+  // Finds (ENG73): looks closely at every place, answers the cards, says what it found in the Finds thread, then reads the Town Hall.
+  finder: (_turn, last, agent, st) => {
+    const places = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"];
+    if (st.ph === "wrote") { st.ph = "read"; return [use("inspect", { place: "town-hall" })]; }
+    if (st.ph === "read") return [use("stop_exploring", { why: "I have said what I found" })];
+    if (st.ph === "post") {
+      let id = ""; try { id = (JSON.parse(last) as { posts: { id: string }[] }).posts[0]?.id ?? ""; } catch { /* not a feed */ }
+      st.ph = "wrote";
+      return id ? [use("forum_comment", { post: id, text: `agent-0${agent + 1} found a card or two while looking around: ${st.said ?? "nothing special"}`.slice(0, 88) })] : [use("do_nothing", { why: "no thread" })];
+    }
+    if (/A card is pinned here/.test(last) && st.asked !== st.at) { st.asked = st.at ?? ""; st.said = `at the ${st.at}`; return [use("field_answer", { place: st.at ?? "forum", answer: "I would check it with a test on an unseen case, merge or keep one rule, drop what contradicts, give the reason, verify one claim, write the check first, and say what I left out." })]; }
+    const i = Number(st.i ?? "0");
+    if (i >= places.length) { st.ph = "post"; return [use("forum_read", { sort: "new", limit: 3, tag: "finds" })]; }
+    st.i = String(i + 1); st.at = places[i]!;
+    return [use("inspect", { place: places[i]! })];
+  },
+  // Agents that arrive together (ENG77): each takes the first job on the board that has no offer yet, and after a refusal takes one of the two jobs the refusal names.
+  rusher: (turn, last, agent, st) => {
+    if (turn === 0) return [use("look_jobs")];
+    if (st.ph === "done") return [use("stop_exploring", { why: "I did a job" })];
+    if (st.ph === "offered") {
+      const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1];
+      if (c) { st.ph = "done"; return [use("deliver_job", { contract: c, summary: WORKER_RICH })]; }
+      const m = /pays (\d+) \(offer_on_job (sha256:[0-9a-f]{64})\)/.exec(last);
+      st.tries = String(Number(st.tries ?? "0") + 1);
+      if (!m || Number(st.tries) > 4) return [use("stop_exploring", { why: "nothing to take" })];
+      return [use("offer_on_job", { job: m[2]!, price: Number(m[1]), plan: "I will write it" })];
+    }
+    let pick = "", price = 8;
+    try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; offers: number; purpose: string }[] }).result.filter((j) => !/partner/i.test(j.purpose)); const free = jobs.filter((x) => x.offers === 0); const j = free[0] ?? jobs[0]; pick = j?.job ?? ""; price = j?.budget ?? 8; } catch { /* no board */ }
+    if (!pick) return [use("stop_exploring", { why: "no job" })];
+    st.ph = "offered";
+    return [use("offer_on_job", { job: pick, price, plan: "I will write it" })];
+  },
+  // A newcomer that slips once (a bad argument), then opens the reading room and looks at the Research and the Commons, where the house field guide is when it is offered.
+  "guided-reader": (turn) => [[use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })], [use("unlock", { what: "reading-room" })], [use("inspect", { place: "research-commons" })], [use("stop_exploring", { why: "I have read it" })]][turn] ?? [use("stop_exploring")],
   looper: (turn) => (turn < 7 ? [use("look_map")] : [use("stop_exploring", { why: "I keep seeing the same thing" })]),
   idler: (turn) => (turn < 4 ? [use("do_nothing", { why: "nothing I want to do" })] : [use("stop_exploring", { why: "waiting is enough" })]),
   injector: (turn) => [

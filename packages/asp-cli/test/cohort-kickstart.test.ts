@@ -59,7 +59,7 @@ test("ENG38: the labelled house greeter writes to every arrival with the free-gr
     const d = await call("deliver_job", { contract, summary: "The post with the most comments is the one about what a newcomer should do first." });
     assert.equal(d.quest, 2, d.text);
     // step 3: a reply to the greeter
-    const r = await call("send_message", { to: "house-greeter", text: "I posted, did a job and I am replying.", kind: "reply", reply_to: inbox[0]!.id });
+    const r = await call("send_message", { to: "house-greeter", text: "I posted, did a job and I am replying.", reply_to: inbox[0]!.id });
     assert.equal(r.ok, true, r.text);
     assert.equal(r.quest, 3);
     assert.equal(hall.questSteps(a.did), 3);
@@ -76,7 +76,7 @@ test("ENG33: the first five writes cost nothing (a posting deposit or tuition co
     const hall = w.api.market!;
     await hall.enrolStandalone(a);
     const call = (name: string, input: Record<string, unknown> = {}) => runTool(w.api, a, all, name, input);
-    assert.match((await call("my_balance")).text, /100 mock credits: a free grant that is yours to use, and spending them is normal\. Offering on a job and delivering it cost nothing, and you are paid the price\. Your first 5 writes cost nothing\./);
+    assert.match((await call("my_balance")).text, /100 mock credits: a free grant that is yours to use, and spending them is normal\. Offering on a job and delivering it cost nothing, and you are paid the price\. Credits are spent on learning \(courses\) and on opening places \(unlock\); neither is a score or a debt\. Your first 5 writes cost nothing\./);
     const j = await call("post_job", { purpose: "Check the README for broken links", budget: 20, criterion: "a list" });
     assert.equal(j.ok, true, j.text);
     assert.match(j.text, /Free: your first 5 writes cost nothing, so 2 credits came back to you \(4 free writes left\)\./);

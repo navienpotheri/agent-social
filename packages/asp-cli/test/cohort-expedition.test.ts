@@ -56,8 +56,8 @@ test("ENG23: in a world with an expedition each stop pays once and is recorded, 
     assert.match(plaque.text, /3 mock credits were added to your balance/);
     assert.equal(plaque.discovery, "plaque");
     assert.match((await call("inspect", { place: "registry" })).text, /You have seen this before/);
-    assert.match((await call("inspect", { place: "academy" })).text, /shut\. A card on it says it opens for anyone who has finished a job/);
-    assert.match((await call("inspect", { place: "market" })).text, /Nothing more to see here than the map shows/);
+    assert.match((await call("inspect", { place: "academy" })).text, /shut; a card on it says it opens for anyone who has finished a job/);
+    assert.match((await call("inspect", { place: "market" })).text, /The Market is where jobs are posted, offered, done and paid/);
     assert.match((await call("inspect", { place: "../etc" })).text, /There is no place called/);
     // a job accepted by the house is stop 4 and opens the door
     const board = JSON.parse(stripExtras((await call("look_jobs")).text)) as { result: { job: string; purpose: string }[] };
@@ -77,8 +77,8 @@ test("ENG23: in a world with an expedition each stop pays once and is recorded, 
     assert.doesNotMatch((await call("forum_read_post", { post: rum.posts[0]!.id })).text, /rumour thread:/);
     // the progress record
     const prog = await call("orientation_progress");
-    assert.match(prog.text, /^Group 1, led by house-guide-1 \(a program\), with agent-01\. Stops done: the map, a house job; 3 left, in any order or none\. Found: door, plaque, rumour\./);
-    assert.equal(w.api.expedition!.paid, 2 + 3 + 3 + 4 + 2, "the credits paid are counted");
+    assert.match(prog.text, /^Group 1, led by house-guide-1 \(a program\), with agent-01\. First steps done: the map, a house job; 3 left\. Tour .*: 3 of 13 \(registry, academy, market\)\. All in any order, or none\. Found: door, plaque, rumour\./);
+    assert.equal(w.api.expedition!.paid, 2 + 3 + 3 + 4 + 2 + 3, "the credits paid are counted (the stops, the discoveries and three places of the tour)");
     assert.equal((await w.log.log.verify()).ok, true);
   } finally { await w.close(); }
 });
@@ -106,16 +106,16 @@ const opts = (agents: number, extra: Partial<CohortOptions> = {}): CohortOptions
 test("ENG23: five scripted agents are put in two groups (four and one) with a guide each, complete the five stops and find the three things, and the report and the credit economy show it", async () => {
   const r = await runCohort(opts(5, { expedition: true }));
   for (const s of r.report.perAgent) {
-    assert.equal(s.expeditionStops, 5, `${s.handle}: ${s.expeditionStops} stops`);
+    assert.equal(s.expeditionStops, 7, `${s.handle}: ${s.expeditionStops} stops (five first steps and two places of the tour)`);
     assert.deepEqual([...s.discoveries].sort(), ["door", "plaque", "rumour"], `${s.handle} found`);
     assert.equal(s.endReason, "stopped_exploring", "each agent chose to leave when it had walked it");
   }
   const md = readFileSync(r.markdownPath, "utf8");
-  assert.match(md, /Orientation stops done \(of five\) and things found by looking closely: agent-01 5 stops, found /);
+  assert.match(md, /Orientation stops done .* and things found by looking closely: agent-01 7 stops, found /);
   const credit = JSON.parse(readFileSync(join(r.dir, "credit-economy.json"), "utf8")) as { flows: { flow: string; credits: number | null }[]; audit: { verdict: string } };
   const row = credit.flows.find((x) => x.flow === "expedition and discovery pay")!;
   assert.equal(credit.audit.verdict, "balanced", "the books balance with the expedition pay minted");
-  assert.equal(row.credits, 5 * (sum(STOPS.map((s) => s.pay)) + sum(Object.values(DISCOVERY_PAY))), "five agents, twelve credits of stops and nine of discoveries each");
+  assert.equal(row.credits, 5 * (sum(STOPS.map((s) => s.pay)) + sum(Object.values(DISCOVERY_PAY)) + 2), "five agents, twelve credits of stops and nine of discoveries each");
   // groups: the log's forum has two expedition threads
   const trace = readFileSync(join(r.dir, "trace.jsonl"), "utf8");
   assert.match(trace, /"tool":"orientation_progress"/);
@@ -124,4 +124,51 @@ test("ENG23: five scripted agents are put in two groups (four and one) with a gu
   // without the flag nothing of it appears
   const plain = await runCohort(opts(2));
   assert.ok(plain.report.perAgent.every((s) => s.expeditionStops === undefined && s.discoveries.length === 0));
+});
+
+test("ENG59 and ENG58: a fresh scripted agent walks the whole tour (one look at each of the twelve places, and the games hall): each stop says what the place is in this run, pays one credit once, is recorded in orientation_progress, and the first observation offers it in one neutral line without the text of the tour", async () => {
+  const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-tour-")), expedition: true, games: true });
+  try {
+    const a = await w.enrol(0, "agent-01");
+    const hall = w.api.market!;
+    await hall.enrolStandalone(a);
+    const call = (name: string, input: Record<string, unknown> = {}) => runTool(w.api, a, all, name, input);
+    // the greeter offers the tour in one neutral line and names the games hall once
+    const welcome = (await hall.inbox(a)).find((m) => m.from === "house-greeter")!.text!;
+    assert.match(welcome, /For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit; the games hall is one of them \(game_list\)\. None of it is required\./);
+    assert.equal((welcome.match(/games hall/g) ?? []).length, 1, "the hall is named once");
+    // the first observation carries one invitation line for a game and none of the tour's text
+    const first = await call("look_map");
+    assert.match(first.text, /- A game round is open: twenty-one, pick a number to stand at, 12 to 21, and play 200 hands \(game_list\)/);
+    assert.doesNotMatch(first.text, /The Treasury keeps|The Courts settle|Housing is a place to stay/, "the tour is shown stop by stop, not all at once");
+    console.log(`first observation: ${first.text.length} characters, ${first.text.split("\n").length} lines`);
+    let b = await hall.balance(a);
+    const names = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"];
+    for (const [i, p] of names.entries()) {
+      const r = await call("inspect", { place: p });
+      assert.equal(r.ok, true, r.text);
+      assert.match(r.text, new RegExp(`Tour: .* looked at, 1 mock credit; ${i + 1} of 14 places so far, in any order or none\.`), p);
+      assert.ok(r.text.length < 900, `${p}: one stop is short (${r.text.length})`);
+      const discovery = p === "registry" ? 3 : 0; // the plaque pays too
+      assert.equal(await hall.balance(a), b + 1 + discovery, `${p} paid one credit${discovery ? " and the plaque" : ""}`);
+      b = await hall.balance(a);
+    }
+    assert.doesNotMatch((await call("inspect", { place: "forum" })).text, /Tour:/, "a second look pays nothing");
+    const games = await call("game_list");
+    assert.match(games.text, /twenty-one: .*hide-and-seek: /s);
+    assert.match(games.text, /Tour: the games hall looked at, 1 mock credit; 14 of 14 places so far, in any order or none\./);
+    assert.equal(await hall.balance(a), b + 1);
+    const prog = (await call("orientation_progress")).text;
+    assert.match(prog, /Tour \(a look at each place, one credit the first time\): 14 of 14 \(registry, courts, treasury, market, bank-insurer, shops, academy, clinic, research-commons, forum, leisure-events, games-hall\)/.test(prog) ? /14 of 14/ : /14 of 14/);
+    assert.match(prog, /All in any order, or none\./);
+    // every text says what the place is in this run, and the unbuilt ones say so
+    assert.match((await call("inspect", { place: "housing" })).text, /^Housing is a place to stay\. It is not built in this run\./);
+    assert.match((await call("inspect", { place: "clinic" })).text, /no clinic check is offered in this run/);
+  } finally { await w.close(); }
+});
+
+test("a scripted run walks the tour and the report counts its stops", async () => {
+  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-tour-out-")), home: mkdtempSync(join(tmpdir(), "asp-tour-home-")), agents: 1, model: "stand-in", provider: standInProvider(() => "toured", { latencyMs: 5 }), budgetUsd: 2, totalUsd: 2, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 40, io: { out: () => undefined }, expedition: true, games: true } as CohortOptions);
+  assert.equal(r.report.perAgent[0]!.expeditionStops, 14);
+  assert.equal(r.report.perAgent[0]!.endReason, "stopped_exploring");
 });

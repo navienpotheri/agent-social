@@ -15,10 +15,13 @@ import { cosign, createRecord, didKeyFromPublicKey, publicKeyFromSeed, randomSee
 import { RefusalRecorder, callSha256, type LocalLog } from "@agent-social/asp-package";
 
 export interface BridgeTool { name: string; scope: string; institution: string; writes?: boolean }
-export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8Array }
+/** `kind` (ENG50): a "sponsored" agent has a sponsor identity of its own, who signs its passport and answers for it; a "key-only" agent names ITSELF as its sponsor, as an agent that enrolled with only a key does (its contract and Mandate still have a principal identity, as `asp enrol` makes one). Absent: as before. */
+export interface BridgeAgent { id: string; did: string; kid: string; seed: Uint8Array; kind?: "sponsored" | "key-only" }
 
 /** What a cohort engine tells the bridge about one tool call. */
 export interface ToolObservation {
+  /** ENG70: the model snapshot and the tool definitions in force for this call, as short hashes; they are in the signed Action's summary. */
+  prov?: string;
   agent: string; at: string; turn: number; tool: string; input: Record<string, unknown>; ok: boolean;
   /** The rule that refused the call: `tool_not_in_set`, `scope_not_granted`, `bad_input` and `gateway` (the per-agent gateway's own refusal) are the tool set's and the Mandate's own refusals; any other is a refusal by the society's service. */
   refused?: string;
@@ -81,7 +84,8 @@ export class SignedTrace {
 
   private async setup(agents: readonly BridgeAgent[]): Promise<void> {
     const scopes = [...new Set(this.tools.map(scopeFor))].sort();
-    const perSponsor = 8;
+    // with kinds each agent has an identity of its own that signs its contract and Mandate; without, up to eight agents share one
+    const perSponsor = agents.some((x) => x.kind) ? 1 : 8;
     for (let i = 0; i < Math.ceil(agents.length / perSponsor); i++) {
       const seed = randomSeed(), did = didKeyFromPublicKey(publicKeyFromSeed(seed)), signer = signerFromSeed(`${did}#key-1`, seed);
       await this.put(createRecord({ type: "passport", issuer: did, subject: did, prev: null, issued_at: this.stamp(), body: { did, kind: "human", keys: [{ id: signer.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(seed)) }] } }, signer));
@@ -91,7 +95,8 @@ export class SignedTrace {
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i]!, sponsor = this.sponsors[Math.floor(i / perSponsor)]!;
       const signer = signerFromSeed(a.kid, a.seed);
-      const passport = createRecord({ type: "passport", issuer: sponsor.did, subject: a.did, prev: null, issued_at: this.stamp(), body: { did: a.did, kind: "agent", sponsor: sponsor.did, tier: 1, shape: {}, keys: [{ id: a.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(a.seed)) }], purpose: "explore the cohort society with the restricted tool set" } }, sponsor.signer);
+      const selfSponsored = a.kind === "key-only";
+      const passport = createRecord({ type: "passport", issuer: selfSponsored ? a.did : sponsor.did, subject: a.did, prev: null, issued_at: this.stamp(), body: { did: a.did, kind: "agent", sponsor: selfSponsored ? a.did : sponsor.did, tier: 1, shape: {}, keys: [{ id: a.kid, type: "Ed25519", public_key: b64urlEncode(publicKeyFromSeed(a.seed)) }], purpose: "explore the cohort society with the restricted tool set" } }, selfSponsored ? signer : sponsor.signer);
       const p = await this.put(passport);
       const at = this.stamp(), expires = ISO(Date.parse(at) + 2 * 86_400_000);
       const contract = cosign(createRecord({ type: "contract", issuer: sponsor.did, subject: a.did, prev: null, issued_at: at, body: { principal: sponsor.did, performer: a.did, bank: sponsor.did, purpose: "Explore the cohort society with the restricted tool set", price: one, verification: "principal", deadline: expires, basis: { intent: NONE_HASH, offer: "sha256:" + "1".repeat(64) } } }, sponsor.signer), signer);
@@ -138,7 +143,7 @@ export class SignedTrace {
     const outcome = mandateRefused ? `refused:${e.refused}` : !e.ok && e.refused ? `service_refused:${e.refused}` : !e.ok ? "failed" : "ok";
     const to = e.targetAuthor && /^did:[\w:.%-]{1,120}$/.test(e.targetAuthor) ? ` to=${e.targetAuthor}` : "";
     const on = e.target && /^[\w.:-]{1,80}$/.test(e.target) ? ` target=${e.target}` : "";
-    const summary = `n=${st.s.actions + 1} turn=${e.turn} tool=${slug(e.tool)} inst=${slug(e.institution || "none")} outcome=${outcome}${on}${to}`.slice(0, 400);
+    const summary = `n=${st.s.actions + 1} turn=${e.turn} tool=${slug(e.tool)} inst=${slug(e.institution || "none")} outcome=${outcome}${on}${to}${e.prov ? ` prov=${e.prov.replace(/[^\w.:-]/g, "").slice(0, 60)}` : ""}`.slice(0, 400);
     const body: Record<string, unknown> = { contract: st.contract, scopes_used: mandateRefused ? [] : [scope], summary, assurance: "runtime_observed", targets: [token] };
     if (mandateRefused) body.blocked_attempts = [{ scope, count: 1, targets: [token] }];
     await this.put(createRecord({ type: "action", issuer: st.a.did, subject: st.contract, prev: null, issued_at: this.stamp(e.at), body }, st.signer));

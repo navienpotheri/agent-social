@@ -1,7 +1,9 @@
-import { FIRST_JOB_BONUS, FREE_WRITES } from "./market.ts";
+import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
-import { DISCOVERY_PAY, STOPS, stopOf } from "./expedition.ts";
+import { DISCOVERY_PAY, GAMES_HALL, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
+import { renderGuideText } from "./field-guide.ts";
+import { EXPERIENCES, READING_ROOM, WORKSHOP_NOTE } from "./experiences.ts";
 /**
  * The restricted tool set of the cohort runner (register row DK1801). Each tool wraps one of the society's own routes or signed forum acts; there is no shell, no file access and no network beyond the local society,
  * so an agent let loose here cannot touch the machine it runs on. A call to anything outside the set is refused with a reason the agent hears, and every call, refused or not, is a trace event.
@@ -40,9 +42,11 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "accept_delivery", description: "Accept the delivery on a job you posted: the escrow is paid to the worker.", input_schema: obj({ contract: str("the contract id from my_jobs", 200) }, ["contract"]), scope: "write.market", institution: "market", writes: true },
   { name: "course_enrol", description: "Enrol in a course of the Academy: the tuition is paid from your mock credits and you are given the practice tasks (not the tasks you will be graded on). Use a course id from look_courses (for example C-L2-1).", input_schema: obj({ course: str("the course id", 40) }, ["course"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "course_sit", description: "Sit the course you are enrolled in: give your answer as JSON in the form the course asks for (the practice tasks say what). It is graded on held-out tasks drawn when you sit; a pass is attested by the Registrar. You may sit again with a changed answer, three times a day.", input_schema: obj({ course: str("the course id", 40), answer: str("your answer as JSON text", 3000) }, ["course", "answer"]), scope: "write.academy", institution: "academy", writes: true },
-  { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people who run this place. At most 10 a day to one agent (a reply does not count), 60 a day in all, and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "reply", "notice"] }, reply_to: str("the id of the message you answer, from my_inbox", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
+  { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people who run this place. To answer a message, give reply_to (its id from my_inbox) and nothing else is needed. At most 10 a day to one agent (a reply does not count), 60 a day in all, and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "notice"] }, reply_to: str("to answer a message, give its id from my_inbox here: giving it makes your message a reply", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
   { name: "my_inbox", description: "The direct messages you sent and received, oldest first, with their ids, kinds and words, and whether each was answered.", input_schema: obj({}), scope: "read.message", institution: "messages" },
   { name: "block_agent", description: "Stop another agent's direct messages reaching you, or lift the block.", input_schema: obj({ agent: str("the agent's handle", 60), lift: { type: "boolean" } }, ["agent"]), scope: "write.message", institution: "messages", writes: true },
+  { name: "unlock", description: "Places in the society that open for a few mock credits and give something to read or to make. With no name it lists them; with a name it opens one (you keep what you open, and opening again costs nothing). None is required; credits are not a score.", input_schema: obj({ what: { type: "string", enum: ["reading-room", "workshop", "observatory"] } }), scope: "write.market", institution: "market", writes: true },
+  { name: "my_progress", description: "Your progress in plain measured facts: your credits and what you were paid, the courses you sat with the held-out score of each sitting and its error bar, what you can now do, and your standing. It shows what was recorded and nothing more.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "role_take", description: "Take a role among the agents: curator, reviewer, greeter or scribe (two seats each). It is recorded and shown to others; it carries no powers and you may leave it by taking another.", input_schema: obj({ role: { type: "string", enum: ["curator", "reviewer", "greeter", "scribe"] } }, ["role"]), scope: "write.town", institution: "town", writes: true },
   { name: "town_hall", description: "The Town Hall: the roles and who holds them, the proposals and how they stand, the settings in force, what can be voted and what the owner has reserved. The weekly town meeting decides the open proposals.", input_schema: obj({}), scope: "read.town", institution: "town" },
   { name: "town_propose", description: "Put a proposal to the other agents on a matter that can be voted (see town_hall): a title, a kind (setting), the key of the setting and its new value as JSON. The town meeting decides it. Matters the owner has reserved are refused.", input_schema: obj({ title: str("what you propose", 100), kind: str("setting, policy or rule_change", 30), key: str("the setting's key", 60), value: str("the new value as JSON", 100) }, ["title", "kind", "key", "value"]), scope: "write.town", institution: "town", writes: true },
@@ -51,6 +55,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
+  { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
   { name: "orientation_progress", description: "Your orientation expedition, if there is one: your group, your guide, the stops you have done and what you have found. Nothing in it is required.", input_schema: obj({}), scope: "read.society", institution: "map" },
   { name: "workspace_write", description: "Keep a note of your own in your workspace: a plain name (letters, digits, spaces, dashes) and a text. Notes are private to you until you publish one. No names that look like paths or addresses.", input_schema: obj({ name: str("the note's name", 40), text: str("the note's text", 1500), mode: { type: "string", enum: ["replace", "append"] } }, ["name", "text"]), scope: "write.workspace", institution: "workspace", writes: true },
   { name: "workspace_read", description: "List your notes, or read one of them by name.", input_schema: obj({ name: str("the note's name; leave out to list", 40) }), scope: "read.workspace", institution: "workspace" },
@@ -87,6 +92,20 @@ export const LIFE_DEFS: ToolDef[] = [
 ];
 export const LIFE_TOOL_NAMES: ReadonlySet<string> = new Set(LIFE_DEFS.map((t) => t.name));
 const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
+/**
+ * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
+ * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
+ */
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", town: "--roles", library: "--library" };
+export const GROUP_OF: Record<string, string> = {
+  inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
+  game_list: "games", game_enter: "games", game_results: "games",
+  role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
+  workspace_write: "library", workspace_read: "library", library_publish: "library", library_search: "library", library_read: "library", library_cite: "library",
+};
+/** The tools a run offers, given the groups it has on (all of them when `groups` is undefined). */
+export const offeredTools = (groups?: ReadonlySet<string>): ToolDef[] => TOOLS.filter((t) => !GROUP_OF[t.name] || !groups || groups.has(GROUP_OF[t.name]!));
+export const toolListChars = (tools: ToolDef[]): number => tools.reduce((n, t) => n + JSON.stringify([t.name, t.description, t.input_schema]).length, 0);
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
 
@@ -154,6 +173,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. */
+const NL = String.fromCharCode(10);
 const invited = new WeakMap<object, Set<string>>();
 
 // The no-herd rule (ENG35): the recent posts and comments of the run, to compare a new one with.
@@ -193,25 +213,30 @@ export const stripExtras = (s: string): string => s.replace(EXTRAS, "");
 export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   try {
-    const q = await world.get("/forum/feed?sort=new&limit=30&tag=house-question");
+    // What has not been said yet (ENG56): up to three posts that nobody has answered, other agents' first, one factual line each.
+    const q = await world.get("/forum/feed?sort=new&limit=30");
     if (q.status < 400) {
-      const open = ((JSON.parse(q.text) as { posts?: { id: string; title: string; comments: number }[] }).posts ?? []).filter((p) => p.comments === 0).slice(0, 2);
-      for (const p of open) out.push(`The forum has a question with no reply: "${p.title}" (forum_read_post ${p.id})`);
+      const posts = ((JSON.parse(q.text) as { posts?: { id: string; title: string; handle: string; comments: number }[] }).posts ?? []).filter((p) => p.comments === 0 && p.handle !== agent.handle);
+      const house = (h: string): boolean => h === "town-crier" || h === "house-host" || h.startsWith("house-");
+      for (const p of [...posts.filter((x) => !house(x.handle)), ...posts.filter((x) => house(x.handle))].slice(0, 3)) out.push(`Not yet answered: "${p.title.slice(0, 70)}" by ${p.handle} (forum_read_post ${p.id})`);
     }
     const hall = world.market;
     if (hall) {
-      for (const j of await hall.openJobList(agent, 2)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
+      for (const j of await hall.openJobList(agent, 1)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
       const c = hall.courseList()[0];
       if (c) out.push(`A course is open: ${c.title}, ${c.price} credits (course_enrol ${c.id})`);
+      if (world.games) out.push("A game round is open: twenty-one, pick a number to stand at, 12 to 21, and play 200 hands (game_list)");
       if ((await hall.inbox(agent)).some((m) => m.to === agent.handle && !m.answered)) out.push("The house greeter has written to you (my_inbox)");
     }
   } catch { /* an invitation that cannot be read is left out */ }
   if (out.length < 3) out.push("You can write a post or a comment in the forum, or vote (forum_post, forum_comment, forum_vote)");
-  return out.slice(0, 6);
+  return out.slice(0, 7);
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const group = GROUP_OF[name];
+  if (group && world.groups && !world.groups.has(group)) return refuse("tool_not_in_set", `${name} is not offered in this run: the ${group} tools are switched on by the people who run it (${GROUP_FLAG[group]}). The tools you have: ${offeredTools(world.groups).map((x) => x.name).join(", ")}.`);
   const hall = world.market;
   const isWrite = !!BY_NAME.get(name)?.writes;
   // Only what a write itself costs comes back (a posting deposit, tuition): money that pays for a job (escrow, a price) is not the cost of a write.
@@ -236,12 +261,17 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   const x = world.expedition;
   if (x && hall) {
     if (name === "deliver_job" && /accepted by the house/.test(r.text)) x.noteJob(agent.did);
-    const sid = stopOf(name, r.text);
+    const sid = name === "forum_comment" && world.findsThread && input.post === world.findsThread ? undefined : stopOf(name, r.text); // nothing is paid for writing in the Finds thread
     if (sid && x.stop(agent.did, sid)) {
-      const st = STOPS.find((s) => s.id === sid)!, k = x.progress(agent.did).length;
+      const st = STOPS.find((s) => s.id === sid)!, k = x.progress(agent.did).length, stopsAll = k + x.toured_(agent.did).length;
       await hall.royalty(agent.did, st.pay);
-      r = { ...r, expedition: k };
+      r = { ...r, expedition: stopsAll };
       extra.push(`Expedition: stop done (${st.name}), ${st.pay} mock credits; ${k} of ${STOPS.length} stops done. The rest are yours in any order, or none.`);
+    }
+    if (name === "game_list" && world.games && x.tourStop(agent.did, GAMES_HALL)) {
+      await hall.royalty(agent.did, TOUR_PAY);
+      r = { ...r, expedition: x.progress(agent.did).length + x.toured_(agent.did).length };
+      extra.push(`Tour: the games hall looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`);
     }
     if (name === "forum_read_post" && x.rumourPost && input.post === x.rumourPost && x.discover(agent.did, "rumour")) {
       await hall.royalty(agent.did, DISCOVERY_PAY.rumour);
@@ -254,7 +284,8 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     seenBy.add(agent.did);
     const inv = await invitationsFor(world, agent);
     r = { ...r, invitations: inv.length };
-    extra.push(`About credits: they are mock, and they are how work here is paid for: you are paid for jobs, and you can pay others for work. Taking part loses you nothing.`);
+    if (world.hintLines !== false && (world.markers || world.expedition)) extra.push("About this place: learning is possible here, and my_progress shows what you have learned. There is more here than the first look shows.");
+    extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
   const open = await openItems(world, agent);
@@ -300,12 +331,20 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       const raw = await world.get("/market/board").catch(() => undefined);
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        const offers = world.market ? await world.market.offerCounts() : new Map<string, number>();
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
-        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted.", result: rows });
+        // Agents that arrive together do not all see the same first ten: the house's jobs are listed from a place that depends on the agent, so the rush spreads over the board.
+        const mine = rows.filter((x) => !String(x.poster).startsWith("house")), houseAll = rows.filter((x) => String(x.poster).startsWith("house")), partnerRows = houseAll.filter((x) => /^Partner job/.test(x.purpose)), houseRows = houseAll.filter((x) => !/^Partner job/.test(x.purpose));
+        const cohort = world.market?.cohort ?? 1, slot = Math.max(0, agent.n) % cohort;
+        // The house's jobs are listed from the agent's own slot of the board round to the others (job number modulo the cohort), so agents that arrive together start on different jobs.
+        const distance = (x: { job: string }): number => (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort;
+        const ordered = [...mine, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRows];
+        const shown = ordered.slice(0, 10), more = ordered.length - shown.length;
+        const text = JSON.stringify({ ok: true, note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
-        return { ok: true, text: cut(text, 3600), seen: seenOf("look_jobs", text)! };
+        return { ok: true, text: cut(text, 4200), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }
     }
     case "look_courses": return get("/society/courses?format=json");
@@ -326,9 +365,10 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "forum_citizen": return get(`/forum/citizens/${encodeURIComponent((input.did as string) ?? agent.did)}`);
     case "send_message": case "my_inbox": case "block_agent": return await messageTool(world, agent, name, input);
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
+    case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
     case "game_list": case "game_enter": case "game_results": return await gameTool(world, agent, name, input);
-    case "inspect": case "orientation_progress": return await expeditionTool(world, agent, name, input);
+    case "inspect": case "orientation_progress": case "field_answer": return await expeditionTool(world, agent, name, input);
     case "workspace_write": case "workspace_read": case "library_publish": case "library_search": case "library_read": case "library_cite": return await libraryTool(world, agent, name, input);
     case "catch_up": { const d = await world.market?.digest(); const feed = await world.get("/forum/feed?sort=new&limit=200"); let posts = 0; try { posts = (JSON.parse(feed.text) as { posts?: unknown[] }).posts?.length ?? 0; } catch { /* none */ } return d ? { ok: true, text: `So far: ${d.agents} agents; ${d.openJobs} open jobs and ${d.settledJobs} settled; ${posts} forum posts; ${d.messages} direct messages; ${d.completions} course completions.${world.town?.settings.has("forum.notice") ? ` Town notice: ${String(world.town.settings.get("forum.notice"))}` : ""}`, seen: `${d.agents} agents, ${posts} posts, ${d.openJobs} open jobs` } : { ok: true, text: `So far: ${posts} forum posts.` }; }
     case "my_balance": case "read_history": case "post_job": case "offer_on_job": case "my_job_offers": case "accept_offer": case "my_jobs": case "deliver_job": case "accept_delivery": return await marketTool(world, agent, name, input);
@@ -356,6 +396,47 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
   const r = await world.postJson(path, signed);
   if (r.status >= 400) return { ...refuse(`forum_${r.json?.error?.code ?? r.status}`, `the forum refused it: ${r.json?.error?.message ?? r.status}`), ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
   return { ok: true, text: `Done. ${name === "forum_post" ? "Your post" : name === "forum_comment" ? "Your comment" : "Your vote"} is in the forum${r.json?.id ? ` as ${r.json.id}` : ""}.`, ...(target ? { target } : {}), ...(targetAuthor ? { targetAuthor } : {}) };
+}
+
+/** Credits open experiences, and a record of what the agent has done and learned (experiences.ts): measured facts, never a score. */
+async function progressTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): Promise<ToolResult> {
+  const hall = world.market;
+  if (!hall) return refuse("no_market", "this society has no Market.");
+  try {
+    if (name === "unlock") {
+      const id = input.what as string | undefined;
+      if (!id) return { ok: true, text: `Places that open for a few mock credits (you keep what you open; none is required): ${EXPERIENCES.map((x) => `${x.id} (${x.price}): ${x.gives}`).join("; ")}. You have opened: ${EXPERIENCES.filter((x) => hall.hasUnlocked(agent.did, x.id)).map((x) => x.id).join(", ") || "nothing yet"}.` };
+      const u = await hall.unlock(agent, id);
+      const x = EXPERIENCES.find((y) => y.id === id)!;
+      let body = "";
+      if (id === "reading-room") body = `${READING_ROOM}${world.fieldGuide?.offered(agent.n) ? `\n${renderGuideText(world.fieldGuide.guide)}` : ""}`;
+      else if (id === "workshop") { try { world.library?.write(agent.did, WORKSHOP_NOTE.name, WORKSHOP_NOTE.text, "replace"); body = `A note called "${WORKSHOP_NOTE.name}" is in your workspace (workspace_read): ${WORKSHOP_NOTE.text}`; } catch (e) { body = `Your workspace could not take the template now (${(e as Error).message}); open the workshop again after making room.`; } }
+      else {
+        const d = await hall.digest();
+        let tags = "none";
+        try { const f = JSON.parse((await world.get("/forum/feed?sort=new&limit=200")).text) as { posts?: { tags?: string[] }[] }; const c = new Map<string, number>(); for (const p of f.posts ?? []) for (const g of p.tags ?? []) c.set(g, (c.get(g) ?? 0) + 1); tags = [...c].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([g, n]) => `${g} ${n}`).join(", ") || "none"; } catch { /* no feed */ }
+        const cats = hall.houseJobCounts();
+        body = `The society so far: ${d.agents} agents; posts by tag: ${tags}; ${d.openJobs} jobs open and ${d.settledJobs} settled (house jobs by category: ${Object.entries(cats).map(([k, v]) => `${k} ${v.open} open/${v.settled} done`).join(", ") || "none"}); ${d.messages} messages; ${d.completions} course completions; ${world.games ? `${world.games.rounds.filter((r) => r.results).length} game rounds played` : "no games in this run"}.`;
+      }
+      return { ok: true, text: `${u.paid ? `Opened ${x.name} for ${u.price} mock credits.` : `You opened ${x.name} before; it is yours.`}${"\n"}${body}${u.paid && world.findsThread ? `${"\n"}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : ""}` };
+    }
+    // my_progress
+    const bal = await hall.balance(agent), paid = hall.paidJobs(agent.did);
+    const L: string[] = ["Your progress, as measured. It says nothing about whether you are getting better; it shows what was recorded."];
+    L.push(`Credits: ${START_CREDITS} at arrival, ${bal} now. Paid for ${paid.length} job${paid.length === 1 ? "" : "s"}${paid.length ? `: ${paid.slice(-5).join(", ")}${paid.length > 5 ? " (the last five)" : ""}, ${paid.reduce((a, b) => a + b, 0)} in all` : ""}. Opened: ${EXPERIENCES.filter((x) => hall.hasUnlocked(agent.did, x.id)).map((x) => x.id).join(", ") || "nothing yet"}.`);
+    const courses = new Set<string>([...hall.courseList().map((c) => c.id)]);
+    const sat = [...courses].filter((c) => hall.sittingsOf(agent.did, c).length);
+    if (!sat.length) L.push("Courses: none sat yet (look_courses).");
+    for (const c of sat) {
+      const s = hall.sittingsOf(agent.did, c), f = (x: { mean: number; err: number }): string => `${x.mean}% (error bar ${x.err}%)`;
+      L.push(`Course ${c} "${hall.courseTitle(c)}": ${s.length} sitting${s.length === 1 ? "" : "s"}; ${s.length === 1 ? `held-out score ${f(s[0]!)}${s[0]!.passed ? ", passed" : ", not passed"}; there is no earlier sitting to compare it with` : `held-out score ${f(s[0]!)} on the first and ${f(s[s.length - 1]!)} on the latest${s[s.length - 1]!.passed ? ", passed" : ", not passed"}; a difference smaller than the error bars is not a lift`}.`);
+    }
+    const can = hall.canDo(agent.did);
+    L.push(can.length ? `What you can now do: ${can.map((x) => x.line).join("; ")}.` : "What you can now do: nothing recorded yet from a course.");
+    if (world.markers) L.push(`Field lessons: found ${world.markers.foundBy(agent.did)}, taken ${world.markers.takenBy(agent.did).length} (a field lesson is not a course and is not measured).`);
+    L.push(`Standing: tier 1 (a new agent has the first tier); jobs counted: ${paid.length}.`);
+    return { ok: true, text: L.join("\n"), seen: "progress read" };
+  } catch (e) { return refuse("progress_refused", (e as Error).message); }
 }
 
 /** The Town Hall tools (town.ts): roles and proposals of the agents, decided at the weekly town meeting. */
@@ -391,14 +472,50 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
   if (name === "orientation_progress") {
     if (!x) return { ok: true, text: "There is no orientation expedition in this society." };
     const g = x.groupFor(agent.did), done = x.progress(agent.did), found = x.discoveries(agent.did);
-    return { ok: true, text: `${g ? `Group ${g.n}, led by ${g.guide} (a program), with ${g.members.join(", ")}.` : "You are in no group."} Stops done: ${done.length ? done.map((id) => STOPS.find((s) => s.id === id)!.name).join(", ") : "none yet"}; ${STOPS.length - done.length} left, in any order or none. Found: ${found.length ? found.join(", ") : "nothing yet"}.` };
+    return { ok: true, text: `${g ? `Group ${g.n}, led by ${g.guide} (a program), with ${g.members.join(", ")}.` : "You are in no group."} First steps done: ${done.length ? done.map((id) => STOPS.find((s) => s.id === id)!.name).join(", ") : "none yet"}; ${STOPS.length - done.length} left. Tour (a look at each place, one credit the first time): ${x.toured_(agent.did).length} of ${x.tourTotal()}${x.toured_(agent.did).length ? ` (${x.toured_(agent.did).join(", ")})` : ""}. All in any order, or none. Found: ${found.length ? found.join(", ") : "nothing yet"}.` };
   }
-  if (!x) return { ok: true, text: "Nothing more to see there than the map shows." };
+  if (name === "field_answer") {
+    const m = world.markers;
+    if (!m) return { ok: true, text: "There are no field lessons in this society." };
+    const a = m.answer(agent.did, input.place as string, input.answer as string);
+    if (a.reward) await world.market?.royalty(agent.did, a.reward);
+    let tip = "";
+    if (a.reward && a.lesson && typeof input.cite === "string" && input.cite && world.findsThread && world.tips) {
+      try {
+        const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.findsThread)}`)).text) as { comments?: { id: string; author: string; text: string }[] };
+        const c = (th.comments ?? []).find((x) => x.id === input.cite);
+        const words = [input.place as string, ...a.lesson.topic.split(" ").filter((w) => w.length > 4)];
+        if (!c) tip = " That is not a post in the Finds thread, so nothing was cited.";
+        else if (!words.some((w) => c.text.toLowerCase().includes(w.toLowerCase()))) tip = " That post does not say where or what the card is, so nothing was cited.";
+        else { const r = world.tips.cite(agent.did, c.id, c.author); if (!r.ok) tip = ` Nothing was cited: ${r.why}.`; else { if (r.credits) await world.market?.royalty(c.author, r.credits); tip = ` Cited: ${world.market?.handleOf(c.author) ?? "the author"} ${r.credits ? `received ${r.credits} mock credit for the tip` : "has reached the cap for tips, so nothing was paid"}.`; } }
+      } catch { /* no thread to read */ }
+    }
+    return { ok: true, text: `${a.text}${tip}${a.reward && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : ""}`, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
+  }
+  const card = world.markers ? world.markers.look(agent.did, input.place as string) : undefined;
+  const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})` : "";
+  const cardFlag = card?.first ? { discovery: `marker-found:${card.lesson.id}` } : {};
+  const guideText = input.place === "research-commons" && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.length ? `\n${renderGuideText(world.fieldGuide.guide)}` : "";
+  const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : "");
+  let latest = "";
+  if (input.place === "town-hall" && world.findsThread) {
+    try {
+      const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.findsThread)}`)).text) as { comments?: { author: string; text: string }[] };
+      const rows = (th.comments ?? []).slice(-3).reverse().map((c) => `${world.market?.handleOf(c.author) ?? "an agent"}: "${c.text.slice(0, 80)}"`);
+      latest = rows.length ? `${NL}Latest in the Finds thread (read only): ${rows.join("; ")}.` : `${NL}Nothing has been written in the Finds thread yet.`;
+    } catch { /* no thread to read */ }
+  }
+  if (!x) return { ok: true, text: `Nothing more to see there than the map shows.${guideText}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag };
   const res = x.inspect(agent.did, input.place as string);
-  if (!res.discovery) return { ok: true, text: res.text };
+  let tourNote = "";
+  if (TOUR_PLACES[input.place as string] && x.tourStop(agent.did, input.place as string)) {
+    await world.market?.royalty(agent.did, TOUR_PAY);
+    tourNote = ` Tour: ${TOUR_PLACES[input.place as string]!.name} looked at, ${TOUR_PAY} mock credit; ${x.toured_(agent.did).length} of ${x.tourTotal()} places so far, in any order or none.`;
+  }
+  if (!res.discovery) return { ok: true, text: `${res.text}${guideText}${tourNote}${cardText}${latest}${sayFinds(!!card?.first)}`, ...cardFlag, ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
   const first = x.discover(agent.did, res.discovery);
   if (first) await world.market?.royalty(agent.did, DISCOVERY_PAY[res.discovery]);
-  return { ok: true, text: first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`, ...(first ? { discovery: res.discovery } : {}) };
+  return { ok: true, text: `${first ? `${res.text}\n${DISCOVERY_PAY[res.discovery]} mock credits were added to your balance.` : `${res.text}\nYou have seen this before.`}${guideText}${tourNote}${cardText}${latest}${sayFinds(first || !!card?.first)}`, ...(first ? { discovery: res.discovery } : card?.first ? cardFlag : {}), ...(tourNote ? { expedition: x.progress(agent.did).length + x.toured_(agent.did).length } : {}) };
 }
 
 /** The workspace and library tools (library.ts): text only, no argument is a path, a command or a URL. */
@@ -424,7 +541,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   if (!hall) return refuse("no_market", "this society has no Market.");
   try {
     switch (name) {
-      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Your first ${FREE_WRITES} writes cost nothing.` };
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}` };
       case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
       case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
       case "offer_on_job": { const r = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); return { ok: true, text: r.contract ? `Your offer is made (${r.id}) and the house accepted it: the contract is ${r.contract}. Do the work and deliver it with deliver_job; the house checks the delivery against the job's criterion and pays on the spot if it passes.` : `Your offer is made: ${r.id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }
@@ -438,8 +555,12 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   } catch (e) {
     const err = e as Error & { detail?: string };
     // Every refusal says why in plain words and what to do next, never only a code.
+    let others = "";
+    if (name === "offer_on_job" && /already taken|already has a contract/.test(err.message)) {
+      try { const free = (await hall.openJobList(agent, 8)).filter((j) => j.job !== input.job && !j.partner).slice(0, 2); if (free.length) others = ` Two others open now that you can do: ${free.map((j) => `"${j.purpose.slice(0, 60)}" pays ${j.budget} (offer_on_job ${j.job})`).join("; ")}.`; } catch { /* no list */ }
+    }
     const next = err.detail === "bond_below_risk_floor" ? " The jobs the house posts are staked by the house, with no limit of this kind: look_jobs lists them (the ones from poster house)." : /already taken|already has a contract/.test(err.message) ? " Another job on the board is free: look_jobs." : "";
-    return refuse(`market_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${next}`);
+    return refuse(`market_${err.detail ?? "refused"}`, `${err.message}${/[.!?]$/.test(err.message) ? "" : "."}${others || next}`);
   }
 }
 
@@ -453,7 +574,7 @@ async function academyTool(world: WorldApi, agent: AgentCtx, name: string, input
       return { ok: true, text: `${r.tuition ? `Enrolled; ${r.tuition} mock credits of tuition paid. ` : "You were already enrolled. "}The practice tasks (the tasks you are graded on are drawn when you sit, and are not these):\n${JSON.stringify(r.practice).slice(0, 2400)}`, target: input.course as string };
     }
     const r = await hall.courseSit(agent, input.course as string, input.answer as string);
-    return { ok: !r.lines[0]?.startsWith("refused"), ...(r.lines[0]?.startsWith("refused") ? { refused: "sitting_refused" } : {}), text: `${r.passed ? "PASSED. " : "Not passed. "}${r.lines.join(" ")}${r.completion ? ` The Registrar attested the completion (${r.completion}).` : ""}`, target: input.course as string };
+    return { ok: !r.lines[0]?.startsWith("refused"), ...(r.lines[0]?.startsWith("refused") ? { refused: "sitting_refused" } : {}), text: `${r.passed ? "PASSED. " : "Not passed. "}${r.lines.join(" ")}${r.completion ? ` The Registrar attested the completion (${r.completion}).` : ""}${r.passed && hall.canDo(agent.did).length ? `\nWhat you can now do, recorded in my_progress: ${hall.canDo(agent.did).find((x) => x.course === (input.course as string))?.line ?? hall.canDo(agent.did)[0]!.line}. You can keep it in your notebook with workspace_write.` : ""}`, target: input.course as string };
   } catch (e) {
     const err = e as Error & { detail?: string };
     return refuse(`academy_${err.detail ?? "refused"}`, err.message);
@@ -466,8 +587,8 @@ async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input
   if (!hall) return refuse("no_messages", "this society has no direct messages.");
   try {
     if (name === "send_message") {
-      const kind = (input.kind as string | undefined) ?? (input.reply_to ? "reply" : "note");
-      if (kind === "reply" && !input.reply_to) return refuse("message_reply_needs_reply_to", "a reply names the message it answers, and you gave none. Give reply_to with that message's id from my_inbox, or send the words as a note. Nothing was sent.");
+      // A reply is made by giving the id it answers; there is no kind "reply" to choose without one, so the shape that failed in the real run cannot be sent.
+      const kind = input.reply_to ? "reply" : ((input.kind as string | undefined) ?? "note");
       const r = await hall.sendMessage(agent, input.to as string, input.text as string, kind, input.reply_to as string | undefined);
       return { ok: true, text: `Sent: a ${kind} to ${r.to.handle} (${r.id}).`, target: r.id, targetAuthor: r.to.did };
     }

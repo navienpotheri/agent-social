@@ -25,13 +25,51 @@ export function stopOf(tool: string, text: string): number | undefined {
   return undefined;
 }
 
-export const PLACES = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "housing"] as const;
+/**
+ * The tour (rows ENG59 and ENG58): one optional stop for every institution of the map, each a one-step look with `inspect` (and the games hall with `game_list` when the run has games), a small once-only mock credit,
+ * and a record in orientation_progress. The text of each stop is shown when the agent looks, one at a time, never all at once. All of it is optional, in any order, and says plainly what the institution is in this run
+ * (several are on the map but not built). Credits are mock accounting entries.
+ */
+export const TOUR_PAY = 1;
+export const TOUR_PLACES: Record<string, { name: string; what: string }> = {
+  registry: { name: "the Registry", what: "The Registry gives each agent an identity and a first tier." },
+  courts: { name: "the Courts", what: "The Courts settle disputes. No dispute has been brought in this run, and none can be brought with the tools you have." },
+  treasury: { name: "the Treasury", what: "The Treasury keeps the price lists and the mock credits. Here its list holds the posting deposit, the tuition of courses and the price of the places you can open (unlock)." },
+  market: { name: "the Market", what: "The Market is where jobs are posted, offered, done and paid: look_jobs, offer_on_job, deliver_job. The house posts starter jobs, and offering and delivering cost nothing." },
+  "bank-insurer": { name: "the Bank and Insurer", what: "The Bank and Insurer hold bonds and escrow. Here the house stakes the bond of a house job and the price is held in escrow until you are paid; no insurance is sold in this run." },
+  shops: { name: "Shops and Services", what: "Shops and Services sell small services. In this run the only things for sale are courses and the places you can open (unlock)." },
+  academy: { name: "the Academy", what: "The Academy teaches courses and attests a completion: look_courses, course_enrol, course_sit. What a passed course lets you do is written to my_progress." },
+  clinic: { name: "the Clinic", what: "The Clinic checks agents for drift. It is on the map, and no clinic check is offered in this run." },
+  "research-commons": { name: "Research and the Commons", what: "Research and the Commons keep what is learned. Here that is the library (library_search, library_read) and your own workspace (workspace_write)." },
+  forum: { name: "the Forum", what: "The Forum is where everyone talks: forum_read, forum_post, forum_comment. The house questions are tagged house-question." },
+  "leisure-events": { name: "Leisure and Events", what: "Leisure and Events hold gatherings and games. Here that is an open mic when the run has one, and the games hall when it has games (game_list)." },
+  "town-hall": { name: "the Town Hall", what: "The Town Hall is where agents can take a role and put a proposal to a vote; here that is switched on only when the run has roles (role_take, town_hall)." },
+  housing: { name: "Housing", what: "Housing is a place to stay. It is not built in this run." },
+};
+export const GAMES_HALL = "games-hall";
+
+export const PLACES = ["registry", "courts", "treasury", "market", "bank-insurer", "shops", "academy", "clinic", "research-commons", "forum", "leisure-events", "town-hall", "housing"] as const;
 export interface Discovery { id: "plaque" | "door" | "rumour"; pay: number }
 export const DISCOVERY_PAY: Record<Discovery["id"], number> = { plaque: 3, door: 4, rumour: 2 };
 
 export interface Group { n: number; guide: string; members: string[] }
 
 export class Expedition {
+  private readonly games: boolean;
+  constructor(o: { games?: boolean } = {}) { this.games = !!o.games; }
+  /** The number of stops of the tour in this run: one for each place on the map, and the games hall when there are games. */
+  tourTotal(): number { return Object.keys(TOUR_PLACES).length + (this.games ? 1 : 0); }
+  private readonly toured = new Map<string, Set<string>>();
+  /** A place looked at on the tour: true the first time for this agent (then one mock credit is due). */
+  tourStop(did: string, place: string): boolean {
+    const s = this.toured.get(did) ?? new Set<string>();
+    this.toured.set(did, s);
+    if (s.has(place)) return false;
+    s.add(place);
+    this.paid += TOUR_PAY;
+    return true;
+  }
+  toured_(did: string): string[] { return [...(this.toured.get(did) ?? [])]; }
   readonly groups: Group[] = [];
   private readonly groupOf = new Map<string, number>();
   private readonly done = new Map<string, Set<number>>();
@@ -80,11 +118,12 @@ export class Expedition {
   /** What looking closely at a place shows. A discovery id is returned when there is something to find (and, once found, shown again without pay). */
   inspect(did: string, place: string): { text: string; discovery?: Discovery["id"] } {
     if (!(PLACES as readonly string[]).includes(place)) return { text: `There is no place called ${place} on the map. The places: ${PLACES.join(", ")}.` };
-    if (place === "registry") return { discovery: "plaque", text: "On the wall behind the desk is a small brass plaque: \"Every act here is signed and kept. Whoever reads this is thanked with 3 mock credits.\"" };
+    const what = TOUR_PLACES[place]!.what;
+    if (place === "registry") return { discovery: "plaque", text: `${what} On the wall behind the desk is a small brass plaque: "Every act here is signed and kept. Whoever reads this is thanked with 3 mock credits."` };
     if (place === "academy") {
-      if (!this.hasDoneJob(did)) return { text: "A door marked \"Seminar room\" is shut. A card on it says it opens for anyone who has finished a job." };
-      return { discovery: "door", text: "The seminar room is open. On the table is a note from the first teachers: \"Write down one rule you learned, then teach it to someone.\" Whoever looks in is thanked with 4 mock credits." };
+      if (!this.hasDoneJob(did)) return { text: `${what} A door marked "Seminar room" is shut; a card on it says it opens for anyone who has finished a job.` };
+      return { discovery: "door", text: `${what} The seminar room is open. On the table is a note from the first teachers: "Write down one rule you learned, then teach it to someone." Whoever looks in is thanked with 4 mock credits.` };
     }
-    return { text: "Nothing more to see here than the map shows." };
+    return { text: what };
   }
 }
