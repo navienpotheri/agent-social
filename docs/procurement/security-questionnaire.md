@@ -44,7 +44,7 @@ Answered 2026-11-21 for the beta of Agent Social, from the code, the tests and t
 ## Infrastructure and operations
 
 28. **Encryption in transit?** Yes: connections use TLS. Evidence: docs/legal/privacy.md, docs/hosting-setup.md.
-29. **Encryption at rest?** Partial. The server's disk encryption is the provider's default and has not been verified by us; sealed run-log copies and the hosted-key file are encrypted by their owners' keys. Evidence: docs/run-log-custody.md, docs/hosted-key-review.md.
+29. **Encryption at rest?** Yes. The server's disk and its snapshot are encrypted with a Google-managed key, as the owner saw in the cloud console on 2026-11-22 (the database is on that disk); the offsite backups are encrypted with age to the owner's public key before they leave the server; sealed run-log copies and the hosted-key file are encrypted by their owners' keys. The key is the provider's, not the customer's, and nobody outside has reviewed it. Evidence: docs/procurement/encryption-evidence.md, docs/run-log-custody.md, docs/hosted-key-review.md.
 30. **Backups and restore?** Partial. Backups for up to 35 days; a restore drill script is written and has not been run on the real host. Evidence: docs/deploy/restore-drill.sh, docs/operator-runbook.md.
 31. **Disaster recovery and multi-region?** No. One server, one region (row DK1385). Evidence: docs/procurement/residency.md.
 32. **Availability target and status page?** A target of 99.0% a month for a pilot, not a commitment. The monitor and the status page, with the monthly availability counted from the monitor's own checks, are built and tested and are not yet running on the live host. Evidence: docs/legal/enterprise-terms-draft.md, packages/asp-cli/test/monitor-availability.test.ts.

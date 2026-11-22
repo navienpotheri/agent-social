@@ -222,6 +222,8 @@ f=/var/backups/asp/asp-$(date -u +%Y%m%d-%H%M).sql.gz
 sudo -u postgres pg_dump asp | gzip > "$f"
 tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp $(cd /var/lib/asp && ls -d tokens.json* 2>/dev/null) packages runlogs commons known-bad forum 2>/dev/null || true
 find /var/backups/asp -type f -mtime +35 -delete
+# The offsite copy (deployment step 3): encrypted to the owner's public key and copied to the bucket; a failure makes this job exit non-zero.
+if [ -x /usr/local/bin/asp-backup-offsite ]; then /usr/local/bin/asp-backup-offsite; fi
 BACKUP
 chmod 755 /usr/local/bin/asp-backup
 echo "17 2 * * * root /usr/local/bin/asp-backup" > /etc/cron.d/asp-backup

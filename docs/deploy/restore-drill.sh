@@ -11,6 +11,9 @@
 # It changes nothing that the live service uses. Run it once now, record the output in docs/live-run-checklist.md, and again after any change to the backup job.
 #
 #   sudo bash restore-drill.sh [backup-file]
+#
+# The backup file is a plain .sql.gz. A file from the offsite bucket is encrypted (name.sql.gz.age) to the owner's public key and cannot be opened on the server: the owner fetches it with his own access, decrypts it with
+# his private key on his side (age -d -i), sends the .sql.gz here and runs this script on it. The private key is never on the server, and this script refuses an .age file.
 set -euo pipefail
 
 APP=${APP:-/opt/asp}
@@ -22,6 +25,7 @@ PORT=18787
 [ "$SCRATCH_DB" != "asp" ] || { echo "refusing: the scratch database must not be the live one" >&2; exit 2; }
 
 FILE=${1:-$(ls -1t "$BACKUPS"/asp-[0-9]*.sql.gz 2>/dev/null | head -1 || true)}
+case "$FILE" in *.age) echo "refusing an encrypted file ($FILE): decrypt it on your own side with your private key (age -d -i) and give this script the .sql.gz; the private key must never be on the server" >&2; exit 2;; esac
 [ -n "$FILE" ] && [ -f "$FILE" ] || { echo "no backup found in $BACKUPS (the nightly job is /usr/local/bin/asp-backup)" >&2; exit 1; }
 echo "==> restoring $FILE ($(date -u -r "$FILE" +%Y-%m-%dT%H:%M:%SZ), $(du -h "$FILE" | cut -f1)) into the scratch database $SCRATCH_DB"
 
@@ -38,6 +42,8 @@ sudo -u postgres psql -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $SCRATCH
 # The dump was made from the live database (named asp, owned by the asp role): load it into the scratch one.
 gunzip -c "$FILE" | sudo -u postgres psql -q -v ON_ERROR_STOP=1 -d "$SCRATCH_DB" >/dev/null
 echo "    restored"
+# The scratch database was created and loaded as postgres, but the throwaway service connects as the live role (asp): without this it fails to start with "permission denied for schema public" (found by the first real drill on the server, 2026-11-22).
+sudo -u postgres psql -q -v ON_ERROR_STOP=1 -d "$SCRATCH_DB" -c "ALTER DATABASE $SCRATCH_DB OWNER TO asp" -c "GRANT ALL ON SCHEMA public TO asp" -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO asp" -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO asp" >/dev/null
 
 TOKENS="$WORK/tokens.json"
 TOKEN=$(node "$APP/packages/asp-cli/bin/asp.mjs" serve token --tokens "$TOKENS" --tenant drill --role admin | tail -1)
