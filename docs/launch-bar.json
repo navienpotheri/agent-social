@@ -2142,7 +2142,7 @@
   {
    "id": "AG2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Continuity of self is not protected: nothing says who the agent is after its model is swapped, its runtime changes or its memory is edited; no one is bound to record or tell it, and memory loss or ta…",
    "bucket": "after",
    "hours": 0,
