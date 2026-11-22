@@ -4297,7 +4297,7 @@
   {
    "id": "DK1232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "`unprompted` is not an Action field or a Mandate item and reports do not show the share: the recorder is a stand-in.",
    "bucket": "after",
    "hours": 0,
