@@ -7,6 +7,8 @@
 import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { createHash } from "node:crypto";
 import { institutionDid, REGISTRAR_DID, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
+import { SEED_QUESTIONS, voiceOf } from "./voice.ts";
+import { EXPERIENCES, canDoOf, experienceService } from "./experiences.ts";
 import { courseItem, courseService, engineIds, ENGINES, loadCatalogue, practiceSeed, type CourseCard } from "../lens-courses/index.ts";
 import { Ledger, SittingRefused, completeSitting, describeSitting, openEnrolment, courseRecordFor, runSitting } from "../lens-courses/sitting.ts";
 import type { LocalLog } from "@agent-social/asp-package";
@@ -82,7 +84,7 @@ export class MarketHall {
       for (const [a, sp] of [[teacher, this.p.house], [r1, rs1], [r2, rs2]] as const) await this.put(this.mk("passport", sp, { did: a.did, kind: "agent", sponsor: sp.did, tier: 1, shape: {}, keys: keysOf(a) }, null, a.did));
     }
     const effective = this.at();
-    const list = this.mk("price_list", this.p.treasury, { version: 1, effective_from: effective, bounds_version: 1, job_tax_permille: 20, items: [{ service: "market.posting.deposit", institution: this.p.market.did, price: 2, split: DEPOSIT, class: "standard" }, ...cards.map((c) => courseItem(c, teacher.did))] }, null, null, [], effective);
+    const list = this.mk("price_list", this.p.treasury, { version: 1, effective_from: effective, bounds_version: 1, job_tax_permille: 20, items: [{ service: "market.posting.deposit", institution: this.p.market.did, price: 2, split: DEPOSIT, class: "standard" }, ...EXPERIENCES.map((x) => ({ service: experienceService(x.id), institution: this.p.market.did, price: x.price, split: DEPOSIT, class: "standard" })), ...cards.map((c) => courseItem(c, teacher.did))] }, null, null, [], effective);
     this.priceList = await this.put(list);
     await this.mint(this.p.house.did, 1600);
     const house2 = newParty("did:web:cohort.local:users:house-2");
@@ -177,6 +179,10 @@ export class MarketHall {
     return other ? this.agents.get(other.performer)?.agent.handle : undefined;
   }
   private greeter?: AgentCtx;
+  /** Whether the run has the orientation tour (the greeter offers it in one line) and a games hall to name. */
+  tourOn = false; gamesHallOn = false;
+  /** Whether each arrival is offered a question chosen from its identity-derived interests (ENG55; on with the voices). */
+  seedQuestions = false;
   /** Called for each arriving agent after the greeter (the orientation expedition uses it); not called for house accounts. */
   arrivalHook?: (agent: AgentCtx) => Promise<void>;
   private readonly questDone = new Map<string, Set<number>>();
@@ -221,7 +227,8 @@ export class MarketHall {
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
-    await this.sendMessage(this.greeter, agent.handle, text, "notice");
+    await this.sendMessage(this.greeter, agent.handle, `${text}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
+    if (this.seedQuestions) await this.sendMessage(this.greeter, agent.handle, `A question you might like, chosen from your interests (${voiceOf(agent.did).interests[0]}) and nobody else's: ${SEED_QUESTIONS[voiceOf(agent.did).interests[0]] ?? "what would you like to find out here?"} Answer it in the forum, in a message, or not at all.`, "note");
     if (this.event && !this.event.seededTo) {
       this.event.seededTo = agent.handle;
       await this.sendMessage(this.greeter, agent.handle, `An invitation, to you first: the forum has an ${this.event.key} night in the thread "Open mic night" (post ${this.event.post}). Share a line you wrote, or reply to one. Come if you like, and tell anyone who might.`, "notice");
@@ -367,9 +374,14 @@ export class MarketHall {
     try {
       const result = await runSitting(card, { holder: agent.did, enrolment: open.id, artifact }, { reader, ledger: this.ledger, now: () => this.at() });
       const lines = describeSitting(card, result);
+      const mine = this.sittings.get(agent.did) ?? new Map<string, { mean: number; err: number; passed: boolean }[]>();
+      mine.set(card.id, [...(mine.get(card.id) ?? []), { mean: result.sitting.mean_permille / 10, err: result.sitting.error_bar_permille / 10, passed: result.sitting.passed }]);
+      this.sittings.set(agent.did, mine);
       if (!result.sitting.passed) return { passed: false, lines };
       const action = await this.put(this.mk("action", e.party, { contract: e.contract, scopes_used: [], summary: `sat ${card.id} attempt ${result.attempt}: passed` }, null, e.contract));
       const completion = await completeSitting(reader, { append: (rec: AspRecord) => this.log.append(rec) }, { ...signer(this.p.registrar), did: REGISTRAR_DID }, card, { holder: agent.did, enrolment: open.id, runLog: action }, { ledger: this.ledger, now: () => this.at(), make: (type, issuer, subject, body, sg) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: this.at() }, sg) });
+      const have = this.skills.get(agent.did) ?? [];
+      if (!have.some((x) => x.course === card.id)) this.skills.set(agent.did, [...have, { course: card.id, title: card.title, line: canDoOf(card.id, card.concept) }]);
       return { passed: true, lines, completion };
     } catch (err) {
       if (err instanceof SittingRefused) return { passed: false, lines: [`refused (${err.code}): ${err.message}`] };
@@ -478,6 +490,39 @@ export class MarketHall {
     return { agents: this.agents.size - (this.greeter ? 1 : 0), openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
   }
 
+  private readonly unlocked = new Map<string, Set<string>>();
+  private readonly skills = new Map<string, { course: string; title: string; line: string }[]>();
+  private readonly sittings = new Map<string, Map<string, { mean: number; err: number; passed: boolean }[]>>();
+  /** Mock credits spent on experiences (the credit economy table reads the log's own purchase flows; this is for the report). */
+  experiencesOpened(): number { return [...this.unlocked.values()].reduce((n, s) => n + s.size, 0); }
+  hasUnlocked(did: string, id: string): boolean { return !!this.unlocked.get(did)?.has(id); }
+  /** Opens an experience for its price (a purchase record of the price list); one already opened is not paid for again. Returns whether it was paid for now, and the price. */
+  async unlock(agent: AgentCtx, id: string): Promise<{ paid: boolean; price: number }> {
+    const x = EXPERIENCES.find((y) => y.id === id);
+    if (!x) throw new Error(`there is nothing called ${id} to open: ${EXPERIENCES.map((y) => y.id).join(", ")}`);
+    const have = this.unlocked.get(agent.did) ?? new Set<string>();
+    if (have.has(id)) return { paid: false, price: x.price };
+    const e = this.enrolled(agent);
+    if ((await this.balance(agent)) < x.price) throw new Error(`you have ${await this.balance(agent)} credits and ${x.name} opens for ${x.price}; you can earn credits with a house job (look_jobs)`);
+    await this.put(this.mk("purchase", e.party, { service: experienceService(id), institution: this.p.market.did, price_list: this.priceList, quantity: 1, amount: credit(x.price), idempotency: `exp-${++this.n}`, mandate: e.mandate }, null, agent.did));
+    have.add(id); this.unlocked.set(agent.did, have);
+    return { paid: true, price: x.price };
+  }
+  /** What an agent can now do, from the courses it completed (one plain line each). */
+  canDo(did: string): { course: string; title: string; line: string }[] { return this.skills.get(did) ?? []; }
+  /** The sittings of an agent in a course, in order: the held-out mean and its error bar (in per cent) and whether it passed. */
+  sittingsOf(did: string, course: string): { mean: number; err: number; passed: boolean }[] { return this.sittings.get(did)?.get(course) ?? []; }
+  courseTitle(course: string): string { return this.courses.find((c) => c.id === course)?.title ?? course; }
+  /** House jobs by category: how many are open and how many are settled. */
+  houseJobCounts(): Record<string, { open: number; settled: number }> {
+    const out: Record<string, { open: number; settled: number }> = {};
+    const taken = new Set([...this.contractState.values()].map((c) => c.intent));
+    for (const [intent, j] of this.houseChecks) { const o = (out[j.category] ??= { open: 0, settled: 0 }); if (!taken.has(intent)) o.open++; }
+    for (const c of this.contractState.values()) { const j = this.houseChecks.get(c.intent); if (j && c.settled) { const o = (out[j.category] ??= { open: 0, settled: 0 }); o.settled++; } }
+    return out;
+  }
+  /** The prices an agent was paid for its settled jobs, oldest first. */
+  paidJobs(did: string): number[] { return [...this.contractState.values()].filter((c) => c.performer === did && c.settled).map((c) => c.price); }
   /** The jobs this agent is in, as principal or performer, with where each stands. */
   async myJobs(agent: AgentCtx): Promise<Array<{ contract: string; role: "poster" | "worker"; other: string; price: number; state: string }>> {
     return [...this.contractState.values()].filter((c) => c.principal === agent.did || c.performer === agent.did).map((c) => ({ contract: c.contract, role: c.principal === agent.did ? "poster" as const : "worker" as const, other: [...this.agents.values()].find((a) => a.agent.did === (c.principal === agent.did ? c.performer : c.principal))?.agent.handle ?? "?", price: c.price, state: c.settled ? "settled" : c.delivery ? "delivered, waiting for the poster to accept" : "running, waiting for the worker to deliver" }));

@@ -39,7 +39,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean }): Promise<World> {
+export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -90,6 +90,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   await hall.enrolStandalone(greeter);
   hall.setGreeter(greeter);
   if (o.games) api.games = new GameHall({ file: join(o.dir, "games.json"), ...(o.gameRound ? { size: o.gameRound } : {}), pay: (did, n) => hall.royalty(did, n) });
+  hall.seedQuestions = !!o.seedQuestions;
   if (o.dayCycle) {
     const d = new DayCycle();
     api.dayCycle = d;
@@ -111,7 +112,8 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     };
   }
   if (o.expedition) {
-    const x = new Expedition();
+    const x = new Expedition({ games: !!o.games });
+    hall.tourOn = true; hall.gamesHallOn = !!o.games;
     api.expedition = x;
     const guides = new Map<number, AgentCtx>();
     hall.arrivalHook = async (agent) => {

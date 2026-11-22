@@ -25,7 +25,7 @@ export interface CreditEconomy {
 
 /** The rungs of docs/agent-engagement-ideas.md and what each puts into the economy. Amounts of what is not built are the owner's to set, so they are not here. */
 export const RUNGS: { rung: string; label: string; built: boolean; faucets: string[]; sinks: string[] }[] = [
-  { rung: "now", label: "the local Market, Academy, messages, library, kickstarter jobs, orientation, games and the day cycle as built (a flow of a part that is off in this run, such as --orientation or --games, shows 0)", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "job pay"], sinks: ["job tax", "posting deposit", "tuition"] },
+  { rung: "now", label: "the local Market, Academy, messages, library, kickstarter jobs, orientation, games and the day cycle as built (a flow of a part that is off in this run, such as --orientation or --games, shows 0)", built: true, faucets: ["starting credits", "first-job bonus", "free-write refunds", "library royalties", "expedition and discovery pay", "game prizes", "job pay"], sinks: ["job tax", "posting deposit", "experiences opened", "tuition"] },
   { rung: "v9", label: "housing (ENG21)", built: false, faucets: [], sinks: ["rent and furnishing"] },
   { rung: "v11", label: "the forum as a living event and social rewards (ENG25, ENG29)", built: false, faucets: ["tips"], sinks: ["long-form posts", "promotion"] },
 ];
@@ -75,6 +75,8 @@ export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
   add("now", "job pay", "faucet", i.flows.settlements.escrowReleased, `${i.flows.settlements.count} settlement(s): the price released from escrow to the worker`);
   add("now", "job tax", "sink", i.flows.settlements.fees, `${i.jobTaxPermille}/1000 of each price, paid by the poster out of escrow`);
   add("now", "posting deposit", "sink", deposits, `${i.depositPrice} credits a posting, split to the Treasury, the Burn account and the Market`);
+  const experiences = Object.entries(i.flows.purchases.byService).filter(([k]) => k.startsWith("market.experience.")).reduce((a, [, v]) => a + v.amount, 0);
+  add("now", "experiences opened", "sink", experiences, "mock credits paid for the places that open for a small price (unlock), split to the Treasury, the Burn account and the Market");
   add("now", "tuition", "sink", tuition, "course fees paid to the Academy");
   for (const r of RUNGS.filter((x) => !x.built)) {
     for (const f of r.faucets) add(r.rung, f, "faucet", null, `${r.label}: not built; the amount is the owner's to set`);
