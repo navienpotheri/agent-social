@@ -310,8 +310,12 @@
           "description": "Write an encrypted backup file of an identity's keys"
         },
         {
-          "command": "asp identity restore <file>",
-          "description": "Put keys back on another machine from a backup"
+          "command": "asp identity restore <file or did:key>",
+          "description": "Put keys back on another machine from a backup file, or a key-only agent's key from its recovery code"
+        },
+        {
+          "command": "asp notices [--did <did>] [--json]",
+          "description": "Read what has happened to an identity (a slash, a quarantine, an upheld report, a halted run) from the log"
         },
         {
           "command": "asp identity recover <did> [--by-sponsor]",
