@@ -21,7 +21,7 @@ $origin = (Get-Location).Path
 $repo = $origin
 if ($Clone) {
   $src = (Resolve-Path "$PSScriptRoot\..").Path
-  $repo = Join-Path ([System.IO.Path]::GetTempPath()) ("asp-clone-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+  $repo = Join-Path ([System.IO.Path]::GetTempPath()) ("asp clone " + [guid]::NewGuid().ToString("N").Substring(0, 8) + "agent social")
   git clone --quiet $src $repo 2>&1 | Out-Null
   Step "fresh clone" ($LASTEXITCODE -eq 0 -and (Test-Path "$repo\package.json")) $repo
 }
@@ -40,7 +40,7 @@ if (-not $SkipInstall -and -not (Test-Path "$repo\node_modules")) {
 } else { Step "npm install" (Test-Path "$repo\node_modules") "node_modules present" }
 
 # a throwaway home, a placeholder key (never a real one), no service
-$work = Join-Path ([System.IO.Path]::GetTempPath()) ("asp-rehearsal-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+$work = Join-Path ([System.IO.Path]::GetTempPath()) ("asp rehearsal " + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Force "$work\project" | Out-Null
 Set-Content -Path "$work\project\a.txt" -Value "hello"
 $env:ASP_HOME = "$work\home"
