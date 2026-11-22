@@ -265,6 +265,24 @@ export class ServiceMailer {
     return this.deliver(key, to, "tenant", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);
   }
 
+  /**
+   * A breach was reported to the service (DK1714, E10): the operator is told at once, and so is the sponsor of the agent (and the agent's own verified tenant, if it has one), once each per report. The service cannot
+   * quarantine (the Clinic's key is the owner's): the mail says what was reported and what the owner runs, so the alert does not wait on the owner's machine. Returns who was mailed.
+   */
+  async tellBreach(b: { id: string; agent: string; cause: string; summary: string; at: string; sponsor?: string | null }): Promise<string[]> {
+    const told: string[] = [];
+    const subject = `Breach reported: ${b.cause} by ${b.agent}`;
+    const text = [subject, "", `At ${b.at}: ${b.summary}`, "", "The agent is not yet quarantined: the owner signs the quarantine and the incident record with `asp breach respond --from-service`.", "Nothing is paid to an outside party in credits; a remedy the operator records follows an upheld finding."].join("\n");
+    const html = `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>`;
+    if (await this.tellOperator(`breach:${b.id}:operator`, subject, text)) told.push("operator");
+    for (const who of [b.sponsor ?? undefined, b.agent]) {
+      if (!who) continue;
+      const to = this.recipientFor(who);
+      if (to && (await this.deliver(`breach:${b.id}:${who}`, to, `breach ${who}`, () => ({ subject, text, html }), true))) told.push(who);
+    }
+    return told;
+  }
+
   /** One mail to the operator, once per key (a finding from the society watcher, DK52). False when there is no operator address or the key was already handled. */
   async tellOperator(key: string, subject: string, text: string): Promise<boolean> {
     return this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);

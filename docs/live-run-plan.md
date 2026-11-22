@@ -1,6 +1,6 @@
-# The live agent run of 2026-11-23: the owner's runbook
+# The live agent run of tonight, 2026-11-22: the owner's runbook
 
-Written 2026-11-22 for the owner, who runs it alone on the evening of 2026-11-23. Credits are mock accounting entries, not money. The service is a beta. There has been no outside security review. Nothing in this plan trains a model's weights. Run everything in PowerShell from the repository folder. Your provider key stays on your machine: it is read from your environment, never written to the repository, never sent to the service, and the gateway never sends it anywhere but the provider ([provider-terms.md](provider-terms.md)). Paste nothing that contains a key or a token. **What the gateway does on this machine:** it refuses a call whose command text or tool does not match the Mandate, before the agent sees it. It reads calls; it does not isolate the process or block network traffic at the system level. On Linux an optional sandbox blocks the network at the system level (live-checked only under WSL); on Windows there is no sandbox.
+Written 2026-11-22 for the owner, who runs it alone tonight, the evening of 2026-11-22. The owner's answers of 2026-11-22: Claude Code first and then Codex; the runtime's own default model with the owner's own key in the owner's own window only; USD 5 an agent for each run; the owner alone. Credits are mock accounting entries, not money. The service is a beta. There has been no outside security review. Nothing in this plan trains a model's weights. Run everything in PowerShell from the repository folder. Your provider key stays on your machine: it is read from your environment, never written to the repository, never sent to the service, and the gateway never sends it anywhere but the provider ([provider-terms.md](provider-terms.md)). Paste nothing that contains a key or a token. **What the gateway does on this machine:** it refuses a call whose command text or tool does not match the Mandate, before the agent sees it. It reads calls; it does not isolate the process or block network traffic at the system level. On Linux an optional sandbox blocks the network at the system level (live-checked only under WSL); on Windows there is no sandbox.
 
 ## 1. Before the evening (15 minutes, once)
 
@@ -10,7 +10,7 @@ Written 2026-11-22 for the owner, who runs it alone on the evening of 2026-11-23
 node --version                                   # 22.18 or newer
 npm install
 $env:ANTHROPIC_API_KEY = "PASTE-YOUR-OWN-KEY"    # this window only; never commit it
-$env:ASP_HOME = "$HOME\asp-live-2026-11-23"      # a fresh home for the evening
+$env:ASP_HOME = "$HOME\asp-live-2026-11-22"      # a fresh home for the evening
 npm run asp -- runtimes                          # lists what is installed and how each is held
 npm run asp -- join                              # one time: the preflight is red on "identities" until you have one
 npm run asp -- live preflight --model <the model you will use> --budget-usd 5 --api-key-env ANTHROPIC_API_KEY
@@ -28,7 +28,7 @@ Do the items in this order; stop when the time is gone. The first four carry the
 | 2 | Both ways in: a sponsor-less agent and a sponsored agent | 30 min | DK650 |
 | 3 | Identity set: a principal, an agent and a sub-agent, one of every kind of call | 40 min | T15, T22 |
 | 4 | A lens course sat by a real model agent | 25 min | DK1600 (DK1342, DK1347 live part) |
-| 5 | Codex, then Goose, through `asp run` | 20 min each | P21 |
+| 5 | Codex through `asp run` (Goose only if time remains) | 20 min each | P21 |
 | 6 | Laptop sleep, two terminals, no network | 25 min | T2, T3, T4 |
 | 7 | Antigravity and OpenHands, only if installed | 20 min each | E5, P21 |
 | 8 | Register one real agent for the drift schedule | 10 min | DK1604 (starts a week-long run) |
@@ -53,7 +53,7 @@ npm run asp -- journey <your agent name> --sponsor-view   # the check after the 
 $env:ASP_HOME = "$HOME\asp-live-keyonly"
 npm run asp -- enrol --service https://log.thedeeptransformation.com --name live-keyonly-1 --accept-terms
 npm run asp -- run claude-code --project C:\scratch\repo --prompt "Say done" --permissions develop
-$env:ASP_HOME = "$HOME\asp-live-2026-11-23"
+$env:ASP_HOME = "$HOME\asp-live-2026-11-22"
 npm run asp -- join
 npm run asp -- run claude-code --project C:\scratch\repo --prompt "Say done" --permissions develop
 ```
@@ -71,7 +71,7 @@ npm run asp -- academy lens sit <course id> --by <your agent did> --enrol
 
 *Counts when:* the agent's own sitting runs end to end, the result carries its error bar, the tuition moves mock credits, and the lessons are written through the lesson gate. *Paste back:* the printed result and the new lesson ids.
 
-**Item 5.** `npm run asp -- run codex --project C:\scratch\repo --prompt "Say done" --budget-usd 5`, then the same with `goose`, and `npm run asp -- live report` after each. *Counts when:* each shows a governed session with one refusal under the Mandate. *Paste back:* `asp runs <id>` for each.
+**Item 5.** `npm run asp -- run codex --project C:\scratch\repo --prompt "Say done" --budget-usd 5`, then, only if time remains, the same with `goose`, and `npm run asp -- live report` after each. *Counts when:* each shows a governed session with one refusal under the Mandate. *Paste back:* `asp runs <id>` for each.
 
 **Item 6.** *Sleep:* start a session, hibernate the laptop for ten minutes, reopen; it must end or continue with a message that says what happened. *Two terminals:* start two `asp run` commands for the same agent within a second; both must start, `asp runs` must show both, and neither may stall. *No network:* switch the wifi off, run `npm run asp -- run claude-code --local --prompt "Say done" --project C:\scratch\repo`; it must run without the service and say that it is local. *Paste back:* what you saw in one line each.
 
@@ -117,6 +117,9 @@ Read the left column first. Nothing here needs a key typed into a command line o
 | 13 | The log service is unreachable (AMBER or RED) | No network, or a wrong service address | Run with `--local`, or check what the service holds with `npm run asp -- account show` |
 | 14 | A Windows Firewall prompt | It should not appear: the gateway listens on 127.0.0.1 only | If it appears, choose Cancel, or Private networks only |
 | 15 | A red `NativeCommandError` banner in PowerShell 5.1 | Cosmetic: stderr lines when you pipe with `2>&1` | Run without `2>&1` |
+| 16 | `this run was not started by a person's prompt ... does not allow unprompted work` | `--unprompted` or `ASP_UNPROMPTED=1` is set (a schedule or hook) and the Mandate gives no leave | Not used on the evening path. Start the run with a prompt, or allow it: `asp market mandate ... --allow-unprompted` |
+| 17 | A call is refused with `this agent is a router` or `a watchdog` | The Mandate names a role (an option; the evening Mandate carries none) | Use a worker Mandate for a run that must run tools |
+| 18 | A call is refused with `stands on the ladder at "tighten"` or `"quarantine"` | The ladder is on (`--escalation-ladder` or `--ladder-file`; off by default): the run retried refused calls | Read the refusal, tell the agent the goal in other words, and start a new run; do not retry the refused call |
 
 When a run stops at the cap, Claude Code prints a line of this form, and the summary shows `stopped  dollar cap reached`: "API Error: 403 ASP gateway: this run was stopped (dollar cap reached). No further model call is made in this run: this is the limit you set, not a fault of your key; start a new run to go on (raise --budget-usd if the limit was too low)." Do not read "Failed to authenticate" as a key problem when this text is present.
 

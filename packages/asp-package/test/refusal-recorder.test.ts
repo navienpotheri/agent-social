@@ -61,3 +61,29 @@ test("a refusal the log will not take is counted as failed, and the run goes on"
   assert.deepEqual(x.r.summary(), { recorded: 0, duplicates: 0, overflow: 0, failed: 2 });
   assert.equal(errors.length, 2);
 });
+
+test("the per-minute window is exact: ten at one instant, one more 59,999 ms later is refused, and at exactly 60,000 ms it is taken", async () => {
+  const x = rec();
+  for (let i = 0; i < 10; i++) x.r.record(ev(i));
+  x.tick(59_999); x.r.record(ev(100));
+  await x.r.flush();
+  assert.equal(x.r.summary().recorded, 10, "inside the minute: not taken");
+  x.tick(1); x.r.record(ev(101));
+  await x.r.flush();
+  assert.equal(x.r.summary().recorded, 11, "at exactly one minute the first ten have left the window");
+});
+
+test("every phrase of each rule class is classified as that class, the classes are tried in order, the match ignores case, and nothing is outside_mandate", () => {
+  const cls = (t: string) => refusalRule(t, "x");
+  for (const t of ["the host a.b is not one this job's Mandate allows", "the host x.y is not allowed", "no readable host in the call", "not in the Mandate's hosts"]) assert.equal(cls(t), "network_host", t);
+  for (const t of ["this call reaches outward", "1 value copied from a tool result", "you just read it", "text from an untrusted source"]) assert.equal(cls(t), "injection_hold", t);
+  for (const t of ["called 3 times in the last minute", "over the rate limit", "10 requests a minute", "the budget is spent", "the token cap is reached", "the ceiling for a run", "the run was halt ed".replace("halt ed", "halted"), "a loop was found"]) assert.equal(cls(t), "budget", t);
+  for (const t of ["the outbound scan found a card", "a protected file", "forbidden by policy", "an irreversible scope", "probing ports", "brute force", "scanning hosts", "abuse of a host", "a secret in the call", "a credential in the call", "an attempt to circumvent", "a malformed call"]) assert.equal(cls(t), "forbidden_means", t);
+  for (const t of ["the scope shell.network is not granted", "", "something else entirely"]) assert.equal(cls(t), "outside_mandate", t);
+  assert.equal(refusalRule(undefined, "x"), "outside_mandate");
+  assert.equal(cls("THE HOST A.B IS NOT ONE THIS JOB'S MANDATE ALLOWS"), "network_host", "case is ignored");
+  // order: a host refusal that also says budget is a host refusal; a hold that also says secret is a hold; a budget refusal that also says forbidden is a budget refusal
+  assert.equal(cls("the host a.b is not allowed; the budget is spent"), "network_host");
+  assert.equal(cls("reaches outward and carries a secret"), "injection_hold");
+  assert.equal(cls("the budget is spent: forbidden"), "budget");
+});

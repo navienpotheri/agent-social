@@ -6,13 +6,13 @@
     "5": [
       {
         "mandate": "dev",
-        "pool": 79,
-        "risky_in_pool": 44,
+        "pool": 78,
+        "risky_in_pool": 43,
         "agents": 1000,
         "actions": 30,
         "cold_start": 5,
-        "honest_flagged": 15,
-        "honest_flagged_permille": 15,
+        "honest_flagged": 22,
+        "honest_flagged_permille": 22,
         "exploiters": 1000,
         "exploiters_detected": 1000,
         "exploiter_detection_permille": 1000
@@ -60,8 +60,8 @@
     "10": [
       {
         "mandate": "dev",
-        "pool": 79,
-        "risky_in_pool": 44,
+        "pool": 78,
+        "risky_in_pool": 43,
         "agents": 1000,
         "actions": 30,
         "cold_start": 10,

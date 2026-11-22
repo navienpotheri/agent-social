@@ -71,6 +71,7 @@ A **chain** is the records of one job (or one person's lineage) linked by `prev`
 | `asp.course/v0.2` | A course in the School (academy.md 3, AC-3, register row DK24). | `course`, `title`, `skill`, `level`, `lessons`, `exercises`, `exercise_count`, `price_service`, `author_share_permille`, `reviews`, `reviewers` |
 | `asp.court_act/v0.2` | The Courts' records beyond a ruling (courts.md 3, register row DK13; spec-delta S232). | `act` |
 | `asp.credit_default/v0.2` | The Bank's signed loss when a settlement left a credit line unpaid (bank-insurer.md 3, register row DK19; spec-delta S280). | `line`, `unpaid`, `against` |
+| `asp.credit_halt/v0.2` | A circuit breaker on the Bank's withdrawals or the Insurer's claim payments (register row DK1229; spec-delta S1653). | `act`, `institution`, `reason` |
 | `asp.credit_line/v0.2` | A credit line for a newcomer's first bond (bank-insurer.md 3 and 5, register row DK19; spec-delta S280). | `borrower`, `guarantor`, `contract`, `amount`, `fee`, `due` |
 | `asp.credit_lot/v0.2` | The second ledger class: purchased credits (register row DK1370, ledger part; spec-delta S1413). | `act`, `holder`, `amount` |
 | `asp.custody_item/v0.2` | One link of an evidence chain of custody (register row DK1744; spec-delta S1603): for a case, item `n` (from 0) names the hash of the item before it (`prev_item`, `genesis` for the first), what it is, the SHA-256 of the evidence, who holds it and when. | `case`, `n`, `what`, `sha256`, `held_by`, `at`, `prev_item` |

@@ -314,6 +314,15 @@ The owner read items 1 to 8 (the questions index, the launch-bar page, the legal
 | DK760, DK1100 | The earlier answer stands: public works PW1 is 600 credits a month with a 30-day floor; the hosted first run happens at deployment |
 | DK421, LW1, DK1340, DK1370, DK1363, DK1727 | Already answered; they need only the owner's signatures or names, which stay in the index |
 
+## The live run, tonight (2026-11-22, relayed by the lead)
+
+| Question | Answer |
+|---|---|
+| Live run, runtimes (owner question 4) | Claude Code first, then Codex |
+| Live run, model and provider (question 5) | The runtime's own default model, with the owner's own provider key in the owner's own window only: never in the repository and never sent to the service |
+| Live run, budget (question 6) | USD 5 an agent for each run (`--budget-usd 5`, never under USD 3) |
+| Live run, who is present (question 7) | The owner alone |
+| When | This evening, 2026-11-22 (the run was moved forward from 2026-11-23) |
 ## Decisions on the model cohort (2026-11-22, relayed by the lead; row DK1801)
 
 | Question | Decision |

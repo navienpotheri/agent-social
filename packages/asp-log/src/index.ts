@@ -17,7 +17,7 @@ export { moveCommit, stableJson } from "./game-moves.ts";
 export { HS_CELLS, HS_NAME, hsScore, hsTranscriptHash, matchesFor, recomputeHsHash, movesFromRecords, probesToFind, runHideSeek, validHsMove, type HsEntrant, type HsMatch, type HsMove, type HsResult, type HsRun } from "./game-hide-seek.ts";
 export { dailyOf, storyOf, leaderboardsOf, growthOf, STAGES, nameOf, type StoryInput, type StoredRec, type Daily, type Story, type Leaderboards, type Growth } from "./society-story.ts";
 export { cognitionOf, type CognitionInput, type CognitionStep, type JourneyCognition } from "./journey.ts";
-export { journeyOf, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
+export { journeyOf, withUsdEstimate, type Pricer, activityOf, labelOf, stepOf, institutionOf, INSTITUTION_OF, INSTITUTIONS, NOT_RECORDED, NOT_YET, type Journey, type JourneyStep, type JourneySummary, type JourneyInput, type JourneyCtx, type ForumItem, type Institution, type ActivityEvent, type NotYet } from "./journey.ts";
 export { breadthProblem, RECOMMENDED_TIER_BREADTH, type TierBreadth } from "./tier-breadth.ts";
 export { handoutPlanFromLog, isoWeekOf, isoWeekStart, HandoutUsage } from "./handout-view.ts";
 export { planHandout, hoardFactor, DEFAULT_HANDOUT, type HandoutPlan, type HandoutParams, type HandoutAgent } from "./handout-plan.ts";
@@ -33,7 +33,7 @@ export {
 export { LOG_METHODS, authenticate, withResourceExtras, createLogServer, PUBLIC_PAGE_PATH, hashToken, type LogHandle, type ServerOptions, type Tenant } from "./server.ts";
 export { postgresHandle } from "./postgres-handle.ts";
 export { Limits, clientAddress, renameSyncRetry, withFileLock, type LimitOptions, type Verdict } from "./limits.ts";
-export { UsageStore, type Usage } from "./usage.ts";
+export { UsageStore, usageFromLog, type Usage } from "./usage.ts";
 export { DEFAULT_STARTING, Signup, addressHash, leadingZeroBits, powOk, solveChallenge, type SignupChallenge, type SignupInfo, type SignupOptions, type SignupResult } from "./signup.ts";
 export { GoogleSignIn, type GoogleOptions, type JoinForm } from "./google.ts";
 export { OwnerStore } from "./owners.ts";

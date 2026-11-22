@@ -45,6 +45,8 @@ test("DK1505: only the organisation of a declared fleet revokes, an invitation n
   const stranger = await w.k.person("stranger");
   assert.equal(await refusedBy(w.k.log.append(w.revoke(stranger, inv.nonce))), "invitation_revocation_not_the_org", "an invitation is taken back by the organisation, not by a stranger");
   assert.equal(await refusedBy(w.k.log.append(mk("invitation_revocation", w.org, { fleet: "did:web:example.com:fleets:nowhere", nonce: inv.nonce }, null, { subject: FLEET }))), "invitation_revocation_unknown_fleet");
+  const prior = await w.k.log.append(w.revoke(w.org, w.invite().nonce));
+  assert.equal(await refusedBy(w.k.log.append(mk("invitation_revocation", w.org, { fleet: FLEET, nonce: inv.nonce }, prior.id, { subject: FLEET }))), "invitation_revocation_not_chained", "a revocation starts its own chain");
   await w.k.log.append(w.revoke(w.org, inv.nonce));
   assert.equal(await refusedBy(w.k.log.append(w.revoke(w.org, inv.nonce))), "invitation_revocation_known", "once");
   const used = w.invite();

@@ -202,7 +202,7 @@
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
  *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
- *   asp journey <agent> [--sponsor-view] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
+ *   asp journey <agent> [--sponsor-view [--usd]] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
  *   asp society tail [--follow] [--since <seq>] [--interval <s>] [--max-polls <n>] [--json]   what is happening in the society now: the latest records as steps of the agents they concern (no free text)
  *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
  *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
@@ -336,7 +336,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
-import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, renderTrend, type DaySession } from "./today.ts";
+import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, approvalTimes, renderApprovalTimes, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
 import { WorldUsage, worldCmd } from "./world.ts";
 import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
@@ -348,6 +348,7 @@ import { PricesUsage, pricesCmd } from "./prices.ts";
 import { inviteCmd, InviteUsage } from "./society-invite.ts";
 import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
 import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
+import { verifyCmd } from "./cohort/verify.ts";
 import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
 import { configCmd, ConfigUsage } from "./config-cmd.ts";
 import { gameEnter, gameReveal } from "./games-cmd.ts";
@@ -370,6 +371,7 @@ import { ListenUsage, listenCmd } from "./listen-cmd.ts";
 import { TownUsage, townCmd } from "./town-cmd.ts";
 import { contestCmd, ContestUsage } from "./contest-cmd.ts";
 import { MessageUsage, messageCmd } from "./message-cmd.ts";
+import { SocietyUsage, evalScenarioCmd, graderCmd, inspectCmd, missionCmd } from "./society-records-cmd.ts";
 import { messageRoutes } from "@agent-social/asp-package";
 import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
 import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
@@ -391,6 +393,9 @@ import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
 import { FleetUsage, fleetCmd } from "./fleet.ts";
 import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
 import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
+import { renderInvoiceHtml } from "./invoice-html.ts";
+import { renderRunsHtml } from "./runs-html.ts";
+import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
 import { CharterUsage, charterCmd } from "./charters.ts";
 import { ResidencyUsage, residencyCmd } from "./residency.ts";
 import { InsureUsage, insureCmd } from "./insure.ts";
@@ -399,7 +404,7 @@ import { HousingUsage, housingCmd } from "./housing.ts";
 import { EventsUsage, eventsCmd } from "./events.ts";
 import { ResearchUsage, researchCmd } from "./research.ts";
 import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
-import { buildReport, livePreflight, printReport } from "./live-cmd.ts";
+import { buildReport, capProblem, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -412,7 +417,7 @@ import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenari
 import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
-import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, usageFromLog, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -430,7 +435,7 @@ import { createDashboard, makeExtras } from "./dashboard-server.ts";
 import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
   planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, priceFor, isPricedModel, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -588,6 +593,7 @@ const OPTIONS = {
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  always: { type: "boolean" },
   "from-service": { type: "boolean" },
   circumvention: { type: "boolean" },
   "min-retries": { type: "string" },
@@ -624,7 +630,15 @@ const OPTIONS = {
   "untrusted-flow": { type: "boolean" },
   "escalation-ladder": { type: "boolean" },
   unprompted: { type: "boolean" },
+  "workflow-step": { type: "string" },
+  "irreversible-scopes": { type: "string" },
+  "cool-off-seconds": { type: "string" },
+  undoes: { type: "string" },
   "allow-unprompted": { type: "boolean" },
+  mission: { type: "string" }, goal: { type: "string" }, contributor: { type: "string" }, verified: { type: "string" }, check: { type: "string" }, difficulty: { type: "string" }, "held-out": { type: "boolean" },
+  runs: { type: "string" }, agreed: { type: "string" }, "run-set": { type: "string" }, data: { type: "string" }, scope: { type: "string" }, "granted-by": { type: "string" }, "produced-by": { type: "string" },
+  request: { type: "string" }, "requested-by": { type: "string" }, "notified-at": { type: "string" }, "delayed-notice": { type: "string" }, decoy: { type: "string" }, what: { type: "string" }, "real-secret": { type: "boolean" },
+  forbidden: { type: "string" }, "audit-permille": { type: "string" }, touches: { type: "string" }, "fleet-role": { type: "string" }, workflow: { type: "string" },
   "unprompted-cap": { type: "string" },
   "no-society-map": { type: "boolean" },
   "no-key-only-signup": { type: "boolean" },
@@ -632,6 +646,7 @@ const OPTIONS = {
   follow: { type: "boolean" },
   "html-file": { type: "string" },
   "sponsor-view": { type: "boolean" },
+  usd: { type: "boolean" },
   "max-polls": { type: "string" },
   "task-text": { type: "string" },
   "http-enrol": { type: "boolean" },
@@ -726,6 +741,9 @@ const OPTIONS = {
   q: { type: "string" },
   status: { type: "string" },
   note: { type: "string" },
+  dir: { type: "string" },
+  house: { type: "boolean" },
+  operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
   name: { type: "string" },
@@ -1162,6 +1180,15 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
     if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    // A house agent (DK270, DK1603): created by the operator and nobody else. `asp house create <name>` is `asp identity new --kind agent --house` with the operator as the sponsor.
+    if (cmd === "house" && sub === "create") {
+      if (!rest[0]) throw new UsageError("asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]   (the operator's own command: it signs with the operator's key)");
+      const op = v.operator ?? operatorOf(home, io.env);
+      if (!op) throw new UsageError("no operator is named: set ASP_OPERATOR_DID to the operator's DID (the one the service was started with) or pass --operator <did>");
+      v.kind = "agent"; v.house = true; v.sponsor = v.sponsor ?? op; v.operator = op;
+      if (!v.did && !v.method) v.name = rest[0];
+      return await identityNew(home, v, need, io);
+    }
     if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
@@ -1285,6 +1312,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       return 0;
     }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
+    if (cmd === "work") return await workCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
@@ -1334,11 +1362,12 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "cohort") {
+      if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
       try { return await cohortCmd({ home, flags: { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], local: v.local }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
-      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did)); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+      try { return await journeyCommand(sub, v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "tail") {
       try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
@@ -1382,6 +1411,14 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
     if (cmd === "sponsor" && sub === "statement") return await sponsorStatementCommand(home, v, io);
     if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "mission" || cmd === "grader" || cmd === "inspect" || (cmd === "eval" && (sub === "write" || sub === "list"))) {
+      // The society records (DK1240, DK1223, DK1744, DK1221): each signs one record with the key of --by, and the log's own rules refuse what they refuse, by name.
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      const flags = { by: v.by, mission: v.mission, goal: v.goal, verifier: v.verifier, closes: v.closes, amount: v.amount, contributor: v.contributor, units: v.units, verified: v.verified, skill: v.skill, task: Array.isArray(v.task) ? v.task.join(" ") : v.task, check: v.check, difficulty: v.difficulty, "held-out": v["held-out"], as: v.as, runs: v.runs, agreed: v.agreed, "run-set": v["run-set"], did: v.did, subject: v.subject, sponsor: v.sponsor, data: v.data, grounds: v.grounds, scope: v.scope, "granted-by": v["granted-by"], panel: v.panel, expires: v.expires, "produced-by": v["produced-by"], "requested-by": v["requested-by"], request: v.request, "notified-at": v["notified-at"], "delayed-notice": v["delayed-notice"], decoy: v.decoy, text: v.text, "real-secret": v["real-secret"], forbidden: v.forbidden, "audit-permille": v["audit-permille"], case: v.case, what: v.what, evidence: v.evidence, finding: v.finding, agent: v.agent, touches: v.touches, summary: v.summary, json: v.json };
+      try { return await (cmd === "mission" ? missionCmd : cmd === "grader" ? graderCmd : cmd === "inspect" ? inspectCmd : evalScenarioCmd)(sub, { log: local, io, now, signerFor, flags } as never); }
+      catch (e) { if (e instanceof SocietyUsage) throw new UsageError(e.message); throw e; }
+    }
     if (cmd === "message") {
       const local = await openLog(home, logEnv);
       const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
@@ -1512,9 +1549,23 @@ async function identityRotate(home: string, did: string | undefined, v: Values, 
   return 0;
 }
 
+/** The operator's DID on this machine: ASP_OPERATOR_DID, else <home>/operator.json (the same two places the log reads). */
+function operatorOf(home: string, env: Record<string, string | undefined>): string | undefined {
+  if (env.ASP_OPERATOR_DID) return env.ASP_OPERATOR_DID;
+  try { return (JSON.parse(readFileSync(join(home, "operator.json"), "utf8")) as { operator?: string }).operator; } catch { return undefined; }
+}
+
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
   if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
+  if (v.house && kind !== "agent") throw new UsageError("--house is for an agent: a house agent is a scripted agent the operator runs");
+  // A house agent is sponsored by the operator, and only the operator's key can sign that sponsorship: --house names the operator (--operator, else ASP_OPERATOR_DID) and refuses any other sponsor before anything is made.
+  const houseOperator = v.house ? (v.operator ?? operatorOf(home, io.env)) : undefined;
+  if (v.house) {
+    if (!houseOperator) throw new UsageError("--house needs the operator's DID: set ASP_OPERATOR_DID or pass --operator <did>");
+    if (v.sponsor !== houseOperator) throw new UsageError("a house agent is sponsored by the operator (" + houseOperator + "), not by " + (v.sponsor ?? "nobody") + ": the label is permanent and only the operator may give it");
+    if (!new Keystore(home).forDid(houseOperator)) throw new UsageError("this machine does not hold the operator's key (" + houseOperator + "): only the operator can create a house agent, on the operator's own machine");
+  }
   const keys = new Keystore(home);
   const log = await openLog(home, logEnv);
 
@@ -1571,6 +1622,7 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       sponsor, mentor: sponsor, tier: 1,
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
+      ...(v.house ? { house: true } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
       ...(v.persona ? { persona: v.persona } : {}),
       ...(v.fleet && v.node ? { node: v.node } : {}),
@@ -1580,7 +1632,8 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
   const issuer = kind === "human" ? did : need("sponsor");
   const record = createRecord({ type: "passport", issuer, subject: did, prev: null, body, issued_at: now() }, issuerSigner);
   const res = await log.append(record);
-  io.out(`created ${kind} ${did}`);
+  io.out(`created ${v.house ? "house " : ""}${kind} ${did}`);
+  if (v.house) io.out("  house agent: labelled on every public page and permanent; it can never be changed to an ordinary agent");
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
   if (recoveryCode) {
@@ -3055,6 +3108,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (sandbox && !db.startsWith("local:")) throw new UsageError("--sandbox runs on a local log: --db local:<dir> (a new, empty directory)");
   if (db.startsWith("local:")) { try { checkEnvironment(db.slice("local:".length), sandbox ? "sandbox" : "production"); } catch (e) { throw new UsageError((e as Error).message); } }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  // The usage counts are the log's own (O17): raised to what the log holds for each tenant, so a lost usage file, or records written before the service counted, do not give a tenant a quota it has used.
+  if (!noAuth) { const raised = usage.reconcile(await usageFromLog((after, limit) => handle.log.since(after, limit) as never, owners.all())); if (raised) io.out(`  usage counts raised from the log for ${raised} tenant(s)`); }
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
@@ -3116,7 +3171,7 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
     ...(!noAuth && v.tokens ? [messageRoutes({ handle, owners, dir: `${v.tokens}.messages` })] : []),
-    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`) })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`), onBreach: (b) => { void (async () => { const sponsor = (await handle.log.registryPage(b.agent))?.sponsor ?? null; await mailer?.tellBreach({ ...b, sponsor }); })().catch(() => {}); } })] : []),
     ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
     ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
@@ -3708,10 +3763,31 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
     if (!leave) throw new UsageError("this run was not started by a person's prompt (a schedule or a hook said so), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
     io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
   } else if (wakeRun) io.err("  unprompted  this is a wake and the Mandate does not name unprompted work: its Actions are not marked (asp market mandate --allow-unprompted marks them and bounds them)");
+  // The Mandate's workflow clause (DK1209, S1607), only when the Mandate carries one: a run that is a step (--workflow-step <from>:<to> or ASP_WORKFLOW_STEP) is checked against the clause and the job's state before it
+  // starts, its Action reports the step, and a job whose workflow has reached a terminal state runs nothing more. Nothing tells the gateway which step a run is except the caller, so it is the caller's word.
+  const wfClause = (mandateRecord?.record.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[]; terminal?: string[] } } | undefined)?.workflow;
+  const wfRaw = v["workflow-step"] ?? io.env.ASP_WORKFLOW_STEP;
+  let wfStep: { from: string; to: string } | undefined;
+  if (wfClause) {
+    const st = await local.log.workflowState(contract).catch(() => null);
+    const now_ = st?.state ?? wfClause.start;
+    if (st?.terminal) throw new UsageError("this job's workflow is in a terminal state (" + st.state + "): nothing more is run under this Mandate (workflow clause)");
+    if (wfRaw !== undefined) {
+      const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(wfRaw);
+      if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -");
+      if (m[1] !== now_) throw new UsageError("this run is a step from " + m[1] + ", and the job is in the state " + now_ + " (the log would refuse it: workflow_wrong_state)");
+      if (!wfClause.transitions.some((t) => t.from === m[1] && t.to === m[2])) throw new UsageError("the Mandate's workflow does not allow the step " + m[1] + " to " + m[2] + " (the log would refuse it: workflow_bad_transition); allowed from " + m[1] + ": " + (wfClause.transitions.filter((t) => t.from === m[1]).map((t) => t.to).join(", ") || "none"));
+      wfStep = { from: m[1], to: m[2] };
+      io.err("  workflow    this run is the step " + m[1] + " to " + m[2] + ": its Action reports it");
+    }
+  } else if (v["workflow-step"] !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  else if (wfRaw !== undefined) io.err("  workflow    ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause: it is ignored and the Action carries no step");
   applyRunLogRetention(home, io.env, (l) => io.err(l));
   const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
   const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
   for (const w of guard.clamped) io.err(`  budget   ${w}`);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so at the start, with the remedy (the same rule as asp live preflight).
+  if (v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
   // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
   const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
@@ -4045,6 +4121,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
       ...(unpromptedRun ? ["--unprompted"] : []),
+      ...(wfStep ? ["--workflow-step", wfStep.from + ":" + wfStep.to] : []),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
@@ -5774,12 +5851,13 @@ async function meterCommand(home: string, sub: string | undefined, v: Values, io
   }
   if (sub === "invoice") {
     const id = rest[0];
-    if (!id) throw new UsageError("asp meter invoice <statement id> [--json]");
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json | --html-file <file>]");
     const r = await local.log.get(id);
     if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
     const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
     const c = await local.log.checkStatement(id);
     if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    if (v["html-file"]) { writeFileSync(resolve(io.cwd, v["html-file"]), renderInvoiceHtml({ id, issued: r.record.issued_at, body: b, matchesLog: c.ok, differences: c.ok ? [] : c.differences })); io.out(`wrote ${v["html-file"]} (a statement of use that prints well; not a tax invoice or an e-invoice)`); return 0; }
     io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
     for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
     io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
@@ -6423,6 +6501,11 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
       // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
       ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
+      // A role in a fleet (DK1231, S1608) and a workflow clause (DK1209, S1607): --fleet-role router|worker|watchdog, --workflow <a JSON file of { states, start, transitions, terminal }>.
+      // Reversible and irreversible actions (DK1227, S1609): the scopes whose Actions cannot be undone, and how long after an Action the performer may undo a reversible one; absent means no undo.
+      ...((() => { const il = v["irreversible-scopes"], co = v["cool-off-seconds"]; if (il === undefined && co === undefined) return {}; const list = il === undefined ? undefined : il.split(",").map((x) => x.trim()).filter(Boolean); const secs = co === undefined ? undefined : Math.trunc(Number(co)); if (secs !== undefined && !(secs >= 1 && secs <= 604800)) throw new UsageError("--cool-off-seconds is a whole number of seconds, 1 to 604800 (a week)"); return { action_classes: { ...(list ? { irreversible: list } : {}), ...(secs !== undefined ? { cool_off_seconds: secs } : {}) } }; })()),
+      ...((() => { const r = v["fleet-role"]; if (r === undefined) return {}; if (r !== "router" && r !== "worker" && r !== "watchdog") throw new UsageError("--fleet-role is router, worker or watchdog"); return { role: r }; })()),
+      ...((() => { const wf = v.workflow; if (wf === undefined) return {}; let clause: unknown; try { clause = JSON.parse(readFileSync(resolve(io.cwd, wf), "utf8")); } catch (e) { throw new UsageError(`--workflow ${wf} is not a readable JSON file: ${(e as Error).message}`); } const c = clause as { states?: unknown; start?: unknown; transitions?: unknown }; if (!Array.isArray(c.states) || typeof c.start !== "string" || !Array.isArray(c.transitions)) throw new UsageError("--workflow is a JSON object with states, start and transitions (and optionally terminal)"); return { workflow: clause }; })()),
       // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
       ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
       // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.
@@ -6724,6 +6807,9 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       });
     }
     if (v.unprompted) body.unprompted = true;
+    // The workflow step this Action reports (DK1209, S1607) and the Action it undoes (DK1227, S1609): the log checks both against the Mandate; the flags only say them.
+    if (v["workflow-step"] !== undefined) { const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(v["workflow-step"]); if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -"); body.workflow_step = { from: m[1], to: m[2] }; }
+    if (v.undoes !== undefined) { if (!/^sha256:[0-9a-f]{64}$/.test(v.undoes)) throw new UsageError("--undoes is the record id (sha256:...) of the earlier Action this one undoes"); body.undoes = v.undoes; }
     const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);
@@ -7161,8 +7247,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
     delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
     let lids: { me: string; agent: string; bank: string } | undefined;
-    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    const readIds = () => { try { return JSON.parse(readFileSync(idFile, "utf8")) as { me: string; agent: string; bank: string }; } catch { return undefined; } };
+    lids = readIds();
+    // Two first-time starts at once (gap T3) must end on ONE set of identities: the first to make the folder `<file>.making` makes them; the other waits for the file (a folder older than two minutes is a crashed start's and is taken over).
+    let making = false;
     if (!lids) {
+      const lock = `${idFile}.making`;
+      for (let i = 0; !lids && !making; i++) {
+        try { mkdirSync(lock); making = true; } catch {
+          lids = readIds();
+          if (lids) break;
+          try { if (Date.now() - statSync(lock).mtimeMs > 120_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+          if (i > 1200) throw new Error("another asp start has been making the local identities for over a minute: run again");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (making) lids = readIds();
+    }
+    if (!lids) {
+      try {
       const make = async (args: string[]) => {
         const out: string[] = [], err: string[] = [];
         const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
@@ -7175,6 +7278,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       lids = { me, agent, bank };
       writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
       io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+      } finally { try { rmSync(`${idFile}.making`, { recursive: true, force: true }); } catch { /* already gone */ } }
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
@@ -7456,6 +7560,8 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so now, with the remedy (the gateway's own start note is not shown by asp run).
+  if (!hooked && v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
   const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
@@ -7806,6 +7912,19 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
   }
   return [...bySid.values()].sort((a, b) => b.start.at.localeCompare(a.start.at));
 }
+/**
+ * Every session of this machine, newest first, from the ASP home AND from <home>/local, where \`asp run --local\` keeps its own index; each entry says where it lives (\`src\`), because its stop file, its run log and its log are
+ * there. Found in the owner's first real run: a home that already held old sessions never looked at the local index (it was a fallback for an EMPTY home), so tonight's sessions were not listed, not found by id, and
+ * \`asp live report\` showed an old run.
+ */
+function sessionsAll(home: string): { start: SessionStart; end?: SessionEnd; src: string }[] {
+  const mine = sessionsOf(home).map((x) => ({ ...x, src: home }));
+  const isLocal = /[\\/]local[\\/]*$/.test(home);
+  const localHome = join(home, "local");
+  const local = !isLocal && existsSync(sessionIndexPath(localHome)) ? sessionsOf(localHome).map((x) => ({ ...x, src: localHome })) : [];
+  const seen = new Set<string>();
+  return [...mine, ...local].sort((a, b) => b.start.at.localeCompare(a.start.at)).filter((x) => (seen.has(x.start.sid) ? false : (seen.add(x.start.sid), true)));
+}
 const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 
 function pidAlive(pid: number): boolean {
@@ -7816,7 +7935,7 @@ function pidAlive(pid: number): boolean {
  * Read from this machine's session index and run logs, and said to be so.
  */
 async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise<number> {
-  const sessions: DaySession[] = sessionsOf(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
+  const sessions: DaySession[] = sessionsAll(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
   const eventsOf = (s: DaySession) => {
     const p = s.end?.runLog;
     if (!p || !existsSync(p)) return undefined;
@@ -7827,6 +7946,11 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
   const period = periodOf({ day: v.day, since: v.since });
   const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
   for (const l of lines) io.out(l);
+  // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
+  try {
+    const recs = (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never[];
+    io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
+  } catch { /* the log cannot be read now: the line is left out */ }
   // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
   const wakeRows = new DailyCeiling(join(home, "wakes.json")).report();
   const agents = [...new Set(wakeRows.map((r) => r.agent))];
@@ -7849,8 +7973,14 @@ async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
   // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
-  if (!sessionsOf(home).length && !home.replace(/[\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) return await runsCmd(join(home, "local"), id, v, io);
-  const all = sessionsOf(home);
+  const all = sessionsAll(home);
+  if (!id && v["html-file"]) {
+    // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
+    const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));
+    writeFileSync(resolve(io.cwd, v["html-file"]), renderRunsHtml({ rows, generated: now(), machine: home }));
+    io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
+    return 0;
+  }
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
@@ -7865,7 +7995,8 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   const hit = all.filter((s) => s.start.sid.startsWith(id));
   if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
   if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
-  const { start, end } = hit[0];
+  const { start, end, src } = hit[0];
+  home = src; // the log and the run logs of a session are where its index is
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
@@ -7905,12 +8036,12 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
     });
   }
   if (sub === "report") {
-    if (!sessionsOf(home).length && existsSync(join(home, "local", "runs.ndjson"))) return await liveCommand(join(home, "local"), sub, v, io);
-    const all = sessionsOf(home);
+    const all = sessionsAll(home);
     const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
     if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
     if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
-    const { start, end } = pick[0];
+    const { start, end, src } = pick[0];
+    home = src; // the log, the run logs and the records of a session are where its index is
     const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
     let log: { records: number; actions: number } | undefined;
     let share: { actions: number; unprompted: number; permille: number } | undefined;
@@ -7922,7 +8053,7 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
       share = await l.unpromptedShare(start.contract);
     } catch { /* the log could not be read: the report says what it has */ }
     const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}), ...(share ? { unprompted: share } : {}) });
-    if (v.json) io.out(JSON.stringify(report, null, 2)); else printReport(report, (l) => io.out(l));
+    if (v.json) io.out(JSON.stringify(report, null, 2)); else { if (!v.session) io.out(`reporting the newest session, ${start.sid} (asp runs lists the others; asp live report --session <id> reports one of them)`); printReport(report, (l) => io.out(l)); }
     return report.runLog.chainOk === false ? 1 : 0;
   }
   throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json]");
@@ -7930,23 +8061,21 @@ async function liveCommand(home: string, sub: string | undefined, v: Values, io:
 
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
 async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  let running = sessionsOf(home).filter((s) => !s.end);
-  // `asp run --local` keeps its sessions under <ASP_HOME>/local: when none run here, stop those (the stop file goes where that gateway looks).
-  if (!running.length && !home.replace(/[\\/]+$/, "").endsWith("local") && existsSync(join(home, "local", "runs.ndjson"))) { const local = sessionsOf(join(home, "local")).filter((s) => !s.end); if (local.length) return await stopCmd(join(home, "local"), id, v, io); }
+  // The sessions of the home and of <home>/local (asp run --local): each stop file goes where that session's gateway looks.
+  const running = sessionsAll(home).filter((s) => !s.end);
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
   // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.
   if (v.all) {
     if (id) throw new UsageError("asp stop --all stops every running session; give no id with it");
-    mkdirSync(home, { recursive: true });
-    for (const { start } of pick) writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+    for (const { start, src } of pick) { mkdirSync(src, { recursive: true }); writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`); }
     io.out(`stopping ${pick.length} session${pick.length === 1 ? "" : "s"}: ${pick.map((s) => `${s.start.sid} (${s.start.agent})`).join(", ")}; each tool ends within a few seconds (the standing jobs stay; asp standing end ends those too)`);
     return 0;
   }
   if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>, or asp stop --all"); }
-  const { start } = pick[0];
-  mkdirSync(home, { recursive: true });
-  writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+  const { start, src } = pick[0];
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
   io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
   return 0;
 }
@@ -8172,17 +8301,105 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
     io.out("answer with: asp approvals approve [n]  or  asp approvals refuse [n]");
     return 0;
   }
-  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] | refuse [<n>]");
+  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] [--always] | refuse [<n>]");
   const pick = rest[0] ? open.filter((o) => String(o.n) === rest[0]) : open;
   if (!pick.length) throw new Error(rest[0] ? `no waiting approval numbered ${rest[0]}` : "nothing is waiting for your answer");
   if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
   const o = pick[0];
+  // "Always" from the contract path (T21): asp approvals approve <n> --always allows this exact command for this agent from now on, as answering a at the prompt does. Only a shell command shown whole is remembered:
+  // not cut short, nothing masked, and a scope that is a command (shell.exec, tests.run); anything else is approved this once and says why it was not remembered.
+  let remembered: string | undefined;
+  if (v.always) {
+    if (sub !== "approve") throw new UsageError("--always goes with approve: asp approvals approve <n> --always");
+    const m = /^May (\S+) run .* \((shell\.exec|tests\.run)\)\?$/.exec(o.question);
+    if (!m) remembered = "not remembered: only a shell command is remembered";
+    else if (!o.action || o.action.endsWith("...") || o.action.includes("[redacted]")) remembered = "not remembered: the command was cut short or had secret-looking text masked, so what you read is not the whole command";
+    else {
+      const file = join(home, "always-allow.json");
+      const all = readAlways(file);
+      const mine = all[m[1]] ?? [];
+      if (!mine.some((r) => r.hash === commandKey(o.action))) mine.push({ hash: commandKey(o.action), command: o.action, at: new Date().toISOString() });
+      all[m[1]] = mine.slice(-200);
+      writeAlways(file, all);
+      remembered = "remembered: " + m[1].split(":").slice(-1)[0] + " may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)";
+    }
+  }
   const out: string[] = [], err: string[] = [];
   const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--about", o.checkpoint, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
   if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
   io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
+  if (remembered) io.out(`  ${remembered}`);
   void cfg;
   return 0;
+}
+
+/**
+ * asp work attest <file|folder>... --contract <id> --by <agent> [--out <file>] | verify <origin.json> [--dir <folder>] [--json] (register row T11): the origin of a piece of work. See work-origin.ts.
+ */
+async function workCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "attest") {
+    if (!rest.length || !v.contract || !v.by) throw new UsageError("asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]");
+    const signer = new Keystore(home).forDid(v.by);
+    if (!signer) throw new UsageError("no key for " + v.by + " on this machine (the agent signs its own work origin)");
+    // The paths in the statement are relative to the folder the statement is written in (--out, else here), so a recipient who unpacks both together verifies with one command.
+    const out = resolve(io.cwd, v.out ?? "work-origin.json");
+    const base = dirname(out);
+    const files = hashWork(rest.map((r) => resolve(io.cwd, r)), base).filter((f) => resolve(base, f.path) !== out);
+    if (!files.length) throw new UsageError("no files under the given paths");
+    let mandate: string | undefined;
+    try { mandate = (await (await openLog(home, logEnv)).log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.id; } catch { /* no log to read: the statement names the contract only */ }
+    const runLogFile = findRunLog(home, v.contract);
+    const rl = runLogFile ? readRunLog(runLogFile) : undefined;
+    const body = { v: ORIGIN_VERSION as typeof ORIGIN_VERSION, kind: "origin" as const, agent: v.by, contract: v.contract, ...(mandate ? { mandate } : {}), ...(rl?.ok ? { run_log: rl.head } : {}), files, createdAt: now(), ...(v.note ? { note: v.note } : {}) };
+    const doc = signOrigin(body, signer);
+    writeFileSync(out, JSON.stringify(doc, null, 2) + "\n");
+    io.out("wrote " + (v.out ?? "work-origin.json") + ": " + files.length + " file(s) signed by " + v.by + " under contract " + v.contract.slice(0, 20) + (mandate ? " and its Mandate" : "") + (rl?.ok ? ", with the head of the run log (" + rl.head.events + " events)" : ""));
+    io.out("a recipient checks it with: asp work verify " + (v.out ?? "work-origin.json"));
+    return 0;
+  }
+  if (sub === "verify") {
+    if (!rest[0]) throw new UsageError("asp work verify <origin.json> [--dir <folder>] [--json]");
+    const file = resolve(io.cwd, rest[0]);
+    let doc: SignedOrigin;
+    try { doc = JSON.parse(readFileSync(file, "utf8")) as SignedOrigin; } catch (e) { throw new UsageError(rest[0] + " is not readable JSON: " + (e as Error).message); }
+    const bad = shapeProblem(doc);
+    if (bad) throw new UsageError(rest[0] + ": " + bad);
+    const dir = resolve(io.cwd, v.dir ?? dirname(file));
+    const problems: string[] = [], notes: string[] = [];
+    const files = checkFiles(doc, dir);
+    for (const m of files.missing) problems.push("missing: " + m);
+    for (const c of files.changed) problems.push("changed since it was signed: " + c);
+    // The signature, against the key the log holds for the agent when a log can be read, else only against itself.
+    let keyChecked = false, sigOk = false, contractInLog: boolean | undefined, mandateInLog: boolean | undefined;
+    try {
+      const lg = (await openLog(home, logEnv)).log;
+      const key = ((await lg.keys(doc.agent)) as { kid: string; publicKey: string; revokedAt: string | null }[]).find((k) => k.kid === doc.kid && !k.revokedAt);
+      if (key) { keyChecked = true; sigOk = verifyOriginSignature(doc, b64urlDecode(key.publicKey)); }
+      else notes.push("the signing key is not a current key of " + doc.agent + " in the log that was read");
+      contractInLog = !!(await lg.get(doc.contract));
+      if (doc.mandate) mandateInLog = !!(await lg.get(doc.mandate));
+    } catch { notes.push("no log could be read here: the key, the contract and the Mandate are not checked against a log"); }
+    if (!keyChecked) {
+      try { const pub = doc.agent.startsWith("did:key:") ? publicKeyFromDidKey(doc.agent) : undefined; if (pub) sigOk = verifyOriginSignature(doc, pub); else notes.push("the key of this agent is not one this machine can derive from its name: the signature is not checked"); } catch { /* not a did:key */ }
+    }
+    if (keyChecked || sigOk) { if (!sigOk) problems.push("the signature does not verify"); }
+    // The contract and the Mandate are judged only against a log that knows the agent: a log that has never heard of it is not the log the work was done under.
+    if (keyChecked && contractInLog === false) problems.push("the contract is not in the log");
+    if (keyChecked && mandateInLog === false) problems.push("the Mandate is not in the log");
+    if (!keyChecked && contractInLog === false) notes.push("this log does not hold the contract: the contract and the Mandate are not checked");
+    const verdict = !problems.length && sigOk ? (keyChecked ? "VERIFIED" : "SIGNATURE VALID") : "DOES NOT VERIFY";
+    if (v.json) { io.out(JSON.stringify({ verdict, agent: doc.agent, contract: doc.contract, mandate: doc.mandate ?? null, files: doc.files.length, problems, notes, key_checked_against_log: keyChecked, signature_ok: sigOk }, null, 2)); return problems.length || !sigOk ? 1 : 0; }
+    io.out(verdict + "  " + doc.files.length + " file(s) by " + doc.agent + " under contract " + doc.contract.slice(0, 20) + ", signed " + doc.createdAt);
+    io.out("  files     " + (files.ok ? "every file is exactly what was signed" : "do not match what was signed"));
+    io.out("  signature " + (sigOk ? "valid" + (keyChecked ? ", by a current key of the agent in the log" : ", but the key was not checked against a log") : "not shown valid"));
+    if (doc.mandate) io.out("  mandate   " + doc.mandate.slice(0, 20) + (!keyChecked || mandateInLog === undefined ? " (not checked against a log)" : mandateInLog ? " is in the log" : " is NOT in the log"));
+    if (doc.run_log) io.out("  run log   head of " + doc.run_log.events + " events, " + doc.run_log.hash.slice(0, 20) + " (asp run-log verify checks the log itself)");
+    for (const x of problems) io.out("  problem   " + x);
+    for (const x of notes) io.out("  note      " + x);
+    io.out("This shows who signed which bytes and under which Mandate the agent says it worked. It does not show that the work is good or that the agent did it alone.");
+    return problems.length || !sigOk ? 1 : 0;
+  }
+  throw new UsageError("usage: asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] | verify <origin.json> [--dir <folder>] [--json]");
 }
 
 /** asp standing [end [<agent name>]]: the standing jobs sessions run under, and ending one (it is settled, and the next run makes a new one). */
@@ -8967,6 +9184,9 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     const stdoutLog = join(runDir, "stdout.log");
     const stderrLog = join(runDir, "stderr.log");
     let hiddenFailure: string | undefined;
+    // The run log of this node (E5): a hash-chained log of its start and end, with the hashes of the output it wrote; the output itself is not read for text (output_read: false), as for an interactive `asp run`.
+    const nodeLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+    nodeLog?.event("run_start", { node: index, agent, backend: v.backend, command: [plan.command, ...plan.args].join(" "), output_read: false });
     const code = await new Promise<number>((done) => {
       const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: ["ignore", "pipe", "pipe"] });
       let outCarry = "";
@@ -8985,6 +9205,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       });
       child.on("exit", (c) => done(c ?? 1));
     });
+    { const hash = (f: string) => existsSync(f) ? createHash("sha256").update(readFileSync(f)).digest("hex") : null; nodeLog?.event("run_end", { node: index, exit_code: code, output_read: false, stdout_sha256: hash(stdoutLog), stderr_sha256: hash(stderrLog), ...(hiddenFailure ? { failure: hiddenFailure } : {}) }); }
     if (code === -1) {
       await revokeAbandonedNode();
       return { index, task, ok: false, runDir, error: "could not start the runtime" };

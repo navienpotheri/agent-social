@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 64,
-  "withdraw": 103,
-  "after": 322,
-  "total": 489
+  "must": 63,
+  "withdraw": 104,
+  "after": 319,
+  "total": 486
  },
- "mustWorkerHours": 305.2,
+ "mustWorkerHours": 301.2,
  "entries": [
   {
    "id": "D3",
@@ -953,7 +953,7 @@
   {
    "id": "T5",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "Nobody has implemented the protocol from SPEC.md alone: no third implementation, no guide for implementers (vectors, running your own log, adding an adapter), and neither SDK is published as a package",
    "bucket": "after",
    "hours": 0,
@@ -1004,18 +1004,6 @@
    "pri": "B",
    "status": "open",
    "gap": "The protocol has been tested from the person's side, not the agent's: what an agent sees of its own Mandate and refusals, whether it adapts or loops, whether its identity is stable across sessions, m…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "T11",
-   "pri": "B",
-   "status": "open",
-   "gap": "The work itself is not traceable: nothing ties a result (a commit, a file) back to the Mandate, run and model that produced it, and a recipient cannot verify its origin without trusting the producer",
    "bucket": "after",
    "hours": 0,
    "size": "",
@@ -1086,7 +1074,7 @@
   },
   {
    "id": "T21",
-   "pri": "A",
+   "pri": "?",
    "status": "partial",
    "gap": "A gated job under a contract is not yet fair or light on the person: ~~the hook asks about every shell command~~ (fixed: under a contract a gate on shell commands now asks about the risky ones by def…",
    "bucket": "must",
@@ -1097,15 +1085,16 @@
   },
   {
    "id": "T22",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "A sub-agent's short-lived, revocable key can be avoided or left unbound: a node grant that cites no Mandate is limited only by the log's 24-hour cap (no `max_parallel`, no end at the Mandate's expiry…",
-   "bucket": "after",
+   "bucket": "withdraw",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "T28",
@@ -1185,7 +1174,7 @@
   {
    "id": "O17",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The usage counts are the service's own tally of what it accepted, kept in a file beside the tokens file: they miss records already in the log when the service started, restart from nothing if the fil…",
    "bucket": "after",
    "hours": 0,
@@ -1889,7 +1878,7 @@
   },
   {
    "id": "GV2",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "No monetary policy: credits are minted (starter grants, rewards) and removed (rent, tax, slashing) with no plan to keep supply, prices and wages stable Waits on the owner (docs/owner-decisions.md)./…",
    "bucket": "after",
@@ -1901,14 +1890,14 @@
   },
   {
    "id": "GV4",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "No cost-of-living control: rent, food and vehicle prices and the tax rate are not reviewed against what an average agent earns, so the city could price most agents out",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -1960,7 +1949,7 @@
   },
   {
    "id": "DK421",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The operator's succession is a paragraph, not a plan the owner has chosen and signed (who holds the keys and acts if the founder is unavailable, and for how long), and there is no path by which rule-…",
    "bucket": "must",
@@ -2058,7 +2047,7 @@
   },
   {
    "id": "LW1",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "There is no written law of the city: a code that applies to every agent whatever its Mandate (no unauthorised access to any system, no breaking authentication or other controls, no exploiting a grade…",
    "bucket": "must",
@@ -2298,15 +2287,16 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "US7",
-   "pri": "?",
+   "id": "DK1800",
+   "pri": "B",
    "status": "partial",
-   "gap": "Starting is hard for non-experts: no safe Mandate presets for common work (coding, research, writing), few examples, no tutorials, community or help in other languages, and no screen app for people w…",
-   "bucket": "must",
-   "hours": 4,
-   "size": "M",
+   "gap": "The beta has the five Mandate presets and no more for a person who is not an expert: no written tutorials or worked examples for each kind of work, no help text in languages other than English, and n…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
    "flags": "",
-   "why": "safe Mandate presets for coding, research and writing"
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "US8",
@@ -2384,7 +2374,7 @@
   {
    "id": "BZ2",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The open-source project has no community plan: contribution rules, governance of the specification, a licence for the city's content and a roadmap others can follow and join",
    "bucket": "after",
    "hours": 0,
@@ -2566,7 +2556,7 @@
   },
   {
    "id": "DK1",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "There is no written monetary policy for the credit economy: what mints credits (starter grants, operator mints), what burns them, whether a settled job moves credits or creates them, how the supply i…",
    "bucket": "must",
@@ -3480,14 +3470,14 @@
   },
   {
    "id": "DK172",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "Housing has no monthly report, no quarterly return of its account to the Treasury (`budget_return` or `treasury_return`, credits.md 3.3, 5.3) and no charter record. Its provider share only accumulate…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -3540,14 +3530,14 @@
   },
   {
    "id": "DK177",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "The Events public pages and reporting are partial: `GET /events/calendar` and `/events/<id>/results` exist, but not the event page with its rules and scorer hash, the pool page, souvenirs, an `.ics`…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -3685,7 +3675,7 @@
   {
    "id": "DK231",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "A budget is not refused for an institution with no published charter, and budgets are caps by balance, not shares of the income received (TRL-16, TRL-17). No institution has a charter record yet.",
    "bucket": "after",
    "hours": 0,
@@ -3697,7 +3687,7 @@
   {
    "id": "DK232",
    "pri": "B",
-   "status": "open",
+   "status": "partial",
    "gap": "The monthly `treasury_statement` record and the reserve floor do not exist (TRL-18, TRL-19): no record says opening plus income less spending is closing, with every figure equal to the sum over the l…",
    "bucket": "after",
    "hours": 0,
@@ -3781,7 +3771,7 @@
   },
   {
    "id": "DK491",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The Insurer's drivers are not wired into the log, and four of its experiments are not built: the log's `premium_mismatch` rule still checks the table premium, so experience rating, the credit-cycle r…",
    "bucket": "after",
@@ -3793,7 +3783,7 @@
   },
   {
    "id": "DK530",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Restitution to an outside victim of an abuse report is paid in mock credits (S502: the accused's balance, then its sponsor's, up to 200 a case), which means nothing to a third party; the owner decide…",
    "bucket": "must",
@@ -4019,14 +4009,14 @@
   },
   {
    "id": "DK1209",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "The workflow clause is not part of the Mandate and its trail is not in the log: the Mandate record has no `workflow` field, the gateway does not enforce it and the transitions are not records.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4127,14 +4117,14 @@
   },
   {
    "id": "DK1227",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "Reversible and irreversible actions are not classes of the Mandate record and no Court compensates: the Mandate has an irreversible policy but no per-action class or cool-off, and the log of actions…",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4150,27 +4140,15 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "DK1229",
-   "pri": "B",
-   "status": "open",
-   "gap": "The Bank, Insurer and Treasury have no circuit breaker and the stress test does not run against their real rules: withdrawal limits, delays and the Insurer reserve are not exercised by a crowd, and n…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
-  },
-  {
    "id": "DK1231",
-   "pri": "?",
+   "pri": "B",
    "status": "partial",
    "gap": "The roles are not part of the Mandate record or enforced by the gateway: the fleet is an in-memory class and a watchdog has no real log access.",
    "bucket": "after",
    "hours": 0,
    "size": "",
    "flags": "",
-   "why": "Priority ?: not needed for an outsider to join the beta",
+   "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
   },
   {
@@ -4904,7 +4882,7 @@
   },
   {
    "id": "DK1340",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The public beta with ads, open to users worldwide with telemetry always on, has no legal minimum in place. The company is incorporated in India and cannot yet afford a payments and regulation lawyer,…",
    "bucket": "must",
@@ -4912,18 +4890,6 @@
    "size": "S",
    "flags": "D",
    "why": "drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that"
-  },
-  {
-   "id": "DK1401",
-   "pri": "B",
-   "status": "open",
-   "gap": "The ledger of sittings (the line per sitting that limits repeats and catches a copied answer) is a JSONL file, not a signed record: on the service it sits beside the tokens file, and on an agent's ma…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   },
   {
    "id": "DK1403",
@@ -5411,7 +5377,7 @@
   },
   {
    "id": "DK1363",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Enterprise pricing and packaging are undefined. Enterprises will ask what it costs; credits are mock and not for sale.",
    "bucket": "must",
@@ -5433,7 +5399,7 @@
   },
   {
    "id": "DK1368",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The README, the site and llms.txt say nothing about enterprises, fleets, bulk join or what an enterprise pays, so the first questions an enterprise asks have no answer on the page.",
    "bucket": "must",
@@ -5444,7 +5410,7 @@
   },
   {
    "id": "DK1369",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "It is not known whether the enterprise list is exhaustive: bulk enrolment, quotas, a fleet dashboard and per-fleet caps are known, but identity provisioning, policy as code, key custody, residency, r…",
    "bucket": "must",
@@ -5523,7 +5489,7 @@
   },
   {
    "id": "DK1377",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "An enterprise cannot choose where its data lives: no region choice and no statement of residency.",
    "bucket": "after",
@@ -5546,7 +5512,7 @@
   },
   {
    "id": "DK1380",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "There are no enterprise service terms: no stated availability, support hours, response times or incident handling beyond the beta's.",
    "bucket": "must",
@@ -5569,7 +5535,7 @@
   },
   {
    "id": "DK1383",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "Procurement documents are missing: an enterprise's security and legal teams ask for a data-processing agreement, a security questionnaire answered, a data-flow diagram and a list of subprocessors.",
    "bucket": "must",
@@ -5892,7 +5858,7 @@
   },
   {
    "id": "DK1744",
-   "pri": "?",
+   "pri": "A",
    "status": "partial",
    "gap": "The inspectorate (IS9) is not designed beyond a name: nothing says what it may and may not do, how a warrant for private data is granted, how evidence is kept, how a honeypot is kept from entrapment,…",
    "bucket": "after",

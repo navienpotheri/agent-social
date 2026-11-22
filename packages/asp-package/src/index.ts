@@ -47,7 +47,7 @@ export { RUNTIMES, runtimeByName, supportMatrix, type RuntimeDescriptor, type Ru
 export { AgentReporter, MandateRefusal, type Assurance, type ReporterOptions } from "./sdk/reporter.ts";
 export { NETWORK_SCOPES, RELAY_JS, RELAY_PY, bwrapArgs, policyNeedsNetwork, sandboxAvailable, sandboxNetwork, type SandboxPolicy } from "./sandbox.ts";
 export { RELAY_TCP_PY, dockerPlan, type DockerPlan, type DockerPolicy } from "./sandbox.ts";
-export { alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type AlertKind, type AlertRecipient, type AlertRole, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
+export { alertRecipients, buildAlertMail, buildMandateMail, collectMandateFacts, spendCeilingLine, findAlerts, type AlertKind, type AlertRecipient, type AlertRole, type BuiltMail, type MailAlert, type MailLog, type MailOptions, type MandateFacts } from "./mail.ts";
 export { claudeCodeRunLogEvents, codexRunLogEvents, type LineEvent } from "./adapters/run-log-lines.ts";
 export { fetchRetry } from "./http-retry.ts";
 export { dashboardAgent, type AgentView, dashboardAlerts, dashboardHome, dashboardInbox, dashboardJob, dashboardMoney, type AlertsView, type DashboardLog, type FlowEntry, type HomeView, type InboxView, type JobView, type MoneyView } from "./dashboard.ts";
@@ -123,3 +123,5 @@ export { GatewayBreaker, loopLimitsFrom, LoopBreaker, type LoopLimits, type Gate
 
 export { gatewayAgentPlan, openclawPlan, hermesPlan, GATEWAY_PLACEHOLDER_KEY, type GatewayAgentPlan, type GatewayAgentInput } from "./adapters/gateway-agents.ts";
 export { PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, privateCallSummary, PRIVATE_TOOL, SCOPE_NAME, MAX_SCOPE_BYTES, MAX_SCOPES, type PrivateMemoryEvent, type PrivateMemoryOptions } from "./private-memory-run.ts";
+export { runAgent, retryWaitMs, gatewayStopReason, DEFAULT_LIMITS, MAX_RETRIES, type SocietyTool, type SocietyToolSet, type AgentLimits, type AgentOutcome, type DriverEvent, type StopReason, type RunAgentOptions } from "./cohort/driver.ts";
+export { runCohort, type CohortOptions } from "./cohort/runner.ts";

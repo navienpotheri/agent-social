@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFile
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main, type Io } from "../src/cli.ts";
+import { verifyCohortRun } from "../src/cohort/verify.ts";
 
 const SECRET = "sk-test-NOT-A-REAL-KEY-cmd-9876543210";
 const servers: Server[] = [];
@@ -18,7 +19,7 @@ async function fakeProvider() {
   const s = createServer(async (req, res) => {
     for await (const _ of req) { /* drain */ }
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ content: [{ type: "text", text: "I will look at the charters." }, { type: "tool_use", id: "t1", name: "look_charters", input: {} }], usage: { input_tokens: 900, output_tokens: 40 }, stop_reason: "tool_use" }));
+    res.end(JSON.stringify({ content: [{ type: "text", text: "I will look at the charters." }, { type: "tool_use", id: "t1", name: "mcp__society__look_charters", input: {} }], usage: { input_tokens: 900, output_tokens: 40 }, stop_reason: "tool_use" }));
   });
   await new Promise<void>((r) => s.listen(0, "127.0.0.1", r)); servers.push(s);
   return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
@@ -30,8 +31,8 @@ async function asp(args: string[], env: Record<string, string> = {}) {
   const code = await main(args, io);
   return { code, out: out.join("\n"), err: err.join("\n"), home };
 }
-/** The documented commands: the fenced PowerShell lines that run `asp society cohort`, with the placeholders filled in. */
-const documented = [...doc.matchAll(/```powershell\n([\s\S]*?)```/g)].flatMap((m) => m[1]!.split("\n")).filter((l) => /society cohort/.test(l)).map((l) => l.replace(/^npm run asp -- /, "").replace(/<usd per million input tokens>/g, "1").replace(/<usd per million output tokens>/g, "5"));
+/** The documented commands: the fenced PowerShell lines that run `asp society cohort`, with the placeholders filled in (`verify` checks a finished run and is tested in cohort-signed-trace.test.ts). */
+const documented = [...doc.matchAll(/```powershell\n([\s\S]*?)```/g)].flatMap((m) => m[1]!.split("\n")).filter((l) => /society cohort/.test(l) && !/society cohort verify/.test(l)).map((l) => l.replace(/^npm run asp -- /, "").replace(/<usd per million input tokens>/g, "1").replace(/<usd per million output tokens>/g, "5"));
 const tokens = (cmd: string): string[] => cmd.split(/\s+/).filter(Boolean);
 
 test("DK1801: the document gives the dry run and the three real steps and the persona run, and each command in it runs and writes a report", async () => {
@@ -53,6 +54,9 @@ test("DK1801: the document gives the dry run and the three real steps and the pe
     const runDirs = readdirSync(out).filter((d) => d.startsWith("cohort-"));
     assert.equal(runDirs.length, 1, cmd);
     assert.ok(existsSync(join(out, runDirs[0]!, "report.md")), `${cmd}: a report`);
+    // The run verifies from what it left on disk (signed trace, log, spend, files), through the real engine path as well as the stand-in one; the key variable is named so its value is searched for in every file.
+    const v = await verifyCohortRun(join(out, runDirs[0]!), { env: { ANTHROPIC_API_KEY: SECRET }, keyEnvs: ["ANTHROPIC_API_KEY"] });
+    assert.equal(v.ok, true, `${cmd}: ${JSON.stringify(v.checks.filter((c) => !c.ok))}`);
     for (const f of [...filesUnder(out), ...filesUnder(r.home)]) assert.ok(!readFileSync(f).includes(SECRET), `${f} holds the key`);
     assert.ok(!r.out.includes(SECRET) && !r.err.includes(SECRET), "the key is not printed");
   }
@@ -72,6 +76,12 @@ test("DK1801: the persona file is read, one persona to each agent in rotation, a
   assert.match(md, /persona: You look for work/);
   assert.match(md, /3 of 3 agents said something alongside their calls/, "the cognition summary counts the text the provider returned");
   assert.match(md, /first words: "I will look at the charters\."/);
+  // the real-model path runs through the gateway engine: the tool calls, the model turns and the ends are in the trace
+  const trace = readFileSync(join(dir, "o", run, "trace.jsonl"), "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l));
+  assert.ok(trace.some((e) => e.t === "tool" && e.tool === "look_charters" && e.ok), "a tool call is traced");
+  assert.ok(trace.some((e) => e.t === "model" && e.input > 0), "a model turn with its tokens is traced");
+  assert.equal(trace.filter((e) => e.t === "end").length, 3, "each agent ends");
+  assert.ok(existsSync(join(dir, "o", run, "agents", "agent-01", "run-log.ndjson")), "each agent has a gateway run log");
 });
 
 test("DK1801: a run without --local, without a cap, without the variable or with the variable unset is refused with a reason, and the key is never taken as a flag", async () => {
@@ -89,9 +99,11 @@ test("DK1801: a run without --local, without a cap, without the variable or with
   assert.equal(unset.code, 2);
   assert.match(unset.err, /COHORT_KEY is not set/);
   assert.ok(!unset.err.includes(SECRET));
-  const noPrice = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "m", "--api-key-env", "COHORT_KEY", "--budget-usd", "0.4"], { COHORT_KEY: SECRET });
+  const noPrice = await asp(["society", "cohort", "--local", "--agents", "1", "--model", "brand-new", "--api-key-env", "COHORT_KEY", "--budget-usd", "0.4"], { COHORT_KEY: SECRET });
   assert.equal(noPrice.code, 2);
-  assert.match(noPrice.err, /--price-in is needed/);
+  assert.match(noPrice.err, /brand-new is not in the price table.*--price-in and --price-out.*claude-haiku-5-5/);
+  const priced = await asp(["society", "cohort", "--local", "--provider", "stand-in", "--agents", "1", "--model", "claude-haiku-5-5", "--budget-usd", "0.4", "--out", join(tmpdir(), "asp-priced-" + Date.now())], {});
+  assert.equal(priced.code, 0, "a priced model needs no price flags: " + priced.err);
   const badProvider = await asp(["society", "cohort", "--local", "--provider", "openai", ...common], { COHORT_KEY: SECRET });
   assert.equal(badProvider.code, 2);
   assert.match(badProvider.err, /--provider is anthropic/);

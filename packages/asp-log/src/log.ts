@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { checkMandateTelemetry } from "./telemetry-rules.ts";
 import { projectDepositAct } from "./deposits.ts";
-import { noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
+import { haltState, noteIncome, projectBankAct, serveQueue } from "./bank-active.ts";
 import { reserveFloor as insurerFloor, INSURER_DID as INSURER_ACCOUNT } from "./insurer.ts";
 import { summarize as coldStartSummary, type ColdStart } from "./cold-start.ts";
 import { closesLoop, findCollusion, LOOP_WINDOW_MS, type CollusionFinding, type Hire } from "./collusion.ts";
@@ -114,6 +114,8 @@ const PROMOTION_QUALIFYING_JOBS_1_TO_2 = 3;
 const RETURN_RESERVE = 50;
 /** An emergency stop has a sunset: at most 72 hours (S1420, GV6). */
 export const EMERGENCY_MAX_MS = 72 * 3_600_000;
+/** The longest a credit halt on the Bank or the Insurer may stand (DK1229, S1653). */
+export const CREDIT_HALT_MAX_MS = 7 * 86_400_000;
 
 /** The Clinic's quarantine (DK29, DK30, DK53): an interim freeze lasts at most 7 days; a cohort needs this many distinct sponsors. */
 const QUARANTINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
@@ -190,6 +192,10 @@ export interface EventLogOptions {
   floorMeasuredFrom?: string;
   /** The time from which a record's panel is drawn by v2 (one seat for each funding source); before it, v1. Default `PANEL_DRAW_V2_FROM`. */
   panelV2From?: string;
+  /** The time from which a new budget must leave the Treasury's uncommitted balance at or above one month of approved budgets (the total of the latest earlier month with budgets; DK232, TRL-19, guard G6). Off when unset. */
+  treasuryReserveFloorFrom?: string;
+  /** The time from which a Treasury budget for an institution needs that institution's published charter in force (DK231, TRL-16). Off when unset. */
+  charterRequiredFrom?: string;
   /** The time from which a dispute's panel is drawn by v3 (a seed from three other controllers' records, and a caseload cap; DK122, S1611); before it, v2 or v1. Default `PANEL_DRAW_V3_FROM`. */
   panelV3From?: string;
   /**
@@ -312,6 +318,8 @@ export class EventLog {
   private tierBreadthFrom?: string;
   private configLoaded = false;
   private readonly panelV2From?: string;
+  private readonly reserveFloorFrom?: string;
+  private readonly charterRequiredFrom?: string;
   private readonly panelV3From?: string;
   private readonly operator?: string;
   private readonly allowUnsignedMint: boolean;
@@ -333,6 +341,10 @@ export class EventLog {
     if (driversFrom !== undefined && driversFrom !== "") { if (!Number.isFinite(Date.parse(driversFrom))) throw new Error(`insurerDriversFrom must be an ISO time, got ${driversFrom}`); this.insurerDrivers = { from: driversFrom, seed: opts.insurerSeed ?? process.env.ASP_INSURER_SEED ?? "asp-insurer" }; }
     if (opts.panelV2From !== undefined && !Number.isFinite(Date.parse(opts.panelV2From))) throw new Error(`panelV2From must be an ISO time, got ${opts.panelV2From}`);
     this.panelV2From = opts.panelV2From;
+    if (opts.treasuryReserveFloorFrom !== undefined && !Number.isFinite(Date.parse(opts.treasuryReserveFloorFrom))) throw new Error(`treasuryReserveFloorFrom must be an ISO time, got ${opts.treasuryReserveFloorFrom}`);
+    this.reserveFloorFrom = opts.treasuryReserveFloorFrom;
+    if (opts.charterRequiredFrom !== undefined && !Number.isFinite(Date.parse(opts.charterRequiredFrom))) throw new Error(`charterRequiredFrom must be an ISO time, got ${opts.charterRequiredFrom}`);
+    this.charterRequiredFrom = opts.charterRequiredFrom;
     if (opts.panelV3From !== undefined && !Number.isFinite(Date.parse(opts.panelV3From))) throw new Error(`panelV3From must be an ISO time, got ${opts.panelV3From}`);
     this.panelV3From = opts.panelV3From;
     if (opts.floorMeasuredFrom !== undefined && !Number.isFinite(Date.parse(opts.floorMeasuredFrom))) throw new Error(`floorMeasuredFrom must be an ISO time, got ${opts.floorMeasuredFrom}`);
@@ -471,6 +483,7 @@ export class EventLog {
     if (type === "common_control") await this.projectCommonControl(tx, verified);
     if (type === "credit_lot") await this.projectCreditLot(tx, verified);
     if (type === "emergency_stop") await this.projectEmergencyStop(tx, verified);
+    if (type === "credit_halt") await this.projectCreditHalt(tx, verified);
     if (type === "run_halt") await this.projectRunHalt(tx, verified);
     if (type === "incident") await this.projectIncident(tx, verified);
     if (type === "standing_adjustment") await this.projectStandingAdjustment(tx, verified);
@@ -490,7 +503,7 @@ export class EventLog {
     if (type === "subsidy_budget") await projectSubsidyBudget(tx, verified);
     if (type === "subsidy_grant") await projectSubsidyGrant(tx, verified, this.insurerEnv);
     if (type === "subsidy_use") await projectSubsidyUse(tx, verified);
-    if (type === "claim_decision") await projectClaimDecision(tx, verified, this.insurerEnv);
+    if (type === "claim_decision") { if ((verified.body as { decision: string }).decision !== "denied" && (await haltState(tx, "insurer", verified.issued_at)).live) throw rule("insurer_halted", "the Insurer is under a halt (credit_halt): a claim decision that pays waits for the halt to end; a denial is not held"); await projectClaimDecision(tx, verified, this.insurerEnv); }
     if (type === "budget") await this.projectBudget(tx, verified);
     if (type === "treasury_payment") await this.projectTreasuryPayment(tx, verified);
     if (type === "treasury_statement") await this.projectTreasuryStatement(tx, verified);
@@ -1237,6 +1250,7 @@ export class EventLog {
     const held = Number((await tx.getMarker(`hold:${did}`)) ?? 0);
     if (held > 0 && balance - amount < held) throw rule("collateral_held", `${did} holds ${held} credits as a mentor's collateral while its protege's line is open: ${balance - held} are free, ${amount} asked`);
     await tx.putAccount({ did, balance: balance - amount });
+    if (did === TREASURY_DID) await tx.putMarker("treasury_cum_out", String(Number((await tx.getMarker("treasury_cum_out")) ?? 0) + amount));
   }
 
   private async credit(tx: LogTx, rawDid: string, amount: number): Promise<void> {
@@ -1244,6 +1258,7 @@ export class EventLog {
     const did = canonicalAccount(rawDid);
     const balance = (await tx.getAccount(did))?.balance ?? 0;
     await tx.putAccount({ did, balance: balance + amount });
+    if (did === TREASURY_DID) await tx.putMarker("treasury_cum_in", String(Number((await tx.getMarker("treasury_cum_in")) ?? 0) + amount));
   }
 
   /**
@@ -3736,6 +3751,33 @@ export class EventLog {
     await tx.putMarker("estop:live", JSON.stringify({ id: live.id, until: r.issued_at, reason: live.reason }));
   }
 
+  /**
+   * A credit halt or its lifting (DK1229, S1653): the Treasury's circuit breaker on the Bank's withdrawals or the Insurer's claim payments. A halt has a sunset (at most 7 days) and one is live for an institution at a
+   * time; the Bank and Insurer rules read it (`bank-active.ts` `haltState`). Lifting a halt on the Bank pays its queue at once, in proportion to what each holder asked.
+   */
+  private async projectCreditHalt(tx: LogTx, r: AspRecord): Promise<void> {
+    const b = r.body as { act: "halt" | "lift"; institution: "bank" | "insurer"; reason: string; until?: string; halt?: string };
+    if (r.prev !== null) throw rule("credit_halt_not_chained", "a credit halt starts its own chain (prev is null)");
+    if (r.issuer !== TREASURY_DID) throw rule("credit_halt_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury halts or lifts a halt`);
+    const state = await haltState(tx, b.institution, r.issued_at);
+    if (b.act === "halt") {
+      if (state.live) throw rule("credit_halt_already_live", `the ${b.institution} is halted (${state.id}) until ${state.until}: a new halt can start when it has ended`);
+      const at = Date.parse(r.issued_at), until = Date.parse(b.until!);
+      if (!(until > at)) throw rule("credit_halt_until_past", "a halt ends after it begins");
+      if (until - at > CREDIT_HALT_MAX_MS) throw rule("credit_halt_too_long", "a halt lasts at most 7 days: it has a sunset, and a longer one is a new decision after it ends");
+      await tx.putMarker(`credit_halt:${b.institution}`, JSON.stringify({ id: r.id, until: b.until, reason: b.reason, settled: false }));
+      return;
+    }
+    if (!state.live || state.id !== b.halt) throw rule("credit_halt_not_live", `${b.halt} is not the live halt of the ${b.institution}`);
+    await tx.putMarker(`credit_halt:${b.institution}`, JSON.stringify({ id: state.id, until: r.issued_at, reason: state.reason, settled: false }));
+    if (b.institution === "bank") await serveQueue(tx, { debit: (t, d, n) => this.debit(t, d, n), credit: (t, d, n) => this.credit(t, d, n) }, r.issued_at);
+  }
+
+  /** Every credit halt and lift, oldest first (S1653): the public record. */
+  async creditHaltHistory(): Promise<{ id: string; at: string; act: string; institution: string; reason: string; until?: string; halt?: string }[]> {
+    return (await this.recordsOfTypes(["credit_halt"])).map((r) => { const b = r.body as { act: string; institution: string; reason: string; until?: string; halt?: string }; return { id: r.id, at: r.issued_at, act: b.act, institution: b.institution, reason: b.reason, ...(b.until ? { until: b.until } : {}), ...(b.halt ? { halt: b.halt } : {}) }; });
+  }
+
   /** The emergency stop in force now, or none (S1420): public, for the page and the commands. */
   async emergencyState(at: string = this.now().toISOString()): Promise<{ id: string; until: string; reason: string } | null> { return this.store.transaction(async (tx) => (await this.liveStop(tx, at)) ?? null); }
 
@@ -3882,6 +3924,13 @@ export class EventLog {
     if (b.period < r.issued_at.slice(0, 7)) throw rule("budget_period_past", `a budget for ${b.period} cannot be set in ${r.issued_at.slice(0, 7)}`);
     const key = `budget:${line}|${b.period}`;
     if (await tx.getMarker(key)) throw rule("budget_already_set", `${b.institution} already has a budget for ${b.period}: one budget per institution per month`);
+    // A budget for an institution needs its published charter in force (DK231, TRL-16): from the cutover, an institution with no charter record has no budget.
+    if (this.charterRequiredFrom && !allowanceLine && Date.parse(r.issued_at) >= Date.parse(this.charterRequiredFrom)) {
+      const head = Number((await tx.getMarker(`charter_head:${b.institution}`)) ?? 0);
+      let inForce: Awaited<ReturnType<typeof readCharter>> = null;
+      for (let v = head; v >= 1 && !inForce; v--) { const c = await readCharter(tx, b.institution, v); if (c && Date.parse(c.effective_from) <= Date.parse(r.issued_at)) inForce = c; }
+      if (!inForce) throw rule("budget_no_charter", `${b.institution} has no published charter in force: the Treasury sets no budget for an institution with no charter (publish it with asp charter publish)`);
+    }
     const lastKey = `budget_last:${line}`;
     const last = await tx.getMarker(lastKey);
     if (!this.cosignedBy(r, this.owner)) {
@@ -3890,6 +3939,16 @@ export class EventLog {
     }
     const { balance, open } = await this.treasuryFree(tx);
     if (open + b.amount.value > balance) throw rule("budget_exceeds_treasury", `the Treasury holds ${balance} credits and ${open} are already promised to open budgets: ${b.amount.value} more is more than it has`);
+    // One month in reserve (DK232, TRL-19, guard G6): from the cutover, what the Treasury holds that no open budget has promised, after this budget, is at least the total of the latest earlier month that had budgets.
+    const periods = JSON.parse((await tx.getMarker("budget_periods")) ?? "[]") as { period: string; total: number }[];
+    if (this.reserveFloorFrom && Date.parse(r.issued_at) >= Date.parse(this.reserveFloorFrom)) {
+      const earlier = periods.filter((p) => p.period < b.period).at(-1);
+      const reserve = balance - open - b.amount.value;
+      if (earlier && reserve < earlier.total) throw rule("budget_reserve_floor", `the Treasury would keep ${reserve} credits uncommitted after this budget, below one month of approved budgets (${earlier.total}, for ${earlier.period}): the reserve is never below that`);
+    }
+    const here = periods.find((p) => p.period === b.period);
+    if (here) here.total += b.amount.value; else { periods.push({ period: b.period, total: b.amount.value }); periods.sort((x, y) => (x.period < y.period ? -1 : 1)); }
+    await tx.putMarker("budget_periods", JSON.stringify(periods));
     await tx.putMarker(key, r.id);
     await tx.putMarker(lastKey, String(b.amount.value));
     await tx.putMarker("budget_open", String(open + b.amount.value));
@@ -3952,12 +4011,25 @@ export class EventLog {
    * (`treasury_statement_period_taken`); the hash is of the full statement the Treasury's command computed, so a published page is checked against it outside the log.
    */
   private async projectTreasuryStatement(tx: LogTx, r: AspRecord): Promise<void> {
-    const b = r.body as { period: string; balance: { value: number } };
+    const b = r.body as { period: string; balance: { value: number }; opening?: { value: number }; income?: { value: number }; spending?: { value: number } };
     if (r.prev !== null) throw rule("treasury_statement_not_chained", "a Treasury statement starts its own chain (prev is null)");
     if (r.issuer !== TREASURY_DID) throw rule("treasury_statement_wrong_issuer", `${r.issuer} is not the Treasury (${TREASURY_DID}): only the Treasury issues its statement`);
     const balance = (await tx.getAccount(TREASURY_DID))?.balance ?? 0;
     if (b.balance.value !== balance) throw rule("treasury_statement_balance_mismatch", `the Treasury holds ${balance} credits in the log, not ${b.balance.value}`);
     if (await tx.getMarker(`treasury_statement:${b.period}`)) throw rule("treasury_statement_period_taken", `a statement for ${b.period} is already in the log`);
+    // The arithmetic and the sums (DK232, TRL-18): opening + income - spending = closing, and the income and spending are exactly what the log moved into and out of the Treasury since the last statement (the first
+    // one counts from the start of the log). The log keeps the running totals as it moves the credits, so a figure that is one credit off is refused.
+    if (b.opening !== undefined || b.income !== undefined || b.spending !== undefined) {
+      if (b.opening === undefined || b.income === undefined || b.spending === undefined) throw rule("treasury_statement_incomplete", "a statement with figures names the opening, the income and the spending together");
+      if (b.opening.value + b.income.value - b.spending.value !== b.balance.value) throw rule("treasury_statement_arithmetic", `opening ${b.opening.value} + income ${b.income.value} - spending ${b.spending.value} is ${b.opening.value + b.income.value - b.spending.value}, not the closing ${b.balance.value}`);
+      const cumIn = Number((await tx.getMarker("treasury_cum_in")) ?? 0), cumOut = Number((await tx.getMarker("treasury_cum_out")) ?? 0);
+      const prev = JSON.parse((await tx.getMarker("treasury_statement_close")) ?? "null") as { closing: number; cumIn: number; cumOut: number } | null;
+      if (prev && b.opening.value !== prev.closing) throw rule("treasury_statement_opening", `the opening is the last statement's closing (${prev.closing}), not ${b.opening.value}`);
+      const wantIn = cumIn - (prev?.cumIn ?? 0), wantOut = cumOut - (prev?.cumOut ?? 0);
+      if (b.income.value !== wantIn) throw rule("treasury_statement_income", `the log moved ${wantIn} credits into the Treasury since the last statement, not ${b.income.value}`);
+      if (b.spending.value !== wantOut) throw rule("treasury_statement_spending", `the log moved ${wantOut} credits out of the Treasury since the last statement, not ${b.spending.value}`);
+      await tx.putMarker("treasury_statement_close", JSON.stringify({ closing: b.balance.value, cumIn, cumOut }));
+    }
     await tx.putMarker(`treasury_statement:${b.period}`, r.id);
   }
 
@@ -5180,6 +5252,17 @@ export class EventLog {
   private marketEnv(): MarketEnv { return { operator: this.operator, owner: this.owner, bondFloor: this.bondFloor, bondFloorFrom: this.bondFloorFrom, reputation: (rd, did) => this.gatedReputation(rd, did) }; }
 
   /** Every record of the given short types, in log order (read by the views). */
+  /** The records of some types, kept for the log head they were read at (DK1362, O6): the same list is served until a record is appended, so a page read does not scan the whole log each time. Callers must not change the list. */
+  private typedRecordsMemo = new Map<string, { head: string; records: AspRecord[] }>();
+  private async recordsOfTypesAtHead(types: string[]): Promise<AspRecord[]> {
+    const h = await this.store.logHead();
+    const head = `${h.seq}|${h.logHash}`, key = types.join(",");
+    const hit = this.typedRecordsMemo.get(key);
+    if (hit && hit.head === head) return hit.records;
+    const records = await this.recordsOfTypes(types);
+    this.typedRecordsMemo.set(key, { head, records });
+    return records;
+  }
   async recordsOfTypes(types: string[]): Promise<AspRecord[]> {
     const want = new Set(types.map((x) => `asp.${x}/v0.2`));
     return this.recordsWhere((r) => want.has(r.type));
@@ -5762,7 +5845,7 @@ export class EventLog {
   /** The record page of a DID or a name (registry.md 7), computed only from the log's records (a view; `registryVerify` recomputes it). */
   async registryPage(idOrName: string, at?: string): Promise<RecordPage | null> {
     const when = at ?? this.now().toISOString();
-    const records = await this.recordsOfTypes(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
+    const records = await this.recordsOfTypesAtHead(["passport", "certificate", "certificate_revocation", "registry_act", "shops_act", "receipt", "mentorship", "credit_line", "credit_default", "fleet"]);
     let did = idOrName;
     if (!idOrName.startsWith("did:")) { const c = namesAt(records.filter((r) => r.type === "asp.registry_act/v0.2"), when).get(idOrName); if (!c || !isVisible(c, when)) return null; did = c.holder; }
     const head = await this.store.logHead();
@@ -5775,7 +5858,17 @@ export class EventLog {
   }
 
   /** Every agent's facts for template-level reputation (S1412): passport fingerprint, fleet, persona, node and standing counts. */
+  /** The facts of every member, kept for the log head and the minute they were computed in (DK1362, O6): a page read of an agent in a fleet of 10,000 rebuilt them for every read (about 400 ms at 5,000 agents, 850 ms at 10,000); a new record changes the head, so a stale answer is never served. */
+  private memberFactsMemo: { key: string; value: { facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> } } | undefined;
   private async memberFacts(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
+    const head = await this.store.logHead();
+    const key = `${head.seq}|${head.logHash}|${this.now().toISOString().slice(0, 16)}`;
+    if (this.memberFactsMemo?.key === key) return this.memberFactsMemo.value;
+    const value = await this.memberFactsUncached();
+    this.memberFactsMemo = { key, value };
+    return value;
+  }
+  private async memberFactsUncached(): Promise<{ facts: MemberFacts[]; tpl: Map<string, ReturnType<typeof templateOf>> }> {
     const passports = new Map<string, { fingerprint?: MemberFacts["fingerprint"]; persona?: string; kind: string }>();
     for (const r of await this.recordsOfTypes(["passport"])) { const b = r.body as { did: string; kind: string; fingerprint?: MemberFacts["fingerprint"]; persona?: string }; passports.set(b.did, b); }
     return this.store.transaction(async (tx) => {
@@ -5803,7 +5896,7 @@ export class EventLog {
     const t = tpl.get(did)!;
     const fleetMembers = facts.filter((f) => f.fleet === me.fleet);
     const same = (f: MemberFacts) => tpl.get(f.did)!.key === t.key;
-    const fd = await this.fleetDetails(me.fleet);
+    const fd = await this.store.transaction(async (tx) => { const f = await tx.getFleet(me.fleet!); if (!f) return undefined; const d = JSON.parse((await tx.getMarker(`fleet_decl:${me.fleet}`)) ?? "{}") as FleetDecl; return { name: f.name, org: f.org, association: d.association ?? "full" } as { name: string; org: string; association: "full" | "related_party_only" | "private" }; });
     const personas: Record<string, number> = {};
     for (const m of fleetMembers) if (m.persona) personas[m.persona] = (personas[m.persona] ?? 0) + 1;
     return {
@@ -6120,7 +6213,7 @@ export class EventLog {
   /** The abuse reports filed against a DID (H3), oldest first, each with its reporter, kind and time. A lead for the Registry and the Courts, not a finding. */
   async abuseReportsAbout(did: string): Promise<{ id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[]> {
     const out: { id: string; reporter: string; kind: string; at: string; about?: string; outcome?: AbuseOutcome }[] = [];
-    for (const r of await this.recordsOfTypes(["abuse_report"])) {
+    for (const r of await this.recordsOfTypesAtHead(["abuse_report"])) {
       const b = r.body as { accused: string; kind: string; about?: string };
       if (b.accused !== did) continue;
       // What became of it (DK350, S502): referred to a panel, and the panel's finding with what was paid. Read from the markers the rules wrote, so the page says what the ledger did.

@@ -45,7 +45,7 @@ export class AdminAudit {
   }
 }
 
-export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string; /** The quarantines the sponsor-less review asks the Clinic for (rows DK540 to DK542, DK546). */ pending?: { list(): unknown[]; ack(dids: string[]): number }; /** Breaches reported to the service, waiting for the owner's keys (DK1714). */ breaches?: PendingBreaches }
+export interface AdminOptions { tokensFile: string; blockedFile: string; audit: AdminAudit; now: () => string; /** The quarantines the sponsor-less review asks the Clinic for (rows DK540 to DK542, DK546). */ pending?: { list(): unknown[]; ack(dids: string[]): number }; /** Breaches reported to the service, waiting for the owner's keys (DK1714). */ breaches?: PendingBreaches; /** Called after a breach is written down (DK1714): the service mails the operator and the sponsor at once. Errors are the caller's to handle. */ onBreach?: (b: { id: string; agent: string; cause: string; summary: string; at: string }) => void }
 
 /** Suspends or resumes a tenant in the tokens file (under the file lock sign-up uses), and records it. Returns an error text or undefined. */
 export function setSuspension(o: AdminOptions, by: string, via: "api" | "local", name: string, suspend: boolean, reason?: string): string | undefined {
@@ -122,6 +122,7 @@ export function adminRoutes(o: AdminOptions) {
         if (!!fleet !== !!node) return send(400, { ok: false, error: { code: "BAD_REQUEST", message: "fleet and node go together" } });
         const added = o.breaches.add({ id, agent, cause: cause as BreachCause, summary, at, by, ...(typeof body.detection === "string" ? { detection: body.detection } : {}), ...(fleet ? { fleet, node } : {}) } as never);
         o.audit.add({ at, by, via: "api", action: "breach_reported", target: agent, reason: `${cause}: ${summary}`.slice(0, 300) } as never);
+        if (added) { try { o.onBreach?.({ id, agent, cause, summary, at }); } catch { /* a mail that cannot be sent does not undo the report */ } }
         return send(added ? 200 : 409, added ? { ok: true, id, at, next: "the owner runs: asp breach respond --from-service" } : { ok: false, error: { code: "REFUSED", message: `${agent} already has an open breach report` } });
       }
       const reason = typeof body.reason === "string" ? body.reason.slice(0, 300) : undefined;

@@ -65,3 +65,14 @@ test("a ring or a circle with fewer jobs than the minimum is not flagged", () =>
   const ring = [...world(), ...many(1, "a1", "b1", 100), ...many(1, "b1", "c1", 100), ...many(1, "c1", "a1", 100)];
   assert.ok(!kinds(ring).some((x) => x === "ring" || x === "closed_circle"), "three jobs round a ring are below the minimum");
 });
+
+test("a ring is looked for up to five controllers: five round a ring are found, six are not a ring (they may still be a closed circle)", () => {
+  const ring = (k: number) => {
+    const names = Array.from({ length: k }, (_, i) => String.fromCharCode(65 + i));
+    const recs: R[] = names.map((s, i) => passport(`ag${i}`, s));
+    for (let i = 0; i < k; i++) recs.push(...many(Math.max(t.ringEdge, 3) + 1, `ag${i}`, `ag${(i + 1) % k}`, 100));
+    return recs;
+  };
+  assert.ok(kinds(ring(5)).includes("ring"), "five controllers hiring round in a circle, each hop repeated");
+  assert.ok(!kinds(ring(6)).includes("ring"), "six are beyond the ring search");
+});

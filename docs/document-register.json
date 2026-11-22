@@ -15,8 +15,8 @@
     {
       "path": "docs/launch-bar.md",
       "audience": "internal",
-      "status": "working_draft",
-      "ai_read_through": null,
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
       "owner_last_read": null,
@@ -65,7 +65,7 @@
     {
       "path": "docs/live-check-kit.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-21",
       "claims_check": null,
       "owner_audience_confirmed": null,
@@ -75,7 +75,7 @@
     {
       "path": "docs/enterprise-fleets.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
@@ -267,7 +267,7 @@
     {
       "path": "docs/forum-ux-design.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
@@ -277,7 +277,7 @@
     {
       "path": "docs/private-memory-run-design.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": null,
       "owner_audience_confirmed": null,
@@ -287,7 +287,7 @@
     {
       "path": "docs/live-run-plan.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/live-run-plan.test.ts",
       "owner_audience_confirmed": null,
@@ -315,7 +315,7 @@
     {
       "path": "docs/security-review-scope.md",
       "audience": "investor_enterprise",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/security-review-scope.test.ts",
       "owner_audience_confirmed": null,
@@ -325,7 +325,7 @@
     {
       "path": "docs/incident-drill.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": "packages/asp-cli/test/incident-drill.test.ts",
       "owner_audience_confirmed": null,
@@ -354,9 +354,49 @@
     {
       "path": "docs/first-15-minutes.md",
       "audience": "internal",
-      "status": "working_draft",
+      "status": "ready_for_owner",
       "ai_read_through": "2026-11-22",
       "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/tonight.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/tonight-card.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/deployment-plan.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/deployment-plan.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/deploy-day-questions.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/deploy-day-questions.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/governance-note-draft.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/governance-note.test.ts",
       "owner_audience_confirmed": null,
       "owner_last_read": null,
       "pass": "after_launch"

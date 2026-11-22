@@ -49,6 +49,7 @@ test("claude-code, streamed: the allowed call reaches the agent, the call outsid
   const f = makeFixture();
   const r = await run(f, p.url, ["--budget-usd", "5"], { REHEARSAL_STREAM: "1" });
   assert.equal(r.code, 0, r.err + r.out);
+  assert.match(r.err, /budget\s+WARNING: one worst-case model call could cost up to \$5\.58/, "asp run says at its start that a $5 cap may not admit a call at the default price, with the remedy");
   assert.match(r.out, /request 1: status 200; blocks text,tool_use:Read,text/, "Read and the refusal note arrive; Bash does not");
   assert.ok(!/tool_use:Bash/.test(r.out));
   const rep = await asp(f, ["live", "report"]);
@@ -124,6 +125,13 @@ test("claude-code: asp stop --all ends a running session from another window", a
   assert.ok(Date.now() - t0 < 20_000, "the session ends within seconds of the stop");
   assert.ok((r.out.match(/status 200/g) ?? []).length < 40, "it did not run to the end");
   assert.match((await lasp(f, ["runs"])).out, /claude-code\s+\S*stopped|claude-code/);
+  // E8: the sessions as one page
+  const page = join(f.root, "runs.html");
+  const wrote = await lasp(f, ["runs", "--html-file", page]);
+  assert.match(wrote.out, /wrote .* \(1 session\(s\)\)/, wrote.out + wrote.err);
+  const html = (await import("node:fs")).readFileSync(page, "utf8");
+  assert.match(html, /What my agents did/);
+  assert.match(html, /claude-code/);
 });
 
 test("claude-code: asp pause holds the next call and asp resume lets it go", async () => {

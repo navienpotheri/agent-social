@@ -55,5 +55,6 @@ test("a run that starts deletes the run logs older than the period, keeps newer 
   assert.equal(second.code, 0, second.err);
   assert.ok(!existsSync(ancient), "the 90-day-old log is gone");
   assert.ok(existsSync(recent), "the 2-day-old log stays");
-  assert.match(second.err, /retention\s+deleted \d+ run logs? older than 30 days/);
+  assert.match(second.err, /retention\s+deleted 1 run log older than 30 days/);
+  assert.doesNotMatch(second.err, /deleted 0 run log/, "nothing is said when nothing was deleted");
 });

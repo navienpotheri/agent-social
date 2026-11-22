@@ -59,13 +59,14 @@ export const PRICES = [
   { service: "clinic.restore", institution: institutionDid("clinic"), price: 5, split: { treasury_permille: 200, burn_permille: 0, payees: [{ account: institutionDid("clinic"), permille: 800 }] }, class: "remedial" },
 ];
 
-export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean; panelV2From?: string; panelV3From?: string; town?: Partial<import("../src/index.ts").TownRules>; parties?: { kid: string; publicKey: Uint8Array }[] } = {}) {
+export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean; panelV2From?: string; panelV3From?: string; treasuryReserveFloorFrom?: string; charterRequiredFrom?: string; town?: Partial<import("../src/index.ts").TownRules>; parties?: { kid: string; publicKey: Uint8Array }[] } = {}) {
   clockMs = Date.parse("2026-11-01T00:00:00Z"); // every log is new, so each test starts its own clock
-  const log = new EventLog(new MemoryStore(), { ...(extra.town ? { town: extra.town } : {}), operator: operator.did, owner: owner.did, fallbackResolver: extra.parties ? staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry, ...extra.parties].map((p) => [p.kid, p.publicKey]))) : resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}), ...(extra.panelV2From ? { panelV2From: extra.panelV2From } : {}), ...(extra.panelV3From ? { panelV3From: extra.panelV3From } : {}) });
+  const log = new EventLog(new MemoryStore(), { ...(extra.town ? { town: extra.town } : {}), operator: operator.did, owner: owner.did, fallbackResolver: extra.parties ? staticResolver(Object.fromEntries([operator, owner, treasury, market, registrar, courts, clinic, shops, housing, events, research, auditor, telemetry, ...extra.parties].map((p) => [p.kid, p.publicKey]))) : resolver, now: () => new Date(clockMs), ...(extra.bondFloor ? { bondFloor: extra.bondFloor } : {}), ...(extra.treasuryReserveFloorFrom ? { treasuryReserveFloorFrom: extra.treasuryReserveFloorFrom } : {}), ...(extra.charterRequiredFrom ? { charterRequiredFrom: extra.charterRequiredFrom } : {}), ...(extra.panelV2From ? { panelV2From: extra.panelV2From } : {}), ...(extra.panelV3From ? { panelV3From: extra.panelV3From } : {}) });
   await registerParties(log); // alice (a sponsor), the coder agent, the bank
   let n = 0;
   const holderParty = new Map<string, Party>();
   const contractOf = new Map<string, string>();
+  const funderOf = new Map<string, Party>();
   const mint = (to: string, value: number) => log.append(mk("mint", operator, { to, amount: credit(value), reason: "test", authority: "operator" }, null, { subject: to }));
   const person = async (name: string, funds = 0): Promise<Party> => {
     const p = party(`did:web:example.com:users:${name}`);
@@ -124,6 +125,7 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     const m = mk("mandate", funder, { contract: contract.id, purpose: "Spend within the budget", floor: "asp.floor/v1", scopes: ["repo.read"], forbidden_means: [], spend: { cap: 0, unit: "credit" }, irreversible: { policy: "checkpoint" }, subcontract: { allowed: false }, nodes: { max_parallel: 1 }, learning: { scope: "harness", share_to_commons: false }, self_modification: "principal_approves", overlay: null, checkpoints: [], expires: "2040-01-01T00:00:00Z", revocable: true, institution_spend: spend }, bond.id, { subject: a.did });
     await log.append(m);
     contractOf.set(a.did, contract.id);
+    funderOf.set(m.id, funder);
     return m.id;
   };
   const intent = async (poster: Party, o: Record<string, unknown> = {}) => {
@@ -156,7 +158,7 @@ export async function kit(extra: { bondFloor?: "legacy" | "v2"; jurors?: boolean
     await log.append(mk("settlement", bank, { contract: contract.id, basis: "accepted", cites: accept.id, escrow_released: credit(price), fees: credit(fee), bond_returned: credit(0), bond_slashed: credit(0) }, accept.id, { subject: contract.id, cosigners: [principal] }));
     return { contract: contract.id, delivery: delivery.id, bond: bond.id, mandate: mandate.id };
   };
-  return { log, mint, person, agent, cert, issueList, withPrices, withItems, buy, openMandate, intent, offer, runJob, listId: () => listId };
+  return { log, mint, person, agent, cert, issueList, withPrices, withItems, buy, openMandate, funderOf, intent, offer, runJob, listId: () => listId };
 }
 
 /** The log rule that refused (its name), or the error code for a refusal that is not a named rule; undefined if it was accepted. */

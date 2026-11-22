@@ -12,6 +12,7 @@ import { scanText, stringsOf, redactDeep, type OutboundKind, type OutboundMode }
 import type { SecondCheck } from "./second-check.ts";
 import { targetsOf } from "./targets.ts";
 import { GatewayBreaker } from "../agent-guards.ts";
+import { ladderAtCall, type LadderStep } from "../circumvention.ts";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,7 +37,7 @@ import { thinkingOf, type CognitionTap } from "./cognition-tap.ts";
 import { PRIVATE_TOOL, privateCallSummary } from "../private-memory-run.ts";
 import { callSha256, refusalRule, type RefusalRule } from "./refusal.ts";
 import { roleRefusal, type Role } from "./roles.ts";
-import { ladderAtCall, ladderStep, type LadderStep } from "../circumvention.ts";
+import { ladderStep } from "../circumvention.ts";
 import { costUsd, priceFor, worstCaseUsd, type Price } from "./pricing.ts";
 import { findInjection } from "./injection.ts";
 import { anthropicEvents, callOfItem, openaiChunks, relayAnthropicStream, relayOpenaiStream, relayResponsesStream, responsesEvents } from "./stream.ts";
@@ -196,6 +197,13 @@ function parseArgs(raw: unknown): Record<string, unknown> {
   try { const v = JSON.parse(raw); return v && typeof v === "object" ? v : { input: v }; } catch { return { input: raw }; }
 }
 
+/** A signal that fires when the agent's own connection closes before the answer was sent, so the provider's answer (and its cost) is not left running for nobody. */
+function clientGone(res: ServerResponse): AbortSignal {
+  const ac = new AbortController();
+  res.on("close", () => { if (!res.writableFinished) ac.abort(); });
+  return ac.signal;
+}
+
 export function createGateway(opts: GatewayOptions): Gateway {
   const rawFetch = opts.fetch ?? fetch;
   let authFailures = 0;
@@ -207,6 +215,8 @@ export function createGateway(opts: GatewayOptions): Gateway {
       if (res.status === 401 || res.status === 403) { if (++authFailures >= 3) stop(`the model provider refused the API key ${authFailures} times in a row`); } else if (res.ok) authFailures = 0;
       return res;
     } catch (e) {
+      // The client went away while the model was answering (the agent was stopped, a window closed): the request to the provider is dropped with it, and that is not a provider fault.
+      if (init?.signal?.aborted) { rec?.event("client_gone", {}); throw e; }
       let host = ""; try { host = new URL(String(input)).host; } catch { /* not a URL */ }
       const cause = ((e as { cause?: { code?: string } }).cause?.code) ?? (e as Error).message;
       rec?.event("model_error", { status: 0, body: `could not reach ${host}: ${cause}` });
@@ -637,7 +647,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     const snap = beginModelCall("chat.completions", body);
     if (!wantsStream) body.stream = false;
     if (wantsStream) body.stream_options = { ...(body.stream_options ?? {}), include_usage: true };
-    const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
+    const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/chat/completions`, { method: "POST", signal: clientGone(res), headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayOpenaiStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
@@ -683,7 +693,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     if (guardRequest(body, res, "openai")) return;
     addCode(body, "responses");
     const snap = beginModelCall("responses", body);
-    const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
+    const up = await f(`${opts.openaiUpstream!.replace(/\/$/, "")}/responses`, { method: "POST", signal: clientGone(res), headers: upstreamHeaders(req, opts.openaiKey, "openai"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayResponsesStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.openaiUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;
@@ -727,7 +737,7 @@ export function createGateway(opts: GatewayOptions): Gateway {
     addCode(body, "anthropic");
     const snap = beginModelCall("messages", body);
     if (!wantsStream) body.stream = false;
-    const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
+    const up = await f(`${opts.anthropicUpstream!.replace(/\/$/, "")}/v1/messages`, { method: "POST", signal: clientGone(res), headers: upstreamHeaders(req, opts.anthropicKey, "anthropic"), body: JSON.stringify(body) });
     if (wantsStream && up.ok && (up.headers.get("content-type") ?? "").includes("text/event-stream") && up.body) {
       await relayAnthropicStream(up.body, res, decide, tokens);
       noteModel(body.model, opts.anthropicUpstream, { model: tokens.model, fingerprint: tokens.fingerprint }); tokens.model = undefined; tokens.fingerprint = undefined;

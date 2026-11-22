@@ -3,7 +3,8 @@
  * and the worst it can cost, reads the provider's key from the NAMED environment variable (never from a flag, never written anywhere), and runs the cohort (run.ts). It never reaches a hosted service.
  */
 import { join } from "node:path";
-import { anthropicProvider, BEHAVIOURS, standInProvider } from "./provider.ts";
+import { isPricedModel } from "@agent-social/asp-package";
+import { BEHAVIOURS, standInProvider } from "./provider.ts";
 import { readPersonas, runCohort } from "./run.ts";
 import type { Provider } from "./types.ts";
 
@@ -14,7 +15,7 @@ export interface CohortFlags {
   out?: string; behaviours?: string; "persona-file"?: string; "provider-url"?: string; "max-turns"?: string; local?: boolean;
 }
 
-const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> --price-in <usd per million input tokens> --price-out <usd per million output tokens> [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
+const USAGE = "asp society cohort --local --agents <n> --model <name> --api-key-env <VAR> --budget-usd <cap per agent> [--price-in <usd per million input tokens> --price-out <usd per million output tokens>: only for a model not in the price table] [--total-usd <cap>] [--minutes <n>] [--out <dir>] [--persona-file <file>] [--max-turns <n>]   (offline dry run: --provider stand-in [--behaviours explorer,looper,...])";
 const num = (name: string, v: string | undefined, dflt?: number): number => {
   if (v === undefined) { if (dflt === undefined) throw new CohortUsage(`${name} is needed: ${USAGE}`); return dflt; }
   const n = Number(v);
@@ -30,7 +31,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   const total = num("--total-usd", f["total-usd"], budget * agents);
   const minutes = num("--minutes", f.minutes, 20);
   const kind = f.provider ?? "anthropic";
-  let provider: Provider, model: string, priceIn: number, priceOut: number;
+  let provider: Provider | undefined, model: string, priceIn: number | undefined, priceOut: number | undefined, engine: { keyEnv: string; env: Record<string, string | undefined>; upstream?: string; price?: { inPerM?: number; outPerM?: number } } | undefined;
   if (kind === "stand-in") {
     const names = (f.behaviours ?? "explorer").split(",").map((x) => x.trim()).filter(Boolean);
     for (const n of names) if (!BEHAVIOURS[n]) throw new CohortUsage(`no stand-in behaviour called ${n}; choose from ${Object.keys(BEHAVIOURS).join(", ")}`);
@@ -39,9 +40,13 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   } else if (kind === "anthropic") {
     if (!f.model) throw new CohortUsage(`--model is needed (for example claude-haiku-5-5): ${USAGE}`);
     if (!f["api-key-env"]) throw new CohortUsage(`--api-key-env names the environment variable that holds your key (the key itself is never given on the command line): ${USAGE}`);
-    priceIn = num("--price-in", f["price-in"]); priceOut = num("--price-out", f["price-out"]);
     model = f.model;
-    try { provider = anthropicProvider({ model, keyEnv: f["api-key-env"], env: o.io.env, ...(f["provider-url"] ? { baseUrl: f["provider-url"] } : {}) }); } catch (e) { throw new CohortUsage((e as Error).message); }
+    const keyEnv = f["api-key-env"];
+    if (!o.io.env[keyEnv]) throw new CohortUsage(`the environment variable ${keyEnv} is not set: set it in this window (for example $env:${keyEnv} = "<your key>") and run again; the key is read only from there`);
+    if (!isPricedModel(model) && (f["price-in"] === undefined || f["price-out"] === undefined)) throw new CohortUsage(`${model} is not in the price table, so a dollar cap cannot be checked against it: pass --price-in and --price-out (USD per million tokens, from the provider's price list) or choose a priced model such as claude-haiku-5-5`);
+    if (f["price-in"] !== undefined) priceIn = num("--price-in", f["price-in"]);
+    if (f["price-out"] !== undefined) priceOut = num("--price-out", f["price-out"]);
+    engine = { keyEnv, env: o.io.env, ...(f["provider-url"] ? { upstream: f["provider-url"] } : {}), ...(priceIn !== undefined || priceOut !== undefined ? { price: { ...(priceIn !== undefined ? { inPerM: priceIn } : {}), ...(priceOut !== undefined ? { outPerM: priceOut } : {}) } } : {}) };
   } else throw new CohortUsage("--provider is anthropic (a real model, with your key) or stand-in (offline, scripted)");
   const maxTokens = 600;
   const personas = f["persona-file"] ? readPersonas(f["persona-file"]) : undefined;
@@ -50,7 +55,7 @@ export async function cohortCmd(o: { home: string; flags: CohortFlags; io: { out
   o.io.out("  tools: restricted to reading the society and writing in its forum; no shell, no files, no network of their own.");
   o.io.out(`  worst case for the whole run: $${Math.min(total, budget * agents).toFixed(2)}.`);
   const r = await runCohort({
-    out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, provider, budgetUsd: budget, totalUsd: total, minutes, priceIn, priceOut, maxTokens,
+    out: f.out ?? join(o.home, "cohort"), home: o.home, agents, model, ...(provider ? { provider } : {}), ...(engine ? { engine } : {}), budgetUsd: budget, totalUsd: total, minutes, ...(priceIn !== undefined ? { priceIn } : {}), ...(priceOut !== undefined ? { priceOut } : {}), maxTokens,
     ...(f["max-turns"] ? { maxTurns: Math.trunc(num("--max-turns", f["max-turns"])) } : {}), ...(personas ? { personas } : {}), staggerMs: agents > 1 ? 400 : 0,
     io: { out: o.io.out }, ...(o.now ? { now: o.now } : {}),
   });
