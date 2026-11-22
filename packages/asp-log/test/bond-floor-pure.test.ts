@@ -55,6 +55,7 @@ test("the v3 floor: a certificate lowers by 40 up to 120, a drift raises by 100 
   assert.equal(v3({ taskClass: "trivial" }), 240);
   assert.equal(v3({ taskClass: "skilled" }), 520);
   assert.equal(v3({ taskClass: "critical" }), 680);
+  assert.equal(v3({ verifiedImprovements: 4, acceptedCleanJobs: 20, certificates: 3, taskClass: "skilled" }), 65, "certificates cannot take the floor under 50 before the class multiplies it (50 x 1.3)");
   assert.equal(v3({ scopes: ["shell.exec"] }), 450);
   assert.equal(v3({ scopes: ["shell.network", "repo.push"] }), 525, "100 for the largest and 25 for the second");
   assert.equal(v3({ ownSlashes: 4, taskClass: "critical", scopes: ["pr.merge"] }), 1000, "capped at the whole price");
