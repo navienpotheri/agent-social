@@ -461,7 +461,7 @@ export interface Io {
   ask?: (question: string) => Promise<string>;
 }
 
-const OPTIONS = {
+export const OPTIONS = {
   home: { type: "string" },
   local: { type: "boolean" },
   "claude-home": { type: "string" },
@@ -1078,6 +1078,21 @@ const OPTIONS = {
   dry: { type: "boolean" },
 } as const;
 
+
+/**
+ * A value that starts with a dash (a base64url token does so about one time in 64) is the value of a value-taking option, not another option (ENG120): `--token -abc` becomes `--token=-abc`. A following word is
+ * still an option when it is exactly a known option (`--agents`, or `--agents=3`), so `--token --agents 3` leaves --token without a value as before.
+ */
+export function joinDashValues(argv: string[], options: Record<string, { type: string }> = OPTIONS as never): string[] {
+  const known = (a: string): boolean => { const m = /^--([^=]+)(=.*)?$/.exec(a); return !!m && m[1]! in options; };
+  const out: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const x = argv[i]!, m = /^--([^=]+)$/.exec(x), next = argv[i + 1];
+    if (m && options[m[1]!]?.type === "string" && next !== undefined && next.startsWith("-") && next.length > 1 && !known(next)) { out.push(`${x}=${next}`); i++; } else out.push(x);
+  }
+  return out;
+}
+
 /**
  * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
  * Found in preparing for developers: `asp account show` with no wifi printed only "error: fetch failed".
@@ -1170,7 +1185,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   let parsed;
   try {
     // --writeback on its own means every agent (ENG78); --writeback=half is the arm split
-    parsed = parseArgs({ args: argv.map((x, i) => (x === "--writeback" ? "--writeback=all" : x === "--signals" && (argv[i + 1] === undefined || argv[i + 1]!.startsWith("--")) ? "--signals=all" : x)), options: OPTIONS, allowPositionals: true });
+    parsed = parseArgs({ args: joinDashValues(argv).map((x, i) => (x === "--writeback" ? "--writeback=all" : x === "--signals" && (argv[i + 1] === undefined || argv[i + 1]!.startsWith("--")) ? "--signals=all" : x)), options: OPTIONS, allowPositionals: true });
   } catch (e) {
     io.err(String((e as Error).message));
     return 2;
