@@ -336,6 +336,31 @@ export class MarketHall {
   /** How many agents have been paid the first-job bonus (the credit economy table reads it). */
   bonusCount(): number { return this.bonusPaid.size; }
   private readonly houseChecks = new Map<string, HouseJob>(); // intent id -> the house job and its check
+  /** ENG94, peer assessors: deliveries on house jobs (the house's check decided each: accepted or refused) that another agent can assess against the job's stated criterion for a small credit. A peer's verdict never changes the house check or a payment; it is recorded and compared with the house's. */
+  readonly deliveryLog: Array<{ id: string; contract: string; intent: string; performer: string; handle: string; purpose: string; rubric: string; summary: string; houseAccepted: boolean }> = [];
+  readonly assessments: Array<{ id: string; by: string; handle: string; verdict: "meets" | "does not meet"; reason: string; houseAccepted: boolean; at: string }> = [];
+  assessPaid = 0;
+  static readonly ASSESS_PAY = 1;
+  static readonly ASSESS_CAP = 5;
+  assessable(did: string, n = 5): Array<{ id: string; handle: string; purpose: string; rubric: string; summary: string }> {
+    const done = new Set(this.assessments.filter((a) => a.by === did).map((a) => a.id));
+    return this.deliveryLog.filter((d) => d.performer !== did && !done.has(d.id)).slice(-n).reverse().map((d) => ({ id: d.id, handle: d.handle, purpose: d.purpose, rubric: d.rubric, summary: d.summary }));
+  }
+  async assess(agent: AgentCtx, id: string, verdict: "meets" | "does not meet", reason: string): Promise<{ paid: number }> {
+    const d = this.deliveryLog.find((x) => x.id === id);
+    if (!d) throw new Error("there is no such delivery to assess: assess_list shows them");
+    if (d.performer === agent.did) throw new Error("you cannot assess your own delivery");
+    if (this.assessments.some((a) => a.by === agent.did && a.id === id)) throw new Error("you have assessed this delivery already");
+    const mine = this.assessments.filter((a) => a.by === agent.did).length;
+    this.assessments.push({ id, by: agent.did, handle: agent.handle, verdict, reason: reason.slice(0, 160), houseAccepted: d.houseAccepted, at: new Date().toISOString() });
+    const pay = mine < MarketHall.ASSESS_CAP ? MarketHall.ASSESS_PAY : 0;
+    if (pay) { await this.mint(agent.did, pay); this.assessPaid += pay; }
+    return { paid: pay };
+  }
+  private logDelivery(c: { contract: string; intent: string }, hj: HouseJob, agent: AgentCtx, summary: string, houseAccepted: boolean): void {
+    if (hj.partner) return;
+    this.deliveryLog.push({ id: `delivery-${String(this.deliveryLog.length + 1).padStart(3, "0")}`, contract: c.contract, intent: c.intent, performer: agent.did, handle: agent.handle, purpose: hj.purpose.replace(/^\[[a-z]+\] /, "").slice(0, 100), rubric: hj.criterion, summary: summary.slice(0, 240), houseAccepted });
+  }
   /** ENG93, the evolving harness: what an agent is shown after repeated refusals of a delivery, and a level for each category that rises after passes. The check itself is never changed for anyone; every adaptation is recorded. */
   readonly adaptations: Array<{ agent: string; job: string; step: "criterion" | "hint" | "course" | "level_up"; fails?: number; category?: string; level?: number; at: string }> = [];
   private readonly failsOf = new Map<string, number>();
@@ -582,11 +607,13 @@ export class MarketHall {
         if (n >= 2) { more += ` The criterion for this job: "${hj.criterion}".`; if (n === 2) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "criterion", fails: n, at }); }
         if (n >= 4) { const sib = this.easierSibling(hj); more += sib ? ` An easier job of the same kind is open: "${sib.purpose}" (offer_on_job ${sib.id}).` : " Another job of the same kind may suit you better: look_jobs."; if (n === 4) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "hint", fails: n, at }); }
         if (n >= 6) { more += " The Academy has courses (look_courses); taking one is optional."; if (n === 6) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "course", fails: n, at }); }
+        this.logDelivery(c, hj, agent, summary, false);
         throw new Error(`the house did not accept this delivery (${why}); nothing was recorded, deliver again.${more}`);
       }
     }
     const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 900), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
     c.delivery = await this.put(d);
+    if (hj) this.logDelivery(c, hj, agent, summary, true);
     if (hj && (!partnerOf || partnerOf.delivery)) {
       // The house pays on the spot (a partner job when both have delivered). The first job an agent finishes for the house carries a bonus.
       const owner = this.houseOf.get(c.intent) ?? this.p.house;

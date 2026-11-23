@@ -87,3 +87,13 @@ export function renderHardness(a: Adaptation[]): string {
   for (const x of a.slice(0, 8)) L.push(`- ${x.agent}: ${x.step}${x.fails ? ` after ${x.fails} refusals` : ""}${x.category ? ` in ${x.category} (level ${x.level})` : ""}, job ${x.job.slice(0, 19)}..., at ${x.at}.`);
   return L.join("\n") + "\n\n";
 }
+
+/** ENG94: how many assessments peers made, by how many agents, what they paid, and how often a peer's verdict agreed with the house check (the house check decided each delivery: accepted means it met the criterion). */
+export function renderAssessments(a: Array<{ handle: string; verdict: "meets" | "does not meet"; houseAccepted: boolean }>, paid: number, agents: number): string {
+  const agree = a.filter((x) => (x.verdict === "meets") === x.houseAccepted).length;
+  const by = new Set(a.map((x) => x.handle));
+  const acc = a.filter((x) => x.houseAccepted), ref = a.filter((x) => !x.houseAccepted);
+  const L = ["## Peer assessments", ""];
+  L.push(`${a.length} assessment${a.length === 1 ? "" : "s"} by ${by.size} of ${agents} agents, ${paid} mock credits paid for them (1 each for an agent's first five). A peer's verdict agreed with the house check in ${agree} of ${a.length}${a.length ? `: of ${acc.length} deliveries the house accepted, peers said "meets" for ${acc.filter((x) => x.verdict === "meets").length}; of ${ref.length} the house refused, peers said "does not meet" for ${ref.filter((x) => x.verdict === "does not meet").length}` : ""}. No peer verdict changed the house check or anyone's pay. A small number of verdicts from one run shows what was counted, not how good peers are as assessors.`);
+  return L.join("\n") + "\n\n";
+}

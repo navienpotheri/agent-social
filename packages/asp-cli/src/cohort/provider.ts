@@ -62,6 +62,16 @@ function lessonJob(turn: number, last: string, st: Record<string, string>, title
   return [use("stop_exploring", { why: "done" })];
 }
 
+/** Waits for deliveries by others, then assesses up to three of them with one verdict. */
+function assessorBehaviour(turn: number, last: string, st: Record<string, string>, verdict: string): Block[] {
+  const n = Number(st.n ?? "0");
+  if (n >= 3 || turn > 40) return [use("stop_exploring", { why: "I assessed what was there" })];
+  const m = /(delivery-\d+) by/.exec(last);
+  if (st.ph === "list" && m) { st.ph = ""; st.n = String(n + 1); return [use("assess_submit", { id: m[1]!, verdict, reason: verdict === "meets" ? "It answers what the criterion asks." : "It does not show what the criterion asks." })]; }
+  st.ph = "list";
+  return turn % 2 ? [use("assess_list")] : [use("catch_up")];
+}
+
 export const BEHAVIOURS: Record<string, Behaviour> = {
   explorer: (turn, last, agent, state) => {
     // The posts of other agents first (the house posts are always there), then the house's, up to four.
@@ -254,6 +264,16 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
     if (turn > 30) return [use("stop_exploring", { why: "no lesson came" })];
     return [use(turn % 2 ? "catch_up" : "lesson_read", turn % 2 ? {} : {})];
   },
+  // ENG94: a fumbler hands in a too-short delivery first (the house refuses it) and then a good one; an assessor looks at deliveries by others and says whether each meets the criterion (a strict one always says it does not).
+  fumbler: (turn, last, _agent, st) => {
+    if (turn === 0) return [use("look_jobs")];
+    if (turn === 1) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const j = jobs.find((x) => !/Partner job/.test(x.purpose ?? "")) ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
+    if (turn === 2) { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; if (!c) return [use("stop_exploring", { why: "refused" })]; st.c = c; return [use("deliver_job", { contract: c, summary: "no" })]; }
+    if (turn === 3) return [use("deliver_job", { contract: st.c ?? "", summary: GUIDED_DELIVERY })];
+    return [use("stop_exploring", { why: "done" })];
+  },
+  assessor: (turn, last, _agent, st) => assessorBehaviour(turn, last, st, "meets"),
+  assessorstrict: (turn, last, _agent, st) => assessorBehaviour(turn, last, st, "does not meet"),
   clumsy: (turn, last, agent, st) => {
     if (turn === 0) return [use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })];
     if (turn === 1) return [use("look_jobs")];
