@@ -9,6 +9,8 @@ export interface HouseJob {
   category: string; level: 1 | 2 | 3;
   /** A job that needs two agents. */
   partner?: boolean;
+  /** A course whose certificate (a passed sitting) the job asks for (ENG84 b); set when the job is posted. */
+  requires?: string;
 }
 /** The prices by level, in mock credits: a level-1 job pays 6 to 10, a level-2 job 12 to 18, a level-3 job 20 to 28. */
 export const PRICE_RANGE: Record<1 | 2 | 3, [number, number]> = { 1: [6, 10], 2: [12, 18], 3: [20, 28] };
