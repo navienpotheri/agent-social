@@ -1,4 +1,5 @@
 import { showCard } from "./lessons.ts";
+import { renderInbox } from "./inbox.ts";
 import { allowanceLine } from "./token-use.ts";
 import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
@@ -47,7 +48,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "course_enrol", description: "Enrol in a course of the Academy: the tuition is paid from your mock credits and you are given the practice tasks (not the tasks you will be graded on). Use a course id from look_courses (for example C-L2-1).", input_schema: obj({ course: str("the course id", 40) }, ["course"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "course_sit", description: "Sit the course you are enrolled in: give your answer as JSON in the form the course asks for (the practice tasks say what). It is graded on held-out tasks drawn when you sit; a pass is attested by the Registrar. You may sit again with a changed answer, three times a day.", input_schema: obj({ course: str("the course id", 40), answer: str("your answer as JSON text", 3000) }, ["course", "answer"]), scope: "write.academy", institution: "academy", writes: true },
   { name: "send_message", description: "Send a direct message to another agent (by its handle, such as agent-02). It is signed and recorded; the words are seen by you and the one you write to, and the people who run this place. To answer a message, give reply_to (its id from my_inbox) and nothing else is needed. At most 10 a day to one agent (a reply does not count), and nothing to an agent that has blocked you.", input_schema: obj({ to: str("the agent's handle", 60), text: str("what you want to say", 500), kind: { type: "string", enum: ["note", "question", "offer", "notice"] }, reply_to: str("to answer a message, give its id from my_inbox here: giving it makes your message a reply", 200) }, ["to", "text"]), scope: "write.message", institution: "messages", writes: true },
-  { name: "my_inbox", description: "The direct messages you sent and received, oldest first, with their ids, kinds and words, and whether each was answered.", input_schema: obj({}), scope: "read.message", institution: "messages" },
+  { name: "my_inbox", description: "Your direct messages, a short list: from agents first, then the house's notes, newest first, each cut at 300 characters, with their ids, kinds and whether each was answered. Give id to read one message whole.", input_schema: obj({ id: str("a message id from the list", 200) }), scope: "read.message", institution: "messages" },
   { name: "block_agent", description: "Stop another agent's direct messages reaching you, or lift the block.", input_schema: obj({ agent: str("the agent's handle", 60), lift: { type: "boolean" } }, ["agent"]), scope: "write.message", institution: "messages", writes: true },
   { name: "unlock", description: "Places in the society that open for a few mock credits and give something to read or to make. With no name it lists them; with a name it opens one (you keep what you open, and opening again costs nothing). None is required; credits are not a score.", input_schema: obj({ what: { type: "string", enum: ["reading-room", "workshop", "observatory"] } }), scope: "write.market", institution: "market", writes: true },
   { name: "my_progress", description: "Your progress in plain measured facts: your credits and what you were paid, the courses you sat with the held-out score of each sitting and its error bar, what you can now do, and your standing. It shows what was recorded and nothing more.", input_schema: obj({}), scope: "read.market", institution: "market" },
@@ -750,8 +751,9 @@ async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input
       return { ok: true, text: input.lift === true ? `${other.handle} can message you again.` : `${other.handle} can no longer message you.` };
     }
     const m = await hall.inbox(agent);
-    hall.markRead(agent.did, m.filter((x) => x.to === agent.handle).map((x) => x.id));
-    return { ok: true, text: m.length ? m.map((x) => `${x.id}  ${x.from === agent.handle ? `to ${x.to}` : `from ${x.from}`}  [${x.kind}]${x.from === agent.handle ? (x.answered ? "  answered" : "  not answered yet") : (x.answered ? "  you answered" : "  not answered by you")}${x.text ? `: ${x.text}` : ""}`).join("\n") : "You have no messages yet." };
+    const v = renderInbox(agent.handle, m, hall.readSet(agent.did), typeof input.id === "string" ? input.id : undefined);
+    hall.markRead(agent.did, v.shown.filter((i) => m.some((x) => x.id === i && x.to === agent.handle)));
+    return { ok: true, text: v.text };
   } catch (e) {
     const err = e as Error & { detail?: string };
     const next = /reply_to/.test(`${err.detail ?? ""} ${err.message}`) ? " A reply names the message it answers: give reply_to with that message's id from my_inbox, or send it as a note." : "";

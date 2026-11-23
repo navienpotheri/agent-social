@@ -610,6 +610,7 @@ export class MarketHall {
   /** The messages this agent sent and received, oldest first, with the words (they are the agent's own and its correspondents'). */
   /** DK1346 (cohort): which messages each agent has seen through my_inbox, so that an unread count and the report's delivered, read and answered counts exist. A message is delivered when it is a record in the log (it is signed and recorded as it is sent). */
   private readonly readBy = new Map<string, Set<string>>();
+  readSet(did: string): Set<string> { return this.readBy.get(did) ?? new Set<string>(); }
   markRead(did: string, ids: string[]): void { const s = this.readBy.get(did) ?? new Set<string>(); for (const i of ids) s.add(i); this.readBy.set(did, s); }
   async unreadFor(agent: AgentCtx): Promise<number> { const seen = this.readBy.get(agent.did) ?? new Set<string>(); return (await this.inbox(agent)).filter((m) => m.to === agent.handle && !seen.has(m.id)).length; }
   /** Delivered (recorded), read (seen by the one it was sent to) and answered (a later message names it), between agents and from the house, for the report. */
