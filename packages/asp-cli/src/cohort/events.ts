@@ -5,12 +5,14 @@
  */
 import type { EventSource, LifeEvent, SimClock } from "@agent-social/asp-package";
 import type { WorldApi } from "./types.ts";
+import { exploreAgain } from "./tools.ts";
 
 export function societySource(o: { world: WorldApi; didOf: (agent: string) => string | undefined; clock: SimClock }): EventSource {
   const day = o.world.dayCycle;
   const lastSim = new Map<string, number>();
   const seenMsg = new Map<string, Set<string>>(), seenOffer = new Map<string, Set<string>>();
   const seenJobs = new Map<string, Set<string>>();
+  const nudged = new Set<string>();
   const jobIds = (text: string): string[] => {
     try {
       const j = JSON.parse(text) as unknown;
@@ -49,6 +51,12 @@ export function societySource(o: { world: WorldApi; didOf: (agent: string) => st
         }
       }
       const hall = o.world.market;
+      if (did && hall && !nudged.has(agent)) {
+        // At its first wake, an agent that has found nothing yet is told once, plainly, about looking closely (the same facts as its first look); never again.
+        nudged.add(agent);
+        const again = exploreAgain(o.world, did), handle = hall.handleOf(did);
+        if (again && handle) await hall.greeterNote(handle, again);
+      }
       if (did && hall) {
         const sm = seenMsg.get(agent) ?? new Set<string>(), so = seenOffer.get(agent) ?? new Set<string>();
         for (const id of await hall.messageIdsTo(did)) if (!sm.has(id)) { sm.add(id); events.push({ kind: "message", at: o.clock.now(), text: "a message has come for you (my_inbox)", ref: id }); }

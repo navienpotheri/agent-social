@@ -156,6 +156,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
     if (hall) {
       const waiting = (await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered);
       if (waiting.length) { const last = waiting[waiting.length - 1]!; out.push(`${waiting.length} message${waiting.length === 1 ? "" : "s"} to answer, the latest from ${last.from} (my_inbox; to answer, send_message to ${last.from} with reply_to ${last.id})`); }
+      if (world.library && hall.hasFirstJobCredit(agent.did) && hall.jobsPostedBy(agent.did).posted === 0) { try { const names = (world.library.read(agent.did) as { names: string[] }).names; if (names.length) out.push(`you wrote the note "${names[0]}" in your workspace: a job you could post is "Read my note ${names[0]} and say what it is missing" (post_job; the first job you post is free)`); } catch { /* no workspace */ } }
       n((await hall.offersOnMine(agent)).filter((o) => o.open).length, "offer on your jobs", "offers on your jobs", "offers_on_mine");
       n(await hall.openJobCount(agent), "open job", "open jobs", "look_jobs");
       n(hall.courseList().length, "course", "courses", "look_courses");
@@ -212,8 +213,8 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |About credits|Open invitations|Open to you now))[\s\S]*$/;
-export const stripExtras = (s: string): string => s.replace(EXTRAS, "");
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now))[\s\S]*$/;
+export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
  * Invitations for an arrival's first observation: what is open to it, in short factual lines with no pressure (ENG30): a forum question with no reply, a job it can do with what the house wants of it, a course,
@@ -292,18 +293,34 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
       extra.push(`You read the rumour thread: ${DISCOVERY_PAY.rumour} mock credits.`);
     }
   }
+  let lead = "";
   const seenBy = invited.get(world) ?? new Set<string>(); invited.set(world, seenBy);
   if (!seenBy.has(agent.did)) {
     seenBy.add(agent.did);
     const inv = await invitationsFor(world, agent);
     r = { ...r, invitations: inv.length };
-    if (world.hintLines !== false && (world.markers || world.expedition)) extra.push("About this place: learning is possible here, and my_progress shows what you have learned. There is more here than the first look shows.");
+    if (world.hintLines !== false && (world.markers || world.expedition)) lead = exploreLead(world);
+    if (world.hintLines !== false && world.market) extra.push(`An example of a job you could post: purpose "Read my forum post and tell me one thing it leaves out", budget 10, criterion "one thing, with a reason" (post_job). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. A house performer, a program, offers on the first job each agent posts within a minute. Nothing here asks you to.`);
     extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
+  if (name === "forum_comment" && r.ok && world.market && typeof input.text === "string") { try { await world.market.mentionNotice(agent, String(input.post ?? ""), input.text); } catch { /* the note is only a courtesy */ } }
   const open = await openItems(world, agent);
   if (open.length) extra.push(`Open to you now: ${open.join("; ")}.`);
-  return extra.length ? { ...r, text: `${r.text}\n\n${extra.join("\n")}` } : r;
+  const head = lead ? `${lead}\n\n` : "";
+  return extra.length || lead ? { ...r, text: `${head}${r.text}${extra.length ? `\n\n${extra.join("\n")}` : ""}` } : r;
+}
+
+/** The plain facts about looking closely at places, said first and early (the owner's decision of 2026-11-23): what pays, how to look, and where to start. Only what this run has is named. */
+export function exploreLead(world: WorldApi): string {
+  const pays = [...(world.markers ? ["a field lesson answered right pays"] : []), ...(world.expedition ? ["a discovery pays", "a tour stop pays"] : []), "a place you open (unlock) gives you something to read"];
+  return `This society is full of small surprises. Looking closely at its places pays small mock credits: ${pays.join(", ")}. To look, use inspect <place>; for example inspect research-commons, inspect academy or inspect market (the place ids are on the map). None of it is required.`;
+}
+/** Said once again, at the first wake, to an agent that has found nothing yet. */
+export function exploreAgain(world: WorldApi, did: string): string | undefined {
+  if (world.hintLines === false || !(world.markers || world.expedition)) return undefined;
+  const found = (world.markers?.foundBy(did) ?? 0) + (world.expedition ? world.expedition.toured_(did).length + world.expedition.discoveries(did).length : 0);
+  return found ? undefined : `Still looking round? ${exploreLead(world)} Nothing is asked of you.`;
 }
 
 /**
@@ -365,18 +382,20 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
         // Agents that arrive together do not all see the same first ten: the house's jobs are listed from a place that depends on the agent, so the rush spreads over the board.
-        const mine = rows.filter((x) => !String(x.poster).startsWith("house")), houseAll = rows.filter((x) => String(x.poster).startsWith("house")), partnerRows = houseAll.filter((x) => /^Partner job/.test(x.purpose)), houseRows = houseAll.filter((x) => !/^Partner job/.test(x.purpose));
+        const mine = rows.filter((x) => !String(x.poster).startsWith("house")), houseAll = rows.filter((x) => String(x.poster).startsWith("house")), partnerRows = houseAll.filter((x) => /^(\[starter\] )?Partner job/.test(x.purpose)), houseRows = houseAll.filter((x) => !/^(\[starter\] )?Partner job/.test(x.purpose));
         const cohort = world.market?.cohort ?? 1, slot = Math.max(0, agent.n) % cohort;
         // The house's jobs are listed from the agent's own slot of the board round to the others (job number modulo the cohort), so agents that arrive together start on different jobs.
-        const distance = (x: { job: string }): number => (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort;
-        const ordered = [...mine, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRows];
+        const distance = (x: { job: string }): number => (world.market?.slotsOn ? (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort : 0);
+        const partnerFirst = partnerRows.slice(0, 3), partnerRest = partnerRows.slice(3);
+        const ordered = [...mine, ...partnerFirst, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRest];
+        const peers = world.market ? world.market.peersByInterest(agent.did, 3) : [];
         // A house job that another agent was just shown near the top of its list is left off this one for a minute (the hold), unless that would leave no house job at all; the first shown are held for this agent (three, or fewer when the board has fewer jobs than that for each agent that is here).
-        const hall = world.market, free = hall ? ordered.filter((x) => !String(x.poster).startsWith("house") || !hall.heldByOther(x.job, agent.did)) : ordered;
+        const hall = world.market?.slotsOn ? world.market : undefined, free = hall ? ordered.filter((x) => !String(x.poster).startsWith("house") || !hall.heldByOther(x.job, agent.did)) : ordered;
         const usable = free.some((x) => String(x.poster).startsWith("house")) ? free : ordered, heldBack = ordered.length - usable.length;
         const shown = usable.slice(0, 10), more = usable.length - shown.length;
-        hall?.hold(agent.did, shown.filter((x) => String(x.poster).startsWith("house") && !/^Partner job/.test(x.purpose)).slice(0, Math.max(1, Math.min(3, Math.floor(houseRows.length / cohort)))).map((x) => x.job));
+        hall?.hold(agent.did, shown.filter((x) => String(x.poster).startsWith("house") && !/^(\[starter\] )?Partner job/.test(x.purpose)).slice(0, Math.max(1, Math.min(3, Math.floor(houseRows.length / cohort)))).map((x) => x.job));
         const posted = world.market ? world.market.agentJobStats() : undefined;
-        const text = JSON.stringify({ ok: true, ...(posted && posted.posted ? { jobs_posted_by_agents: { posted: posted.posted, offered_on: posted.offered, accepted: posted.accepted, paid: posted.paid } } : {}), note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : "") + (heldBack ? ` ${heldBack} house job${heldBack === 1 ? "" : "s"} that another agent was just shown ${heldBack === 1 ? "is" : "are"} left off your list for a minute; ${heldBack === 1 ? "it comes" : "they come"} back if not taken.` : "") + (world.market!.hasFirstJobCredit(agent.did) ? " If there is something you want done, post_job puts your own job on this board for another agent to offer on, with a budget you set (5 to 50 credits). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. Nothing here asks you to." : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
+        const text = JSON.stringify({ ok: true, ...(posted && posted.posted ? { jobs_posted_by_agents: { posted: posted.posted, offered_on: posted.offered, accepted: posted.accepted, paid: posted.paid } } : {}), note: "Offer and delivery cost nothing; you are paid the budget shown when the job is accepted. Credits are for courses and for places to open (unlock)." + (world.market!.paidJobs(agent.did).length ? ` Your last jobs: paid ${world.market!.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : "") + (partnerFirst.length ? ` Two-agent jobs are listed first${peers.length ? `; agents who share an interest with you and could be a partner: ${peers.map((p) => `${p.handle} (${p.interest})`).join(", ")}; send_message reaches them` : ""}.` : "") + (heldBack ? ` ${heldBack} house job${heldBack === 1 ? "" : "s"} that another agent was just shown ${heldBack === 1 ? "is" : "are"} left off your list for a minute; ${heldBack === 1 ? "it comes" : "they come"} back if not taken.` : "") + (world.market!.hasFirstJobCredit(agent.did) ? " If there is something you want done, post_job puts your own job on this board for another agent to offer on, with a budget you set (5 to 50 credits). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. Nothing here asks you to." : ""), result: shown, ...(more > 0 ? { more_open: more } : {}) });
         // a batch of ten jobs is about 3000 characters: the board is the one result that gets a larger limit, so that it is whole
         return { ok: true, text: cut(text, 4200), seen: seenOf("look_jobs", text)! };
       } catch { return get("/market/board"); }

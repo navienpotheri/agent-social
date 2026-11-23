@@ -21,9 +21,9 @@ test("the board shows how many offers a job has, the house keeps a board as big 
     await hall.scaleFor(25);
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
     assert.equal((await hall.openJobList(a, 100)).length >= 25, true, "a board for 25 agents");
-    const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number; offers: number }[] };
+    const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number; offers: number; purpose?: string }[] };
     assert.ok(board.result.every((j) => j.offers === 0), "each line shows its number of offers");
-    const first = board.result[0]!;
+    const first = board.result.find((j) => !/Partner job/.test((j as { purpose?: string }).purpose ?? ""))!;
     assert.equal((await call(a, "offer_on_job", { job: first.job, price: first.budget, plan: "I will write it" })).ok, true);
     const lost = await call(b, "offer_on_job", { job: first.job, price: first.budget, plan: "me too" });
     assert.equal(lost.ok, false);
@@ -41,7 +41,7 @@ test("the board shows how many offers a job has, the house keeps a board as big 
 });
 
 test("fifteen scripted agents arriving together are refused for a taken job in at most 5 percent of their offers, and all of them end with a job", async () => {
-  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-coll-out-")), home: mkdtempSync(join(tmpdir(), "asp-coll-home-")), agents: 15, model: "stand-in", provider: standInProvider(() => "rusher", { latencyMs: 3 }), staggerMs: 0, budgetUsd: 2, totalUsd: 30, minutes: 5, priceIn: 1, priceOut: 5, maxTurns: 40, io: { out: () => undefined } } as CohortOptions);
+  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-coll-out-")), home: mkdtempSync(join(tmpdir(), "asp-coll-home-")), agents: 15, jobSlots: true, model: "stand-in", provider: standInProvider(() => "rusher", { latencyMs: 3 }), staggerMs: 0, budgetUsd: 2, totalUsd: 30, minutes: 5, priceIn: 1, priceOut: 5, maxTurns: 40, io: { out: () => undefined } } as CohortOptions);
   const ev = readFileSync(join(r.dir, "trace.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((e) => e.t === "tool" && e.tool === "offer_on_job");
   const refused = ev.filter((e) => !e.ok && e.refused === "market_refused").length;
   console.log(`offers ${ev.length}, refused for a taken job ${refused}`);

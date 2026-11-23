@@ -57,7 +57,7 @@ test("the comparison counts refusals an agent and the agents that met the same r
 const mk = (extra: Partial<CohortOptions>, agents = 4, behaviour = "clumsy"): CohortOptions => ({ out: mkdtempSync(join(tmpdir(), "asp-guide-out-")), home: mkdtempSync(join(tmpdir(), "asp-guide-home-")), agents, model: "stand-in", provider: standInProvider(() => behaviour, { latencyMs: 3 }), staggerMs: 40, budgetUsd: 2, totalUsd: 2 * agents, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 30, io: { out: () => undefined }, ...extra } as CohortOptions);
 
 test("a run writes its refusal counts; a later run built from them offers the guide to every other agent in the reading room, at the Research and the Commons and by the greeter, and the report compares the two groups", async () => {
-  const first = await runCohort(mk({}));
+  const first = await runCohort(mk({ jobSlots: true }));
   const counts = JSON.parse(readFileSync(join(first.dir, "refusal-counts.json"), "utf8")) as { counts: Record<string, number>; agents: number };
   assert.equal(counts.counts["bad_input"], 4, "each of the four agents slipped once");
   assert.equal(counts.agents, 4);

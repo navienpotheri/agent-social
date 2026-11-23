@@ -91,6 +91,9 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   const greeter = await enrol(-3, "house-greeter");
   await hall.enrolStandalone(greeter);
   hall.setGreeter(greeter);
+  const performer = await enrol(-4, "house-performer");
+  await hall.enrolStandalone(performer);
+  hall.setPerformer(performer);
   if (o.games) api.games = new GameHall({ file: join(o.dir, "games.json"), ...(o.gameRound ? { size: o.gameRound } : {}), pay: (did, n) => hall.royalty(did, n) });
   hall.seedQuestions = !!o.seedQuestions;
   if (o.markers !== undefined) api.markers = new Markers(o.markers || "cohort");
@@ -178,6 +181,6 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   return {
     api, base, enrol, log: handle, dir: o.dir, ...(plant ? { plant } : {}),
     head: async () => ({ seq: Number((JSON.parse((await api.get("/forum/head")).text) as { seq?: number }).seq ?? 0) }),
-    close: () => new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections?.(); }),
+    close: () => new Promise<void>((resolve) => { hall.dispose(); server.close(() => resolve()); server.closeAllConnections?.(); }),
   };
 }

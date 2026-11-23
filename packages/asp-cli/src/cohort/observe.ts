@@ -228,7 +228,7 @@ export function renderReport(r: Report): { markdown: string; json: string } {
   if (r.diversity.voices) for (const s of r.perAgent) if (s.did) L.push(`- ${s.handle}: ${voiceLine(voiceOf(s.did))}`);
   L.push("");
   L.push("## What the agents saw");
-  if (r.hintLines !== undefined && r.toolList && (r.toolList.groups.includes("expedition"))) { L.push(""); L.push(`Briefing variant: the two lines about learning and about more to find (ENG69) were ${r.hintLines ? "shown" : "left out"} in the first observation; compare two runs on the same seed, with and without, before drawing anything from it.`); }
+  if (r.hintLines !== undefined && r.toolList && (r.toolList.groups.includes("expedition"))) { L.push(""); L.push(`Briefing variant: the plain lines about exploring (this society is full of small surprises, what looking closely pays, how to inspect; ENG69, replaced on 2026-11-23) were ${r.hintLines ? "shown" : "left out"} in the first observation; compare two runs on the same seed, with and without, before drawing anything from it.`); }
   if (r.toolList) { L.push(""); L.push(`The tool list: ${r.tools.length} tools, ${r.toolList.chars} characters, sent with every call and cached. The groups switched on: ${r.toolList.groups.join(", ") || "none"}. The core alone is ${r.toolList.core} characters and every group ${r.toolList.all}: a measured size of the list, not a promise about cost.`); }
   L.push("");
   L.push(r.tools.length ? `Each agent got the same briefing (SHA-256 ${r.briefingSha256 ?? "not recorded"}) and was offered ${r.tools.length} tools: ${r.tools.join(", ")}.` : "The trace does not record the tools the agents were offered.");

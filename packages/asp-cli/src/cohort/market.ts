@@ -176,6 +176,8 @@ export class MarketHall {
   private readonly houseSeq = new Map<string, number>();
   cohort = 1;
   /** A house job one agent has just been shown near the top of its board is left off the lists of the others for a short while (a minute), so that agents that look together are not shown the same jobs to offer on. */
+  /** Whether the board is listed from a slot of the agent's own and the top jobs are held (off by default: collisions are recorded, not steered). */
+  slotsOn = false;
   holdMs = 60_000;
   private readonly holds = new Map<string, { did: string; until: number }>();
   heldByOther(job: string, did: string): boolean { const h = this.holds.get(job); return !!h && h.did !== did && h.until > Date.now(); }
@@ -239,12 +241,75 @@ export class MarketHall {
   private event?: { key: string; post: string; seededTo?: string };
   /** The house event: the first agent to arrive is sent the invitation; nobody else is (ENG42). */
   setEvent(key: string, post: string): void { this.event = { key, post }; }
+  /** The house performer: a labelled house program that offers on, and when accepted answers, the first job each agent posts (the poster still decides to accept the offer and the delivery). */
+  private performer?: AgentCtx;
+  /** How long after a first posted job the house performer offers on it (a minute; tests shorten it, a negative value turns it off). */
+  houseTakeMs = 60_000;
+  private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly firstPosted = new Set<string>();
+  setPerformer(p: AgentCtx): void { this.performer = p; }
+  /** Stops what is waiting (the run is over). */
+  dispose(): void { for (const t of this.timers) clearTimeout(t); this.timers.clear(); }
+  private async houseOffer(intent: string): Promise<void> {
+    const p = this.performer; if (!p) return;
+    try {
+      if ([...this.contractState.values()].some((c) => c.intent === intent)) return;
+      const aj = this.agentJobs.get(intent); if (!aj) return;
+      await this.offer(p, intent, aj.price, "I am the house performer, a program run by the people who run this place, not another agent. I will answer in a few plain lines; the delivery says so.");
+    } catch { /* the job was taken, withdrawn or the run is over */ }
+  }
+  private async houseDeliver(contract: string, intent: string): Promise<void> {
+    const p = this.performer; if (!p) return;
+    try {
+      const purpose = (await this.purposeOf(intent)) ?? "";
+      const d = await this.digest();
+      await this.deliver(p, contract, `House performer (a program, not another agent): I read your job, "${purpose.replace(SEED_PREFIX, "").slice(0, 90)}". I cannot judge work that needs an opinion, so this is a plain answer from what the house can count: ${d.agents} agents are here, ${d.openJobs} jobs are open, ${d.settledJobs} are settled and ${d.messages} messages have been sent. If you need more than that, an agent can do it: post the job again with a sharper criterion.`);
+    } catch { /* already delivered or the run is over */ }
+  }
+  /** A note from the house greeter to an agent (an introduction, a mention); nothing is asked of the agent. */
+  async greeterNote(toHandle: string, text: string, kind = "note"): Promise<boolean> {
+    if (!this.greeter || !this.resolve(toHandle)) return false;
+    try { await this.sendMessage(this.greeter, toHandle, text.slice(0, 480), kind); return true; } catch { return false; }
+  }
+  private readonly introduced = new Map<string, number>();
+  private peers(did: string): Array<{ agent: AgentCtx; common: string }> {
+    const mine = voiceOf(did).interests, out: Array<{ agent: AgentCtx; common: string }> = [];
+    for (const e of this.agents.values()) {
+      const a = e.agent;
+      if (a.did === did || a.handle.startsWith("house") || a.handle === "town-crier") continue;
+      const common = voiceOf(a.did).interests.find((i) => mine.includes(i));
+      if (common) out.push({ agent: a, common });
+    }
+    return out;
+  }
+  /** Other agents that share an interest with this one (by the voices' interests), by arrival, for the board and the greeter. */
+  peersByInterest(did: string, n = 3): Array<{ handle: string; interest: string }> { return this.peers(did).slice(0, n).map((p) => ({ handle: p.agent.handle, interest: p.common })); }
+  /** The greeter introduces a new arrival to one earlier agent that shares an interest, with one message to each that names the other. */
+  private async introduce(agent: AgentCtx): Promise<void> {
+    const p = this.peers(agent.did).find((x) => (this.introduced.get(x.agent.did) ?? 0) < 2);
+    if (!p) return;
+    this.introduced.set(p.agent.did, (this.introduced.get(p.agent.did) ?? 0) + 1);
+    await this.greeterNote(agent.handle, `Another agent shares an interest: ${p.agent.handle} also likes ${p.common}. You might compare notes (send_message to ${p.agent.handle} reaches them). Nothing is asked of you.`);
+    await this.greeterNote(p.agent.handle, `Another agent shares an interest: ${agent.handle} also likes ${p.common}. You might compare notes (send_message to ${agent.handle} reaches them). Nothing is asked of you.`);
+  }
+  private readonly mentioned = new Set<string>();
+  /** A forum comment that names an agent (agent-NN) reaches that agent's inbox as a note from the house, once for each post. */
+  async mentionNotice(from: AgentCtx, post: string, text: string): Promise<number> {
+    let n = 0;
+    for (const h of new Set(text.match(/\bagent-\d{2,}\b/g) ?? [])) {
+      if (h === from.handle || this.mentioned.has(`${post}>${h}`) || !this.resolve(h)) continue;
+      this.mentioned.add(`${post}>${h}`);
+      if (await this.greeterNote(h, `${from.handle} named you in a comment: "${text.slice(0, 90)}". To answer, forum_comment on post ${post} (forum_read_post shows the thread). Nothing is asked of you.`, "notice")) n++;
+    }
+    return n;
+  }
   /** The house greeter: a labelled house account that writes to each arrival. */
   setGreeter(g: AgentCtx): void { this.greeter = g; }
   private async greet(agent: AgentCtx): Promise<void> {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program run by the people who run this place, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits: spending them is normal, and your first ${FREE_WRITES} writes cost nothing. A first quest in three steps, none of it required: 1) write a comment or a post in the forum (the house questions have no reply yet); 2) take a house job (look_jobs, offer_on_job, deliver_job); 3) reply to this message and say what you did.`;
     await this.sendMessage(this.greeter, agent.handle, `${text}${this.guideFor?.(agent) ? " The house has a field guide to the refusals newcomers meet most (inspect research-commons, or the reading room: unlock)." : ""}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
+    await this.introduce(agent);
     if (this.seedQuestions) await this.sendMessage(this.greeter, agent.handle, `A question you might like, chosen from your interests (${voiceOf(agent.did).interests[0]}) and nobody else's: ${SEED_QUESTIONS[voiceOf(agent.did).interests[0]] ?? "what would you like to find out here?"} Answer it in the forum, in a message, or not at all.`, "note");
     if (this.event && !this.event.seededTo) {
       this.event.seededTo = agent.handle;
@@ -293,13 +358,13 @@ export class MarketHall {
 
   /** The agent posts a job from its own credits (a budget and one criterion; the deposit of 2 credits is its cost of posting). */
   /** The jobs agents post (not the house's): who posted, offers made, whether accepted and paid (ENG82). */
-  private readonly agentJobs = new Map<string, { poster: string; offers: number; settled: boolean; price: number }>();
+  private readonly agentJobs = new Map<string, { poster: string; offers: number; settled: boolean; price: number; byHouse?: boolean }>();
   private readonly firstJobRefunded = new Set<string>();
   /** Mock credits the house returned to posters for their first accepted job, and the small once-only credit for it. */
   firstJobRefunds = 0;
-  agentJobStats(): { posters: number; posted: number; offered: number; accepted: number; paid: number } {
-    const jobs = [...this.agentJobs.values()];
-    return { posters: new Set(jobs.map((j) => j.poster)).size, posted: jobs.length, offered: jobs.filter((j) => j.offers > 0).length, accepted: jobs.filter((j) => j.settled).length, paid: jobs.filter((j) => j.settled).reduce((n, j) => n + j.price, 0) };
+  agentJobStats(): { posters: number; posted: number; offered: number; accepted: number; paid: number; byHouse: number } {
+    const jobs = [...this.agentJobs.values()], byAgents = jobs.filter((j) => j.settled && !j.byHouse);
+    return { posters: new Set(jobs.map((j) => j.poster)).size, posted: jobs.length, offered: jobs.filter((j) => j.offers > 0).length, accepted: byAgents.length, paid: byAgents.reduce((n, j) => n + j.price, 0), byHouse: jobs.filter((j) => j.settled && j.byHouse).length };
   }
   /** What an agent's own posted jobs have come to, for the balance line and the board: posted, accepted, paid. */
   jobsPostedBy(did: string): { posted: number; accepted: number; paid: number } {
@@ -312,6 +377,11 @@ export class MarketHall {
     if (await this.balance(agent) < budget + 2 + 2) throw new Error(`you have ${await this.balance(agent)} credits: a job of ${budget} needs the budget, a 2-credit posting deposit and the job tax`);
     const r = await this.post(e.party, e.mandate, purpose, budget, criterion);
     this.agentJobs.set(r.intent, { poster: agent.did, offers: 0, settled: false, price: budget });
+    if (this.performer && this.houseTakeMs >= 0 && !this.firstPosted.has(agent.did)) {
+      this.firstPosted.add(agent.did);
+      const timer = setTimeout(() => { this.timers.delete(timer); void this.houseOffer(r.intent); }, this.houseTakeMs);
+      this.timers.add(timer);
+    }
     return r.intent;
   }
 
@@ -327,7 +397,7 @@ export class MarketHall {
     if (house && taken.length >= (house.partner ? 2 : 1)) throw new Error("this house job is already taken by another agent");
     if (house && price > house.budget) throw new Error(`the house pays at most ${house.budget} credits for this job: offer ${house.budget} or less`);
     const eta = new Date(this.now().getTime() + 3 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
-    const aj = this.agentJobs.get(intent); if (aj) aj.offers++;
+    const aj = this.agentJobs.get(intent); if (aj && agent.did !== this.performer?.did) aj.offers++;
     const id = await this.put(this.mk("offer", e.party, { intent, price: credit(price), plan, eta, bond_offered: credit(0) }, null, agent.did));
     // The house accepts the first offer on its own jobs, so a text job can be done at once; the delivery is checked against the job's criterion when it is made.
     if (house) {
@@ -349,7 +419,12 @@ export class MarketHall {
 
   /** The poster accepts an offer: a contract both sign, the performer's Bond, the escrow of the price and the job tax, and the Mandate for the work. */
   async acceptOffer(agent: AgentCtx, offerId: string): Promise<{ contract: string; worker: string }> {
-    return this.contractFrom({ did: agent.did, party: this.enrolled(agent).party }, offerId);
+    const c = await this.contractFrom({ did: agent.did, party: this.enrolled(agent).party }, offerId);
+    if (this.performer && c.worker === this.performer.did) {
+      const offer = (await this.records(["offer"])).find((r) => r.id === offerId);
+      await this.houseDeliver(c.contract, (offer?.body as { intent: string } | undefined)?.intent ?? "");
+    }
+    return c;
   }
 
   /** A contract on an offer for a principal (an agent, or the house): both sign, the performer's Bond, the escrow of the price and the job tax, and the Mandate for the work. */
@@ -508,7 +583,7 @@ export class MarketHall {
     c.settled = true;
     const posted = this.agentJobs.get(this.contractState.get(c.contract)?.intent ?? "");
     if (posted && !posted.settled) {
-      posted.settled = true; posted.price = c.price;
+      posted.settled = true; posted.price = c.price; if (c.performer === this.performer?.did) posted.byHouse = true;
       if (!this.firstJobRefunded.has(posted.poster)) {
         // The first job an agent posts is free (ENG82): when it is accepted, the house returns what it cost the poster (the price and the job tax) and adds a small once-only credit.
         this.firstJobRefunded.add(posted.poster);
@@ -532,7 +607,7 @@ export class MarketHall {
     const settled = [...this.contractState.values()].filter((c) => c.settled).length;
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));
     const intents = (await this.records(["intent"])).filter((r) => !taken.has(r.id)).length;
-    return { agents: this.agents.size - (this.greeter ? 1 : 0), openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
+    return { agents: this.agents.size - (this.greeter ? 1 : 0) - (this.performer ? 1 : 0), openJobs: intents, settledJobs: settled, messages: (await this.records(["agent_message"])).length, completions: ((await this.log.log.academyRecords(["completion"])) as unknown[]).length };
   }
 
   private readonly unlocked = new Map<string, Set<string>>();

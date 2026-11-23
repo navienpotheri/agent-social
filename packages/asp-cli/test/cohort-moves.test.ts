@@ -21,20 +21,22 @@ test("a house job one agent was just shown near the top is left off the list of 
   const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-mv-hold-")) });
   try {
     const hall = w.api.market!;
+    hall.slotsOn = true;
     await hall.scaleFor(10);
     const a = await w.enrol(0, "agent-01"), b = await w.enrol(1, "agent-02");
     for (const x of [a, b]) await hall.enrolStandalone(x);
     const first = await board(w, a);
-    const mine = first.result.filter((x) => x.poster.startsWith("house") && !/^Partner job/.test(x.purpose)).slice(0, 3).map((x) => x.job);
+    const mine = first.result.filter((x) => x.poster.startsWith("house") && !/Partner job/.test(x.purpose)).slice(0, 3).map((x) => x.job);
     assert.equal(mine.length, 3);
     const second = await board(w, b);
-    for (const j of mine) assert.equal(second.result.some((x) => x.job === j), false, "held for agent-01");
+    assert.equal(second.result.some((x) => x.job === mine[0]), false, "the top job is held for agent-01");
     assert.match(second.note, /house jobs? that another agent was just shown (is|are) left off your list for a minute; (it comes|they come) back if not taken\./);
     assert.equal((await board(w, a)).result.slice(0, 3).map((x) => x.job).join(), first.result.slice(0, 3).map((x) => x.job).join(), "the holder still sees them");
     hall.holdMs = 0; await board(w, a); // the holder looks again after the minute: its hold now ends at once
     const c = await w.enrol(2, "agent-03"); await hall.enrolStandalone(c);
     const third = await board(w, c);
-    assert.ok(mine.some((j) => third.result.some((x) => x.job === j)), "the hold has run out");
+    assert.equal(hall.heldByOther(mine[0]!, c.did), false, "the hold has run out");
+    assert.ok(third.result.length > 0);
   } finally { await w.close(); }
 });
 
@@ -65,7 +67,7 @@ test("a two-agent job names the partner and how to reach them: the second taker 
     const a = await w.enrol(0, "agent-01"), b = await w.enrol(1, "agent-02");
     for (const x of [a, b]) await hall.enrolStandalone(x);
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
-    const partnerJob = (await hall.openJobList(a, 100)).find((j) => /^Partner job/.test(j.purpose))!;
+    const partnerJob = (await hall.openJobList(a, 100)).find((j) => /Partner job/.test(j.purpose))!;
     const one = await call(a, "offer_on_job", { job: partnerJob.job, price: partnerJob.budget, plan: "I will do my part" });
     assert.match(one.text, /This is a two-agent job: the other agent has not taken it yet; my_jobs names your partner once they do, and send_message reaches them\./);
     const two = await call(b, "offer_on_job", { job: partnerJob.job, price: partnerJob.budget, plan: "I will do my part" });
@@ -82,7 +84,7 @@ test("a job that names a place says how to look at it when inspect pays for a fi
       const hall = w.api.market!;
       await hall.scaleFor(4);
       const a = await w.enrol(0, "agent-01"); await hall.enrolStandalone(a);
-      const named = (await hall.openJobList(a, 100)).find((j) => !/^Partner job/.test(j.purpose) && /\b(forum|market|course|charter|court)/i.test(j.purpose));
+      const named = (await hall.openJobList(a, 100)).find((j) => !/Partner job/.test(j.purpose) && /\b(forum|market|course|charter|court)/i.test(j.purpose));
       assert.ok(named, "a house job names a place");
       const r = await runTool(w.api, a, all, "offer_on_job", { job: named!.job, price: named!.budget, plan: "I will read it and write it" });
       if (tour) assert.match(r.text, /The job is about the (Forum|Market|Academy|Registry|Courts): inspect (forum|market|academy|registry|courts) shows what is there, and a first look at a place pays a mock credit once\. Optional\./);
@@ -120,7 +122,7 @@ test("the kinds split names the house's greeter and guides and no longer calls t
 });
 
 test("twelve scripted agents that all look at the board at once and take the first job on their own list are not refused for a job someone else took", async () => {
-  const o = { out: mkdtempSync(join(tmpdir(), "asp-mv-rush-out-")), home: mkdtempSync(join(tmpdir(), "asp-mv-rush-home-")), agents: 12, model: "stand-in", provider: standInProvider(() => "clumsy", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 24, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } } as CohortOptions;
+  const o = { out: mkdtempSync(join(tmpdir(), "asp-mv-rush-out-")), home: mkdtempSync(join(tmpdir(), "asp-mv-rush-home-")), agents: 12, jobSlots: true, model: "stand-in", provider: standInProvider(() => "clumsy", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 24, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } } as CohortOptions;
   const r = await runCohort(o);
   const counts = JSON.parse(readFileSync(join(r.dir, "refusal-counts.json"), "utf8")) as { counts: Record<string, number> };
   assert.equal(counts.counts["market_refused"] ?? 0, 0, JSON.stringify(counts.counts));

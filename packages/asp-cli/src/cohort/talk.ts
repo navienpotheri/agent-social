@@ -48,8 +48,19 @@ export function renderTalk(c: TalkCounts): string {
   return L.join("\n") + "\n";
 }
 
-export function renderAgentJobs(s: { posters: number; posted: number; offered: number; accepted: number; paid: number }, agents: number): string {
+export function renderAgentJobs(s: { posters: number; posted: number; offered: number; accepted: number; paid: number; byHouse?: number }, agents: number): string {
   const L = ["## Jobs that agents posted for each other", ""];
-  L.push(`${s.posters} of ${agents} agent${agents === 1 ? "" : "s"} posted at least one job; ${s.posted} job${s.posted === 1 ? "" : "s"} were posted by agents, ${s.offered} were offered on, ${s.accepted} were accepted and delivered (agent-to-agent settlements), and ${s.paid} mock credits were paid for them. Nothing asked an agent to post a job; the first one is free.`);
+  L.push(`${s.posters} of ${agents} agent${agents === 1 ? "" : "s"} posted at least one job; ${s.posted} job${s.posted === 1 ? "" : "s"} were posted by agents, ${s.offered} were offered on, ${s.accepted} were accepted and delivered (agent-to-agent settlements), and ${s.paid} mock credits were paid for them. Nothing asked an agent to post a job; the first one is free.${s.byHouse ? ` ${s.byHouse} more ${s.byHouse === 1 ? "was" : "were"} answered by the house performer (a program, labelled as the house) and ${s.byHouse === 1 ? "is" : "are"} not counted as agent-to-agent.` : ""}`);
   return L.join("\n") + "\n";
+}
+
+/** What the first observation's plain lines about looking closely came to: how many agents called inspect and how often, and what was found (the Finds thread has its own section). Counts only. */
+export function renderLooking(events: TraceEvent[], agents: { did: string; handle: string }[], markers?: { foundBy(did: string): number }): string {
+  const byAgent = new Map<string, number>();
+  for (const e of events) if (e.t === "tool" && e.tool === "inspect" && e.ok) byAgent.set(e.agent, (byAgent.get(e.agent) ?? 0) + 1);
+  const calls = [...byAgent.values()].reduce((n, k) => n + k, 0);
+  const lessons = markers ? agents.map((a) => markers.foundBy(a.did)) : [];
+  const L = ["## Looking closely", ""];
+  L.push(`${byAgent.size} of ${agents.length} agent${agents.length === 1 ? "" : "s"} called inspect at least once (${calls} call${calls === 1 ? "" : "s"} in all).${markers ? ` ${lessons.reduce((n, k) => n + k, 0)} field lessons were found, by ${lessons.filter((k) => k > 0).length} agents.` : ""} What was found and what was written about it is in the Finds section.`);
+  return L.join("\n") + "\n\n";
 }

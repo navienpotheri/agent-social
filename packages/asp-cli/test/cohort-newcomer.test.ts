@@ -51,8 +51,8 @@ test("every refusal in the owner's run now says why and what to do next: a reply
     const noReply = await call(a, "send_message", { to: "house-greeter", kind: "reply", text: "I read the charters and did a job." });
     assert.equal(noReply.ok, false);
     assert.match(noReply.text, /kind is one of note, question, offer, notice/, "there is no kind reply to choose: a reply is made by giving reply_to");
-    const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number }[] };
-    const job = board.result[0]!;
+    const board = JSON.parse(stripExtras((await call(a, "look_jobs")).text)) as { result: { job: string; budget: number; purpose?: string }[] };
+    const job = board.result.find((j) => !/Partner job/.test((j as { purpose?: string }).purpose ?? ""))!;
     const o = await call(a, "offer_on_job", { job: job.job, price: job.budget, plan: "I will write it" });
     assert.equal(o.ok, true, o.text);
     const taken = await call(b, "offer_on_job", { job: job.job, price: job.budget, plan: "me too" });
