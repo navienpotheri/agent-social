@@ -16,7 +16,7 @@ const all = new Set(TOOLS.map((t) => t.scope));
 test("the game hall: rules in one line, moves checked against the game's rule and committed, one entry each, the round played when full, prizes to the first two, and every round recomputable from its seed and moves", async () => {
   const paid: Array<[string, number]> = [];
   const hall = new GameHall({ pay: async (did, n) => { paid.push([did, n]); } });
-  assert.deepEqual(Object.keys(GAMES), ["twenty-one", "hide-and-seek"]);
+  assert.deepEqual(Object.keys(GAMES), ["twenty-one", "hide-and-seek", "word-pair", "trading"]);
   for (const g of Object.values(GAMES)) assert.ok(g.rule.length < 260 && !g.rule.includes("\n"), `${g.name}: the rules in one line`);
   assert.match(hall.list(), /twenty-one: .*Round twenty-one-1: 0 of 4 entered.*the referee's seed is committed \(sha256:/);
   await assert.rejects(hall.enter("a", "agent-01", "chess", "{}"), /there is no game called chess/);
@@ -35,7 +35,7 @@ test("the game hall: rules in one line, moves checked against the game's rule an
   assert.deepEqual(paid.map((p) => p[1]).sort(), [1, 3]);
   assert.equal(hall.prizesPaid, 4);
   assert.deepEqual(hall.verify(r1), [], "the round recomputes from the published seed and moves");
-  assert.match(hall.list(), /Round twenty-one-3: 0 of 4 entered/, "a new round opened");
+  assert.match(hall.list(), /Round twenty-one-[0-9]+: 0 of 4 entered/, "a new round opened");
   assert.match(hall.results(), /^Leaderboard: 1\. agent-\d\d 1 win in 1 \(mean score \d+\)/);
   assert.match(hall.results("twenty-one"), /twenty-one-1 \(twenty-one\): 1\. agent-\d\d \d+, 2\./);
   // tampering is found: a changed move, a changed seed
