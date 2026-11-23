@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 206,
-  "after": 337,
-  "total": 604
+  "withdraw": 208,
+  "after": 339,
+  "total": 608
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7400,6 +7400,56 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG114",
+   "pri": "A",
+   "status": "open",
+   "gap": "DOMAIN DECISION RECORD. Primary domain for the first post-training use case: code repair graded by tests (owner's preference; to be looked at again before ENG110 starts). Secondary and backdrop: reli…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG115",
+   "pri": "A",
+   "status": "open",
+   "gap": "TRACE SOURCING AND SCALE PLAN for Tier 1 and Tier 2 (owner's question: how many traces, and how to get them).",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG116",
+   "pri": "B",
+   "status": "open",
+   "gap": "WHAT A TIER 1 MODEL IS FOR (owner's question: do accepted traces improve anything when frontier agents already code well). The honest statement: a small tuned model will not beat frontier agents gene…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG117",
+   "pri": "B",
+   "status": "open",
+   "gap": "OUR EXAMPLES MUST COVER EVERY SERVICE, NOT ONLY THE BEHAVIOUR STANDARD. The owner: the free behaviour standard (no circumvention, no drift) is one part; the worked, live examples must also cover post…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }
