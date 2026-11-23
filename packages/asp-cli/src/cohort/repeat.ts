@@ -30,6 +30,12 @@ export interface Headline {
   usd: number;
   usefulActions: number;
   costPerUsefulAction: number | null;
+  /** Lessons cited by agents (the continual-learning chain, ENG102). */
+  lessonCites: number;
+  /** The share of contracts whose first delivery the house check accepted (the first grader), null when nothing was delivered. */
+  firstTry: number | null;
+  /** Agents that read a lesson: first-try acceptance after their first reading minus before it, pooled; null when no reader delivered on both sides. */
+  readerChange: number | null;
 }
 export const FIGURES: { key: keyof Headline; label: string; timing?: boolean }[] = [
   { key: "minutesStayed", label: "Minutes stayed (simulated, a mean for each agent)", timing: true },
@@ -42,7 +48,25 @@ export const FIGURES: { key: keyof Headline; label: string; timing?: boolean }[]
   { key: "diversity", label: "Diversity of what they wrote" },
   { key: "usd", label: "Estimated cost against the cap (USD)" },
   { key: "costPerUsefulAction", label: "Cost for each useful action (USD)" },
+  { key: "lessonCites", label: "Lessons cited" },
+  { key: "firstTry", label: "First-try acceptance of deliveries (all agents)" },
+  { key: "readerChange", label: "Readers: first-try acceptance after reading minus before" },
 ];
+
+/** The job-outcome figures of the continual-learning chain from one trace: the first-try acceptance overall, and the change for agents that read a lesson (after their first reading minus before it, pooled). */
+export function outcomeFigures(events: TraceEvent[]): { firstTry: number | null; readerChange: number | null } {
+  const seen = new Set<string>(), first: Array<{ agent: string; idx: number; pass: boolean }> = [], reads = new Map<string, number>();
+  events.forEach((e, idx) => {
+    if (e.t !== "tool") return;
+    if (e.tool === "lesson_read" && e.ok && !reads.has(e.agent)) reads.set(e.agent, idx);
+    if (e.tool === "deliver_job") { const k = `${e.agent}|${String(e.input.contract ?? "")}`; if (!seen.has(k)) { seen.add(k); first.push({ agent: e.agent, idx, pass: e.ok }); } }
+  });
+  const rate = (l: boolean[]): number => l.filter(Boolean).length / l.length;
+  const rd = first.filter((d) => reads.has(d.agent));
+  const before = rd.filter((d) => d.idx < reads.get(d.agent)!).map((d) => d.pass), after = rd.filter((d) => d.idx > reads.get(d.agent)!).map((d) => d.pass);
+  const r4 = (x: number): number => Math.round(x * 1e4) / 1e4;
+  return { firstTry: first.length ? r4(rate(first.map((d) => d.pass))) : null, readerChange: before.length && after.length ? r4(rate(after) - rate(before)) : null };
+}
 
 export function headlineOf(events: TraceEvent[], thresholdMinutes = 30): Headline {
   const tools = events.filter((e): e is Extract<TraceEvent, { t: "tool" }> => e.t === "tool" && e.ok);
@@ -68,6 +92,7 @@ export function headlineOf(events: TraceEvent[], thresholdMinutes = 30): Headlin
     posts: tools.filter((e) => e.tool === "forum_post").length, messages: tools.filter((e) => e.tool === "send_message").length, comments: tools.filter((e) => e.tool === "forum_comment").length,
     jobsDelivered: tools.filter((e) => e.tool === "deliver_job").length, creditsEarnedMean: deltas.length ? round(deltas.reduce((a, b) => a + b, 0) / deltas.length, 2) : 0,
     diversity: diversityOf(spoken), usd: round(usd, 6), usefulActions: useful, costPerUsefulAction: useful ? round(usd / useful, 6) : null,
+    lessonCites: tools.filter((e) => e.tool === "lesson_cite").length, ...outcomeFigures(events),
   };
 }
 
@@ -109,6 +134,8 @@ export function renderRepeat(r: RepeatReport): string {
   ];
   for (const f of Object.values(r.figures)) rows.push(`| ${f.label}${f.timing ? " (timing)" : ""} | ${f.values.map((v) => fmt(v)).join(" | ")} | ${f.spread ? `${fmt(f.spread.mean)} | ${fmt(f.spread.range)} | ${fmt(f.spread.sd)}` : "n/a | n/a | n/a"} |`);
   rows.push("", r.agreed.length ? `The runs agreed exactly on: ${r.agreed.join("; ")}.` : "The runs did not agree exactly on any figure.", r.varied.length ? `They varied on: ${r.varied.join("; ")}.` : "They did not vary on any figure.", "", r.note, "");
+  const rc = r.figures["readerChange"];
+  if (rc?.spread) { const d = readDifference({ ...rc.spread, mean: 0, range: 0, sd: 0 }, rc.spread); rows.push("", `The readers' change in first-try acceptance averaged ${fmt(rc.spread.mean)} over the runs, and its spread between runs is ${fmt(rc.spread.range)}: ${Math.abs(rc.spread.mean) > rc.spread.range ? "the change is larger than the spread (and still a few deliveries in a few runs, not a claim)" : "the change is not larger than the spread, so it is not called a difference"}.`); void d; } else if (rc) rows.push("", "The readers' change could not be compared with a spread: not every run had a reader that delivered both before and after reading.");
   if (r.capUsdAll !== undefined) rows.push(`**Cost of the repeat:** at most $${r.capUsdAll.toFixed(2)} in all (${r.runs} runs, each capped at $${r.capUsdPerRun!.toFixed(2)}): a cap, never a price. ${r.runs} runs of a few agents is a rough spread, not a measured variance.`, "");
   return rows.join("\n");
 }
