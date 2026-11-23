@@ -3,8 +3,8 @@
  "counts": {
   "must": 61,
   "withdraw": 188,
-  "after": 330,
-  "total": 579
+  "after": 331,
+  "total": 580
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7082,6 +7082,18 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG89",
+   "pri": "B",
+   "status": "open",
+   "gap": "Limits and what agents do without them: the owner asks whether to remove text and title limits so that agents do what they naturally do. The limits are also the forum's economics (a long post or comm…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }
