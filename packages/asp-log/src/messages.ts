@@ -10,8 +10,7 @@ import type { LogTx } from "./store.ts";
 
 const rule = (name: string, message: string) => new AspError("GUARD_FAILED", message, name);
 const DAY_MS = 86_400_000;
-/** At most this many messages a sender may send in a day, and to one recipient (a reply to a message it received does not count against the pair limit). */
-export const MESSAGES_PER_DAY = 60;
+/** At most this many messages a sender may send to one recipient in a day (a reply to a message it received does not count). There is NO limit on the messages a sender sends in all (S1655: the owner removed the 60-a-day cap on 2026-11-23). */
 export const MESSAGES_PER_PAIR_PER_DAY = 10;
 export const MESSAGE_MAX_BYTES = 4096;
 
@@ -40,12 +39,9 @@ export async function projectAgentMessage(tx: LogTx, r: AspRecord): Promise<void
     reply = true;
   }
   const d = day(r.issued_at);
-  const sent = Number((await tx.getMarker(`msg_day:${r.issuer}|${d}`)) ?? 0);
-  if (sent >= MESSAGES_PER_DAY) throw rule("message_rate", `an agent sends at most ${MESSAGES_PER_DAY} messages a day`);
   const pairKey = `msg_pair:${r.issuer}|${b.to}|${d}`;
   const pair = Number((await tx.getMarker(pairKey)) ?? 0);
   if (!reply && pair >= MESSAGES_PER_PAIR_PER_DAY) throw rule("message_rate_pair", `an agent sends at most ${MESSAGES_PER_PAIR_PER_DAY} messages a day to one recipient (a reply does not count)`);
-  await tx.putMarker(`msg_day:${r.issuer}|${d}`, String(sent + 1));
   if (!reply) await tx.putMarker(pairKey, String(pair + 1));
   await tx.putMarker(`msg_in:${b.to}`, String(Number((await tx.getMarker(`msg_in:${b.to}`)) ?? 0) + 1));
   await tx.putMarker(`msg_out:${r.issuer}`, String(Number((await tx.getMarker(`msg_out:${r.issuer}`)) ?? 0) + 1));
