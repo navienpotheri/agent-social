@@ -91,3 +91,9 @@ test("the report says what came of the harder jobs and that no helper was built;
   assert.match(md, /Helpers: none were built or started in this run \(the helper tool is a design note only\)\./);
   assert.doesNotMatch(readFileSync((await runCohort({ ...o, hardJobs: false })).markdownPath, "utf8"), /## Harder jobs/);
 });
+
+test("ENG119: with ten agents and --hard-jobs the run starts and finishes: the hard-jobs poster has its own account and never reuses a numbered house account (it was house-3, and with 10 agents the numbered posters reach house-3, so the second key for the same DID was refused as BAD_SIGNATURE)", async () => {
+  const o = { out: mkdtempSync(join(tmpdir(), "asp-hard10-out-")), home: mkdtempSync(join(tmpdir(), "asp-hard10-home-")), agents: 10, model: "stand-in", provider: standInProvider(() => "silent", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 20, minutes: 2, priceIn: 1, priceOut: 5, maxTurns: 20, io: { out: () => undefined }, hardJobs: true } as CohortOptions;
+  const r = await runCohort(o);
+  assert.match(readFileSync(r.markdownPath, "utf8"), /## Harder jobs/);
+});
