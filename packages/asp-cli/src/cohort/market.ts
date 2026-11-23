@@ -82,7 +82,7 @@ export class MarketHall {
   async postHard(): Promise<void> {
     for (const j of HARD_JOBS) {
       const job: HouseJob = { ...j, ...(j.category === "specialist" ? { requires: this.courses[0]?.id ?? "C-L2-1" } : {}) };
-      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-3"); // a third house account, so the cap on a tier-1 poster's open postings does not apply
+      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard"); // its own house account (never a numbered one: with 10 or more agents the numbered posters reach house-3 and a second key for the same DID is refused as BAD_SIGNATURE), so the cap on a tier-1 poster's open postings does not apply
       const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
       this.houseChecks.set(r.intent, job);
       this.houseOf.set(r.intent, poster);
