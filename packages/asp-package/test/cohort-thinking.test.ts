@@ -13,7 +13,8 @@ import { dropThinkingBlocks, runCohort, type DriverEvent, type SocietyToolSet } 
 
 const servers: Server[] = [];
 after(() => { for (const s of servers) s.close(); });
-const sign = (system: unknown, tools: unknown, messages: unknown[], thinking: string) => createHash("sha256").update(JSON.stringify([system, tools, messages, thinking])).digest("hex").slice(0, 24);
+// a cache mark is a directive about the request, not content: it is not part of what a thinking block is bound to (the real provider has not been tested on this: see docs, section 58)
+const sign = (system: unknown, tools: unknown, messages: unknown[], thinking: string) => createHash("sha256").update(JSON.stringify([system, tools, messages, thinking], (k, x) => (k === "cache_control" ? undefined : x))).digest("hex").slice(0, 24);
 
 /** Replies `turns` times with a thinking block and a tool call, then text. `foreignAt`: the nth reply carries a block signed for another conversation. `alwaysRefuse`: every request after the first is refused with the binding error. */
 async function provider(o: { turns: number; foreignAt?: number; alwaysRefuse?: boolean }) {
