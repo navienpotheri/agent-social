@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { arrivalAt, Life, parseArrivals, SimClock, runCohort as runEngine, type LifeLimits, type SocietyTool } from "@agent-social/asp-package";
 import { societyDigest, societySource } from "./events.ts";
 import { BRIEFING, runAgent, type Caps, type Shared } from "./agent.ts";
-import { defOf, LIFE_DEFS, offeredTools, runTool, toolListChars, TOOLS } from "./tools.ts";
+import { defOf, LIFE_DEFS, offeredTools, relaxLimits, runTool, toolListChars, TOOLS } from "./tools.ts";
 import { analyse, injectionIn, renderReport, type Report } from "./observe.ts";
 import type { AgentCtx, Provider, TraceEvent } from "./types.ts";
 import { logReport, renderLogSections } from "./from-log.ts";
@@ -28,7 +28,7 @@ import { assignAccess, experimentReport, hiddenTools, renderExperiment, type Res
 import { SignedTrace, type SignedTraceSummary } from "./signed-trace.ts";
 import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
-import { buildGuide, countRefusals, loadCounts, renderGuideComparison } from "./field-guide.ts";
+import { buildGuide, countRefusals, FIRST_25_RUN, loadCounts, renderGuideComparison } from "./field-guide.ts";
 import { findsSection } from "./finds.ts";
 import { renderAgentJobs, renderFirstMinute, renderLooking, renderTalk, talkCounts } from "./talk.ts";
 import { collisionReport, deliveryReport, renderCollisions, renderDeliveries } from "./collisions.ts";
@@ -95,6 +95,8 @@ export interface CohortOptions {
   noHints?: boolean;
   /** Per-agent job slots and the hold on the top jobs shown to an agent (ENG77 and the 25-agent run): off by default, so that offer collisions happen and are recorded, not steered. */
   jobSlots?: boolean;
+  /** ENG89: the tool layer does not cap text length (cohort only, default off); the report says so. */
+  relaxLimits?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
   library?: boolean;
   /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
@@ -166,19 +168,21 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   const groups: ReadonlySet<string> = new Set([...(o.expedition || o.markers !== undefined ? ["expedition"] : []), ...(o.games ? ["games"] : []), ...(o.roles ? ["town"] : []), ...(o.library ? ["library"] : [])]);
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), hintLines: !o.noHints, toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });  if (o.engine) trace({ t: "provenance", at: stamp(), model: o.model, settings: { ...REQUEST_SETTINGS } });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
-  const world = await bootWorld({ dir: join(dir, "society"), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  const world = await bootWorld({ dir: join(dir, "society"), ...(o.relaxLimits ? { relaxLimits: true } : {}), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   world.api.groups = groups;
   let guideInfo: { guide: ReturnType<typeof buildGuide>; mode: "half" | "all" } | undefined;
-  if (o.fieldGuide) {
-    const guide = buildGuide(loadCounts(o.fieldGuide), o.fieldGuide.replace(/.*[/\\]/, "") || o.fieldGuide);
-    const mode = o.guideMode ?? "half";
+  {
+    // The guide is on for every agent by default, built from the first 25-agent run; `--field-guide <run>` builds it from another run's counts and `--guide-mode half` offers it to every other agent (the arm for an experiment).
+    const guide = o.fieldGuide ? buildGuide(loadCounts(o.fieldGuide), o.fieldGuide.replace(/.*[/\\]/, "") || o.fieldGuide) : buildGuide(FIRST_25_RUN, FIRST_25_RUN.source, 8);
+    const mode = o.guideMode ?? "all";
     guideInfo = { guide, mode };
     world.api.fieldGuide = { guide, offered: (n) => mode === "all" || n % 2 === 0 };
     if (world.api.market) world.api.market.guideFor = (a) => !!world.api.fieldGuide?.offered(a.n) && guide.entries.length > 0;
   }
   world.api.hintLines = !o.noHints;
   if (world.api.market) world.api.market.slotsOn = !!o.jobSlots;
+  world.api.relaxLimits = !!o.relaxLimits;
   await world.api.market?.scaleFor(o.agents); // a board as big as the cohort, so agents that arrive together do not all rush the same first jobs
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
@@ -231,7 +235,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const toolsetFor = (id: string) => {
           const a = byId.get(id)!;
           const noAccess = o.experiment && access?.get(id) === "control" ? hiddenTools(o.experiment.resources) : undefined;
-          const tools: SocietyTool[] = offeredTools(world.api.groups).filter((t) => !(life && t.name === "stop_exploring") && !noAccess?.has(t.name)).map((t) => ({
+          const tools: SocietyTool[] = (o.relaxLimits ? relaxLimits(offeredTools(world.api.groups)) : offeredTools(world.api.groups)).filter((t) => !(life && t.name === "stop_exploring") && !noAccess?.has(t.name)).map((t) => ({
             name: t.name, description: t.description, input_schema: t.input_schema as unknown as Record<string, unknown>,
             run: async (args, ctx) => {
               const t0 = now();
@@ -304,7 +308,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     logPart = await logReport(world.log, signed);
     creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: (world.api.markers?.paid ?? 0) + (world.api.tips?.total ?? 0), firstJobRefunds: world.api.market?.firstJobRefunds ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
     // What agents wrote about their finds is read while the society is still up.
-    talkPart = renderFirstMinute(events) + renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderDeliveries(deliveryReport(events)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
+    talkPart = (o.relaxLimits ? "## Length limits\n\nThe length limits of the tool layer were RELAXED in this run (`--relax-limits`, cohort only): text was not capped at the usual 120, 90 and similar limits, so what agents wrote here is not comparable with a run that had them. Long forum text was accepted without the credit charge it carries elsewhere.\n\n" : "") + renderFirstMinute(events) + renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderDeliveries(deliveryReport(events)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
     if (world.api.findsThread) findsPart = await findsSection(world.api, agents.map((a) => ({ did: a.did, handle: a.handle })), new Set(analyse(events).perAgent.filter((s) => s.discoveries.length > 0).map((s) => s.handle)));
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });

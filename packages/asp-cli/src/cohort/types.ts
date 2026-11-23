@@ -43,6 +43,8 @@ export interface WorldApi {
   games?: import("./games.ts").GameHall;
   /** Whether the two true lines about learning and about more to find are shown in the first observation (ENG69); only when the run has markers or the tour. Undefined or true: shown. */
   hintLines?: boolean;
+  /** The cohort-only relaxed-limits setting (ENG89): off unless `--relax-limits`. */
+  relaxLimits?: boolean;
   /** The house field guide to the most common refusals, and which newcomers are offered it (field-guide.ts); absent: none. */
   fieldGuide?: { guide: import("./field-guide.ts").Guide; offered: (agentN: number) => boolean };
   /** The tool groups this run offers (tools.ts: expedition, games, town, library); undefined: all of them. */

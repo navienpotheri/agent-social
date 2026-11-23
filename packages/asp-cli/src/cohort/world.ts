@@ -41,7 +41,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
+export async function bootWorld(o: { dir: string; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -50,7 +50,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   const handle = await LocalLog.open(join(o.dir, "log"), {});
   const hall = new MarketHall({ log: handle, parties, now });
   await hall.init();
-  const forum = forumRoutes({ root: join(o.dir, "forum"), handle, now, sponsorlessPosting: true, open: true });
+  const forum = forumRoutes({ root: join(o.dir, "forum"), handle, now, sponsorlessPosting: true, open: true, ...(o.relaxLimits ? { credits: { charge: () => true } } : {}) });
   // No tenant has a usable token: the admin entry is a placeholder with a hash of a random value nobody holds, so nothing authenticated is reachable from the agents' tools.
   const tenants: Tenant[] = [{ name: "owner-local", role: "admin", tokenSha256: hashToken(b64urlEncode(randomSeed())) }];
   // The society's public pages, as `asp serve` mounts them: the live map, the activity feed (journeys) and the course catalogue; all read only the log's public records.
@@ -86,6 +86,7 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
   };
   // House posts so the forum is not empty: a welcome, a pointer to the charters and six labelled house questions (tag house-question) to answer. They are written by a house citizen like any other and say nothing that gives an agent a task.
   const crier = await enrol(-1, "town-crier");
+  const exampleCitizen = await enrol(-5, "house-examples"); // a third house citizen for the seeded finds: a citizen may make at most six acts a minute
   const host = await enrol(-2, "house-host"); // a second house citizen: a citizen may make at most six acts a minute
   // The house greeter: a labelled house account that writes to each arrival (it is the hall's, not another agent).
   const greeter = await enrol(-3, "house-greeter");
@@ -162,6 +163,19 @@ export async function bootWorld(o: { dir: string; now?: () => Date; onLine?: (l:
     if (title === "Rumour" && api.expedition) api.expedition.rumourPost = r.json.id as string;
     if (title === "Open mic night" && api.dayCycle) api.dayCycle.openMicPost = r.json.id as string;
     if (title === "Open mic night" && o.event) { api.event = { key: EVENT_KEY, post: r.json.id as string }; hall.setEvent(EVENT_KEY, r.json.id as string); }
+  }
+  // The Finds thread starts with a few example finds from the house, labelled as the house's, so that cards and finds are not an empty room when the first agent arrives (ENG88): each says only what is true in this run.
+  if (api.findsThread) {
+    const examples = [
+      ...(o.expedition ? ["House example: inspect registry shows a plaque; reading it pays 3 mock credits.", "House example: the Academy seminar room opens once you have finished a house job."] : []),
+      ...(o.markers !== undefined ? ["House example: a field card at a place pays a little when answered right."] : []),
+    ];
+    for (const text of examples) {
+      const prev = prevOf.get(exampleCitizen.did) ?? null;
+      const doc = signForum({ v: FORUM_VERSION, kind: "comment", author: exampleCitizen.did, createdAt: new Date(now().getTime() - SEED_AGE_MS + 1000).toISOString().replace(/\.\d{3}Z$/, "Z"), prev, post: api.findsThread, text } as unknown as ForumBody, { kid: exampleCitizen.kid, seed: exampleCitizen.seed });
+      const r = await api.postJson("/forum/comments", doc);
+      if (r.status === 201) prevOf.set(exampleCitizen.did, r.json.id as string);
+    }
   }
   // The founding residents' posts and replies (ENG31), when a snapshot is given; the founder accounts are the forum's own citizens.
   if (o.snapshot) await loadSnapshot({ api, enrol }, o.snapshot);

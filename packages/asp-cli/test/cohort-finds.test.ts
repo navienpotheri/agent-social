@@ -46,7 +46,7 @@ test("the Finds thread exists, labelled and by the house, only in a run that has
     assert.equal(await hall.balance(a), before, "no reward for posting");
     await call(b, "forum_comment", { post: thread, text: "Nothing yet, but I am still looking around." });
     const hallLook = await call(b, "inspect", { place: "town-hall" });
-    assert.match(hallLook.text, /Latest in the Finds thread \(read only\): agent-02: "Nothing yet, but I am still looking around\."; agent-01: "I found a plaque at the registry and a card elsewhere\."\./);
+    assert.match(hallLook.text, /Latest in the Finds thread \(read only\): agent-02: "Nothing yet, but I am still looking around\."; agent-01: "I found a plaque at the registry and a card elsewhere\."; the house: "House example/);
   } finally { await w.close(); }
   const none = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-finds-none-")) });
   try {

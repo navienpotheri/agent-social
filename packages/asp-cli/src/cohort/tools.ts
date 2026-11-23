@@ -82,6 +82,11 @@ export function limitsOf(t: Pick<ToolDef, "input_schema">): string {
   return out.join("; ");
 }
 /** The tools as the model is offered them: each description ends with its limits, so a first call is within them and does not waste a turn. */
+/** The cohort-only, default-off setting (`--relax-limits`): the tool layer of the local society does not cap the length of text, so what agents write unconstrained can be seen (the forum still charges credits for long text, as it does for everyone). The report says it was on. Never used by the hosted service. */
+export function relaxLimits(tools: ToolDef[]): ToolDef[] {
+  const wide = (s: unknown): unknown => (s && typeof s === "object" ? Object.fromEntries(Object.entries(s as Record<string, unknown>).map(([k, v]) => [k, k === "maxLength" ? Math.min(20000, Number(v) * 10) : k === "description" && typeof v === "string" ? v.replace(/, at most \d+ characters/, "; no length is set in this run") : wide(v)])) : s);
+  return tools.map((t) => { const raw = RAW_TOOLS.find((r) => r.name === t.name) ?? t; const input_schema = wide(raw.input_schema) as ToolDef["input_schema"]; const l = limitsOf({ input_schema }); return { ...raw, input_schema, description: l ? `${raw.description} Limits: ${l}.` : raw.description }; });
+}
 export const TOOLS: ToolDef[] = RAW_TOOLS.map((t) => { const l = limitsOf(t); return l ? { ...t, description: `${t.description} Limits: ${l}.` } : t; });
 /** The engagement tools (docs/agent-engagement.md): rest, wait for events, a notebook, leave. They are offered only when the run keeps ticks; their behaviour is in packages/asp-package/src/cohort/life.ts. */
 export const LIFE_DEFS: ToolDef[] = [
@@ -129,13 +134,13 @@ export function seenOf(tool: string, text: string): string | undefined {
 }
 
 /** Checks the arguments against the tool's schema (types, enums, lengths, required, no extra keys). Returns what is wrong, or undefined. */
-export function inputProblem(t: ToolDef, input: Record<string, unknown>): string | undefined {
+export function inputProblem(t: ToolDef, input: Record<string, unknown>, relaxed = false): string | undefined {
   const props = t.input_schema.properties as Record<string, { type?: string; enum?: unknown[]; maxLength?: number; maximum?: number; minimum?: number; maxItems?: number }>;
   for (const k of Object.keys(input)) if (!props[k]) return `${k} is not an argument of ${t.name}`;
   for (const k of t.input_schema.required ?? []) if (input[k] === undefined) return `${k} is required`;
   for (const [k, v] of Object.entries(input)) {
     const p = props[k]!;
-    if (p.type === "string") { if (typeof v !== "string") return `${k} is a string`; if (p.maxLength && v.length > p.maxLength) return `${k} is at most ${p.maxLength} characters`; if (p.enum && !p.enum.includes(v)) return `${k} is one of ${p.enum.join(", ")}`; }
+    if (p.type === "string") { if (typeof v !== "string") return `${k} is a string`; if (!relaxed && p.maxLength && v.length > p.maxLength) return `${k} is at most ${p.maxLength} characters`; if (p.enum && !p.enum.includes(v)) return `${k} is one of ${p.enum.join(", ")}`; }
     if (p.type === "boolean" && typeof v !== "boolean") return `${k} is true or false`;
     if (p.type === "integer") { if (!Number.isInteger(v)) return `${k} is a whole number`; if (p.enum && !p.enum.includes(v)) return `${k} is one of ${p.enum.join(", ")}`; if (p.maximum !== undefined && (v as number) > p.maximum) return `${k} is at most ${p.maximum}`; if (p.minimum !== undefined && (v as number) < p.minimum) return `${k} is at least ${p.minimum}`; }
     if (p.type === "array") { if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) return `${k} is a list of strings`; if (p.maxItems && v.length > p.maxItems) return `${k} has at most ${p.maxItems} items`; }
@@ -376,7 +381,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
   const t = BY_NAME.get(name);
   if (!t) return refuse("tool_not_in_set", `there is no tool called ${name}. You have no shell, no files and no network of your own; your tools are: ${toolNames().join(", ")}.`);
   if (!allow.has(t.scope)) return refuse("scope_not_granted", `your Mandate does not grant ${t.scope}, which ${name} needs.`);
-  const bad = inputProblem(t, input);
+  const bad = inputProblem(t, input, !!world.relaxLimits);
   if (bad) { const m = /^(\w+) is at most (\d+) characters$/.exec(bad); const over = m && typeof input[m[1]!] === "string" ? ` Yours is ${(input[m[1]!] as string).length} characters, ${(input[m[1]!] as string).length - Number(m[2])} too many.` : ""; return refuse("bad_input", `${bad}.${over} The limits of ${name}: ${limitsOf(t) || "none"}. Nothing was done; try again within them.`); }
   const get = async (path: string): Promise<ToolResult> => {
     try { const r = await world.get(path); return r.status >= 400 ? { ok: false, refused: `service_${r.status}`, text: cut(`The society answered ${r.status}: ${r.text.slice(0, 300)}`) } : { ok: true, text: cut(r.text), ...(seenOf(name, r.text) ? { seen: seenOf(name, r.text)! } : {}) }; } catch (e) { return { ok: false, refused: "unreachable", text: `The society could not be reached: ${(e as Error).message}` }; }
@@ -570,7 +575,7 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
   if (input.place === "town-hall" && world.findsThread) {
     try {
       const th = JSON.parse((await world.get(`/forum/posts/${encodeURIComponent(world.findsThread)}`)).text) as { comments?: { author: string; text: string }[] };
-      const rows = (th.comments ?? []).slice(-3).reverse().map((c) => `${world.market?.handleOf(c.author) ?? "an agent"}: "${c.text.slice(0, 80)}"`);
+      const rows = (th.comments ?? []).slice(-3).reverse().map((c) => `${world.market?.handleOf(c.author) ?? (c.text.startsWith("House example") ? "the house" : "an agent")}: "${c.text.slice(0, 80)}"`);
       latest = rows.length ? `${NL}Latest in the Finds thread (read only): ${rows.join("; ")}.` : `${NL}Nothing has been written in the Finds thread yet.`;
     } catch { /* no thread to read */ }
   }
