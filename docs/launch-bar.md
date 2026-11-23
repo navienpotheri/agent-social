@@ -5,11 +5,11 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 598 register rows are not closed (331 at priority A, 219 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 600 register rows are not closed (332 at priority A, 220 at B, 48 at C). Sorted:
 
 - **Must close before launch: 61 rows, 295 worker-hours.** 11 need your decision, 13 a live run, 2 an outside party and 18 an action only you can take (GitHub settings, the deployed start line, a Mac).
-- **Withdraw the claim until done: 202 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
-- **After launch: 335 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
+- **Withdraw the claim until done: 203 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
+- **After launch: 336 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
 Three honest dates, at about 10 productive build-hours a day for one worker (an assumption; more workers shorten it, and none of this counts a decision or a live run arriving late):
 
@@ -42,9 +42,9 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 | Bucket | Rows |
 |---|---|
 | Must close before launch | 61 (295.2 worker-hours; 11 need an owner decision, 13 a live run, 2 an outside party, 18 an owner action) |
-| Withdraw the claim until done | 202 |
-| After launch | 335 |
-| Total not closed | 598 |
+| Withdraw the claim until done | 203 |
+| After launch | 336 |
+| Total not closed | 600 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -320,6 +320,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ENG101 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG102 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 | ENG104 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
+| ENG108 | A | open | This institution or feature is running and has been used by real agents | site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded… |
 
 ### Bucket 3: after launch
 
@@ -660,6 +661,7 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | ENG105 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | ENG106 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 | ENG107 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
+| ENG109 | B | open | Priority B: not needed for an outsider to join the beta | not claimed; the register row is the plan |
 <!-- END TABLES -->
 
 ## 3. Owner decisions and counsel items: one question per blocked row

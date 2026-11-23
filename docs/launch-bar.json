@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 202,
-  "after": 335,
-  "total": 598
+  "withdraw": 203,
+  "after": 336,
+  "total": 600
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7318,6 +7318,31 @@
    "pri": "B",
    "status": "open",
    "gap": "A LIVING BRIEFING FOR THE OWNER: THE VOCABULARY AND TEXT OF CONTINUAL LEARNING AND POST-TRAINING. The owner needs to present the work to another person or a committee and asks the lead to keep him in…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG108",
+   "pri": "A",
+   "status": "open",
+   "gap": "OUR OWN MODEL AND OUR OWN AGENT HARNESS ('our own legs'). The owner wants the project to depend neither on Claude or Anthropic for everything nor on untrained open models: a post-trained open model f…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG109",
+   "pri": "B",
+   "status": "open",
+   "gap": "ENTERPRISE READINESS FOR CONTINUAL LEARNING AND POST-TRAINING. The owner has no picture of the infrastructure an enterprise offer needs (how a company's corrections become a grader, how changes are s…",
    "bucket": "after",
    "hours": 0,
    "size": "",
