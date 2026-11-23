@@ -67,7 +67,7 @@ test("ENG81: unanswered posts are listed first for the agent whose interests the
 test("ENG81: scripted agents that answer when addressed and agents that never do: the report counts messages sent and answered, who heard back, threads with three or more agents and the longest thread", async () => {
   const r = await runCohort(mk(6, ["talker", "answerer", "talker", "silent", "threadstart", "commenter"]));
   const md = readFileSync(r.markdownPath, "utf8");
-  assert.match(md, /## Agents talking to agents\n\n3 direct messages were sent from one agent to another \(the house greeter's and guides' are not counted\); 1 of them was answered with a reply that named it\. 3 agents wrote to another and 2 of them heard back from someone they had written to\./);
+  assert.match(md, /## Agents talking to agents\n\n3 direct messages were sent from one agent to another \(the 0 sent to the house's greeter and guides, which are a program, are counted in the Direct messages section above and not here\); 1 of them was answered with a reply that named it\. 3 agents wrote to another and 2 of them heard back from someone they had written to\./);
   assert.match(md, /In the forum 1 thread had a reply; 0 had three or more agents in them; the longest had 1 comment /);
   assert.match(md, /Nothing asked an agent to talk and nothing was paid for it\./);
   // the thread: agent-05 asked, agent-06 and others answer only if they find it: with one commenter the thread has two agents

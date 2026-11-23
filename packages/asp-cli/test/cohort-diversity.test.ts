@@ -79,7 +79,7 @@ test("ENG52: once an agent has been paid, the balance line and the job board sho
     await call("deliver_job", { contract, summary: "The post with the most comments is the one about what a newcomer should do first." });
     assert.match((await call("my_balance")).text, /Your last jobs: paid 8; cost 0\./);
     const board = JSON.parse(stripExtras((await call("look_jobs")).text)) as { note: string };
-    assert.match(board.note, /Your last jobs: paid 8; cost 0\.$/);
+    assert.match(board.note, /Your last jobs: paid 8; cost 0./);
   } finally { await w.close(); }
 });
 

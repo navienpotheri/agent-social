@@ -5,18 +5,18 @@
  */
 import type { WorldApi, TraceEvent } from "./types.ts";
 
-export interface TalkCounts { sent: number; answered: number; repliers: number; senders: number; heardBack: number; threads3: number; longest: number; longestTitle: string; threadsWithReplies: number }
+export interface TalkCounts { sent: number; answered: number; repliers: number; senders: number; heardBack: number; threads3: number; longest: number; longestTitle: string; threadsWithReplies: number; toHouse: number }
 
 /** The counts of messages from the trace and of threads from the forum (read while the society is up). */
 export async function talkCounts(api: WorldApi, events: TraceEvent[], agentDids: Map<string, string>): Promise<TalkCounts> {
   const handleOf = new Map<string, string>();
   for (const e of events) if (e.t === "agent") handleOf.set(e.agent, e.handle);
-  let sent = 0;
+  let sent = 0, toHouse = 0;
   const answeredIds = new Set<string>(), senders = new Set<string>(), repliers = new Set<string>(), pairs = new Set<string>();
   for (const e of events) {
     if (e.t !== "tool" || e.tool !== "send_message" || !e.ok) continue;
     const from = handleOf.get(e.agent) ?? e.agent, to = String(e.input.to ?? "");
-    if (to.startsWith("house-")) continue;
+    if (to.startsWith("house-")) { toHouse++; continue; }
     sent++; senders.add(from); pairs.add(`${from}>${to}`);
     if (typeof e.input.reply_to === "string") { answeredIds.add(e.input.reply_to); repliers.add(from); }
   }
@@ -38,12 +38,12 @@ export async function talkCounts(api: WorldApi, events: TraceEvent[], agentDids:
       if ((full.comments?.length ?? 0) > longest) { longest = full.comments!.length; longestTitle = p.title; }
     }
   } catch { /* no forum to read */ }
-  return { sent, answered: answeredIds.size, repliers: repliers.size, senders: senders.size, heardBack: heard.size, threads3, longest, longestTitle, threadsWithReplies: withReplies };
+  return { sent, answered: answeredIds.size, repliers: repliers.size, senders: senders.size, heardBack: heard.size, threads3, longest, longestTitle, threadsWithReplies: withReplies, toHouse };
 }
 
 export function renderTalk(c: TalkCounts): string {
   const L = ["## Agents talking to agents", ""];
-  L.push(`${c.sent} direct message${c.sent === 1 ? "" : "s"} were sent from one agent to another (the house greeter's and guides' are not counted); ${c.answered} of them ${c.answered === 1 ? "was" : "were"} answered with a reply that named it. ${c.senders} agent${c.senders === 1 ? "" : "s"} wrote to another and ${c.heardBack} of them heard back from someone they had written to.`);
+  L.push(`${c.sent} direct message${c.sent === 1 ? "" : "s"} were sent from one agent to another (the ${c.toHouse} sent to the house's greeter and guides, which are a program, are counted in the Direct messages section above and not here); ${c.answered} of them ${c.answered === 1 ? "was" : "were"} answered with a reply that named it. ${c.senders} agent${c.senders === 1 ? "" : "s"} wrote to another and ${c.heardBack} of them heard back from someone they had written to.`);
   L.push(`In the forum ${c.threadsWithReplies} thread${c.threadsWithReplies === 1 ? "" : "s"} had a reply; ${c.threads3} had three or more agents in them; the longest had ${c.longest} comment${c.longest === 1 ? "" : "s"}${c.longestTitle ? ` ("${c.longestTitle.slice(0, 60)}")` : ""}. Nothing asked an agent to talk and nothing was paid for it. These are counts of one run; their spread between repeat runs (ENG72) is not measured here.`);
   return L.join("\n") + "\n";
 }

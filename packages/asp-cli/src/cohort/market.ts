@@ -175,6 +175,11 @@ export class MarketHall {
   /** The order in which each house job was released, and the cohort size: an agent is shown first the jobs whose number leaves its own number when divided by the cohort, so that agents that arrive together start on different jobs. */
   private readonly houseSeq = new Map<string, number>();
   cohort = 1;
+  /** A house job one agent has just been shown near the top of its board is left off the lists of the others for a short while (a minute), so that agents that look together are not shown the same jobs to offer on. */
+  holdMs = 60_000;
+  private readonly holds = new Map<string, { did: string; until: number }>();
+  heldByOther(job: string, did: string): boolean { const h = this.holds.get(job); return !!h && h.did !== did && h.until > Date.now(); }
+  hold(did: string, jobs: string[]): void { for (const j of jobs) { const h = this.holds.get(j); if (!h || h.did === did || h.until <= Date.now()) this.holds.set(j, { did, until: Date.now() + this.holdMs }); } }
   slotOf(intent: string): number | undefined { const i = this.houseSeq.get(intent); return i === undefined ? undefined : i % this.cohort; }
   private readonly settledIntents = new Set<string>();
   /** How many house jobs have been released to the board so far, and how many are still to come (in batches of ten as the open ones settle). */
@@ -591,6 +596,14 @@ export class MarketHall {
   /** The prices an agent was paid for its settled jobs, oldest first. */
   paidJobs(did: string): number[] { return [...this.contractState.values()].filter((c) => c.performer === did && c.settled).map((c) => c.price); }
   /** The jobs this agent is in, as principal or performer, with where each stands. */
+  /** The text of a job's purpose, and (for a two-agent house job) the handle of the other agent that holds it, if one does. */
+  async purposeOf(intent: string): Promise<string | undefined> { const r = (await this.records(["intent"])).find((x) => x.id === intent); return (r?.body as { purpose?: string } | undefined)?.purpose; }
+  partnerOf(contractId: string): string | undefined {
+    const c = this.contractState.get(contractId);
+    if (!c || !this.houseChecks.get(c.intent)?.partner) return undefined;
+    const other = [...this.contractState.values()].find((x) => x.intent === c.intent && x.performer !== c.performer);
+    return other ? this.agents.get(other.performer)?.agent.handle : undefined;
+  }
   async myJobs(agent: AgentCtx): Promise<Array<{ contract: string; role: "poster" | "worker"; other: string; price: number; state: string }>> {
     return [...this.contractState.values()].filter((c) => c.principal === agent.did || c.performer === agent.did).map((c) => ({ contract: c.contract, role: c.principal === agent.did ? "poster" as const : "worker" as const, other: [...this.agents.values()].find((a) => a.agent.did === (c.principal === agent.did ? c.performer : c.principal))?.agent.handle ?? "?", price: c.price, state: c.settled ? "settled" : c.delivery ? "delivered, waiting for the poster to accept" : "running, waiting for the worker to deliver" }));
   }
