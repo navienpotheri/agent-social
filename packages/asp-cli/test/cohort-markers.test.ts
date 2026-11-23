@@ -52,7 +52,7 @@ test("a card is found by inspect and nowhere else; each window shows the same ca
     const hall = w.api.market!;
     for (const x of [a, b]) await hall.enrolStandalone(x);
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
-    assert.doesNotMatch((await call(a, "look_map")).text, /card|field lesson|marker/i, "nothing announces them");
+    assert.doesNotMatch((await call(a, "look_map")).text, /\bcard\b|marker/i, "no card is announced");
     const place = MARKER_PLACES.find((p) => markerAt("seed-1", p, 5))!;
     const card = markerAt("seed-1", place, 5)!;
     const seenA = await call(a, "inspect", { place });

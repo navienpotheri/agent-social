@@ -18,7 +18,7 @@ test("DK1801 messages: two scripted agents exchange an offer and a reply, and th
   const out = mkdtempSync(join(tmpdir(), "asp-cohort-msg-")), home = mkdtempSync(join(tmpdir(), "asp-cohort-msghome-"));
   const r = await runCohort({ out, home, agents: 2, model: "stand-in", provider: standInProvider((i) => (i === 0 ? "messenger" : "replier"), { latencyMs: 20 }), staggerMs: 150, budgetUsd: 1, totalUsd: 2, minutes: 2, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } });
   assert.deepEqual(r.report.perAgent.map((s) => s.endReason), ["stopped_exploring", "stopped_exploring"]);
-  assert.deepEqual(r.report.messages, { sent: 2, byKind: { offer: 1, reply: 1 }, replies: 1, unanswered: 0, blockedAttempts: 0 });
+  assert.deepEqual(r.report.messages, { sent: 2, toHouse: 0, byKind: { offer: 1, reply: 1 }, replies: 1, unanswered: 0, blockedAttempts: 0 });
   const e = (from: string, to: string) => r.report.edges.find((x) => x.from === from && x.to === to);
   assert.equal(e("agent-01", "agent-02")?.messages, 1);
   assert.equal(e("agent-02", "agent-01")?.messages, 1);
@@ -89,5 +89,5 @@ test("DK1801 messages: a refused message because of a block is counted in the re
     { t: "end" as const, at, agent: "a1", reason: "stopped_exploring", turns: 2, usd: 0 }, { t: "end" as const, at, agent: "a2", reason: "stopped_exploring", turns: 0, usd: 0 },
   ];
   const rep = analyse(events);
-  assert.deepEqual(rep.messages, { sent: 1, byKind: { note: 1 }, replies: 0, unanswered: 1, blockedAttempts: 1 });
+  assert.deepEqual(rep.messages, { sent: 1, toHouse: 0, byKind: { note: 1 }, replies: 0, unanswered: 1, blockedAttempts: 1 });
 });

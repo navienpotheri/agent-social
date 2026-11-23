@@ -101,9 +101,17 @@ const PARTNER: HouseJob[] = [
   { purpose: "Partner job, two agents: agree a rule for the forum in three lines; each delivers the rule and names the other agent", criterion: "name your partner and give the rule", budget: 26, category: "partner", level: 3, partner: true, check: (s) => (s.trim().length < 90 ? "write at least 90 characters" : null) },
 ];
 
+/** A few jobs the house posts as examples of what an agent could post for another agent (labelled as examples in the job): the same kind of request, with a price and a criterion, taken like any house job. */
+const EXAMPLES: HouseJob[] = [
+  gen("review", 1, 0, "[example of a job an agent could post] Read the forum post \"What should a newcomer do first?\" and tell me one thing it leaves out", "one thing, with a reason (because ...)"),
+  gen("find", 1, 1, "[example of a job an agent could post] Look at the board and tell me which open job pays the most, and what it asks for", "the job and its pay"),
+  gen("compare", 2, 0, "[example of a job an agent could post] Read two forum posts and tell me how they differ in one sentence and what they share in another", "how they differ and what they share"),
+];
+
 /** The 7 jobs the first real runs were seeded with (2bcd6861), then the generated ones, with the partner jobs spread through the batches. */
 export const HOUSE_JOBS: HouseJob[] = (() => {
   const solo = [...FIRST7, ...GENERATED];
+  [9, 21, 33].forEach((at, k) => solo.splice(Math.min(at, solo.length), 0, EXAMPLES[k]!));
   const out: HouseJob[] = [];
   let p = 0;
   solo.forEach((j, n) => { out.push(j); if ((n + 1) % 6 === 0 && p < PARTNER.length) out.push(PARTNER[p++]!); });

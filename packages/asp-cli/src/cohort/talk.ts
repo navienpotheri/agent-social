@@ -5,18 +5,18 @@
  */
 import type { WorldApi, TraceEvent } from "./types.ts";
 
-export interface TalkCounts { sent: number; answered: number; repliers: number; senders: number; heardBack: number; threads3: number; longest: number; longestTitle: string; threadsWithReplies: number }
+export interface TalkCounts { sent: number; answered: number; repliers: number; senders: number; heardBack: number; threads3: number; longest: number; longestTitle: string; threadsWithReplies: number; toHouse: number }
 
 /** The counts of messages from the trace and of threads from the forum (read while the society is up). */
 export async function talkCounts(api: WorldApi, events: TraceEvent[], agentDids: Map<string, string>): Promise<TalkCounts> {
   const handleOf = new Map<string, string>();
   for (const e of events) if (e.t === "agent") handleOf.set(e.agent, e.handle);
-  let sent = 0;
+  let sent = 0, toHouse = 0;
   const answeredIds = new Set<string>(), senders = new Set<string>(), repliers = new Set<string>(), pairs = new Set<string>();
   for (const e of events) {
     if (e.t !== "tool" || e.tool !== "send_message" || !e.ok) continue;
     const from = handleOf.get(e.agent) ?? e.agent, to = String(e.input.to ?? "");
-    if (to.startsWith("house-")) continue;
+    if (to.startsWith("house-")) { toHouse++; continue; }
     sent++; senders.add(from); pairs.add(`${from}>${to}`);
     if (typeof e.input.reply_to === "string") { answeredIds.add(e.input.reply_to); repliers.add(from); }
   }
@@ -38,18 +38,71 @@ export async function talkCounts(api: WorldApi, events: TraceEvent[], agentDids:
       if ((full.comments?.length ?? 0) > longest) { longest = full.comments!.length; longestTitle = p.title; }
     }
   } catch { /* no forum to read */ }
-  return { sent, answered: answeredIds.size, repliers: repliers.size, senders: senders.size, heardBack: heard.size, threads3, longest, longestTitle, threadsWithReplies: withReplies };
+  return { sent, answered: answeredIds.size, repliers: repliers.size, senders: senders.size, heardBack: heard.size, threads3, longest, longestTitle, threadsWithReplies: withReplies, toHouse };
 }
 
 export function renderTalk(c: TalkCounts): string {
   const L = ["## Agents talking to agents", ""];
-  L.push(`${c.sent} direct message${c.sent === 1 ? "" : "s"} were sent from one agent to another (the house greeter's and guides' are not counted); ${c.answered} of them ${c.answered === 1 ? "was" : "were"} answered with a reply that named it. ${c.senders} agent${c.senders === 1 ? "" : "s"} wrote to another and ${c.heardBack} of them heard back from someone they had written to.`);
+  L.push(`${c.sent} direct message${c.sent === 1 ? "" : "s"} were sent from one agent to another (the ${c.toHouse} sent to the house's greeter and guides, which are a program, are counted in the Direct messages section above and not here); ${c.answered} of them ${c.answered === 1 ? "was" : "were"} answered with a reply that named it. ${c.senders} agent${c.senders === 1 ? "" : "s"} wrote to another and ${c.heardBack} of them heard back from someone they had written to.`);
   L.push(`In the forum ${c.threadsWithReplies} thread${c.threadsWithReplies === 1 ? "" : "s"} had a reply; ${c.threads3} had three or more agents in them; the longest had ${c.longest} comment${c.longest === 1 ? "" : "s"}${c.longestTitle ? ` ("${c.longestTitle.slice(0, 60)}")` : ""}. Nothing asked an agent to talk and nothing was paid for it. These are counts of one run; their spread between repeat runs (ENG72) is not measured here.`);
   return L.join("\n") + "\n";
 }
 
-export function renderAgentJobs(s: { posters: number; posted: number; offered: number; accepted: number; paid: number }, agents: number): string {
+export function renderAgentJobs(s: { posters: number; posted: number; offered: number; accepted: number; paid: number; byHouse?: number }, agents: number): string {
   const L = ["## Jobs that agents posted for each other", ""];
-  L.push(`${s.posters} of ${agents} agent${agents === 1 ? "" : "s"} posted at least one job; ${s.posted} job${s.posted === 1 ? "" : "s"} were posted by agents, ${s.offered} were offered on, ${s.accepted} were accepted and delivered (agent-to-agent settlements), and ${s.paid} mock credits were paid for them. Nothing asked an agent to post a job; the first one is free.`);
+  L.push(`${s.posters} of ${agents} agent${agents === 1 ? "" : "s"} posted at least one job; ${s.posted} job${s.posted === 1 ? "" : "s"} were posted by agents, ${s.offered} were offered on, ${s.accepted} were accepted and delivered (agent-to-agent settlements), and ${s.paid} mock credits were paid for them. Nothing asked an agent to post a job; the first one is free.${s.byHouse ? ` ${s.byHouse} more ${s.byHouse === 1 ? "was" : "were"} answered by the house performer (a program, labelled as the house) and ${s.byHouse === 1 ? "is" : "are"} not counted as agent-to-agent.` : ""}`);
   return L.join("\n") + "\n";
+}
+
+/** What the first observation's plain lines about looking closely came to: how many agents called inspect and how often, and what was found (the Finds thread has its own section). Counts only. */
+export function renderLooking(events: TraceEvent[], agents: { did: string; handle: string }[], markers?: { foundBy(did: string): number }): string {
+  const byAgent = new Map<string, number>();
+  for (const e of events) if (e.t === "tool" && e.tool === "inspect" && e.ok) byAgent.set(e.agent, (byAgent.get(e.agent) ?? 0) + 1);
+  const calls = [...byAgent.values()].reduce((n, k) => n + k, 0);
+  const lessons = markers ? agents.map((a) => markers.foundBy(a.did)) : [];
+  const L = ["## Looking closely", ""];
+  L.push(`${byAgent.size} of ${agents.length} agent${agents.length === 1 ? "" : "s"} called inspect at least once (${calls} call${calls === 1 ? "" : "s"} in all).${markers ? ` ${lessons.reduce((n, k) => n + k, 0)} field lessons were found, by ${lessons.filter((k) => k > 0).length} agents.` : ""} What was found and what was written about it is in the Finds section.`);
+  return L.join("\n") + "\n\n";
+}
+
+/** The size of the first minute: the first look_map result of each agent (with what rides on it) and the first three results together, against the first 25-agent run (a 3,725-character map, 18 of 25 agents making the same first four calls). */
+export function renderFirstMinute(events: TraceEvent[]): string {
+  const calls = new Map<string, Array<{ tool: string; chars: number }>>();
+  for (const e of events) if (e.t === "tool") { const l = calls.get(e.agent) ?? []; if (l.length < 4) l.push({ tool: e.tool, chars: e.chars }); calls.set(e.agent, l); }
+  const firstMap = [...calls.values()].map((l) => l.find((c) => c.tool === "look_map")?.chars).filter((x): x is number => x !== undefined);
+  const avg = (xs: number[]): number => (xs.length ? Math.round(xs.reduce((n, k) => n + k, 0) / xs.length) : 0);
+  const sig = new Map<string, number>();
+  for (const l of calls.values()) if (l.length >= 4) { const k = l.map((c) => c.tool).join(","); sig.set(k, (sig.get(k) ?? 0) + 1); }
+  const top = [...sig.values()].sort((a, b) => b - a)[0] ?? 0, n = [...calls.values()].filter((l) => l.length >= 4).length;
+  return `## The first minute, in sizes\n\nThe first look_map result (with the first-look lines that ride on it) averaged ${avg(firstMap)} characters over ${firstMap.length} agents (the first 25-agent run: 3,725 characters for the map alone). ${top} of ${n} agents that made four calls made the same first four calls (the first 25-agent run: 18 of 25).\n\n`;
+}
+
+export interface Adaptation { agent: string; job: string; step: "criterion" | "hint" | "course" | "level_up"; fails?: number; category?: string; level?: number; at: string }
+/** ENG93: what the house showed an agent after repeated refusals and the levels agents reached, each recorded with the agent, the job and the time. The check itself was the same for everyone. */
+export function renderHardness(a: Adaptation[]): string {
+  const by = (s: Adaptation["step"]): Adaptation[] => a.filter((x) => x.step === s);
+  const agents = new Set(a.map((x) => x.agent));
+  const L = ["## Evolving hardness: what the house showed after refusals, and levels", ""];
+  L.push(`After repeated refusals of a delivery the house showed more, and every step is recorded: the whole criterion after the second refusal (${by("criterion").length}), an easier job of the same kind or a pointer to the board after the fourth (${by("hint").length}), the Academy after the sixth (${by("course").length}). A level (1 to 3) in a category rises after two passes in it, and the jobs nearest an agent's level are listed first: ${by("level_up").length} level${by("level_up").length === 1 ? "" : "s"} gained. ${agents.size} agent${agents.size === 1 ? "" : "s"} had at least one step. No check was changed for anyone, and nothing is hidden from an agent at any level.`);
+  for (const x of a.slice(0, 8)) L.push(`- ${x.agent}: ${x.step}${x.fails ? ` after ${x.fails} refusals` : ""}${x.category ? ` in ${x.category} (level ${x.level})` : ""}, job ${x.job.slice(0, 19)}..., at ${x.at}.`);
+  return L.join("\n") + "\n\n";
+}
+
+/** ENG94: how many assessments peers made, by how many agents, what they paid, and how often a peer's verdict agreed with the house check (the house check decided each delivery: accepted means it met the criterion). */
+export function renderAssessments(a: Array<{ handle: string; verdict: "meets" | "does not meet"; houseAccepted: boolean }>, paid: number, agents: number): string {
+  const agree = a.filter((x) => (x.verdict === "meets") === x.houseAccepted).length;
+  const by = new Set(a.map((x) => x.handle));
+  const acc = a.filter((x) => x.houseAccepted), ref = a.filter((x) => !x.houseAccepted);
+  const L = ["## Peer assessments", ""];
+  L.push(`${a.length} assessment${a.length === 1 ? "" : "s"} by ${by.size} of ${agents} agents, ${paid} mock credits paid for them (1 each for an agent's first five). A peer's verdict agreed with the house check in ${agree} of ${a.length}${a.length ? `: of ${acc.length} deliveries the house accepted, peers said "meets" for ${acc.filter((x) => x.verdict === "meets").length}; of ${ref.length} the house refused, peers said "does not meet" for ${ref.filter((x) => x.verdict === "does not meet").length}` : ""}. No peer verdict changed the house check or anyone's pay. A small number of verdicts from one run shows what was counted, not how good peers are as assessors.`);
+  return L.join("\n") + "\n\n";
+}
+
+/** ENG92: how many agents asked for the agenda aid, how often, and what each called next (counts only; the aid is not an order). */
+export function renderAgendaUse(events: TraceEvent[], agents: number): string {
+  const asked = new Set<string>(), next = new Map<string, number>();
+  let calls = 0;
+  const tools = events.filter((e): e is Extract<TraceEvent, { t: "tool" }> => e.t === "tool");
+  tools.forEach((e, i) => { if (e.tool !== "my_agenda") return; calls++; asked.add(e.agent); const n = tools.slice(i + 1).find((x) => x.agent === e.agent); const k = n ? n.tool : "nothing more"; next.set(k, (next.get(k) ?? 0) + 1); });
+  return `## The agenda aid\n\n${asked.size} of ${agents} agent${agents === 1 ? "" : "s"} asked for the agenda (${calls} call${calls === 1 ? "" : "s"}). What they called next: ${[...next.entries()].sort((a, b) => b[1] - a[1]).map(([t, k]) => `${t} ${k}`).join(", ") || "nothing"}. It is an aid and not an order; these are counts of one run and say nothing about whether it helps.\n\n`;
 }

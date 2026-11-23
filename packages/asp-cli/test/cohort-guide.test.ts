@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ADVICE, buildGuide, countRefusals, loadCounts, renderGuideComparison, renderGuideText } from "../src/cohort/field-guide.ts";
+import { HOW_IT_WORKS, ADVICE, buildGuide, countRefusals, loadCounts, renderGuideComparison, renderGuideText } from "../src/cohort/field-guide.ts";
 import { runCohort, type CohortOptions } from "../src/cohort/run.ts";
 import { standInProvider } from "../src/cohort/provider.ts";
 import type { TraceEvent } from "../src/cohort/types.ts";
@@ -24,7 +24,7 @@ test("the guide lists only refusals that occurred in the data and that the house
   assert.equal(g.refusals, 21 + 11 + 4 + 2 + 1 + 1 + 30);
   const text = renderGuideText(g);
   assert.match(text, /^The house field guide to the refusals newcomers meet most \(the house's own text, not another agent's; built from cohort-run-1, 70 refusals by 15 agents; nothing in it is required\):\n1\. market_refused \(21 times\): /);
-  assert.equal(text.split("\n").length, 6);
+  assert.equal(text.split("\n").length, 6 + HOW_IT_WORKS.split("\n").length, "the five refusals and the short account of how the society works");
   assert.equal(renderGuideText(buildGuide({ counts: {}, agents: 3 }, "empty")), "", "no data, no guide");
   assert.equal(buildGuide({ counts: { zzz: 9 }, agents: 1 }, "x").entries.length, 0);
 });
@@ -57,13 +57,13 @@ test("the comparison counts refusals an agent and the agents that met the same r
 const mk = (extra: Partial<CohortOptions>, agents = 4, behaviour = "clumsy"): CohortOptions => ({ out: mkdtempSync(join(tmpdir(), "asp-guide-out-")), home: mkdtempSync(join(tmpdir(), "asp-guide-home-")), agents, model: "stand-in", provider: standInProvider(() => behaviour, { latencyMs: 3 }), staggerMs: 40, budgetUsd: 2, totalUsd: 2 * agents, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 30, io: { out: () => undefined }, ...extra } as CohortOptions);
 
 test("a run writes its refusal counts; a later run built from them offers the guide to every other agent in the reading room, at the Research and the Commons and by the greeter, and the report compares the two groups", async () => {
-  const first = await runCohort(mk({}));
+  const first = await runCohort(mk({ jobSlots: true }));
   const counts = JSON.parse(readFileSync(join(first.dir, "refusal-counts.json"), "utf8")) as { counts: Record<string, number>; agents: number };
   assert.equal(counts.counts["bad_input"], 4, "each of the four agents slipped once");
   assert.equal(counts.agents, 4);
   // the second run: scripted agents look at the reading room and the Research and the Commons
   const lines: string[] = [];
-  const second = await runCohort(mk({ fieldGuide: first.dir, expedition: true, io: { out: (l) => lines.push(l) } }, 4, "guided-reader"));
+  const second = await runCohort(mk({ fieldGuide: first.dir, guideMode: "half", expedition: true, io: { out: (l) => lines.push(l) } }, 4, "guided-reader"));
   const trace = readFileSync(join(second.dir, "trace.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   assert.deepEqual(trace.find((e) => e.t === "start").toolGroups.includes("expedition"), true);
   const md = readFileSync(second.markdownPath, "utf8");

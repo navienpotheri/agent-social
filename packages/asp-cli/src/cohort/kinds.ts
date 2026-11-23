@@ -90,7 +90,7 @@ export function kindsReport(events: TraceEvent[], thresholdMinutes = 30): KindsR
     const from = kindOf.get(e.agent);
     if (!from) continue;
     if (e.tool === "send_message") {
-      const to = kindOfHandle.get(String((e.input as { to?: unknown }).to ?? "")) ?? "other";
+      const toHandle = String((e.input as { to?: unknown }).to ?? ""); const to = kindOfHandle.get(toHandle) ?? (toHandle.startsWith("house-") ? "house (greeter and guides)" : "other");
       between.messages[key(from, to)] = (between.messages[key(from, to)] ?? 0) + 1;
     } else if (e.tool === "forum_comment" || e.tool === "forum_vote") {
       const to = (e.targetAuthor ? kindOfDid.get(e.targetAuthor) : undefined) ?? "other";

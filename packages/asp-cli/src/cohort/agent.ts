@@ -5,7 +5,7 @@
  * provider reports and the prices the owner gave; they are not the provider's bill.
  */
 import { injectionIn } from "./observe.ts";
-import { offeredTools, runTool, TOOLS, toolNames } from "./tools.ts";
+import { offeredTools, relaxLimits, runTool, TOOLS, toolNames } from "./tools.ts";
 import type { AgentCtx, Block, Msg, Provider, TraceEvent, WorldApi } from "./types.ts";
 
 export interface Caps { perAgentUsd: number; totalUsd: number; deadlineMs: number; /** USD per million input tokens. */ priceIn: number; /** USD per million output tokens. */ priceOut: number; maxTurns: number; maxTokens: number; /** Turns of conversation kept in the window (older ones are dropped to hold the cost down). */ windowTurns: number }
@@ -38,7 +38,7 @@ export async function runAgent(o: {
     if (o.shared.spentUsd + worst > o.caps.totalUsd) return finish("cap_total");
     turn++;
     let reply;
-    try { reply = await o.provider.complete({ system, messages, tools: offeredTools(o.world.groups), maxTokens: o.caps.maxTokens, agentIndex: o.agent.n, ...(o.signal ? { signal: o.signal } : {}) }); }
+    try { reply = await o.provider.complete({ system, messages, tools: o.world.relaxLimits ? relaxLimits(offeredTools(o.world.groups)) : offeredTools(o.world.groups), maxTokens: o.caps.maxTokens, agentIndex: o.agent.n, ...(o.signal ? { signal: o.signal } : {}) }); }
     catch (e) { return finish(`model_error: ${(e as Error).message.slice(0, 200)}`); }
     const spent = costOf(reply.usage, o.caps);
     usd += spent; o.shared.spentUsd += spent;

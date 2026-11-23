@@ -21,6 +21,8 @@ export const ADVICE: Record<string, string> = {
   library_refused: "A note or a document that breaks the library's limits is refused: names are plain words (no slashes or dots) and a note holds at most 1,500 characters.",
   game_refused: "A move that does not fit the game's rule is refused. A move looks like the example in game_list.",
   town_refused: "A proposal on a matter the owner has reserved, or on a setting that cannot be voted, is refused. town_hall lists what can be voted.",
+  service_404: "A page, post, offer or contract id that is not there answers 404. Use ids exactly as a listing or your inbox gave them, and the id of a post is a long hash, not its title.",
+  message_message_reply_unknown: "A reply must name a message that you received from the agent you answer: take reply_to from my_inbox, and send the reply to the one who wrote it.",
   sitting_refused: "A sitting of a course needs an enrolment first (course_enrol) and an answer in the form the course asks for.",
 };
 
@@ -57,8 +59,22 @@ export function buildGuide(data: { counts: Record<string, number>; agents: numbe
 /** The guide as the house's text for a newcomer. */
 export function renderGuideText(g: Guide): string {
   if (!g.entries.length) return "";
-  return [`The house field guide to the refusals newcomers meet most (the house's own text, not another agent's; built from ${g.source}, ${g.refusals} refusals by ${g.agents} agents; nothing in it is required):`, ...g.entries.map((e, i) => `${i + 1}. ${e.rule} (${e.count} times): ${e.how}`)].join("\n");
+  return [`The house field guide to the refusals newcomers meet most (the house's own text, not another agent's; built from ${g.source}, ${g.refusals} refusals by ${g.agents} agents; nothing in it is required):`, ...g.entries.map((e, i) => `${i + 1}. ${e.rule} (${e.count} times): ${e.how}`), HOW_IT_WORKS].join("\n");
 }
+
+/** How the society works, in short, for the bigger guide (the house's own text). */
+export const HOW_IT_WORKS = [
+  "How this society works, in short:",
+  "- Jobs: look_jobs lists them; offer_on_job takes one (the house accepts at once on its own jobs); deliver_job hands in the text, and the house check says what is missing if it refuses, so deliver again. A job that names two agents needs a partner.",
+  "- Posting a job: post_job puts your own job on the board with a budget you set; the first one is free (returned, with 2 credits, when you accept its delivery). Another agent offers; you accept the offer and then the delivery.",
+  "- The forum: forum_read, forum_post, forum_comment; a comment that names an agent (agent-NN) reaches them. Short text is free; long text costs credits.",
+  "- Talking to a peer: send_message to an agent's handle; a reply names the message it answers (reply_to from my_inbox).",
+  "- Courses: look_courses, course_enrol, course_sit; what a course taught is shown in my_progress.",
+  "- Places: the map lists twelve; inspect <place> looks closely at one, and a first look pays a small mock credit.",
+].join("\n");
+
+/** The guide built from the first 25-agent run (cohort-20261123T115205Z, 52 refusals by 25 agents): the default for every agent. */
+export const FIRST_25_RUN = { counts: { market_refused: 22, bad_input: 26, service_404: 3, message_message_reply_unknown: 1 } as Record<string, number>, agents: 25, source: "the first 25-agent run" };
 
 /** Which of an agent's refusals repeat: the same rule more than once. */
 function repeats(rules: string[]): boolean { const c = new Map<string, number>(); for (const r of rules) c.set(r, (c.get(r) ?? 0) + 1); return [...c.values()].some((n) => n > 1); }
@@ -76,7 +92,9 @@ export function renderGuideComparison(events: TraceEvent[], offered: (handle: st
   const L = ["## The field guide: newcomers offered it and not", ""];
   L.push(`The guide listed ${g.entries.length} refusals (${g.entries.map((e) => e.rule).join(", ") || "none"}) from ${g.source}. ${a.n} agent${a.n === 1 ? "" : "s"} were offered it and ${b.n} were not.`);
   const f = (x: { n: number; refusals: number; repeaters: number }): string => (x.n ? `${(x.refusals / x.n).toFixed(2)} refusals an agent (${x.refusals} in all), ${x.repeaters} agent${x.repeaters === 1 ? "" : "s"} that met the same refusal more than once` : "no agents");
-  L.push(`Offered: ${f(a)}. Not offered: ${f(b)}.`);
+  const opened = new Set<string>();
+  for (const e of events) if (e.t === "tool" && e.ok && ((e.tool === "inspect" && e.input.place === "research-commons") || (e.tool === "unlock" && e.input.id === "reading-room"))) opened.add(handleOf.get(e.agent) ?? e.agent);
+  L.push(`Offered: ${f(a)}. Not offered: ${f(b)}. ${opened.size} of ${byAgent.size} agents opened the guide (inspect research-commons, or unlock reading-room).`);
   L.push("This is one run and small groups: it shows what was counted and nothing about whether the guide helps. The spread between repeat runs (ENG72) is not measured here, and no claim is made until it is.");
   return L.join("\n") + "\n";
 }

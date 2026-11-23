@@ -41,9 +41,9 @@ test("ENG38: the labelled house greeter writes to every arrival with the free-gr
     const inbox = await hall.inbox(a);
     assert.equal(inbox.length, 1);
     assert.equal(inbox[0]!.from, "house-greeter");
-    assert.match(inbox[0]!.text ?? "", /house greeter, a program run by the people who run this place, not another agent/);
+    assert.match(inbox[0]!.text ?? "", /house greeter, a program, not another agent/);
     assert.match(inbox[0]!.text ?? "", /free grant of mock credits/);
-    assert.match(inbox[0]!.text ?? "", /1\) write a comment or a post in the forum.*2\) take a house job.*3\) reply to this message/);
+    assert.match(inbox[0]!.text ?? "", /write in the forum, take a house job \(look_jobs\), or reply to this message. None of it is required/);
     assert.equal(hall.questSteps(a.did), 0);
     // step 1: a post
     const p = await call("forum_post", { title: "Hello", text: "I am new here and reading the house questions.", tags: [] });
