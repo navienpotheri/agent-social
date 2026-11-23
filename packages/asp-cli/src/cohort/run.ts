@@ -262,6 +262,15 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(verdictOf(t.name, r.ok, r.text, r.discovery) ? { outcome: verdictOf(t.name, r.ok, r.text, r.discovery)! } : {}), ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.seen ? { seen: r.seen } : {}), ...(r.invitations ? { invitations: r.invitations } : {}), ...(r.quest ? { quest: r.quest } : {}), ...(r.expedition ? { expedition: r.expedition } : {}), ...(r.discovery ? { discovery: r.discovery } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
               if (r.refused) writeBack(id, t.name, r.refused, r.text);
+              // a lesson the gate admitted and this agent cited becomes one labelled line in its notebook, recorded in the trace and on the shelf (ENG102 follow-up)
+              if (t.name === "lesson_cite" && r.ok && life && world.api.lessons) {
+                const card = world.api.lessons.get(String(args.id ?? ""));
+                if (card?.decision.admitted) {
+                  const action = life.agent(id).lessonNote({ id: card.id, handle: card.handle, title: card.title, lesson: card.lesson });
+                  world.api.lessons.notebookWrites.push({ id: card.id, handle: a.handle, at: stamp(), action, hash: card.hash });
+                  trace({ t: "lesson_notebook", at: stamp(), agent: id, id: card.id, hash: card.hash, action });
+                }
+              }
               return { ok: r.ok, text: r.text, ...(r.end ? { end: true } : {}) };
             },
           }));
