@@ -125,7 +125,22 @@ export const GROUP_OF: Record<string, string> = {
   workspace_write: "library", workspace_read: "library", library_publish: "library", library_search: "library", library_read: "library", library_cite: "library",
 };
 /** The tools a run offers, given the groups it has on (all of them when `groups` is undefined). */
-export const offeredTools = (groups?: ReadonlySet<string>): ToolDef[] => TOOLS.filter((t) => !GROUP_OF[t.name] || !groups || groups.has(GROUP_OF[t.name]!));
+/**
+ * The tools in view (diagnosis fix 8): every tool of the run is still offered, with its name and input schema unchanged; the tools of the optional groups (the tour, games, lessons, assessments, the agenda, the library,
+ * the repository files) are shown with their first sentence and their limits instead of their whole description, and after the core tools, so that the tool list, which was about 10,200 tokens of every turn, is shorter.
+ * `trim = false` (`--no-trim`) shows the whole descriptions.
+ */
+export function trimGroupTools(tools: ToolDef[]): ToolDef[] {
+  const core = tools.filter((t) => !GROUP_OF[t.name]);
+  const rest = tools.filter((t) => GROUP_OF[t.name]).map((t) => {
+    const lim = / Limits: [^]*$/.exec(t.description)?.[0] ?? "";
+    const body = lim ? t.description.slice(0, t.description.length - lim.length) : t.description;
+    const first = (/^[^]*?[.!?](?=\s|$)/.exec(body)?.[0] ?? body).slice(0, 200);
+    return { ...t, description: `${first}${lim}` };
+  });
+  return [...core, ...rest];
+}
+export const offeredTools = (groups?: ReadonlySet<string>, trim = true): ToolDef[] => { const l = TOOLS.filter((t) => !GROUP_OF[t.name] || !groups || groups.has(GROUP_OF[t.name]!)); return trim ? trimGroupTools(l) : l; };
 export const toolListChars = (tools: ToolDef[]): number => tools.reduce((n, t) => n + JSON.stringify([t.name, t.description, t.input_schema]).length, 0);
 export const toolNames = (): string[] => TOOLS.map((t) => t.name);
 export const defOf = (name: string): ToolDef | undefined => BY_NAME.get(name);
@@ -424,6 +439,7 @@ async function jobHints(world: WorldApi, hall: NonNullable<WorldApi["market"]>, 
     const p = hall.partnerOf(contract);
     out += p ? ` This is a two-agent job: your partner is ${p}; send_message to ${p} reaches them.` : " This is a two-agent job: the other agent has not taken it yet; my_jobs names your partner once they do, and send_message reaches them.";
   }
+  if (/\[project\]/.test(purpose)) out += " The steps of this project: post three part-jobs (post_job; the first job you post is free, the others cost their budgets), have a different agent do each (accept_offer, then accept_delivery), then deliver here naming the three contract ids. Until then the delivery is refused with what is missing, and the job may stay open as long as you like.";
   if (world.expedition || world.markers) {
     const hit = PLACE_WORDS.find(([re]) => re.test(purpose));
     if (hit) out += ` The job is about ${hit[2]}: inspect ${hit[1]} shows what is there, and a first look at a place pays a mock credit once. Optional.`;

@@ -120,6 +120,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** Diagnosis fix 8: show the whole descriptions of the optional tools (they are trimmed to their first sentence and limits by default). */
+  noTrim?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
   library?: boolean;
   /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
@@ -264,7 +266,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const toolsetFor = (id: string) => {
           const a = byId.get(id)!;
           const noAccess = o.experiment && access?.get(id) === "control" ? hiddenTools(o.experiment.resources) : undefined;
-          const tools: SocietyTool[] = (o.relaxLimits ? relaxLimits(offeredTools(world.api.groups)) : offeredTools(world.api.groups)).filter((t) => !(life && t.name === "stop_exploring") && !noAccess?.has(t.name)).map((t) => ({
+          const tools: SocietyTool[] = (o.relaxLimits ? relaxLimits(offeredTools(world.api.groups, !o.noTrim)) : offeredTools(world.api.groups, !o.noTrim)).filter((t) => !(life && t.name === "stop_exploring") && !noAccess?.has(t.name)).map((t) => ({
             name: t.name, description: t.description, input_schema: t.input_schema as unknown as Record<string, unknown>,
             run: async (args, ctx) => {
               const t0 = now();
