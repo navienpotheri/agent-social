@@ -98,7 +98,8 @@ test("ENG82: the first job an agent posts is free: accepted and delivered, the h
     const hall = w.api.market!;
     for (const x of [a, b]) await hall.enrolStandalone(x);
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
-    assert.match((await call(a, "my_balance")).text, /The first job you post is free: when it is accepted the house returns what it cost you\./);
+    assert.doesNotMatch(stripExtras((await call(a, "my_balance")).text), /first job you post is free/, "said once, at the decision point (the board), not in every balance line");
+    assert.match(JSON.parse(stripExtras((await call(a, "look_jobs")).text)).note, /The first job you post is free/);
     assert.match(TOOLS.find((t) => t.name === "post_job")!.description, /Your first job is free: when it is accepted the house returns what it cost you and adds a small credit\./);
     const doJob = async (purpose: string, budget: number): Promise<void> => {
       const posted = await call(a, "post_job", { purpose, budget, criterion: "a number" });
@@ -124,7 +125,6 @@ test("ENG82: the first job an agent posts is free: accepted and delivered, the h
     assert.equal(await hall.balance(a), mid - 12 - 2 - 0, "the second job is paid for: nothing is returned twice");
     assert.equal(hall.firstJobRefunds, 10 + POSTER_BONUS, "refunded once");
     assert.match((await call(a, "my_balance")).text, /Jobs you posted: 2, accepted 2, paid 22 credits\./);
-    assert.doesNotMatch((await call(a, "my_balance")).text, /The first job you post is free/, "said until it is used");
     const board = JSON.parse(stripExtras((await call(b, "look_jobs")).text)) as { jobs_posted_by_agents?: { posted: number; offered_on: number; accepted: number; paid: number } };
     assert.deepEqual(board.jobs_posted_by_agents, { posted: 2, offered_on: 2, accepted: 2, paid: 22 });
     assert.equal((await w.log.log.creditAudit()).verdict, "balanced");

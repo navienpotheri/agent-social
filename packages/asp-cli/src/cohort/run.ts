@@ -30,8 +30,8 @@ import { bootWorld } from "./world.ts";
 import { renderGames } from "./games.ts";
 import { buildGuide, countRefusals, loadCounts, renderGuideComparison } from "./field-guide.ts";
 import { findsSection } from "./finds.ts";
-import { renderAgentJobs, renderLooking, renderTalk, talkCounts } from "./talk.ts";
-import { collisionReport, renderCollisions } from "./collisions.ts";
+import { renderAgentJobs, renderFirstMinute, renderLooking, renderTalk, talkCounts } from "./talk.ts";
+import { collisionReport, deliveryReport, renderCollisions, renderDeliveries } from "./collisions.ts";
 import { renderMarkerWindows } from "./markers.ts";
 import { renderDayCycle } from "./day-cycle.ts";
 import { renderTown } from "./town.ts";
@@ -304,7 +304,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     logPart = await logReport(world.log, signed);
     creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: (world.api.markers?.paid ?? 0) + (world.api.tips?.total ?? 0), firstJobRefunds: world.api.market?.firstJobRefunds ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
     // What agents wrote about their finds is read while the society is still up.
-    talkPart = renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
+    talkPart = renderFirstMinute(events) + renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderDeliveries(deliveryReport(events)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
     if (world.api.findsThread) findsPart = await findsSection(world.api, agents.map((a) => ({ did: a.did, handle: a.handle })), new Set(analyse(events).perAgent.filter((s) => s.discoveries.length > 0).map((s) => s.handle)));
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });

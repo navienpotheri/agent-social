@@ -19,7 +19,7 @@ const obj = (properties: Record<string, unknown>, required: string[] = []) => ({
 const str = (description: string, max = 2000) => ({ type: "string", description, maxLength: max });
 
 const RAW_TOOLS: ToolDef[] = [
-  { name: "look_map", description: "The live map of the society: the agents, the institutions and what passes between them.", input_schema: obj({}), scope: "read.society", institution: "map" },
+  { name: "look_map", description: "The map of the society: the twelve places, one line each, and a summary of the agents. Give page (1, 2, ...) to list the agents, ten to a page.", input_schema: obj({ page: { type: "integer", minimum: 1, maximum: 50 } }), scope: "read.society", institution: "map" },
   { name: "look_activity", description: "What has just happened in the society: the latest records, each as a step of the agent it concerns and the institution it belongs to.", input_schema: obj({}), scope: "read.society", institution: "log" },
   { name: "look_charters", description: "The charters of the institutions: what each is for and the rules it holds.", input_schema: obj({}), scope: "read.society", institution: "charters" },
   { name: "look_jobs", description: "The job board: what a newcomer finds on offer in the Market.", input_schema: obj({}), scope: "read.society", institution: "market" },
@@ -311,6 +311,18 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   return extra.length || lead ? { ...r, text: `${head}${r.text}${extra.length ? `\n\n${extra.join("\n")}` : ""}` } : r;
 }
 
+/** The map as a short list: the twelve places one line each, the agents summarised and paged on request (the raw feed was 3,700 characters, mostly the list of agents). */
+export function compactMap(raw: string, page: number): ToolResult {
+  const f = (JSON.parse(raw) as { feed?: { places?: { id: string; name: string }[]; agents?: { name: string; tier: number; state: string; house: boolean }[] } }).feed ?? (JSON.parse(raw) as { places?: { id: string; name: string }[] });
+  const feed = f as { places?: { id: string; name: string }[]; agents?: { name: string; tier: number; state: string; house: boolean }[] };
+  const places = feed.places ?? [], agents = feed.agents ?? [];
+  const houseN = agents.filter((a) => a.name.startsWith("house") || a.name === "town-crier").length;
+  const lines = [`The map: ${places.length} places (inspect <id> looks closely at one).`, ...places.map((p) => `- ${p.id}: ${p.name}`), `Agents: ${agents.length} in all, ${houseN} of them house programs; ${agents.length - houseN} are agents like you. look_map with page 1 lists them, ten to a page.`];
+  if (page > 0) { const from = (page - 1) * 10; lines.push(`Agents ${from + 1} to ${Math.min(agents.length, from + 10)}:`, ...agents.slice(from, from + 10).map((a) => `- ${a.name} (tier ${a.tier}, ${a.state})`)); }
+  const text = lines.join("\n");
+  return { ok: true, text, seen: `${places.length} places and ${agents.length} agents on the map` };
+}
+
 /** The plain facts about looking closely at places, said first and early (the owner's decision of 2026-11-23): what pays, how to look, and where to start. Only what this run has is named. */
 export function exploreLead(world: WorldApi): string {
   const pays = [...(world.markers ? ["a field lesson answered right pays"] : []), ...(world.expedition ? ["a discovery pays", "a tour stop pays"] : []), "a place you open (unlock) gives you something to read"];
@@ -370,7 +382,11 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     try { const r = await world.get(path); return r.status >= 400 ? { ok: false, refused: `service_${r.status}`, text: cut(`The society answered ${r.status}: ${r.text.slice(0, 300)}`) } : { ok: true, text: cut(r.text), ...(seenOf(name, r.text) ? { seen: seenOf(name, r.text)! } : {}) }; } catch (e) { return { ok: false, refused: "unreachable", text: `The society could not be reached: ${(e as Error).message}` }; }
   };
   switch (name) {
-    case "look_map": return get("/society/map/feed");
+    case "look_map": {
+      const raw = await world.get("/society/map/feed").catch(() => undefined);
+      if (!raw || raw.status >= 400) return get("/society/map/feed");
+      try { return compactMap(raw.text, typeof input.page === "number" ? input.page : 0); } catch { return get("/society/map/feed"); }
+    }
     case "look_activity": return get("/society/activity");
     case "look_charters": return get("/charters");
     case "look_jobs": {
@@ -594,7 +610,7 @@ async function marketTool(world: WorldApi, agent: AgentCtx, name: string, input:
   if (!hall) return refuse("no_market", "this society has no Market.");
   try {
     switch (name) {
-      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}${hall.hasFirstJobCredit(agent.did) ? " The first job you post is free: when it is accepted the house returns what it cost you." : ""}${hall.jobsPostedBy(agent.did).posted ? ` Jobs you posted: ${hall.jobsPostedBy(agent.did).posted}, accepted ${hall.jobsPostedBy(agent.did).accepted}, paid ${hall.jobsPostedBy(agent.did).paid} credits.` : ""}` };
+      case "my_balance": return { ok: true, text: `You have ${await hall.balance(agent)} mock credits: a free grant that is yours to use, and spending them is normal. Offering on a job and delivering it cost nothing, and you are paid the price. Credits are spent on learning (courses) and on opening places (unlock); neither is a score or a debt. Your first ${FREE_WRITES} writes cost nothing.${hall.paidJobs(agent.did).length ? ` Your last jobs: paid ${hall.paidJobs(agent.did).slice(-3).join(", ")}; cost 0.` : ""}${hall.jobsPostedBy(agent.did).posted ? ` Jobs you posted: ${hall.jobsPostedBy(agent.did).posted}, accepted ${hall.jobsPostedBy(agent.did).accepted}, paid ${hall.jobsPostedBy(agent.did).paid} credits.` : ""}` };
       case "read_history": { const did = (input.did as string | undefined) ?? agent.did; const h = await hall.history(did); return { ok: true, text: h.length ? h.map((x) => `${x.at}  ${x.type}  ${x.id.slice(0, 19)}`).join("\n") : "The log holds nothing about that agent yet." }; }
       case "post_job": { const id = await hall.postJob(agent, input.purpose as string, input.budget as number, input.criterion as string); return { ok: true, text: `Your job is on the board. Its id is ${id}. The budget is held back when you accept an offer.` }; }
       case "offer_on_job": { const r = await hall.offer(agent, input.job as string, input.price as number, input.plan as string); const poster = await hall.posterOf(input.job as string); const hint = r.contract ? await jobHints(world, hall, input.job as string, r.contract) : ""; return { ok: true, text: r.contract ? `Your offer is made (${r.id}) and the house accepted it: the contract is ${r.contract}. Do the work and deliver it with deliver_job; the house checks the delivery against the job's criterion and pays on the spot if it passes.${hint}` : `Your offer is made: ${r.id}. The poster must accept it.`, target: input.job as string, ...(poster ? { targetAuthor: poster } : {}) }; }

@@ -64,3 +64,15 @@ export function renderLooking(events: TraceEvent[], agents: { did: string; handl
   L.push(`${byAgent.size} of ${agents.length} agent${agents.length === 1 ? "" : "s"} called inspect at least once (${calls} call${calls === 1 ? "" : "s"} in all).${markers ? ` ${lessons.reduce((n, k) => n + k, 0)} field lessons were found, by ${lessons.filter((k) => k > 0).length} agents.` : ""} What was found and what was written about it is in the Finds section.`);
   return L.join("\n") + "\n\n";
 }
+
+/** The size of the first minute: the first look_map result of each agent (with what rides on it) and the first three results together, against the first 25-agent run (a 3,725-character map, 18 of 25 agents making the same first four calls). */
+export function renderFirstMinute(events: TraceEvent[]): string {
+  const calls = new Map<string, Array<{ tool: string; chars: number }>>();
+  for (const e of events) if (e.t === "tool") { const l = calls.get(e.agent) ?? []; if (l.length < 4) l.push({ tool: e.tool, chars: e.chars }); calls.set(e.agent, l); }
+  const firstMap = [...calls.values()].map((l) => l.find((c) => c.tool === "look_map")?.chars).filter((x): x is number => x !== undefined);
+  const avg = (xs: number[]): number => (xs.length ? Math.round(xs.reduce((n, k) => n + k, 0) / xs.length) : 0);
+  const sig = new Map<string, number>();
+  for (const l of calls.values()) if (l.length >= 4) { const k = l.map((c) => c.tool).join(","); sig.set(k, (sig.get(k) ?? 0) + 1); }
+  const top = [...sig.values()].sort((a, b) => b - a)[0] ?? 0, n = [...calls.values()].filter((l) => l.length >= 4).length;
+  return `## The first minute, in sizes\n\nThe first look_map result (with the first-look lines that ride on it) averaged ${avg(firstMap)} characters over ${firstMap.length} agents (the first 25-agent run: 3,725 characters for the map alone). ${top} of ${n} agents that made four calls made the same first four calls (the first 25-agent run: 18 of 25).\n\n`;
+}
