@@ -153,6 +153,26 @@ export const THINKING_BINDING_RE = /signature.{0,40}thinking block|thinking.{0,8
 
 interface Block { type: string; id?: string; name?: string; input?: Record<string, unknown>; text?: string }
 
+/**
+ * The cache breakpoint on the growing history (a third mark, after the tools and the briefing): the last block of the last message is marked for the provider's cache, so that the next request reads everything up to
+ * here from the cache instead of sending it as fresh input. A copy is made for the request; `messages` itself is never marked, so a mark never stays behind on an older message (the provider allows four). With the cache off
+ * nothing is marked. The gateway's token guard counts a response's `input_tokens` and `output_tokens` only: cache reads and cache writes are reported apart and are not counted against it.
+ */
+export function withHistoryBreakpoint(messages: { role: "user" | "assistant"; content: unknown }[], cache: boolean): { role: "user" | "assistant"; content: unknown }[] {
+  if (!cache || !messages.length) return messages;
+  const out = messages.slice();
+  const last = out[out.length - 1]!;
+  // a plain-text message (the opening) is left as it is: changing its form would change what a thinking block of a later reply is bound to
+  if (Array.isArray(last.content) && last.content.length) {
+    const blocks = last.content.slice() as Array<Record<string, unknown>>;
+    const k = blocks.length - 1;
+    if (blocks[k]!.type === "thinking" || blocks[k]!.type === "redacted_thinking") return out; // a thinking block is never marked or changed
+    blocks[k] = { ...blocks[k], cache_control: { type: "ephemeral" } };
+    out[out.length - 1] = { ...last, content: blocks };
+  }
+  return out;
+}
+
 export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
   const limits = { ...DEFAULT_LIMITS, ...(o.limits ?? {}) };
   const sleep = o.sleep ?? defaultSleep, now = o.now ?? Date.now, doFetch = o.fetchImpl ?? fetch;
@@ -174,6 +194,8 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
   const system: unknown = eco.cache ? [{ type: "text", text: systemText, cache_control: { type: "ephemeral" } }] : systemText;
   // What the agent is told again when older exchanges are dropped: the opening and its own rolling summary.
   const reopen = (): string => { const sm = o.toolset.summary?.(o.agent); return sm ? `${opening}\n\nWhat you have done so far (kept for you; the earlier conversation is not repeated):\n${sm}` : opening; };
+  // the history mark is switched off for the rest of this agent's life if the provider ever refuses a thinking block as bound to another conversation (the mark would be the suspect): the cost is one retry, never the agent
+  let histCache = eco.cache;
   let turns = 0, toolCalls = 0, refusedSeen = 0;
   const finish = (stopped: StopReason, detail?: string): AgentOutcome => {
     const g = o.observe?.();
@@ -213,7 +235,7 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
         try {
           res = await doFetch(`${o.gatewayUrl.replace(/\/$/, "")}/v1/messages`, {
             method: "POST", headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" }, signal: wall.signal,
-            body: JSON.stringify({ model: o.model, max_tokens: o.replyTokens ?? 1024, system, tools: decl, messages }),
+            body: JSON.stringify({ model: o.model, max_tokens: o.replyTokens ?? 1024, system, tools: decl, messages: withHistoryBreakpoint(messages, histCache) }),
           });
         } catch (e) {
           if (wall.signal.aborted) return finish(o.signal.aborted ? "stopped" : "wall_clock");
@@ -228,6 +250,7 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
         // A thinking block that the provider says belongs to another conversation: drop the thinking blocks of the history once and ask again; the agent is never ended for it.
         if (status === 400 && !droppedForThisCall && THINKING_BINDING_RE.test(message)) {
           droppedForThisCall = true;
+          histCache = false;
           const n = dropThinkingBlocks(messages);
           if (n > 0) { o.onEvent?.({ kind: "thinking_dropped", agent: o.agent, turn: turns, blocks: n, why: "provider_400" }); continue; }
         }

@@ -144,6 +144,7 @@ test("a review job is suggested from a note the agent wrote, until it has posted
 
 test("the greeter introduces two agents that share an interest with one message to each that names the other, at most twice for one agent; a comment that names an agent reaches that agent once for each post", async () => {
   const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-inv-pair-")) });
+  w.api.foldRepeats = false; // these tests read the same answer twice on purpose
   try {
     const hall = w.api.market!;
     const agents = [];

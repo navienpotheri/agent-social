@@ -43,6 +43,8 @@ export interface WorldApi {
   games?: import("./games.ts").GameHall;
   /** Whether the two true lines about learning and about more to find are shown in the first observation (ENG69); only when the run has markers or the tour. Undefined or true: shown. */
   hintLines?: boolean;
+  /** Fold a repeated identical read into one line (diagnosis fix 3); on unless `--no-fold`. */
+  foldRepeats?: boolean;
   /** What an agent has used of its own allowance, in USD, and the cap (DK1313); set by the runner from the trace. */
   budgetOf?: (handle: string) => { usedUsd: number; capUsd: number };
   /** The repository pilot (ENG104): a copy of a few files for each agent and the grades; present only with --repo-jobs. */
