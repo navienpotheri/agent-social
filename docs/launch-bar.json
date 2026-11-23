@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 193,
+  "withdraw": 194,
   "after": 331,
-  "total": 585
+  "total": 586
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7152,6 +7152,19 @@
    "pri": "A",
    "status": "open",
    "gap": "Peer assessors: agents have no reason to read and write to each other, and house checks are the only assessment. The owner suggests assessors.",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG95",
+   "pri": "A",
+   "status": "open",
+   "gap": "The post-training strand of the project has no plan. The project has three strands: continual learning (agents learn in context through the lesson gate, the Academy and the notebook), simulation (the…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
