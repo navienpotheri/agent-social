@@ -85,5 +85,55 @@ export function renderRepoGrades(grades: RepoGrade[]): string {
   L.push("This is the first grader that does not depend on the house's own checks; a handful of jobs shows what was counted and nothing about how able the agents are.");
   return L.join("\n") + "\n\n";
 }
+/** The files an agent may edit in its own copy, and how: the two fixtures are replaced whole, the register is only appended to (one line at a time). */
+export const REPO_FILES: Record<string, { path: string; modes: Array<"replace" | "append">; max: number }> = {
+  "pilot-note": { path: "docs/pilot-note.md", modes: ["replace"], max: 400 },
+  "sum-test": { path: "pilot/sum.test.mjs", modes: ["replace"], max: 1500 },
+  "testing-map": { path: "docs/testing-map.md", modes: ["append"], max: 500 },
+  "sum": { path: "pilot/sum.mjs", modes: [], max: 0 },
+};
+
+/** The house's repository jobs on arrival (ENG104): three tiers and one job for two agents, each graded in the agent's own copy by the pilot's grader. Tags are in the purpose so that the board says what each is. */
+export const REPO_JOB_SPECS: Array<{ job: string; tag: string; purpose: string; criterion: string; budget: number; level: 1 | 2 | 3; partner?: boolean }> = [
+  { job: "fix-typo", tag: "tier 1", purpose: "[repository, tier 1] pilot-note has one misspelt word. Read it (repo_read pilot-note), fix that one word and nothing else (repo_edit pilot-note, replace), then deliver here. It is graded on your own copy of the file", criterion: "one line changed and the word right", budget: 12, level: 1 },
+  { job: "add-test", tag: "tier 2", purpose: "[repository, tier 2] The file sum exports sum(a, b) (repo_read sum). Write a test for it with at least two assertions using node:test and node:assert (repo_edit sum-test, replace), then deliver here. node --test is run on your copy", criterion: "node --test passes and two assertions", budget: 20, level: 2 },
+  { job: "register-row", tag: "tier 3", purpose: "[repository, tier 3] testing-map is the register of use cases. Add one row for the use case 'an agent reads the pilot note' with a new UC id and seven columns like the rows around it (repo_edit testing-map, append), then deliver here. The rule is run on your copy", criterion: "one new row, seven columns, a new UC id", budget: 24, level: 3 },
+  { job: "add-test", tag: "two agents", purpose: "[repository, two agents] Partner job: each of you writes a test for sum in your own copy (repo_edit sum-test, replace), then each delivers naming the other agent; both copies are graded", criterion: "name your partner; node --test passes on your copy", budget: 26, level: 3, partner: true },
+];
+
+/** One copy of the files for each agent, outside the repository; edits are made only there; each delivery attempt is graded and recorded. */
+export class RepoPilot {
+  readonly grades: RepoGrade[] = [];
+  private readonly copies = new Map<string, { dir: string; original: Record<string, string> }>();
+  readonly root: string; readonly base: string;
+  constructor(root: string, base: string) { this.root = root; this.base = base; }
+  copyFor(handle: string): { dir: string; original: Record<string, string> } {
+    let c = this.copies.get(handle);
+    if (!c) { const dir = makeCopy(this.root, join(this.base, handle)); c = { dir, original: snapshot(dir) }; this.copies.set(handle, c); }
+    return c;
+  }
+  read(handle: string, name: string): string | undefined {
+    const f = REPO_FILES[name]; if (!f) return undefined;
+    const text = readFileSync(join(this.copyFor(handle).dir, f.path), "utf8");
+    return name === "testing-map" ? text.split("\n").slice(-12).join("\n") : text;
+  }
+  edit(handle: string, name: string, mode: "replace" | "append", text: string): string | undefined {
+    const f = REPO_FILES[name];
+    if (!f) return `there is no file called ${name}: ${Object.keys(REPO_FILES).join(", ")}`;
+    if (!f.modes.includes(mode)) return `${name} cannot be changed that way (${f.modes.join(", ") || "it is read only"})`;
+    if (text.length > f.max) return `${name} takes at most ${f.max} characters; yours is ${text.length}`;
+    const file = join(this.copyFor(handle).dir, f.path);
+    const cur = existsSync(file) ? readFileSync(file, "utf8") : "";
+    writeFileSync(file, mode === "replace" ? (text.endsWith("\n") ? text : text + "\n") : cur.replace(/\n*$/, "\n") + text.replace(/\n*$/, "") + "\n");
+    return undefined;
+  }
+  /** Grades a job in the agent's copy and records the attempt (accepted or rejected, with the reason). */
+  gradeFor(jobKey: string, handle: string, tier: number): { accepted: boolean; reason: string } {
+    const c = this.copyFor(handle), job = PILOT_JOBS.find((j) => j.id === jobKey);
+    const g = job ? grade(job, c.dir, c.original) : { accepted: false, reason: "no such job" };
+    this.grades.push({ job: jobKey, tier, agent: handle, accepted: g.accepted, reason: g.reason, at: new Date().toISOString() });
+    return g;
+  }
+}
 export const relativeTo = (a: string, b: string): string => relative(a, b);
 export const dirOf = dirname;

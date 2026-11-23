@@ -89,6 +89,18 @@ export class MarketHall {
       this.hardStats[job.category] ??= { taken: 0, delivered: 0, refused: 0 };
     }
   }
+  /** ENG104: the repository jobs, posted on arrival through the Market by the house; the grader runs in the delivering agent's own copy. */
+  repoGrader?: (job: string, handle: string, tier: number) => { accepted: boolean; reason: string };
+  async postRepoJobs(specs: Array<{ job: string; tag: string; purpose: string; criterion: string; budget: number; level: 1 | 2 | 3; partner?: boolean }>): Promise<void> {
+    for (const s of specs) {
+      const tier = s.tag === "tier 1" ? 1 : s.tag === "tier 2" ? 2 : s.tag === "tier 3" ? 3 : 4;
+      const job: HouseJob = { purpose: s.purpose, criterion: s.criterion, budget: s.budget, check: () => null, category: s.partner ? "partner" : "repository", level: s.level, ...(s.partner ? { partner: true } : {}), repo: { job: s.job, tier } };
+      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard");
+      const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
+      this.houseChecks.set(r.intent, job);
+      this.houseOf.set(r.intent, poster);
+    }
+  }
   /** Whether an agent holds the certificate of a course: a passed sitting. */
   hasCertificate(did: string, course: string): boolean { return this.sittingsOf(did, course).some((s) => s.passed); }
   /** Records a sitting outcome (what a course sitting does; also how a test gives a certificate). */
@@ -626,7 +638,8 @@ export class MarketHall {
       if (workers.size < 3) throw new Error(`a project is delivered by citing three contract ids of jobs you posted that three different agents did and that were settled (you cited ${workers.size}); nothing was recorded: post the parts as jobs (post_job), accept their offers and deliveries (accept_offer, accept_delivery), then deliver again`);
     }
     if (hj) {
-      const why = hj.check(summary);
+      let why = hj.check(summary);
+      if (!why && hj.repo && this.repoGrader) { const g = this.repoGrader(hj.repo.job, agent.handle, hj.repo.tier); why = g.accepted ? null : g.reason; }
       if (why) {
         const key = `${agent.did}|${contractId}`, n = (this.failsOf.get(key) ?? 0) + 1;
         this.failsOf.set(key, n);

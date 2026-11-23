@@ -43,6 +43,8 @@ export interface WorldApi {
   games?: import("./games.ts").GameHall;
   /** Whether the two true lines about learning and about more to find are shown in the first observation (ENG69); only when the run has markers or the tour. Undefined or true: shown. */
   hintLines?: boolean;
+  /** The repository pilot (ENG104): a copy of a few files for each agent and the grades; present only with --repo-jobs. */
+  repoPilot?: import("./repo-pilot.ts").RepoPilot;
   /** The Town Hall that runs by itself (ENG113): house roles and a clock; present only when the run starts it. */
   townAuto?: import("./town-auto.ts").TownAuto;
   /** Read-only copies of real documents for the repository tasks (ENG84 c); present only with --hard-jobs. */
