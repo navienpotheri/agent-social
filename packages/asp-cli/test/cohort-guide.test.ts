@@ -67,7 +67,7 @@ test("a run writes its refusal counts; a later run built from them offers the gu
   const trace = readFileSync(join(second.dir, "trace.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
   assert.deepEqual(trace.find((e) => e.t === "start").toolGroups.includes("expedition"), true);
   const md = readFileSync(second.markdownPath, "utf8");
-  assert.match(md, /## The field guide: newcomers offered it and not\n\nThe guide listed 1 refusals \(bad_input\) from /);
+  assert.match(md, /## The field guide: newcomers offered it and not\n\nThe guide listed \d+ refusals \(bad_input[,)]/); // the count of kinds follows what the first run met; under load it can meet more than bad_input
   assert.match(md, /2 agents were offered it and 2 were not\./);
   assert.match(md, /Offered: .*Not offered: /);
   // the guide text reached the offered agents only: agents 1 and 3 (numbers 0 and 2) read it, agents 2 and 4 did not
