@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 203,
-  "after": 336,
-  "total": 600
+  "withdraw": 206,
+  "after": 337,
+  "total": 604
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7349,6 +7349,57 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG110",
+   "pri": "A",
+   "status": "open",
+   "gap": "END-TO-END POST-TRAINING USE CASE ON A PUBLIC DATASET (the owner's own request; this is the owner's 'ENG 1.9A'). Pick one use case, a publicly available open dataset, build the case around it and run…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG111",
+   "pri": "B",
+   "status": "open",
+   "gap": "MODEL SURGERY / SELF-EDITING OF WEIGHTS. The owner reports a recent idea gathering attention in which a language model is asked to edit its own weights from its own outputs, apparently efficiently. T…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG112",
+   "pri": "A",
+   "status": "open",
+   "gap": "POSITIONING BEYOND THE CURRENT ROADMAP: HOSTING, CONTAINERS AND SIMULATION AS A SERVICE FOR ENTERPRISES, with the society free to join. The owner's broader goal is to offer hosting, containers and si…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG113",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE TOWN HALL DOES NOT RUN BY ITSELF. Cards and the Finds thread exist, but the day cycle and roles are off by default, so nothing makes the Town Hall run its own roles (lane-society-2 report, ENG88)…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
