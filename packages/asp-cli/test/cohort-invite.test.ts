@@ -186,6 +186,6 @@ test("two-agent jobs are listed first, after the agent's own, with the agents th
     assert.ok(hall.peersByInterest(me.did).length > 0);
     const board = JSON.parse(stripExtras((await caller(w)(me, "look_jobs")).text)) as { note: string; result: { purpose: string }[] };
     assert.match(board.result[0]!.purpose, /Partner job/, "a two-agent job is listed first");
-    assert.match(board.note, /Two-agent jobs are listed first; agents who share an interest with you and could be a partner: agent-0\d \([^)]+\)(, agent-0\d \([^)]+\))*; send_message reaches them\./);
+    assert.match(board.note, /Two-agent jobs are listed first; agents who share an interest with you and could be a partner: agent-\d\d \([^)]+\)(, agent-\d\d \([^)]+\))*; send_message reaches them\./);
   } finally { await w.close(); }
 });
