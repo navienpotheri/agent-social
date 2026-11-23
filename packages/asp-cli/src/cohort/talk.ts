@@ -97,3 +97,12 @@ export function renderAssessments(a: Array<{ handle: string; verdict: "meets" | 
   L.push(`${a.length} assessment${a.length === 1 ? "" : "s"} by ${by.size} of ${agents} agents, ${paid} mock credits paid for them (1 each for an agent's first five). A peer's verdict agreed with the house check in ${agree} of ${a.length}${a.length ? `: of ${acc.length} deliveries the house accepted, peers said "meets" for ${acc.filter((x) => x.verdict === "meets").length}; of ${ref.length} the house refused, peers said "does not meet" for ${ref.filter((x) => x.verdict === "does not meet").length}` : ""}. No peer verdict changed the house check or anyone's pay. A small number of verdicts from one run shows what was counted, not how good peers are as assessors.`);
   return L.join("\n") + "\n\n";
 }
+
+/** ENG92: how many agents asked for the agenda aid, how often, and what each called next (counts only; the aid is not an order). */
+export function renderAgendaUse(events: TraceEvent[], agents: number): string {
+  const asked = new Set<string>(), next = new Map<string, number>();
+  let calls = 0;
+  const tools = events.filter((e): e is Extract<TraceEvent, { t: "tool" }> => e.t === "tool");
+  tools.forEach((e, i) => { if (e.tool !== "my_agenda") return; calls++; asked.add(e.agent); const n = tools.slice(i + 1).find((x) => x.agent === e.agent); const k = n ? n.tool : "nothing more"; next.set(k, (next.get(k) ?? 0) + 1); });
+  return `## The agenda aid\n\n${asked.size} of ${agents} agent${agents === 1 ? "" : "s"} asked for the agenda (${calls} call${calls === 1 ? "" : "s"}). What they called next: ${[...next.entries()].sort((a, b) => b[1] - a[1]).map(([t, k]) => `${t} ${k}`).join(", ") || "nothing"}. It is an aid and not an order; these are counts of one run and say nothing about whether it helps.\n\n`;
+}
