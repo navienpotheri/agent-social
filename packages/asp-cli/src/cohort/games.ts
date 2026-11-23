@@ -10,6 +10,8 @@ import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { commitSeed, hsTranscriptHash, matchesFor, moveCommit, playEntrant, runGame, runHideSeek, scoreOf, transcriptHash, validHsMove, validPolicy, GAME_HANDS, HS_CELLS, STAND_MAX, STAND_MIN, type GamePolicy, type HsMove } from "@agent-social/asp-log";
 
+import { WORD_PAIRS, playTrade, playWordPair, promptOf, validOrder, validWord } from "./games-extra.ts";
+
 export const ROUND_SIZE = 4;
 export const PRIZES = [3, 1];
 
@@ -17,6 +19,8 @@ export interface GameInfo { name: string; rule: string; move: string }
 export const GAMES: Record<string, GameInfo> = {
   "twenty-one": { name: "twenty-one", rule: `Each player picks a number to stand at, from ${STAND_MIN} to ${STAND_MAX}, and plays ${GAME_HANDS} hands against the house dealer from the referee's seed; the highest score wins.`, move: `{"stand_at": 17}` },
   "hide-and-seek": { name: "hide-and-seek", rule: `Each player picks a cell to hide in, 0 to ${HS_CELLS - 1}, and the order to search the cells in; every pair plays twice, and finding the other in fewer probes wins.`, move: `{"hide": 4, "order": [4,3,5,2,6,1,7,0,8]}` },
+  "word-pair": { name: "word-pair", rule: "The referee names a prompt word; each player names one lowercase word that goes with it. A player scores a point for each other player who named the same word, and one for a word the referee lists.", move: `{"word": "pepper"}` },
+  "trading": { name: "trading", rule: "Each player buys or sells and states a limit price, 1 to 20. The referee clears the market at one price; a matched player scores its gain against its own limit, the others 0.", move: `{"side": "buy", "limit": 12}` },
 };
 
 export interface Entry { did: string; handle: string; move: unknown; salt: string; commit: string }
@@ -28,6 +32,8 @@ export interface Round {
   entries: Entry[];
   /** After the round is played: the seed and salt revealed, and the results. */
   seed?: string; salt?: string; results?: RoundResult[]; void?: string;
+  /** The prompt word of a word-pair round, and the clearing price of a trading round (published with the result). */
+  prompt?: string; price?: number;
 }
 
 export class GameHall {
@@ -47,6 +53,7 @@ export class GameHall {
     let r = this.rounds.find((x) => x.game === game && !x.results && !x.void);
     if (!r) {
       r = { id: `${game}-${++this.seq}`, game, entries: [] };
+      if (game === "word-pair") r.prompt = promptOf(this.rounds.filter((x) => x.game === game).length + 1);
       if (game === "twenty-one") { const seed = randomBytes(8).toString("hex"), salt = randomBytes(8).toString("hex"); r.commit = commitSeed(seed, salt); this.secrets.set(r.id, { seed, salt }); }
       this.rounds.push(r);
     }
@@ -55,7 +62,7 @@ export class GameHall {
 
   /** The games, their rules, and the open round of each with who has entered (the moves are hidden). */
   list(): string {
-    return Object.values(GAMES).map((g) => { const r = this.open(g.name); return `${g.name}: ${g.rule} A move looks like ${g.move}. Round ${r.id}: ${r.entries.length} of ${this.size} entered (${r.entries.map((e) => e.handle).join(", ") || "none yet"}); ${r.commit ? `the referee's seed is committed (${r.commit.slice(0, 19)}...); ` : ""}the round is played when it is full. Prizes: ${PRIZES.join(" and ")} mock credits for first and second.`; }).join("\n");
+    return Object.values(GAMES).map((g) => { const r = this.open(g.name); return `${g.name}: ${g.rule} A move looks like ${g.move}. Round ${r.id}${r.prompt ? ` (the prompt word is "${r.prompt}")` : ""}: ${r.entries.length} of ${this.size} entered (${r.entries.map((e) => e.handle).join(", ") || "none yet"}); ${r.commit ? `the referee's seed is committed (${r.commit.slice(0, 19)}...); ` : ""}the round is played when it is full. Prizes: ${PRIZES.join(" and ")} mock credits for first and second.`; }).join("\n");
   }
 
   /** Enters a move. It is checked against the game's rule and committed by a hash; nobody sees it before the round is played. Returns the line the agent is told, and the played round when this entry filled it. */
@@ -66,6 +73,8 @@ export class GameHall {
     try { move = JSON.parse(moveText); } catch { throw new Error(`a move is JSON, for example ${g.move}`); }
     if (game === "twenty-one" && !validPolicy(move)) throw new Error(`that is not a move of ${game}: ${g.move} with stand_at from ${STAND_MIN} to ${STAND_MAX}`);
     if (game === "hide-and-seek" && !validHsMove(move)) throw new Error(`that is not a move of ${game}: ${g.move} (hide in 0 to ${HS_CELLS - 1}, and an order that lists every cell once)`);
+    if (game === "word-pair" && !validWord(move)) throw new Error(`that is not a move of ${game}: ${g.move} (one lowercase word, 2 to 12 letters)`);
+    if (game === "trading" && !validOrder(move)) throw new Error(`that is not a move of ${game}: ${g.move} (side buy or sell, a whole limit from 1 to 20)`);
     const r = this.open(game);
     if (r.entries.some((e) => e.did === did)) throw new Error(`you have already entered round ${r.id}; its result comes when it is full`);
     const salt = randomBytes(8).toString("hex");
@@ -87,6 +96,11 @@ export class GameHall {
       const run = runGame({ commit: r.commit!, seed: s.seed, salt: s.salt, entrants: r.entries.map((e) => ({ agent: e.did, sponsor: e.did, policy: e.move as GamePolicy })), minDistinctSponsors: 1 });
       if (run.void) { r.void = run.reason ?? "void"; this.save(); return; }
       r.seed = s.seed; r.salt = s.salt; ranked = run.results;
+    } else if (r.game === "word-pair") {
+      ranked = playWordPair(r.prompt!, r.entries.map((e) => ({ agent: e.did, move: e.move as { word: string } })));
+    } else if (r.game === "trading") {
+      const tr = playTrade(r.entries.map((e) => ({ agent: e.did, move: e.move as { side: "buy" | "sell"; limit: number } })));
+      r.price = tr.price; ranked = tr;
     } else {
       const run = runHideSeek({ entrants: r.entries.map((e) => ({ agent: e.did, sponsor: e.did, move: e.move as HsMove })), minDistinctSponsors: 1, tieSeed: r.id });
       if (run.void) { r.void = run.reason ?? "void"; this.save(); return; }
@@ -124,6 +138,13 @@ export class GameHall {
     if (r.game === "twenty-one") {
       if (!r.seed || !r.salt || commitSeed(r.seed, r.salt) !== r.commit) bad.push("the seed does not match the referee's commitment");
       else for (const e of r.entries) { const p = playEntrant(r.seed, e.move as GamePolicy); const h = transcriptHash(e.did, e.move as GamePolicy, p.transcript); if (r.results.find((x) => x.did === e.did)?.transcript_hash !== h || r.results.find((x) => x.did === e.did)?.score !== scoreOf(p.points, GAME_HANDS)) bad.push(`${e.handle}'s result does not recompute`); }
+    } else if (r.game === "word-pair") {
+      const again = playWordPair(r.prompt ?? "", r.entries.map((e) => ({ agent: e.did, move: e.move as { word: string } })));
+      for (const e of r.entries) { const x = again.find((y) => y.agent === e.did)!, got = r.results.find((y) => y.did === e.did); if (!got || got.transcript_hash !== x.transcript_hash || got.score !== x.score) bad.push(`${e.handle}'s result does not recompute`); }
+    } else if (r.game === "trading") {
+      const again = playTrade(r.entries.map((e) => ({ agent: e.did, move: e.move as { side: "buy" | "sell"; limit: number } })));
+      if (again.price !== r.price) bad.push("the clearing price does not recompute");
+      for (const e of r.entries) { const x = again.find((y) => y.agent === e.did)!, got = r.results.find((y) => y.did === e.did); if (!got || got.transcript_hash !== x.transcript_hash || got.score !== x.score) bad.push(`${e.handle}'s result does not recompute`); }
     } else {
       const ent = r.entries.map((e) => ({ agent: e.did, sponsor: e.did, move: e.move as HsMove }));
       for (const e of ent) { const { matches } = matchesFor(e, ent); if (r.results.find((x) => x.did === e.agent)?.transcript_hash !== hsTranscriptHash(e.agent, e.move, matches)) bad.push(`${r.entries.find((y) => y.did === e.agent)!.handle}'s result does not recompute`); }
@@ -139,6 +160,8 @@ export function renderGames(g: GameHall): string {
   if (!played.length) { L.push(`The society had games (${Object.keys(GAMES).join(", ")}) and no round was played to the end.`); return L.join("\n") + "\n"; }
   L.push(`${played.length} round${played.length === 1 ? "" : "s"} played to the end; ${g.prizesPaid} mock credits paid in prizes. Every round can be recomputed from its seed and moves (games.json); ${played.filter((r) => g.verify(r).length === 0).length} of ${played.length} do.`);
   L.push("");
-  for (const r of played) L.push(`- ${r.id}: ${r.results!.map((x) => `${x.rank}. ${x.handle} (${x.score})`).join(", ")}`);
+  for (const r of played) L.push(`- ${r.id}${r.prompt ? ` (prompt "${r.prompt}")` : ""}${r.price !== undefined ? ` (cleared at ${r.price})` : ""}: ${r.results!.map((x) => `${x.rank}. ${x.handle} (${x.score})`).join(", ")}`);
+  const byGame = Object.keys(GAMES).map((n) => `${n} ${played.filter((r) => r.game === n).length}`).join(", ");
+  L.push("", `Rounds played to the end by game: ${byGame}. Each round has a hashed transcript and the referee is a program of the house; no text says anyone should play.`);
   return L.join("\n") + "\n";
 }

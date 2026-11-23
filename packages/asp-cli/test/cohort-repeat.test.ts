@@ -129,7 +129,7 @@ test("the spread and the reading rule: range, mean and SD of the values, a diffe
   assert.equal(h.minutesStayed, (60 + 1) / 2, "a stayed 60 simulated minutes, b stayed 1");
   assert.equal(h.prematureLeaveRate, 0.5, "b left after one minute with nothing waiting: one of two agents");
   assert.equal(h.diversity, 1, "no two of the texts share a word");
-  assert.equal(FIGURES.length, 10);
+  assert.equal(FIGURES.length, 16);
   const md = renderRepeat(repeatReport([h, { ...h, posts: 3 }], { capUsdPerRun: 6 }));
   assert.match(md, /\| Posts \| 1 \| 3 \| 2 \| 2 \| 1\.4142 \|/);
   assert.match(md, /at most \$12\.00 in all/);

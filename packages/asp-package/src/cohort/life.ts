@@ -325,6 +325,19 @@ export class AgentLife {
     try { writeFileSync(this.path, next); } catch { /* kept in memory */ }
     return had ? "updated" : "added";
   }
+  /**
+   * A lesson another agent wrote, that the lesson gate admitted and that this agent cited, as ONE labelled line in its notebook (never the raw card, never the evidence text): the agent can keep it or delete it, and a
+   * line already there (the same lesson id) is not added again. Returns what was done; the caller records it.
+   */
+  lessonNote(n: { id: string; handle: string; title: string; lesson: string }): "added" | "skipped" {
+    if (this.notebook.includes(`(${n.id} `)) return "skipped";
+    const line = `From the society, a lesson that another agent wrote and the gate admitted (you cited it; you can keep or delete this line): "${n.title.slice(0, 60)}" (${n.id} by ${n.handle}): ${n.lesson.slice(0, 200)}`;
+    const next = this.notebook ? `${this.notebook}\n${line}` : line;
+    if (next.length > this.limits.notebookChars) return "skipped";
+    this.notebook = next;
+    try { writeFileSync(this.path, next); } catch { /* kept in memory */ }
+    return "added";
+  }
   /** What the writeback added to what this agent was shown: the characters of the society's lines in each observation, and how many writes. */
   writebackStats(): { notes: number; shownChars: number; rules: Record<string, number> } { return { notes: this.wbNotes, shownChars: this.wbShown, rules: Object.fromEntries(this.wbMet) }; }
   /** The notebook as it is now (for the report and the tests). */

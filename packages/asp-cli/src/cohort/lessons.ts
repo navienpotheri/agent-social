@@ -24,6 +24,8 @@ export class LessonShelf {
   readonly cards: LessonCard[] = [];
   readonly reads: ReadRecord[] = [];
   readonly cites: CiteRecord[] = [];
+  /** Lessons placed in an agent's notebook after it cited them (through the gate: only admitted cards, one labelled line each): a recorded, reviewable change. */
+  readonly notebookWrites: Array<{ id: string; handle: string; at: string; action: "added" | "skipped"; hash: string }> = [];
   private seq = 0;
   private readonly acts = new Map<string, Set<string>>();
   private readonly now: () => Date;

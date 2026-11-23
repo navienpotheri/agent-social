@@ -116,3 +116,8 @@ export function renderHard(hard: Record<string, { taken: number; delivered: numb
   L.push(`Specialist job (asks for a course certificate): ${g("specialist").refused} offer${g("specialist").refused === 1 ? " was" : "s were"} refused for want of the certificate, ${g("specialist").taken} taken, ${g("specialist").delivered} delivered. Repository tasks (read-only copies of real documents, answers the house checks): ${g("repository").taken} taken, ${g("repository").delivered} delivered. Helpers: none were built or started in this run (the helper tool is a design note only).`);
   return L.join("\n") + "\n\n";
 }
+
+/** DK1346: what became of the direct messages: delivered (recorded in the log as they were sent), read (seen by the one they were sent to) and answered (a later message names them), for all messages and for those from agents. */
+export function renderMessageDelivery(s: { delivered: number; read: number; answered: number; toAgents: { delivered: number; read: number; answered: number } }): string {
+  return `## What became of the direct messages\n\n${s.delivered} direct message${s.delivered === 1 ? " was" : "s were"} delivered (each is a signed record in the log from the moment it is sent): ${s.read} read by the agent it was sent to (seen in my_inbox) and ${s.answered} answered by a later message that names it. Of the messages written by agents rather than the house: ${s.toAgents.delivered} delivered, ${s.toAgents.read} read, ${s.toAgents.answered} answered. An agent's open items count its unread messages. These are counts of one run.\n\n`;
+}
