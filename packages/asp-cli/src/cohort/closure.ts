@@ -4,17 +4,22 @@
  * is better than its baseline in the direction the row names; a row whose flag was off, or whose number cannot be read from the folder, or that has no baseline, is NOT MEASURABLE and says why. Nothing here changes a register.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { collisionReport } from "./collisions.ts";
 import { join } from "node:path";
 
 type Ev = Record<string, unknown> & { t: string };
-export interface ClosureRow { row: string; condition: string; measured: string; baseline: string; verdict: "MET" | "NOT MET" | "NOT MEASURABLE"; reason: string }
+export interface ClosureRow { row: string; condition: string; measured: string; baseline: string; verdict: "MET" | "NOT MET" | "NOT MEASURABLE" | "DESCRIPTIVE"; reason: string }
 interface Ctx { events: Ev[]; report: string; refusals: Record<string, number>; agents: number; groups: string[]; tools: Ev[] }
 
 const num = (x: unknown): number => (typeof x === "number" ? x : Number(x) || 0);
 const tools = (c: Ctx, name: string, ok?: boolean): Ev[] => c.tools.filter((e) => e.tool === name && (ok === undefined || e.ok === ok));
 const agentsOf = (es: Ev[]): number => new Set(es.map((e) => String(e.agent))).size;
 
-interface Def { row: string; condition: string; baseline: string; base: number | null; better: "lower" | "higher"; needs?: string; measure: (c: Ctx) => { n: number; text: string } | null }
+interface Def { row: string; condition: string; baseline: string; base: number | null; better: "lower" | "higher"; needs?: string; descriptive?: boolean; measure: (c: Ctx) => { n: number; text: string } | null }
+/** The text of a report section from its heading to the next one (empty when it is not there). */
+const section = (report: string, heading: string): string => { const i = report.indexOf(`## ${heading}`); if (i < 0) return ""; const j = report.indexOf("\n## ", i + 4); return report.slice(i, j < 0 ? undefined : j).trim(); };
+const firstWords = (txt: string, n = 220): string => txt.replace(/^## [^\n]*\n+/, "").replace(/\s+/g, " ").slice(0, n);
+const textsOf = (c: Ctx): string[] => c.tools.filter((e) => e.ok && ["forum_post", "forum_comment", "send_message", "workspace_write", "notebook_write"].includes(String(e.tool))).map((e) => String((e.input as Record<string, unknown>)?.text ?? (e.input as Record<string, unknown>)?.title ?? ""));
 const refusalTotal = (c: Ctx): number => Object.values(c.refusals).reduce((a, b) => a + b, 0);
 
 const DEFS: Def[] = [
@@ -36,6 +41,23 @@ const DEFS: Def[] = [
   { row: "ENG86", condition: "agents open the field guide", baseline: "no baseline in the register", base: null, better: "higher", measure: (c) => { const m = /(\d+) of (\d+) agents opened the guide/.exec(c.report); return m ? { n: Number(m[1]), text: `${m[1]} of ${m[2]} agents opened the guide` } : null; } },
   { row: "ENG71 / DK1830", condition: "agents write plan, expect, belief lines", baseline: "no baseline in the register", base: null, better: "higher", needs: "signals", measure: (c) => { const n = agentsOf(c.events.filter((e) => e.t === "signal")); return { n, text: `${n} of ${c.agents} agents produced a signal line` }; } },
   { row: "DK1306", condition: "agents use institutions and each other", baseline: "0 jobs settled between agents (25-agent run)", base: 0, better: "higher", measure: (c) => { const n = tools(c, "accept_delivery", true).length; const inst = new Set(c.tools.filter((e) => e.ok && e.institution && e.institution !== "none").map((e) => String(e.institution))).size; return { n, text: `${n} deliveries accepted between agents; ${inst} institutions used` }; } },
+  { row: "ENG48", condition: "credits are not seen as a cost", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const took = agentsOf(tools(c, "offer_on_job", true)); const q = textsOf(c).filter((x) => /credit/i.test(x)).slice(0, 3).map((x) => `"${x.replace(/\s+/g, " ").slice(0, 80)}"`); return { n: took, text: `${took} of ${c.agents} agents took a house job (${(took / Math.max(1, c.agents)).toFixed(2)}); phrases about credits: ${q.length ? q.join("; ") : "none written"}` }; } },
+  { row: "ENG59", condition: "orientation stops are taken", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, needs: "expedition", measure: (c) => { const best = new Map<string, number>(); for (const e of c.tools) if (typeof e.expedition === "number") best.set(String(e.agent), Math.max(best.get(String(e.agent)) ?? 0, e.expedition)); const per = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [...best.values()].filter((v) => v >= k).length); return { n: best.size, text: `stops reached (agents with at least 1 to 7 stops): ${per.slice(1).join(", ")} of ${c.agents}` }; } },
+  { row: "ENG64", condition: "agents look at their progress", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const n = agentsOf(tools(c, "my_progress", true)); return { n, text: `${n} of ${c.agents} agents called my_progress (${tools(c, "my_progress").length} calls)` }; } },
+  { row: "ENG87", condition: "offer collisions are recorded", baseline: "21 offers refused in the 25-agent run", base: null, better: "lower", descriptive: true, measure: (c) => { const r = collisionReport(c.events as never, false); const rec = r.collisions.filter((x) => x.recoverMs !== undefined).map((x) => x.recoverMs!).sort((a, b) => a - b); const med = rec.length ? rec[Math.floor(rec.length / 2)]! / 1000 : null; return { n: r.collisions.length, text: `${r.collisions.length} collisions of ${r.offers} offers; ${r.collisions.filter((x) => x.outcome === "moved").length} moved on, ${r.collisions.filter((x) => x.outcome === "retried").length} retried; median recovery ${med === null ? "n/a (none recovered)" : `${med} s`}${/## Offer collisions/.test(c.report) ? "; the report section is there" : "; no report section"}` }; } },
+  { row: "ENG78", condition: "repeat refusals share falls", baseline: "33 percent of agents met a refusal more than once", base: 0.33, better: "lower", measure: (c) => { const by = new Map<string, Map<string, number>>(); for (const e of c.tools) if (e.ok === false && e.refused) { const m = by.get(String(e.agent)) ?? new Map<string, number>(); m.set(String(e.refused), (m.get(String(e.refused)) ?? 0) + 1); by.set(String(e.agent), m); } if (!by.size) return { n: 0, text: "no agent met a refusal (0 of 0)" }; const rep = [...by.values()].filter((m) => [...m.values()].some((k) => k > 1)).length; return { n: rep / by.size, text: `${rep} of ${by.size} agents that met a refusal met the same rule more than once (${(rep / by.size).toFixed(2)})` }; } },
+  { row: "ENG50", condition: "sponsored and key-only split present", baseline: "no split before ENG50 (0 kinds)", base: 1, better: "higher", measure: (c) => { const k = new Set(c.events.filter((e) => e.t === "agent").map((e) => String(e.kind ?? ""))).size; return { n: k, text: `${k} kinds in the agent records${/## Sponsored and key-only/.test(c.report) ? "; the side-by-side section is there" : "; no side-by-side section"}` }; } },
+  { row: "ENG84", condition: "harder jobs taken and delivered", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "Harder jobs"); if (!s) return null; return { n: 1, text: firstWords(s, 260) }; } },
+  { row: "ENG92", condition: "agents ask for the agenda", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, needs: "agenda", measure: (c) => { const n = agentsOf(tools(c, "my_agenda", true)); return { n, text: `${n} of ${c.agents} agents asked for the agenda (${tools(c, "my_agenda").length} calls)` }; } },
+  { row: "ENG94", condition: "agents assess each other", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, needs: "assess", measure: (c) => { const n = tools(c, "assess_submit", true).length; return { n, text: `${n} assessments by ${agentsOf(tools(c, "assess_submit", true))} agents` }; } },
+  { row: "ENG93", condition: "ladder steps shown after refusals", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "Evolving hardness"); if (!s) return null; return { n: 1, text: firstWords(s, 300) }; } },
+  { row: "DK1315", condition: "a world model for each agent", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "A world model for each agent"); return s ? { n: 1, text: firstWords(s, 240) } : null; } },
+  { row: "DK1314", condition: "role and standing profiles", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "Role and standing"); return s ? { n: 1, text: firstWords(s, 240) } : null; } },
+  { row: "DK1309", condition: "the load of the context measured", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "The load on each turn"); return s ? { n: 1, text: firstWords(s, 240) } : null; } },
+  { row: "DK1310", condition: "feedback did not make agents worse", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "Did the society's feedback make an agent worse"); return s ? { n: 1, text: firstWords(s, 300) } : null; } },
+  { row: "DK79", condition: "agents write signal lines", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const sig = c.events.filter((e) => e.t === "signal"); return { n: agentsOf(sig), text: `${sig.length} signal events by ${agentsOf(sig)} of ${c.agents} agents` }; } },
+  { row: "DK1313", condition: "token use measured, allowance shown", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "What living here costs in tokens"); return s ? { n: 1, text: firstWords(s, 300) } : null; } },
+  { row: "DK1323", condition: "time to first earnings measured", baseline: "no baseline in the register", base: null, better: "higher", descriptive: true, measure: (c) => { const s = section(c.report, "Time to first earnings"); return s ? { n: 1, text: firstWords(s, 420) } : null; } },
   { row: "DK1801", condition: "every agent ends with a reason", baseline: "25 of 25 stayed in the 25-agent run", base: null, better: "higher", measure: (c) => { const n = c.events.filter((e) => e.t === "end").length; return { n, text: `${n} of ${c.agents} agents have an end record` }; } },
 ];
 
@@ -55,18 +77,28 @@ export function closureRows(dir: string): ClosureRow[] {
   return DEFS.map((d): ClosureRow => {
     if (!flagOn(d.needs)) return { row: d.row, condition: d.condition, measured: "n/a", baseline: d.baseline, verdict: "NOT MEASURABLE", reason: `the ${d.needs} flag was off in this run (the tool group is not in its start record)` };
     const m = d.measure(c);
-    if (!m) return { row: d.row, condition: d.condition, measured: "n/a", baseline: d.baseline, verdict: "NOT MEASURABLE", reason: "the number cannot be read from this folder (no such calls or no such report line)" };
+    if (!m) return { row: d.row, condition: d.condition, measured: "n/a", baseline: d.baseline, verdict: "NOT MEASURABLE", reason: "the number or section is not in this folder (a run built before the row existed, a flag that was off, or no such calls)" };
+    if (d.descriptive) return { row: d.row, condition: d.condition, measured: m.text, baseline: d.baseline, verdict: "DESCRIPTIVE", reason: "DESCRIPTIVE: no close condition, read by hand" };
     if (d.base === null) return { row: d.row, condition: d.condition, measured: m.text, baseline: d.baseline, verdict: "NOT MEASURABLE", reason: "the number is measured but the register gives no baseline to compare it with" };
     const ok = d.better === "lower" ? m.n < d.base : m.n > d.base;
     return { row: d.row, condition: d.condition, measured: m.text, baseline: d.baseline, verdict: ok ? "MET" : "NOT MET", reason: ok ? `better than the baseline (${d.better} is better)` : `not better than the baseline (${d.better} is better)` };
   });
 }
 
+export function endedSummary(dir: string): string {
+  const c = readRun(dir);
+  const ends = c.events.filter((e) => e.t === "end");
+  const by = new Map<string, number>();
+  for (const e of ends) { const r = String(e.reason ?? "no reason").replace(/\d+/g, "N"); by.set(r, (by.get(r) ?? 0) + 1); }
+  const stop = c.events.find((e) => e.t === "stop");
+  return `Ended: ${ends.length} of ${c.agents} agents have an end record${stop ? ` (the run itself stopped: ${String(stop.reason)})` : " (no run stop record yet: the run may still be going)"}; by reason: ${[...by.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => `${r} ${n}`).join(", ") || "none"}.`;
+}
+
 export function renderClosure(rows: ClosureRow[], dir: string): string {
-  const L = [`# Closure reader: ${dir}`, "", "| Row | Close condition | Measured in this run | Baseline | Verdict | Why |", "|---|---|---|---|---|---|"];
+  const L = [`# Closure reader: ${dir}`, "", endedSummary(dir), "", "| Row | Close condition | Measured in this run | Baseline | Verdict | Why |", "|---|---|---|---|---|---|"];
   for (const r of rows) L.push(`| ${r.row} | ${r.condition} | ${r.measured} | ${r.baseline} | ${r.verdict} | ${r.reason} |`);
   const c = (v: string): number => rows.filter((r) => r.verdict === v).length;
-  L.push("", `${c("MET")} MET, ${c("NOT MET")} NOT MET, ${c("NOT MEASURABLE")} NOT MEASURABLE. MET means the number in this one run is better than the baseline; it is not a claim about an effect (one run has no spread: ENG72), and a row stays partial until the owner and the lead agree. Nothing here changed a register.`);
+  L.push("", `${c("MET")} MET, ${c("NOT MET")} NOT MET, ${c("NOT MEASURABLE")} NOT MEASURABLE, ${c("DESCRIPTIVE")} DESCRIPTIVE (numbers printed, no close condition: read by hand). MET means the number in this one run is better than the baseline; it is not a claim about an effect (one run has no spread: ENG72), and a row stays partial until the owner and the lead agree. Nothing here changed a register.`);
   return L.join("\n") + "\n";
 }
 
