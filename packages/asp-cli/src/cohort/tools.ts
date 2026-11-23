@@ -216,6 +216,13 @@ export function discoveriesFor(world: WorldApi, did: string): string | undefined
   if (!fresh.length) return undefined;
   return `Since you last looked, others found (the house's record, nothing here is asked of you): ${fresh.slice(-3).reverse().map((e) => e.text).join("; ")}${fresh.length > 3 ? `; and ${fresh.length - 3} more` : ""}.`;
 }
+/** The society atlas (exploration idea 3): how many agents have looked closely at each place, from the agents' own inspect calls, and the least visited named as a fact. */
+export function atlasLine(world: WorldApi): string {
+  const u = used.get(world), n = new Map<string, number>(PLACES.map((p) => [p, 0]));
+  for (const s of u?.values() ?? []) for (const p of PLACES) if (s.has(`inspect:${p}`)) n.set(p, (n.get(p) ?? 0) + 1);
+  const least = Math.min(...n.values()), names = PLACES.filter((p) => n.get(p) === least);
+  return `Society atlas (counted from the log): agents who have looked closely at each place: ${PLACES.map((p) => `${p} ${n.get(p)}`).join(", ")}. Least visited: ${names.join(", ")} (${least}).`;
+}
 const fogSeen = new WeakMap<object, Map<string, number>>();
 
 export async function openItems(world: WorldApi, agent: AgentCtx): Promise<string[]> {
@@ -288,7 +295,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -394,6 +401,9 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   recordDiscovery(world, agent, name, input, r.discovery);
+  if (name === "look_map") { r = { ...r, text: `${r.text}
+
+${atlasLine(world)}` }; }
   const extra: string[] = [];
   { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
