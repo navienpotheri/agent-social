@@ -275,6 +275,22 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 /** The reads that may be folded when their answer repeats word for word. */
 const FOLDABLE = new Set(["look_jobs", "my_balance", "my_inbox", "my_jobs", "my_job_offers", "look_courses", "look_charters", "read_constitution", "look_activity", "look_map", "my_progress", "my_agenda"]);
 const folds = new WeakMap<object, Map<string, string>>();
+/** The tools each agent has used successfully (and the places it has inspected), for the agenda's line about something it has not tried. */
+const used = new WeakMap<object, Map<string, Set<string>>>();
+const agendaCalls = new WeakMap<object, Map<string, number>>();
+
+/** The things this society has that an agent may not have tried, each as a true line with its payoff and effort: only those the run has, and only those the agent has not touched. */
+export function untouched(world: WorldApi, did: string): Array<{ key: string; text: string }> {
+  const s = used.get(world)?.get(did) ?? new Set<string>();
+  const on = (g: string): boolean => !world.groups || world.groups.has(g);
+  const out: Array<{ key: string; text: string }> = [];
+  if (world.games && on("games") && !s.has("game_list") && !s.has("game_enter")) out.push({ key: "games", text: "a game: four small games (twenty-one, hide-and-seek, word-pair, trading) are played in rounds of four by the house referee, and the first two places are paid a few mock credits; looking takes one call (game_list)" });
+  if (world.lessons && on("lessons") && !s.has("lesson_publish") && !s.has("lesson_read")) out.push({ key: "lessons", text: "a lesson card: if you have learned something here you can write it down with the tool you called as evidence, and a gate admits it before other agents see it; other agents' admitted lessons are listed by lesson_read" });
+  if (world.market && on("assess") && !s.has("assess_list") && !s.has("assess_submit")) out.push({ key: "assess", text: "an assessment: you can say whether another agent's delivery meets the job's criterion, for 1 mock credit each (your first five); one call lists them (assess_list)" });
+  if (world.market && !s.has("post_job") && world.market.hasFirstJobCredit(did)) out.push({ key: "posting", text: "a job you could post: the first job you post is free (what it cost comes back with 2 credits when you accept its delivery), and another agent does it for you (post_job)" });
+  if (world.fieldGuide && !s.has("inspect:research-commons") && !s.has("unlock:reading-room")) out.push({ key: "guide", text: "the field guide to refusals, built from earlier runs, is in the Research and Commons; one call reads it (inspect research-commons)" });
+  return out;
+}
 
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
   const group = GROUP_OF[name];
@@ -290,6 +306,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     if (dup) return refuse("near_duplicate", `this is almost the same as a ${dup.kind} that ${dup.by} wrote earlier (${dup.id}). Two ways on: comment on it (forum_comment, post ${dup.post}), or write something different. Nothing was posted, it cost you nothing and it is not counted as one of your free writes.`);
   }
   let r = await runToolGuarded(world, agent, allow, name, input);
+  if (r.ok) { const u = used.get(world) ?? new Map<string, Set<string>>(); used.set(world, u); const s = u.get(agent.did) ?? new Set<string>(); u.set(agent.did, s); s.add(name); if (name === "inspect" && typeof input.place === "string") s.add(`inspect:${input.place}`); if (name === "unlock" && typeof input.id === "string") s.add(`unlock:${input.id}`); }
   // A read whose answer is word for word the one this agent got last time is folded to one line (it was 31% of the characters of the 2026-11-24 run, mostly repeats): nothing is withheld, the agent asked and was told it is unchanged.
   if (r.ok && world.foldRepeats !== false && FOLDABLE.has(name)) {
     const seen = folds.get(world) ?? new Map<string, string>(); folds.set(world, seen);
@@ -437,7 +454,12 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
       if (p) items.push({ near: nearTo(p.title), text: `a thread nobody has answered: "${p.title.slice(0, 60)}" by ${p.handle}; an answer pays nothing and takes one comment (forum_read_post ${p.id})` });
     }
   } catch { /* no thread */ }
+  // one thing this agent has not tried, a different one each time it asks (a true fact with its payoff and effort; nothing asks for it)
+  const ac = agendaCalls.get(world) ?? new Map<string, number>(); agendaCalls.set(world, ac);
+  const nth = ac.get(agent.did) ?? 0; ac.set(agent.did, nth + 1);
+  const left = untouched(world, agent.did);
   const ranked = [...items.filter((i) => i.near), ...items.filter((i) => !i.near)];
+  if (left.length) ranked.push({ near: false, text: `something you have not tried: ${left[nth % left.length]!.text}` });
   if (!ranked.length) return "Nothing is open for you that the house can list now. This is an aid, not an order.";
   return `What is open for you now, the ones close to your interests (${mine.join(", ")}) first. This is an aid, not an order: you may use none of it.\n${ranked.map((i, k) => `${k + 1}. ${i.text}`).join("\n")}`;
 }
