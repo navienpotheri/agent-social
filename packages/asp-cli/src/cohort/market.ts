@@ -8,7 +8,7 @@ import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type
 import { createHash } from "node:crypto";
 import { institutionDid, REGISTRAR_DID, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
 import { PLACES, TOUR_PLACES } from "./expedition.ts";
-import { HARD_JOBS } from "./hard-jobs.ts";
+import { BATTERY_JOBS, HARD_JOBS } from "./hard-jobs.ts";
 import { SEED_QUESTIONS, voiceOf } from "./voice.ts";
 import { EXPERIENCES, canDoOf, experienceService } from "./experiences.ts";
 import { courseItem, courseService, engineIds, ENGINES, loadCatalogue, practiceSeed, type CourseCard } from "../lens-courses/index.ts";
@@ -89,6 +89,21 @@ export class MarketHall {
       this.hardStats[job.category] ??= { taken: 0, delivered: 0, refused: 0 };
     }
   }
+  /** ENG75: the in-society battery: the held-out jobs are posted once; each agent's first delivery on one is recorded (first try passed or not) for the trace and the report. */
+  readonly batteryLog: Array<{ handle: string; job: string; firstTry: boolean; at: string }> = [];
+  private batteryPending: Array<{ handle: string; job: string; firstTry: boolean }> = [];
+  private readonly batteryTried = new Set<string>();
+  async postBatteryJobs(): Promise<void> { await this.postBattery(BATTERY_JOBS); }
+  async postBattery(jobs: HouseJob[]): Promise<void> {
+    for (const job of jobs) {
+      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard");
+      const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
+      this.houseChecks.set(r.intent, job);
+      this.houseOf.set(r.intent, poster);
+    }
+  }
+  /** The battery outcomes recorded since the last call (the runner puts them in the trace). */
+  takeBattery(): Array<{ handle: string; job: string; firstTry: boolean }> { const x = this.batteryPending; this.batteryPending = []; return x; }
   /** ENG104: the repository jobs, posted on arrival through the Market by the house; the grader runs in the delivering agent's own copy. */
   repoGrader?: (job: string, handle: string, tier: number) => { accepted: boolean; reason: string };
   async postRepoJobs(specs: Array<{ job: string; tag: string; purpose: string; criterion: string; budget: number; level: 1 | 2 | 3; partner?: boolean }>): Promise<void> {
@@ -639,6 +654,7 @@ export class MarketHall {
     }
     if (hj) {
       let why = hj.check(summary);
+      if (hj.category === "battery") { const k = `${agent.did}|${contractId}`; if (!this.batteryTried.has(k)) { this.batteryTried.add(k); const rec = { handle: agent.handle, job: c.intent, firstTry: !why }; this.batteryLog.push({ ...rec, at: new Date().toISOString() }); this.batteryPending.push(rec); } }
       if (!why && hj.repo && this.repoGrader) { const g = this.repoGrader(hj.repo.job, agent.handle, hj.repo.tier); why = g.accepted ? null : g.reason; }
       if (why) {
         const key = `${agent.did}|${contractId}`, n = (this.failsOf.get(key) ?? 0) + 1;

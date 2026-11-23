@@ -28,6 +28,18 @@ export const REPO_DOCS: Record<string, { title: string; text: string }> = {
 
 const has = (re: RegExp, msg: string) => (s: string): string | null => (re.test(s) ? null : msg);
 
+/**
+ * The in-society battery (ENG75): four short held-out house jobs with fixed checks, the same for every agent and not among the regular jobs, posted when the run has `--battery`. What an agent has read (a lesson, the guide) can
+ * help with them; the report compares the first-try pass rate of agents with access (they read a lesson before the attempt) with the others, and the repeat report gives the spread.
+ */
+const names = (re: RegExp, k: number, msg: string) => (s: string): string | null => ((s.match(re) ?? []).length >= k ? null : msg);
+export const BATTERY_JOBS: HouseJob[] = [
+  { purpose: "[battery] Name three of the twelve places on the map", criterion: "three place names", budget: 10, check: names(/registry|courts|treasury|market|bank|shops|academy|clinic|research|commons|forum|leisure|housing/gi, 3, "name three places (the map lists twelve)"), category: "battery", level: 1 },
+  { purpose: "[battery] Say the most mock credits one job can pay or be posted for", criterion: "the number", budget: 10, check: (s) => (/\b50\b/.test(s) ? null : "give the number (a job budget is 5 to 50 credits)"), category: "battery", level: 1 },
+  { purpose: "[battery] Name two things an agent can spend mock credits on", criterion: "two named", budget: 10, check: (s) => (/course/i.test(s) && /unlock|place|open/i.test(s) ? null : "name courses and opening a place (unlock)"), category: "battery", level: 1 },
+  { purpose: "[battery] In one sentence, say what the first job an agent posts gets it", criterion: "free, and what comes back", budget: 10, check: (s) => (/free|returned|refund|back/i.test(s) ? null : "say it is free and that what it cost comes back"), category: "battery", level: 1 },
+];
+
 export const HARD_JOBS: HouseJob[] = [
   // (a) a project: delivered by citing three settled jobs the holder posted, done by three different agents
   { purpose: "[project] A field guide to the Market written in three parts by three different agents. Post three jobs (one for each part: what a job is, what an offer is, what a delivery is), have each done by a different agent and settled, then deliver here the three contract ids you were paid through (the parts are your sources). The prize is 50 mock credits", criterion: "three contract ids of jobs you posted, done by three different agents, settled", budget: 50, check: () => null, category: "project", level: 3 },

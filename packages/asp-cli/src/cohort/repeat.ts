@@ -36,6 +36,10 @@ export interface Headline {
   firstTry: number | null;
   /** Agents that read a lesson: first-try acceptance after their first reading minus before it, pooled; null when no reader delivered on both sides. */
   readerChange: number | null;
+  /** The in-society battery (ENG75): first-try pass rate of agents with access to a lesson, of the others, and the gap; null when a side has no attempt. */
+  batteryAccess: number | null;
+  batteryOthers: number | null;
+  batteryGap: number | null;
 }
 export const FIGURES: { key: keyof Headline; label: string; timing?: boolean }[] = [
   { key: "minutesStayed", label: "Minutes stayed (simulated, a mean for each agent)", timing: true },
@@ -51,6 +55,9 @@ export const FIGURES: { key: keyof Headline; label: string; timing?: boolean }[]
   { key: "lessonCites", label: "Lessons cited" },
   { key: "firstTry", label: "First-try acceptance of deliveries (all agents)" },
   { key: "readerChange", label: "Readers: first-try acceptance after reading minus before" },
+  { key: "batteryAccess", label: "Battery: first-try pass rate, agents with access to a lesson" },
+  { key: "batteryOthers", label: "Battery: first-try pass rate, the others" },
+  { key: "batteryGap", label: "Battery: access minus others" },
 ];
 
 /** The job-outcome figures of the continual-learning chain from one trace: the first-try acceptance overall, and the change for agents that read a lesson (after their first reading minus before it, pooled). */
@@ -66,6 +73,14 @@ export function outcomeFigures(events: TraceEvent[]): { firstTry: number | null;
   const before = rd.filter((d) => d.idx < reads.get(d.agent)!).map((d) => d.pass), after = rd.filter((d) => d.idx > reads.get(d.agent)!).map((d) => d.pass);
   const r4 = (x: number): number => Math.round(x * 1e4) / 1e4;
   return { firstTry: first.length ? r4(rate(first.map((d) => d.pass))) : null, readerChange: before.length && after.length ? r4(rate(after) - rate(before)) : null };
+}
+
+/** The in-society battery figures from one trace: the first-try pass rate of agents with access (they had read a lesson before the attempt) and of the others, and the gap. */
+export function batteryFigures(events: TraceEvent[]): { batteryAccess: number | null; batteryOthers: number | null; batteryGap: number | null } {
+  const b = events.filter((e): e is Extract<TraceEvent, { t: "battery" }> => e.t === "battery");
+  const rate = (l: typeof b): number | null => (l.length ? Math.round((l.filter((x) => x.firstTry).length / l.length) * 1e4) / 1e4 : null);
+  const a = rate(b.filter((x) => x.access)), o = rate(b.filter((x) => !x.access));
+  return { batteryAccess: a, batteryOthers: o, batteryGap: a !== null && o !== null ? Math.round((a - o) * 1e4) / 1e4 : null };
 }
 
 export function headlineOf(events: TraceEvent[], thresholdMinutes = 30): Headline {
@@ -92,7 +107,7 @@ export function headlineOf(events: TraceEvent[], thresholdMinutes = 30): Headlin
     posts: tools.filter((e) => e.tool === "forum_post").length, messages: tools.filter((e) => e.tool === "send_message").length, comments: tools.filter((e) => e.tool === "forum_comment").length,
     jobsDelivered: tools.filter((e) => e.tool === "deliver_job").length, creditsEarnedMean: deltas.length ? round(deltas.reduce((a, b) => a + b, 0) / deltas.length, 2) : 0,
     diversity: diversityOf(spoken), usd: round(usd, 6), usefulActions: useful, costPerUsefulAction: useful ? round(usd / useful, 6) : null,
-    lessonCites: tools.filter((e) => e.tool === "lesson_cite").length, ...outcomeFigures(events),
+    lessonCites: tools.filter((e) => e.tool === "lesson_cite").length, ...outcomeFigures(events), ...batteryFigures(events),
   };
 }
 
@@ -136,6 +151,9 @@ export function renderRepeat(r: RepeatReport): string {
   rows.push("", r.agreed.length ? `The runs agreed exactly on: ${r.agreed.join("; ")}.` : "The runs did not agree exactly on any figure.", r.varied.length ? `They varied on: ${r.varied.join("; ")}.` : "They did not vary on any figure.", "", r.note, "");
   const rc = r.figures["readerChange"];
   if (rc?.spread) { const d = readDifference({ ...rc.spread, mean: 0, range: 0, sd: 0 }, rc.spread); rows.push("", `The readers' change in first-try acceptance averaged ${fmt(rc.spread.mean)} over the runs, and its spread between runs is ${fmt(rc.spread.range)}: ${Math.abs(rc.spread.mean) > rc.spread.range ? "the change is larger than the spread (and still a few deliveries in a few runs, not a claim)" : "the change is not larger than the spread, so it is not called a difference"}.`); void d; } else if (rc) rows.push("", "The readers' change could not be compared with a spread: not every run had a reader that delivered both before and after reading.");
+  const bg = r.figures["batteryGap"];
+  if (bg?.spread) rows.push("", `The battery gap (agents with access minus the others) averaged ${fmt(bg.spread.mean)} over the runs, and its spread between runs is ${fmt(bg.spread.range)}: ${Math.abs(bg.spread.mean) > bg.spread.range ? "the gap is larger than the spread (and still a few attempts in a few runs, not a claim)" : "the gap is not larger than the spread, so it is not called a difference"}.`);
+  else if (bg) rows.push("", "The battery gap could not be compared with a spread: not every run had attempts on both sides.");
   if (r.capUsdAll !== undefined) rows.push(`**Cost of the repeat:** at most $${r.capUsdAll.toFixed(2)} in all (${r.runs} runs, each capped at $${r.capUsdPerRun!.toFixed(2)}): a cap, never a price. ${r.runs} runs of a few agents is a rough spread, not a measured variance.`, "");
   return rows.join("\n");
 }
