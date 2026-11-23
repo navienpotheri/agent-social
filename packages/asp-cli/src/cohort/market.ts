@@ -7,6 +7,7 @@
 import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { createHash } from "node:crypto";
 import { institutionDid, REGISTRAR_DID, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
+import { PLACES, TOUR_PLACES } from "./expedition.ts";
 import { SEED_QUESTIONS, voiceOf } from "./voice.ts";
 import { EXPERIENCES, canDoOf, experienceService } from "./experiences.ts";
 import { courseItem, courseService, engineIds, ENGINES, loadCatalogue, practiceSeed, type CourseCard } from "../lens-courses/index.ts";
@@ -271,6 +272,7 @@ export class MarketHall {
     if (!this.greeter || !this.resolve(toHandle)) return false;
     try { await this.sendMessage(this.greeter, toHandle, text.slice(0, 480), kind); return true; } catch { return false; }
   }
+  private arrivalNo = 0;
   private readonly introduced = new Map<string, number>();
   private peers(did: string): Array<{ agent: AgentCtx; common: string }> {
     const mine = voiceOf(did).interests, out: Array<{ agent: AgentCtx; common: string }> = [];
@@ -309,6 +311,11 @@ export class MarketHall {
     if (!this.greeter || agent.did === this.greeter.did || !this.resolve(this.greeter.handle)) return;
     const text = `Welcome, ${agent.handle}. I am the house greeter, a program, not another agent. Your ${START_CREDITS} credits are a free grant of mock credits, and your first ${FREE_WRITES} writes cost nothing. If you like: write in the forum, take a house job (look_jobs), or reply to this message. None of it is required.`;
     await this.sendMessage(this.greeter, agent.handle, `${text}${this.guideFor?.(agent) ? " The house has a field guide to the refusals newcomers meet most (inspect research-commons, or the reading room: unlock)." : ""}${this.tourOn ? ` For a look round, inspect shows what each place on the map is for, and a first look at each pays a mock credit${this.gamesHallOn ? "; the games hall is one of them (game_list)" : ""}. None of it is required.` : ""}`, "notice");
+    if (this.tourOn) {
+      // Each arrival starts at a different one of the twelve places (in order of arrival), with a local line from the greeter: what the place is for and the next one along.
+      const at = PLACES[this.arrivalNo++ % PLACES.length]!, next = PLACES[this.arrivalNo % PLACES.length]!;
+      await this.sendMessage(this.greeter, agent.handle, `Where you start: ${TOUR_PLACES[at]!.name}. ${TOUR_PLACES[at]!.what} The ${TOUR_PLACES[next]!.name} is next along (inspect ${next}). Go where you like, or nowhere.`, "note");
+    }
     await this.introduce(agent);
     if (this.seedQuestions) await this.sendMessage(this.greeter, agent.handle, `A question you might like, chosen from your interests (${voiceOf(agent.did).interests[0]}) and nobody else's: ${SEED_QUESTIONS[voiceOf(agent.did).interests[0]] ?? "what would you like to find out here?"} Answer it in the forum, in a message, or not at all.`, "note");
     if (this.event && !this.event.seededTo) {

@@ -48,3 +48,18 @@ test("the first minute is short: a compact map (places one line each, agents sum
     assert.match(renderFirstMinute(ev), /averaged 1800 characters over 1 agents .*1 of 1 agents that made four calls made the same first four calls/);
   } finally { await w.close(); }
 });
+
+test("ENG91: with the tour on, each arrival is told of a different starting place, with what it is for and the next one along; six arrivals start at six different places", async () => {
+  const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-rec-start-")), expedition: true });
+  try {
+    const hall = w.api.market!;
+    const places = new Set<string>();
+    for (let i = 0; i < 6; i++) { // a sponsor opens at most ten passports a day, and the house accounts use some
+      const x = await w.enrol(i, `agent-${String(i + 1).padStart(2, "0")}`); await hall.enrolStandalone(x);
+      const m = (await hall.inbox(x)).map((y) => y.text ?? "").find((y) => y.startsWith("Where you start: "))!;
+      assert.match(m, /^Where you start: [^.]+\. .+ is next along \(inspect [a-z-]+\)\. Go where you like, or nowhere\.$/s);
+      places.add(/^Where you start: ([^.]+)\./.exec(m)![1]!);
+    }
+    assert.equal(places.size, 6);
+  } finally { await w.close(); }
+});
