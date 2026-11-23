@@ -8,6 +8,7 @@ import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type
 import { createHash } from "node:crypto";
 import { institutionDid, REGISTRAR_DID, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
 import { PLACES, TOUR_PLACES } from "./expedition.ts";
+import { HARD_JOBS } from "./hard-jobs.ts";
 import { SEED_QUESTIONS, voiceOf } from "./voice.ts";
 import { EXPERIENCES, canDoOf, experienceService } from "./experiences.ts";
 import { courseItem, courseService, engineIds, ENGINES, loadCatalogue, practiceSeed, type CourseCard } from "../lens-courses/index.ts";
@@ -74,6 +75,24 @@ export class MarketHall {
   private async mint(to: string, value: number): Promise<void> { await this.log.mint(to, value); }
 
   /** Registers the local institutions, issues the price list and posts a few house jobs. */
+  /** ENG84: the harder jobs (a project, a specialist job, repository tasks) are posted once, beside the house's batches, when the run has `--hard-jobs`; they are not counted in the batches or the slots. */
+  private hardPoster?: Party;
+  private async newHousePoster(did: string): Promise<Party> { const p = newParty(did); await this.put(this.mk("passport", p, { did: p.did, kind: "human", keys: keysOf(p) }, null, p.did)); await this.mint(p.did, 1600); return p; }
+  readonly hardStats: Record<string, { taken: number; delivered: number; refused: number }> = {};
+  async postHard(): Promise<void> {
+    for (const j of HARD_JOBS) {
+      const job: HouseJob = { ...j, ...(j.category === "specialist" ? { requires: this.courses[0]?.id ?? "C-L2-1" } : {}) };
+      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-3"); // a third house account, so the cap on a tier-1 poster's open postings does not apply
+      const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
+      this.houseChecks.set(r.intent, job);
+      this.houseOf.set(r.intent, poster);
+      this.hardStats[job.category] ??= { taken: 0, delivered: 0, refused: 0 };
+    }
+  }
+  /** Whether an agent holds the certificate of a course: a passed sitting. */
+  hasCertificate(did: string, course: string): boolean { return this.sittingsOf(did, course).some((s) => s.passed); }
+  /** Records a sitting outcome (what a course sitting does; also how a test gives a certificate). */
+  certify(did: string, course: string, passed: boolean): void { const m = this.sittings.get(did) ?? new Map(); m.set(course, [...(m.get(course) ?? []), { mean: passed ? 90 : 20, err: 5, passed }]); this.sittings.set(did, m); }
   async init(seedJobs = HOUSE_JOBS.length, courseIds: string[] = ["C-L2-1"]): Promise<void> {
     for (const party of [this.p.operator, this.p.owner, this.p.treasury, this.p.market, this.p.bank, this.p.registrar, this.p.house]) await this.put(this.mk("passport", party, { did: party.did, kind: "human", keys: keysOf(party) }, null, party.did));
     // The Academy: one teacher agent (and two reviewers) under the house, the courses priced in the price list and published with the Registrar's cosignature.
@@ -425,6 +444,7 @@ export class MarketHall {
     if (this.performer && this.houseTakeMs >= 0 && !this.firstPosted.has(agent.did)) {
       this.firstPosted.add(agent.did);
       const timer = setTimeout(() => { this.timers.delete(timer); void this.houseOffer(r.intent); }, this.houseTakeMs);
+      timer.unref?.(); // a minute-long wait must not keep a finished run alive
       this.timers.add(timer);
     }
     return r.intent;
@@ -439,6 +459,7 @@ export class MarketHall {
     const house = this.houseChecks.get(intent);
     const taken = [...this.contractState.values()].filter((c) => c.intent === intent);
     if (house && taken.some((c) => c.performer === agent.did)) throw new Error("you have already taken this job");
+    if (house?.requires && !this.hasCertificate(agent.did, house.requires)) { (this.hardStats[house.category] ??= { taken: 0, delivered: 0, refused: 0 }).refused++; throw new Error(`this job asks for the certificate of the course ${house.requires}: look_courses shows it, course_enrol and course_sit earn it`); }
     if (house && taken.length >= (house.partner ? 2 : 1)) throw new Error("this house job is already taken by another agent");
     if (house && price > house.budget) throw new Error(`the house pays at most ${house.budget} credits for this job: offer ${house.budget} or less`);
     const eta = new Date(this.now().getTime() + 3 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -448,6 +469,7 @@ export class MarketHall {
     if (house) {
       const owner = this.houseOf.get(intent) ?? this.p.house;
       const c = await this.contractFrom({ did: owner.did, party: owner }, id, !!house.partner);
+      if (this.hardStats[house.category]) this.hardStats[house.category]!.taken++;
       return { id, contract: c.contract };
     }
     return { id };
@@ -596,6 +618,13 @@ export class MarketHall {
       const handle = this.agents.get(partnerOf.performer)?.agent.handle ?? "";
       if (!summary.toLowerCase().includes(handle.toLowerCase())) throw new Error(`name your partner (${handle}) in the delivery; nothing was recorded, deliver again`);
     }
+    if (hj?.category === "project") {
+      // a project is done by citing three settled jobs the holder posted that three different agents did
+      const ids = [...new Set(summary.match(/sha256:[0-9a-f]{64}/g) ?? [])];
+      const done = ids.map((x) => this.contractState.get(x)).filter((x): x is NonNullable<typeof x> => !!x && x.principal === agent.did && !!x.settled && x.performer !== agent.did);
+      const workers = new Set(done.map((x) => x.performer));
+      if (workers.size < 3) throw new Error(`a project is delivered by citing three contract ids of jobs you posted that three different agents did and that were settled (you cited ${workers.size}); nothing was recorded: post the parts as jobs (post_job), accept their offers and deliveries (accept_offer, accept_delivery), then deliver again`);
+    }
     if (hj) {
       const why = hj.check(summary);
       if (why) {
@@ -614,6 +643,7 @@ export class MarketHall {
     const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 900), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
     c.delivery = await this.put(d);
     if (hj) this.logDelivery(c, hj, agent, summary, true);
+    if (hj && this.hardStats[hj.category]) this.hardStats[hj.category]!.delivered++;
     if (hj && (!partnerOf || partnerOf.delivery)) {
       // The house pays on the spot (a partner job when both have delivered). The first job an agent finishes for the house carries a bonus.
       const owner = this.houseOf.get(c.intent) ?? this.p.house;

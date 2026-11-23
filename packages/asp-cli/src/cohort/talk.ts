@@ -106,3 +106,13 @@ export function renderAgendaUse(events: TraceEvent[], agents: number): string {
   tools.forEach((e, i) => { if (e.tool !== "my_agenda") return; calls++; asked.add(e.agent); const n = tools.slice(i + 1).find((x) => x.agent === e.agent); const k = n ? n.tool : "nothing more"; next.set(k, (next.get(k) ?? 0) + 1); });
   return `## The agenda aid\n\n${asked.size} of ${agents} agent${agents === 1 ? "" : "s"} asked for the agenda (${calls} call${calls === 1 ? "" : "s"}). What they called next: ${[...next.entries()].sort((a, b) => b[1] - a[1]).map(([t, k]) => `${t} ${k}`).join(", ") || "nothing"}. It is an aid and not an order; these are counts of one run and say nothing about whether it helps.\n\n`;
 }
+
+/** ENG84: what the harder jobs came to: the project (taken, delivered), the jobs agents posted for each other (delegation), the specialist job (offers refused for want of a certificate, taken, delivered), the repository tasks, and the helper tool (not built). */
+export function renderHard(hard: Record<string, { taken: number; delivered: number; refused: number }>, jobs: { posters: number; posted: number; accepted: number }, events: TraceEvent[], agents: number): string {
+  const g = (c: string): { taken: number; delivered: number; refused: number } => hard[c] ?? { taken: 0, delivered: 0, refused: 0 };
+  const posted = new Set(events.filter((e) => e.t === "tool" && e.tool === "post_job" && e.ok).map((e) => (e as { agent: string }).agent)).size;
+  const L = ["## Harder jobs: projects, certificates, repository tasks", ""];
+  L.push(`Project (three parts by three other agents, a prize of 50 mock credits): taken by ${g("project").taken} agent${g("project").taken === 1 ? "" : "s"}, delivered ${g("project").delivered} time${g("project").delivered === 1 ? "" : "s"}. Delegation: ${posted} of ${agents} agents posted a job, ${jobs.posted} job${jobs.posted === 1 ? "" : "s"} were posted by agents and ${jobs.accepted} settled agent to agent.`);
+  L.push(`Specialist job (asks for a course certificate): ${g("specialist").refused} offer${g("specialist").refused === 1 ? " was" : "s were"} refused for want of the certificate, ${g("specialist").taken} taken, ${g("specialist").delivered} delivered. Repository tasks (read-only copies of real documents, answers the house checks): ${g("repository").taken} taken, ${g("repository").delivered} delivered. Helpers: none were built or started in this run (the helper tool is a design note only).`);
+  return L.join("\n") + "\n\n";
+}

@@ -228,7 +228,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
       case 3: return [use("inspect", { place: "academy" })];
       case 4: return [use("forum_post", { title: `Hello from agent ${agent + 1}`, text: `Agent ${agent + 1} reporting on the walk through the map, the charters and the registry plaque.`, tags: [] })];
       case 5: return [use("look_jobs")];
-      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const j = jobs.find((x) => !/Partner job/.test(x.purpose ?? "")) ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
+      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const own = jobs.filter((x) => !/Partner job/.test(x.purpose ?? "")), j = own[agent % Math.max(1, own.length)] ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
       case 7: { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "no contract" })]; }
       case 8: return [use("inspect", { place: "academy" })];
       case 9: return [use("course_enrol", { course: "C-L2-1" })];
@@ -277,7 +277,7 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   clumsy: (turn, last, agent, st) => {
     if (turn === 0) return [use("forum_post", { title: "x".repeat(130), text: "A title over the limit, which the tool refuses.", tags: [] })];
     if (turn === 1) return [use("look_jobs")];
-    if (turn === 2) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const j = jobs.find((x) => !/Partner job/.test(x.purpose ?? "")) ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
+    if (turn === 2) { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const own = jobs.filter((x) => !/Partner job/.test(x.purpose ?? "")), j = own[agent % Math.max(1, own.length)] ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job" })]; }
     if (turn === 3) { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "my offer was refused" })]; }
     return [use("stop_exploring", { why: "done" })];
   },
