@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 200,
+  "withdraw": 199,
   "after": 339,
-  "total": 600
+  "total": 599
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -6738,19 +6738,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The tool list has grown to 47 tools and about 16,400 characters (10,500 before slices A to D), paid on every turn. Opt-in filtering: the groups not every agent needs (library and workspace about 2,46…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG67",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Courses scattered across the whole society map, not only in the Academy: markers on places anywhere in the world that an agent finds by exploring, and when it takes one it learns something and is mea…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
