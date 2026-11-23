@@ -19,6 +19,7 @@ const board = async (w: Awaited<ReturnType<typeof bootWorld>>, who: Parameters<t
 
 test("a house job one agent was just shown near the top is left off the list of the next agent for a minute; the first agent still sees them; after the minute they come back", async () => {
   const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-mv-hold-")) });
+  w.api.foldRepeats = false; // these tests read the same answer twice on purpose
   try {
     const hall = w.api.market!;
     hall.slotsOn = true;

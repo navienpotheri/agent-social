@@ -118,6 +118,8 @@ export interface CohortOptions {
   battery?: boolean;
   /** ENG113: switch the self-running Town Hall off (it is on in every cohort run by default). */
   noTownAuto?: boolean;
+  /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
+  noFold?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
   library?: boolean;
   /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
@@ -209,6 +211,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   world.api.budgetOf = (handle) => ({ usedUsd: events.filter((e) => e.t === "model" && e.agent === handle).reduce((n, e) => n + ((e as { usd?: number }).usd ?? 0), 0), capUsd: o.budgetUsd });
   if (world.api.market) world.api.market.slotsOn = !!o.jobSlots;
   world.api.relaxLimits = !!o.relaxLimits;
+  world.api.foldRepeats = !o.noFold;
   await world.api.market?.scaleFor(o.agents); // a board as big as the cohort, so agents that arrive together do not all rush the same first jobs
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {

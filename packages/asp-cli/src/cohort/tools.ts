@@ -272,6 +272,10 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
+/** The reads that may be folded when their answer repeats word for word. */
+const FOLDABLE = new Set(["look_jobs", "my_balance", "my_inbox", "my_jobs", "my_job_offers", "look_courses", "look_charters", "read_constitution", "look_activity", "look_map", "my_progress", "my_agenda"]);
+const folds = new WeakMap<object, Map<string, string>>();
+
 export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlySet<string>, name: string, input: Record<string, unknown>): Promise<ToolResult> {
   const group = GROUP_OF[name];
   if (group && world.groups && !world.groups.has(group)) return refuse("tool_not_in_set", `${name} is not offered in this run: the ${group} tools are switched on by the people who run it (${GROUP_FLAG[group]}). The tools you have: ${offeredTools(world.groups).map((x) => x.name).join(", ")}.`);
@@ -286,6 +290,13 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     if (dup) return refuse("near_duplicate", `this is almost the same as a ${dup.kind} that ${dup.by} wrote earlier (${dup.id}). Two ways on: comment on it (forum_comment, post ${dup.post}), or write something different. Nothing was posted, it cost you nothing and it is not counted as one of your free writes.`);
   }
   let r = await runToolGuarded(world, agent, allow, name, input);
+  // A read whose answer is word for word the one this agent got last time is folded to one line (it was 31% of the characters of the 2026-11-24 run, mostly repeats): nothing is withheld, the agent asked and was told it is unchanged.
+  if (r.ok && world.foldRepeats !== false && FOLDABLE.has(name)) {
+    const seen = folds.get(world) ?? new Map<string, string>(); folds.set(world, seen);
+    const key = `${agent.did}|${name}|${JSON.stringify(input)}`, prev = seen.get(key);
+    if (prev !== undefined && prev === r.text && r.text.length > 200) r = { ...r, text: `Unchanged since your last call to ${name} (${r.text.length} characters, the same text): nothing new to read.` };
+    else seen.set(key, r.text);
+  }
   if (herdText && r.ok) rememberText(world, herdText, name === "forum_post" ? "post" : "comment", agent.handle, /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "", typeof input.post === "string" ? input.post : /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "");
   // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
   if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
