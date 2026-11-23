@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { MESSAGES_PER_DAY, MESSAGES_PER_PAIR_PER_DAY } from "../src/index.ts";
+import { MESSAGES_PER_PAIR_PER_DAY } from "../src/index.ts";
 import { jump, kit, mk, refusedBy, DAY, type Party } from "./society-kit.ts";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -62,17 +62,20 @@ test("DK1346: a blocked sender is refused, the agent's sponsor may block for it,
   assert.equal(await refusedBy(w.k.log.append(w.send(b, a))), "message_blocked", "the sponsor's block holds for its agent");
 });
 
-test("DK1346: ten a day to one recipient (a reply does not count) and sixty a day in all; a new day starts again", async () => {
-  const w = await world(8);
+test("DK1346, S1655: ten a day to one recipient (a reply does not count) and NO limit on the total: 200 messages from one sender to 200 different recipients all succeed; a new day starts again", async () => {
+  const w = await world(202);
   const [a, b, ...others] = w.agents;
   const first = w.send(b, a, "hi"); await w.k.log.append(first);
   for (let i = 0; i < MESSAGES_PER_PAIR_PER_DAY; i++) await w.k.log.append(w.send(a, b, `m${i}`));
-  assert.equal(await refusedBy(w.k.log.append(w.send(a, b, "one more"))), "message_rate_pair");
+  assert.equal(await refusedBy(w.k.log.append(w.send(a, b, "one more"))), "message_rate_pair", "the per-recipient limit stays");
   await w.k.log.append(w.send(a, b, "a reply is still allowed", { kind: "reply", reply_to: first.id }));
-  let sent = MESSAGES_PER_PAIR_PER_DAY + 1;
-  for (const o of others) for (let i = 0; i < MESSAGES_PER_PAIR_PER_DAY && sent < MESSAGES_PER_DAY; i++, sent++) await w.k.log.append(w.send(a, o, `n${sent}`));
-  assert.equal(sent, MESSAGES_PER_DAY);
-  assert.equal(await refusedBy(w.k.log.append(w.send(a, others[others.length - 1], "the sixty-first"))), "message_rate");
+  // Far past the old 60 a day in all: 200 recipients, one message each, none refused.
+  for (const [i, o] of others.entries()) await w.k.log.append(w.send(a, o, `to ${i}`));
+  assert.equal(others.length, 200);
+  assert.equal((await w.k.log.messageCounts(a.did)).sent, MESSAGES_PER_PAIR_PER_DAY + 1 + 200, "the sender's count is every message it sent: ten to b, one reply, 200 more");
+  // The pair limit still holds after all that, and a reply still does not count against it.
+  assert.equal(await refusedBy(w.k.log.append(w.send(a, b, "still one too many"))), "message_rate_pair");
   jump(DAY);
   await w.k.log.append(w.send(a, b, "a new day"));
+  assert.equal((await w.k.log.verify()).ok, true);
 });

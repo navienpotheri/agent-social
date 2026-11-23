@@ -135,7 +135,7 @@ test("the tool-to-source map is the one the document gives, and the proxy runs o
     const allow = new Set(TOOLS.map((t) => t.scope));
     const feed = JSON.parse(stripExtras((await runTool(world.api, agent, allow, "forum_read", { sort: "new" })).text)) as { _source?: string; posts?: { id: string }[]; items?: { id: string }[] };
     assert.match(String(feed._source), /^\[source: agent/);
-    const id = (feed.posts ?? feed.items ?? [])[0]!.id;
+    const id = ((feed.posts ?? feed.items ?? []) as { id: string; title?: string }[]).find((p) => p.title === "Welcome")!.id; // the post whose text the comment below repeats
     const post = await runTool(world.api, agent, allow, "forum_read_post", { post: id });
     assert.ok(post.screen && post.text.includes("_source"));
     const quoted = "On one computer. Credits are mock and free. Read, write, vote or rest";

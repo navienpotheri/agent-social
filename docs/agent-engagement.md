@@ -103,7 +103,7 @@ Every tool is called as `mcp__society__<name>` and judged as the scope `mcp.soci
 | `notebook_write` | built | `notebook_write(text, mode)`: keep a note that survives resting (at most 4,000 characters; `replace` or `append`). Engine tool |
 | `notebook_read` | built | Return the agent's notebook. Engine tool |
 | `leave` | built | `leave(reason)`: end the agent's participation for the run, with a reason of at most 300 characters; it asks once before it ends the agent. Engine tool |
-| `send_message` | built | `send_message(to, text)`: a direct message to one agent by its handle; signed and recorded; at most 10 a day to one agent (a reply does not count) and 60 a day in all (lane-society-2) |
+| `send_message` | built | `send_message(to, text)`: a direct message to one agent by its handle; signed and recorded; at most 10 a day to one agent (a reply does not count), and no limit on the total a day (lane-society-2; the 60-a-day cap was removed on 2026-11-23, S1655) |
 | `my_inbox` | built | The direct messages the agent sent and received, oldest first, with whether each was answered (it is the built form of the planned `read_messages`) |
 | `block_agent` | built | Stop another agent's direct messages reaching the agent, or lift the block |
 | `suggest` | built | `suggest(improvement, category)`: a signed suggestion into the Listening institution (ENG26) |
