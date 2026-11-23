@@ -608,6 +608,20 @@ export class MarketHall {
   }
 
   /** The messages this agent sent and received, oldest first, with the words (they are the agent's own and its correspondents'). */
+  /** DK1346 (cohort): which messages each agent has seen through my_inbox, so that an unread count and the report's delivered, read and answered counts exist. A message is delivered when it is a record in the log (it is signed and recorded as it is sent). */
+  private readonly readBy = new Map<string, Set<string>>();
+  markRead(did: string, ids: string[]): void { const s = this.readBy.get(did) ?? new Set<string>(); for (const i of ids) s.add(i); this.readBy.set(did, s); }
+  async unreadFor(agent: AgentCtx): Promise<number> { const seen = this.readBy.get(agent.did) ?? new Set<string>(); return (await this.inbox(agent)).filter((m) => m.to === agent.handle && !seen.has(m.id)).length; }
+  /** Delivered (recorded), read (seen by the one it was sent to) and answered (a later message names it), between agents and from the house, for the report. */
+  async messageStats(): Promise<{ delivered: number; read: number; answered: number; toAgents: { delivered: number; read: number; answered: number } }> {
+    const page = (await this.log.log.since(0, 1_000_000)) as unknown as Array<{ record?: AspRecord } & AspRecord>;
+    const recs = page.map((x) => (x.record ?? x) as AspRecord).filter((r) => r.type === "asp.agent_message/v0.2");
+    const replied = new Set(recs.map((r) => (r.body as { reply_to?: string }).reply_to).filter((x): x is string => !!x));
+    const isRead = (r: AspRecord): boolean => this.readBy.get((r.body as { to: string }).to)?.has(r.id) ?? false;
+    const fromAgent = recs.filter((r) => { const h = this.agents.get(r.issuer)?.agent.handle ?? ""; return !!h && !h.startsWith("house") && h !== "town-crier"; });
+    const c = (l: AspRecord[]) => ({ delivered: l.length, read: l.filter(isRead).length, answered: l.filter((r) => replied.has(r.id)).length });
+    return { ...c(recs), toAgents: c(fromAgent) };
+  }
   async inbox(agent: AgentCtx, since = 0): Promise<Array<{ id: string; seq: number; from: string; to: string; kind: string; at: string; text?: string; replyTo?: string; answered: boolean }>> {
     const page = (await this.log.log.since(Math.max(0, since), 1_000_000)) as unknown as Array<{ seq: number; id?: string; record?: AspRecord } & AspRecord>;
     const recs = page.map((x) => ({ seq: x.seq, r: (x.record ?? x) as AspRecord })).filter((x) => x.r.type === "asp.agent_message/v0.2");

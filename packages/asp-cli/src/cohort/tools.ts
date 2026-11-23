@@ -177,6 +177,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
     if (hall) {
       const waiting = (await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered);
       if (waiting.length) { const last = waiting[waiting.length - 1]!; out.push(`${waiting.length} message${waiting.length === 1 ? "" : "s"} to answer, the latest from ${last.from} (my_inbox; to answer, send_message to ${last.from} with reply_to ${last.id})`); }
+      { const unread = await hall.unreadFor(agent); if (unread > 0) out.push(`${unread} unread message${unread === 1 ? "" : "s"} (my_inbox)`); }
       if (world.library && hall.hasFirstJobCredit(agent.did) && hall.jobsPostedBy(agent.did).posted === 0) { try { const names = (world.library.read(agent.did) as { names: string[] }).names; if (names.length) out.push(`you wrote the note "${names[0]}" in your workspace: a job you could post is "Read my note ${names[0]} and say what it is missing" (post_job; the first job you post is free)`); } catch { /* no workspace */ } }
       n((await hall.offersOnMine(agent)).filter((o) => o.open).length, "offer on your jobs", "offers on your jobs", "offers_on_mine");
       n(await hall.openJobCount(agent), "open job", "open jobs", "look_jobs");
@@ -749,6 +750,7 @@ async function messageTool(world: WorldApi, agent: AgentCtx, name: string, input
       return { ok: true, text: input.lift === true ? `${other.handle} can message you again.` : `${other.handle} can no longer message you.` };
     }
     const m = await hall.inbox(agent);
+    hall.markRead(agent.did, m.filter((x) => x.to === agent.handle).map((x) => x.id));
     return { ok: true, text: m.length ? m.map((x) => `${x.id}  ${x.from === agent.handle ? `to ${x.to}` : `from ${x.from}`}  [${x.kind}]${x.from === agent.handle ? (x.answered ? "  answered" : "  not answered yet") : (x.answered ? "  you answered" : "  not answered by you")}${x.text ? `: ${x.text}` : ""}`).join("\n") : "You have no messages yet." };
   } catch (e) {
     const err = e as Error & { detail?: string };
