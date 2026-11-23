@@ -317,6 +317,8 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (herdText && r.ok) rememberText(world, herdText, name === "forum_post" ? "post" : "comment", agent.handle, /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "", typeof input.post === "string" ? input.post : /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "");
   // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
   if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
+  // A refusal that the field guide has advice for ends with where to read it (a fact; nothing is asked)
+  if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   const extra: string[] = [];
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
