@@ -11,6 +11,7 @@ import { FORUM_VERSION, LocalLog, forumRoutes, journeyRoutes, societyMapRoutes, 
 import { coursesRoutes } from "../lens-courses/pages.ts";
 import { MarketHall, makeParties } from "./market.ts";
 import { Library } from "./library.ts";
+import { LessonShelf } from "./lessons.ts";
 import { Expedition } from "./expedition.ts";
 import { GameHall } from "./games.ts";
 import { DayCycle } from "./day-cycle.ts";
@@ -41,7 +42,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
+export async function bootWorld(o: { dir: string; /** Lesson cards through the gate (ENG102). */ lessons?: boolean; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -97,6 +98,7 @@ export async function bootWorld(o: { dir: string; /** Cohort only, default off: 
   hall.setPerformer(performer);
   if (o.games) api.games = new GameHall({ file: join(o.dir, "games.json"), ...(o.gameRound ? { size: o.gameRound } : {}), pay: (did, n) => hall.royalty(did, n) });
   hall.seedQuestions = !!o.seedQuestions;
+  if (o.lessons) api.lessons = new LessonShelf(now);
   if (o.markers !== undefined) api.markers = new Markers(o.markers || "cohort");
   if (o.dayCycle) {
     const d = new DayCycle();

@@ -31,6 +31,7 @@ import { renderGames } from "./games.ts";
 import { buildGuide, countRefusals, FIRST_25_RUN, loadCounts, renderGuideComparison } from "./field-guide.ts";
 import { findsSection } from "./finds.ts";
 import { renderAgentJobs, renderFirstMinute, renderLooking, renderTalk, talkCounts } from "./talk.ts";
+import { hashText, renderLessonEvidence } from "./lessons-report.ts";
 import { collisionReport, deliveryReport, renderCollisions, renderDeliveries } from "./collisions.ts";
 import { renderMarkerWindows } from "./markers.ts";
 import { renderDayCycle } from "./day-cycle.ts";
@@ -97,6 +98,8 @@ export interface CohortOptions {
   jobSlots?: boolean;
   /** ENG89: the tool layer does not cap text length (cohort only, default off); the report says so. */
   relaxLimits?: boolean;
+  /** ENG102: lesson cards through the gate (the tools lesson_publish, lesson_read, lesson_cite) and the continual-learning evidence section of the report. */
+  lessons?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
   library?: boolean;
   /** Course markers scattered over the map (markers.ts), placed from this seed (an empty string uses the default). */
@@ -165,10 +168,10 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   };
 
   const caps: Caps = { perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd, deadlineMs: now() + o.minutes * 60_000, priceIn: o.priceIn ?? 0, priceOut: o.priceOut ?? 0, maxTurns: o.maxTurns ?? 60, maxTokens: o.maxTokens ?? 600, windowTurns: 6 };
-  const groups: ReadonlySet<string> = new Set([...(o.expedition || o.markers !== undefined ? ["expedition"] : []), ...(o.games ? ["games"] : []), ...(o.roles ? ["town"] : []), ...(o.library ? ["library"] : [])]);
+  const groups: ReadonlySet<string> = new Set([...(o.expedition || o.markers !== undefined ? ["expedition"] : []), ...(o.games ? ["games"] : []), ...(o.roles ? ["town"] : []), ...(o.lessons ? ["lessons"] : []), ...(o.library ? ["library"] : [])]);
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), hintLines: !o.noHints, toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });  if (o.engine) trace({ t: "provenance", at: stamp(), model: o.model, settings: { ...REQUEST_SETTINGS } });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
-  const world = await bootWorld({ dir: join(dir, "society"), ...(o.relaxLimits ? { relaxLimits: true } : {}), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  const world = await bootWorld({ dir: join(dir, "society"), ...(o.lessons ? { lessons: true } : {}), ...(o.relaxLimits ? { relaxLimits: true } : {}), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   world.api.groups = groups;
   let guideInfo: { guide: ReturnType<typeof buildGuide>; mode: "half" | "all" } | undefined;
@@ -186,7 +189,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   await world.api.market?.scaleFor(o.agents); // a board as big as the cohort, so agents that arrive together do not all rush the same first jobs
   if (world.plant) trace({ t: "plant", at: stamp(), token: world.plant.token, post: world.plant.post, mode: o.injectionScreen ?? "label" });
   try {
-    const agents = [];
+    const agents: AgentCtx[] = [];
     const access = o.experiment ? assignAccess(Array.from({ length: o.agents }, (_, i) => handleOf(i)), o.experiment.seed) : undefined;
     const arms = o.writeback ? assignArms(Array.from({ length: o.agents }, (_, i) => handleOf(i)), o.writeback.seed, o.writeback.mode) : undefined;
     for (let i = 0; i < o.agents; i++) {
@@ -308,7 +311,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     logPart = await logReport(world.log, signed);
     creditEconomy = creditEconomyOf({ flows: await world.log.log.creditFlows(), audit: await world.log.log.creditAudit(), agents: analyse(events).perAgent, firstJobBonuses: world.api.market?.bonusCount() ?? 0, freeWriteRefunds: world.api.market?.freeWriteRefunds() ?? 0, libraryRoyalties: world.api.library?.royaltiesPaid ?? 0, expeditionPay: world.api.expedition?.paid ?? 0, gamePrizes: world.api.games?.prizesPaid ?? 0, fieldLessons: (world.api.markers?.paid ?? 0) + (world.api.tips?.total ?? 0), firstJobRefunds: world.api.market?.firstJobRefunds ?? 0, startCredits: START_CREDITS, jobTaxPermille: JOB_TAX_PERMILLE, depositPrice: POSTING_DEPOSIT });
     // What agents wrote about their finds is read while the society is still up.
-    talkPart = (o.relaxLimits ? "## Length limits\n\nThe length limits of the tool layer were RELAXED in this run (`--relax-limits`, cohort only): text was not capped at the usual 120, 90 and similar limits, so what agents wrote here is not comparable with a run that had them. Long forum text was accepted without the credit charge it carries elsewhere.\n\n" : "") + renderFirstMinute(events) + renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderDeliveries(deliveryReport(events)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
+    talkPart = (world.api.lessons ? renderLessonEvidence(world.api.lessons, events, (world.api.library?.docs ?? []).map((d) => ({ id: d.id, by: d.by, title: d.title, hash: hashText(`${d.title}\n${d.text}`) })), (world.api.library?.noteList() ?? []).map((n) => ({ handle: agents.find((a) => a.did === n.did)?.handle ?? n.did, name: n.name, hash: hashText(n.text) })), o.agents) : "") + (o.relaxLimits ? "## Length limits\n\nThe length limits of the tool layer were RELAXED in this run (`--relax-limits`, cohort only): text was not capped at the usual 120, 90 and similar limits, so what agents wrote here is not comparable with a run that had them. Long forum text was accepted without the credit charge it carries elsewhere.\n\n" : "") + renderFirstMinute(events) + renderLooking(events, agents.map((a) => ({ did: a.did, handle: a.handle })), world.api.markers) + renderCollisions(collisionReport(events, !!o.jobSlots)) + renderDeliveries(deliveryReport(events)) + renderTalk(await talkCounts(world.api, events, new Map(agents.map((a) => [a.did, a.handle])))) + (world.api.market ? renderAgentJobs(world.api.market.agentJobStats(), o.agents) : "");
     if (world.api.findsThread) findsPart = await findsSection(world.api, agents.map((a) => ({ did: a.did, handle: a.handle })), new Set(analyse(events).perAgent.filter((s) => s.discoveries.length > 0).map((s) => s.handle)));
     // The founding snapshot is read while the society is still up.
     if (o.snapshotOut) founding = await snapshotOf(world.api, { run, model: o.model, provider: o.provider?.name ?? "anthropic", costUsd: analyse(events).totalUsd, agents: o.agents, voices: !!o.voices });

@@ -79,6 +79,8 @@ export class Library {
     return { total: all.length, page, docs: all.slice((page - 1) * SEARCH_PAGE, page * SEARCH_PAGE) };
   }
 
+  /** Every workspace note, for the continual-learning report (hashes of the text). */
+  noteList(): Array<{ did: string; name: string; text: string }> { return [...this.notes.entries()].flatMap(([did, m]) => [...m.entries()].map(([name, text]) => ({ did, name, text }))); }
   get(id: string): LibraryDoc | undefined { return this.docs.find((d) => d.id === id); }
 
   /** A citation: counted once for each citing agent and document, never for one's own document; pays the royalty until the author's cap. Returns the credits to pay (0 or the royalty). */

@@ -43,6 +43,8 @@ export interface WorldApi {
   games?: import("./games.ts").GameHall;
   /** Whether the two true lines about learning and about more to find are shown in the first observation (ENG69); only when the run has markers or the tour. Undefined or true: shown. */
   hintLines?: boolean;
+  /** Lesson cards through the gate (ENG102, minimal ENG80): present only when the run has them. */
+  lessons?: import("./lessons.ts").LessonShelf;
   /** The cohort-only relaxed-limits setting (ENG89): off unless `--relax-limits`. */
   relaxLimits?: boolean;
   /** The house field guide to the most common refusals, and which newcomers are offered it (field-guide.ts); absent: none. */
