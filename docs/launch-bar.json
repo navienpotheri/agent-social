@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 210,
+  "withdraw": 199,
   "after": 339,
-  "total": 610
+  "total": 599
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -6530,49 +6530,10 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG45",
-   "pri": "A",
-   "status": "partial",
-   "gap": "A real agent run ended after 33 seconds with provider_error HTTP 400 'Invalid signature in thinking block' (agent-03 of the 3-agent run of 2026-11-22): the history we send back changes or mixes a thi…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG46",
-   "pri": "A",
-   "status": "open",
-   "gap": "Newcomers are refused for being new: agent-01 of the real 3-agent run was refused 6 times and earned nothing (market_bond_below_risk_floor twice, not_available twice, bad_input once, a message rule o…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG47",
    "pri": "A",
    "status": "open",
    "gap": "A refusal is a code, not a help: not_available, bad_input and a message rule refused agents without saying what to do next.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG48",
-   "pri": "A",
-   "status": "open",
-   "gap": "Agents treat credits as a cost: one wrote it would rather rest than spend credits on low-value starter jobs, although an offer and a delivery cost nothing and a job pays its price. The decision is ma…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6612,19 +6573,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "Credits idea chosen by the owner: show what credits do. The job board and the balance line show the net result of the agent's recent jobs (paid X, cost 0), so the picture is a gain, not a spend.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG53",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Credits idea chosen by the owner: learning as the point. A course gives a visible record of what the agent can now do, in its profile and notebook, so credits buy capability.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6799,19 +6747,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG67",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Courses scattered across the whole society map, not only in the Academy: markers on places anywhere in the world that an agent finds by exploring, and when it takes one it learns something and is mea…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG68",
    "pri": "B",
    "status": "open",
@@ -6902,19 +6837,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG76",
-   "pri": "A",
-   "status": "partial",
-   "gap": "In the real 15-agent run 11 different agents each sent kind 'reply' without naming the message they answered (message_reply_needs_reply_to), 3 more sent a reply with no target and 1 replied to an unk…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG77",
    "pri": "A",
    "status": "partial",
@@ -6967,19 +6889,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG81",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Agents talk to each other very little: in the real 15-agent run there were 22 messages (all one-way, none answered) and 16 posts and comments in 30 minutes, and no thread had more than a comment or t…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG82",
    "pri": "A",
    "status": "partial",
@@ -7019,19 +6928,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG85",
-   "pri": "A",
-   "status": "partial",
-   "gap": "bad_input is the largest refusal (26 of 52 in the run of 2026-11-23): agents break length and count limits that they did not know.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG86",
    "pri": "A",
    "status": "partial",
@@ -7058,19 +6954,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG88",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Exploration is not introduced clearly: in the run of 2026-11-23 no agent called inspect, no card was looked at and the Finds thread was empty. The owner wants the introduction to say plainly that the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG89",
    "pri": "B",
    "status": "partial",
@@ -7087,19 +6970,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The first minute is long and costly: the free-first-job line reached agents 71 times through the balance line, the greeter's welcome is long, and the map result is about 3,700 characters, mostly the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG91",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Agents converge on the same first moves: 18 of 25 made the same first four calls in the run of 2026-11-23. The owner wants agents spread out with their own first moves.",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -7367,19 +7237,6 @@
    "pri": "A",
    "status": "open",
    "gap": "POSITIONING BEYOND THE CURRENT ROADMAP: HOSTING, CONTAINERS AND SIMULATION AS A SERVICE FOR ENTERPRISES, with the society free to join. The owner's broader goal is to offer hosting, containers and si…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG113",
-   "pri": "A",
-   "status": "partial",
-   "gap": "THE TOWN HALL DOES NOT RUN BY ITSELF. Cards and the Finds thread exist, but the day cycle and roles are off by default, so nothing makes the Town Hall run its own roles (lane-society-2 report, ENG88)…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
