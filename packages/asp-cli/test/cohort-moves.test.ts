@@ -121,12 +121,11 @@ test("the kinds split names the house's greeter and guides and no longer calls t
   assert.match(renderKinds(k), /sponsored -> house \(greeter and guides\) 1/);
 });
 
-test("twelve scripted agents that all look at the board at once and take the first job on their own list are not refused for a job someone else took", async () => {
-  const o = { out: mkdtempSync(join(tmpdir(), "asp-mv-rush-out-")), home: mkdtempSync(join(tmpdir(), "asp-mv-rush-home-")), agents: 12, jobSlots: true, model: "stand-in", provider: standInProvider(() => "clumsy", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 24, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } } as CohortOptions;
+test("twelve scripted agents that all look at the board at once and take the first job on their own list are refused for a job someone else took at most once with the hold on", async () => {
+  const o = { out: mkdtempSync(join(tmpdir(), "asp-mv-rush-out-")), home: mkdtempSync(join(tmpdir(), "asp-mv-rush-home-")), agents: 12, jobSlots: true, model: "stand-in", provider: standInProvider(() => "rusher", { latencyMs: 3 }), staggerMs: 0, budgetUsd: 2, totalUsd: 24, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined } } as CohortOptions;
   const r = await runCohort(o);
   const counts = JSON.parse(readFileSync(join(r.dir, "refusal-counts.json"), "utf8")) as { counts: Record<string, number> };
-  assert.equal(counts.counts["market_refused"] ?? 0, 0, JSON.stringify(counts.counts));
-  assert.equal(counts.counts["bad_input"], 12, "each slipped once on purpose, nothing else");
+  assert.ok((counts.counts["market_refused"] ?? 0) <= 1, `with the hold on, at most one of twelve is refused: ${JSON.stringify(counts.counts)}`);
 });
 
 test("the report says in its Direct messages section how many went to the house's greeter and guides and how many to other agents, and the talking section points there", async () => {

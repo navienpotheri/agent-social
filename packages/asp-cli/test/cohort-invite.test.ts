@@ -90,7 +90,7 @@ test("offer collisions are recorded, not steered: job slots are off by default, 
 
 test("four scripted agents that all take the first job on the board collide with job slots off and the report records it; with slots on they do not", async () => {
   const run = async (jobSlots: boolean): Promise<string> => {
-    const o = { out: mkdtempSync(join(tmpdir(), "asp-inv-col-out-")), home: mkdtempSync(join(tmpdir(), "asp-inv-col-home-")), agents: 4, model: "stand-in", provider: standInProvider(() => "clumsy", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 8, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined }, jobSlots } as CohortOptions;
+    const o = { out: mkdtempSync(join(tmpdir(), "asp-inv-col-out-")), home: mkdtempSync(join(tmpdir(), "asp-inv-col-home-")), agents: 4, model: "stand-in", provider: standInProvider(() => "rusher", { latencyMs: 4 }), staggerMs: 0, budgetUsd: 2, totalUsd: 8, minutes: 3, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined }, jobSlots } as CohortOptions;
     return readFileSync((await runCohort(o)).markdownPath, "utf8");
   };
   const off = await run(false), on = await run(true);

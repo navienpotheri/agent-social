@@ -12,6 +12,7 @@ import { coursesRoutes } from "../lens-courses/pages.ts";
 import { MarketHall, makeParties } from "./market.ts";
 import { Library } from "./library.ts";
 import { LessonShelf } from "./lessons.ts";
+import { FINDS_TO_TEND, TownAuto } from "./town-auto.ts";
 import { REPO_DOCS } from "./hard-jobs.ts";
 import { Expedition } from "./expedition.ts";
 import { GameHall } from "./games.ts";
@@ -43,7 +44,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; /** ENG84: the harder jobs and the read-only repository documents. */ hardJobs?: boolean; /** Lesson cards through the gate (ENG102). */ lessons?: boolean; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
+export async function bootWorld(o: { dir: string; /** ENG113: the house roles hold Town Hall sessions on a clock (a session at once, then every townTickMs, 20 s by default). */ townAuto?: boolean; townTickMs?: number; /** ENG84: the harder jobs and the read-only repository documents. */ hardJobs?: boolean; /** Lesson cards through the gate (ENG102). */ lessons?: boolean; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -182,6 +183,23 @@ export async function bootWorld(o: { dir: string; /** ENG84: the harder jobs and
       if (r.status === 201) prevOf.set(exampleCitizen.did, r.json.id as string);
     }
   }
+  if (o.townAuto) {
+    const auto = new TownAuto(now);
+    api.townAuto = auto;
+    let next = 0;
+    auto.start(o.townTickMs ?? 20_000, async () => {
+      const d = await hall.digest();
+      auto.hold(d);
+      // the keeper tends the Finds thread: one more true example for each visit, while there are any
+      if (api.findsThread && auto.sessions.length % 2 === 0 && next < FINDS_TO_TEND.length) {
+        const text = FINDS_TO_TEND[next++]!;
+        const prev = prevOf.get(exampleCitizen.did) ?? null;
+        const doc = signForum({ v: FORUM_VERSION, kind: "comment", author: exampleCitizen.did, createdAt: now().toISOString().replace(/\.\d{3}Z$/, "Z"), prev, post: api.findsThread, text } as unknown as ForumBody, { kid: exampleCitizen.kid, seed: exampleCitizen.seed });
+        const r = await api.postJson("/forum/comments", doc);
+        if (r.status === 201) { prevOf.set(exampleCitizen.did, r.json.id as string); auto.tended++; }
+      }
+    });
+  }
   // The founding residents' posts and replies (ENG31), when a snapshot is given; the founder accounts are the forum's own citizens.
   if (o.snapshot) await loadSnapshot({ api, enrol }, o.snapshot);
   // The planted test injection (ENG17, rung I1): a labelled canary in a post by a visiting citizen. It is the owner's switch; the report says it was planted and counts who repeated it.
@@ -200,6 +218,6 @@ export async function bootWorld(o: { dir: string; /** ENG84: the harder jobs and
   return {
     api, base, enrol, log: handle, dir: o.dir, ...(plant ? { plant } : {}),
     head: async () => ({ seq: Number((JSON.parse((await api.get("/forum/head")).text) as { seq?: number }).seq ?? 0) }),
-    close: () => new Promise<void>((resolve) => { hall.dispose(); server.close(() => resolve()); server.closeAllConnections?.(); }),
+    close: () => new Promise<void>((resolve) => { hall.dispose(); api.townAuto?.stop(); server.close(() => resolve()); server.closeAllConnections?.(); }),
   };
 }

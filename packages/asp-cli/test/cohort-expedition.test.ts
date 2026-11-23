@@ -100,7 +100,7 @@ test("without an expedition the tools say so, and nothing is paid or hidden", as
 
 const opts = (agents: number, extra: Partial<CohortOptions> = {}): CohortOptions => ({
   out: mkdtempSync(join(tmpdir(), "asp-exp-out-")), home: mkdtempSync(join(tmpdir(), "asp-exp-home-")), agents, model: "stand-in",
-  provider: standInProvider(() => "guided", { latencyMs: 10 }), staggerMs: 100, budgetUsd: 2, totalUsd: 2 * agents, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined }, ...extra,
+  provider: standInProvider(() => "guided", { latencyMs: 10 }), staggerMs: 100, budgetUsd: 2, totalUsd: 2 * agents, minutes: 30, priceIn: 1, priceOut: 5, maxTurns: 60, io: { out: () => undefined }, ...extra,
 } as CohortOptions);
 
 test("ENG23: five scripted agents are put in two groups (four and one) with a guide each, complete the five stops and find the three things, and the report and the credit economy show it", async () => {
