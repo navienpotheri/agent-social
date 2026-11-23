@@ -35,7 +35,7 @@ async function asp(args: string[], env: Record<string, string> = {}) {
 const documented = [...doc.matchAll(/```powershell\n([\s\S]*?)```/g)].flatMap((m) => m[1]!.split("\n")).filter((l) => /society cohort/.test(l) && !/society cohort verify/.test(l)).map((l) => l.replace(/^npm run asp -- /, "").replace(/<usd per million input tokens>/g, "1").replace(/<usd per million output tokens>/g, "5"));
 const tokens = (cmd: string): string[] => cmd.split(/\s+/).filter(Boolean);
 
-test("DK1801: the document gives the dry run and the three real steps and the persona run, and each command in it runs and writes a report", async () => {
+test("DK1801: the document gives the dry run and the three real steps and the persona run, and each command in it runs and writes a report", { timeout: 600_000 }, async () => {
   assert.ok(documented.length >= 5, `${documented.length} documented cohort commands`);
   assert.ok(documented.some((c) => /--provider stand-in/.test(c)), "the dry run is documented");
   assert.ok(documented.some((c) => /--agents 1 /.test(c)) && documented.some((c) => /--agents 3 /.test(c)) && documented.some((c) => /--agents 15 /.test(c)), "one, three and fifteen agents");

@@ -142,7 +142,11 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   for (const [k, v] of [["--budget-usd", o.budgetUsd], ["--total-usd", o.totalUsd], ["--minutes", o.minutes]] as const) if (!(v > 0)) throw new Error(`${k} must be more than zero: a run with no cap is not started`);
   if ((o.priceIn ?? 0) < 0 || (o.priceOut ?? 0) < 0) throw new Error("the prices are USD per million tokens, not negative");
   const now = o.now ?? Date.now;
-  const run = `cohort-${new Date(now()).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z")}`;
+  // The run's name is its start time to the second; two runs started in the same second into one folder (a script, a test) would share a society folder and a log, so the second world would append its operator's
+  // passport, signed with a new key, to the first world's log and be refused (ENG119: the intermittent BAD_SIGNATURE). A name that is taken gets a numbered suffix.
+  const stamp0 = `cohort-${new Date(now()).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z")}`;
+  let run = stamp0;
+  for (let k = 2; existsSync(join(o.out, run)); k++) run = `${stamp0}-${k}`;
   const dir = join(o.out, run);
   mkdirSync(dir, { recursive: true });
   const tracePath = join(dir, "trace.jsonl");
