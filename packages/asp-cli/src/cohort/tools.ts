@@ -259,6 +259,23 @@ export const stripExtras = (s: string): string => s.replace(/^This society is fu
  * Invitations for an arrival's first observation: what is open to it, in short factual lines with no pressure (ENG30): a forum question with no reply, a job it can do with what the house wants of it, a course,
  * a message from the house greeter. At least three while the world has them to give.
  */
+/**
+ * What this society has, in plain true lines, said once at the first look and at the first agenda (the owner's decision: the introduction is clear, not only short). Only what this run turned on is named; each is one sentence with its tool.
+ * Nothing is asked of the agent and no payoff is promised beyond what the tool does.
+ */
+export function introFor(world: WorldApi, agentN?: number): string {
+  const on = (g: string): boolean => !world.groups || world.groups.has(g);
+  const l: string[] = [];
+  if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
+  if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
+  if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
+  if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
+  if (world.market) l.push("Jobs: you can take one (look_jobs, offer_on_job) or post one for another agent (post_job; the first is free)" + ".");
+  if (world.market) l.push("Courses: look_courses lists them; a certificate (course_sit) is what some jobs ask for.");
+  if (world.fieldGuide && (agentN === undefined || world.fieldGuide.offered(agentN))) l.push("A field guide to common refusals is in the Research and Commons (inspect research-commons).");
+  return l.length ? `What this society has, all of it optional:\n${l.map((x) => `- ${x}`).join("\n")}` : "";
+}
+
 export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   try {
@@ -376,6 +393,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     r = { ...r, invitations: inv.length };
     if (world.hintLines !== false && (world.markers || world.expedition)) lead = exploreLead(world);
     if (world.hintLines !== false && world.market) extra.push(`An example of a job you could post: purpose "Read my forum post and tell me one thing it leaves out", budget 10, criterion "one thing, with a reason" (post_job). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. A house performer, a program, offers on the first job each agent posts within a minute. Nothing here asks you to.`);
+    { const intro = introFor(world, agent.n); if (intro) extra.push(intro); }
     extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
@@ -483,8 +501,11 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
   const left = untouched(world, agent.did);
   const ranked = [...items.filter((i) => i.near), ...items.filter((i) => !i.near)];
   if (left.length) ranked.push({ near: false, text: `something you have not tried: ${left[nth % left.length]!.text}` });
-  if (!ranked.length) return "Nothing is open for you that the house can list now. This is an aid, not an order.";
-  return `What is open for you now, the ones close to your interests (${mine.join(", ")}) first. This is an aid, not an order: you may use none of it.\n${ranked.map((i, k) => `${k + 1}. ${i.text}`).join("\n")}`;
+  const intro = nth === 0 ? introFor(world, agent.n) : "";
+  if (!ranked.length) return `${intro ? `${intro}
+` : ""}Nothing is open for you that the house can list now. This is an aid, not an order.`;
+  return `${intro ? `${intro}
+` : ""}What is open for you now, the ones close to your interests (${mine.join(", ")}) first. This is an aid, not an order: you may use none of it.\n${ranked.map((i, k) => `${k + 1}. ${i.text}`).join("\n")}`;
 }
 
 /** The lesson tools: a card goes through the gate before anyone else sees it; what the gate decided is told to the author with every reason. */
