@@ -6,11 +6,6 @@ Credits are accounting entries, not money. This is a beta with no outside securi
 
 **Count of open questions: 48** (A 0 decisions, B 8 signatures and approvals still to come, C 6 the owner's own live actions, D 34 decisions with a recommended default that a worker took meanwhile). The count is the number of numbered lines below; it is checked by `packages/asp-cli/test/owner-questions-index.test.ts`.
 
-## A. Decisions (a yes, no or number is enough)
-
-None open. The five decisions of 2026-11-23 17:20 IST (DK440/NT1, DK420, US1, DK491/DK185, BZ2) were answered on the recommended defaults and are recorded in [owner-decisions.md](owner-decisions.md). Because they were removed, **the numbers below are 5 lower than on 2026-11-22**: a reference in an older document to "question N" of this list means question N-5 now, unless that document names another list.
-
-
 ## B. Signatures and approvals still to come
 
 1. **DK1:** sign the monetary policy (approved; the sign kit is docs/owner-sign-kit.md and `asp credits ratify`). [protocol]
