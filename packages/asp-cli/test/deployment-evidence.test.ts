@@ -126,7 +126,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
   for (const [id, re] of Object.entries(touched)) {
     const row = rowOf(id).sort((a, b) => b.length - a.length)[0]!;
     assert.match(row, re, `${id}: the note and what is missing`);
-    assert.equal(status(row), ["DK1802", "O18", "E9"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802, O18 and E9 closed later)`);
+    assert.equal(status(row), ["DK1802", "O18", "E9", "KO2", "ML4", "DK1602"].includes(id) ? "closed" : "partial", `${id} keeps its status (a row closes only on its Done line; DK1802, O18, E9, KO2, ML4 and DK1602 closed later)`);
     assert.doesNotMatch(row.split("|").slice(-2)[0]!, /\*\*/, `${id}: the status cell holds one word`);
   }
   // The overnight table: every row id is a row of the register and the 'after' status is the register's.
@@ -140,7 +140,7 @@ test("the evening's evidence (step 7) closes nothing new: each row that it touch
     const rows = rowOf(c[1]!);
     assert.ok(rows.length >= 1, `${c[1]} is a row of the register`);
     const reg = rows.map((r) => r.split("|").slice(-2)[0]!.trim()).find((st) => /^(open|partial|closed|designed)/.test(st)) ?? "";
-    const later = ["DK1802", "DK546", "O18", "E9"].includes(c[1]!) && reg.startsWith("closed");   // closed later (the later tables)
+    const later = ["DK1802", "DK546", "O18", "E9", "KO2", "ML4", "DK1602"].includes(c[1]!) && reg.startsWith("closed");   // closed later (the later tables)
     assert.ok(reg.startsWith(c[3]!) || later, `${c[1]}: the table says ${c[3]} and the register says ${reg.slice(0, 12)}`);
     if (c[3] === "closed") closed.push(c[1]!);
   }
@@ -174,9 +174,9 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
     P21: ["partial", /Goose, Antigravity and OpenHands from this command/],
     E5: ["partial", /Antigravity and OpenHands/],
     DK650: ["partial", /abuse counters read afterwards/],
-    DK1602: ["open", /not compared with the gateway's run log/],
+    DK1602: ["closed", /Closed 2026-11-23 \(launch-bar-2\), judged by the Done line/],
     E8: ["partial", /dashboard does not exist, so the row stays partial/],
-    KO2: ["partial", /owner question 53: the proposed default is pull plus the operator's notes only, \*\*not yet answered\*\*/],
+    KO2: ["closed", /owner question 53: the proposed default is pull plus the operator's notes only, \*\*not yet answered\*\*/],
   };
   for (const [id, [st, re]] of Object.entries(stays)) { assert.equal(status(row(id)), st, `${id} keeps ${st}`); assert.match(row(id), re, `${id}: what is missing`); }
   const dk1806 = rowOf("DK1806")[0]!;
@@ -185,7 +185,7 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   assert.equal(status(dk1806), "open");
   for (const p of ["docs/deployment-walkthrough.md", "docs/deployment-plan.md", "docs/tonight.md"]) { const d = read(p); assert.match(d, /DK1806/, p); assert.match(d, /Set-ExecutionPolicy -Scope Process Bypass/, p); assert.match(d, /changes nothing for the machine/, p); }
   const all = read("docs/owner-questions-all.md").split("## Answered, no action")[0]!;
-  const q54 = all.split("\n").find((l) => l.startsWith("53. **KO2:**"))!;
+  const q54 = all.split("\n").find((l) => l.startsWith("48. **KO2:**"))!;
   assert.match(q54, /Proposed default, not yet answered by you/);
   assert.match(q54, /\[docs\/key-only-audit\.md\]$/);
   assert.doesNotMatch(read("docs/owner-decisions.md"), /pull plus the operator's notes only/, "it is not recorded as decided");
@@ -194,7 +194,7 @@ test("the two live runs through the hosted service (as relayed): DK1802 and DK54
   const lines = table.split("\n").filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 12);
   const closed: string[] = [];
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1806" && c[1] !== "DK1807") { const reg = status(row(c[1]!)); if (!(c[1] === "E9" && reg === "closed")) assert.equal(reg, c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); } if (c[3] === "closed") closed.push(c[1]!); }
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1806" && c[1] !== "DK1807") { const reg = status(row(c[1]!)); if (!(["E9", "KO2", "ML4", "DK1602"].includes(c[1]!) && reg === "closed")) assert.equal(reg, c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); } if (c[3] === "closed") closed.push(c[1]!); }
   assert.deepEqual(closed.filter((x) => x !== "E10").sort(), ["DK1802", "DK546"], "only DK1802 and DK546 close in the second table (E10 is closed already and is listed as evidence only)");
   const res = read("docs/live-run-results-2026-11-22.md");
   const part = res.slice(res.indexOf("## 7. The two runs through the hosted service"));
@@ -229,7 +229,7 @@ test("the O18 live run and the 13 charters (seen by the lead): O18 closes on the
   const all54 = read("docs/owner-questions-all.md");
   assert.doesNotMatch(all54.split("## Answered, no action")[0]!, /^54\. \*\*O18:\*\*/m, "question 54 has left the open list");
   assert.match(all54.split("## Answered, no action")[1]!, /O18 \(the record of a suspension\): the owner accepted the hash-chained, attributed audit trail for the beta/);
-  assert.match(all54, /Count of open questions: 53\*\*/);
+  assert.match(all54, /Count of open questions: (53|48)\*\*/);
   const dec = read("docs/owner-decisions.md");
   assert.match(dec, /## O18: the record of a suspension \(answered 2026-11-22 evening, relayed by the lead/);
   assert.match(dec, /\*\*Accept the hash-chained, attributed audit trail for the beta\*\*/);
@@ -243,7 +243,7 @@ test("the O18 live run and the 13 charters (seen by the lead): O18 closes on the
   const table = log.slice(log.indexOf("## 2026-11-22 later still (launch-bar-2)"), log.indexOf("## 2026-11-23 (launch-bar-2)"));
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 6);
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808" && c[1] !== "DK1809" && !(c[1] === "E9" && status(row("E9")) === "closed")) assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); }
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1808" && c[1] !== "DK1809" && !(["E9", "KO2", "ML4", "DK1602"].includes(c[1]!) && status(row(c[1]!)) === "closed")) assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's (E9 closed later, on 2026-11-23)`); }
   const ck = read("docs/live-run-checklist.md");
   const part = ck.slice(ck.indexOf("## O18 live run and the 13 charters"));
   for (const frag of ["`GET /admin/tenants` listed the five tenants", "{ok:true, action:suspend}", "this tenant is suspended: O18 live check", "5 entries, hash-linked", "seq 5 block of 192.0.2.1 (16:03:50Z", "**O18 is closed**", "13 charters as version 1", "Housing housing", "The end-of-job mail from a real governed run has **not** been received"]) assert.ok(part.includes(frag), frag);
@@ -254,7 +254,7 @@ test("the redeploy, the live charter index and the real end-of-job mail (seen by
   const row = (id: string) => rowOf(id).sort((a, b) => b.length - a.length)[0]!;
   for (const id of ["DK1807", "E9", "ML1", "ML3", "DK1811"]) { assert.equal(status(row(id)), "closed", `${id} closed`); assert.match(row(id), /Closed 2026-11-23/, `${id} says when`); assert.match(row(id), /deployment-evidence\.test\.ts/, `${id} cites its test`); }
   for (const id of ["E10", "DK1810"]) assert.equal(status(row(id)), "closed", `${id} stays closed`);
-  for (const id of ["E8", "ML2", "KO2"]) assert.equal(status(row(id)), "partial", `${id} stays partial`);
+  for (const id of ["E8", "ML2"]) assert.equal(status(row(id)), "partial", `${id} stays partial`);
   for (const frag of ["mail sent: run:sha256:98835", "Nov 22 18:53:03 UTC, which is 12:23 AM IST", "Your agent's run ended: Standing job: claude-code as my-agent (aea9f4)", "Sun Nov 22 11:50 PM IST", "The two times are reconciled (2026-11-23)", "scopes repo.read, repo.write and tests.run", "2,901 tokens", "`shell.network`", "about USD 0.04, an estimate from a price table and not the provider's bill", "a stop-these-mails link", "first pass after the redeploy", "Not run:** a click on the unsubscribe link, and a bounce", "81af786e", "46 run ends"]) assert.ok(row("DK1807").includes(frag), `DK1807: ${frag}`);
   assert.match(row("E9"), /The first test mail still does not count as an end-of-job mail; the end-of-job mail is the second one/);
   assert.match(row("E9"), /Not run:\*\* a click on the unsubscribe link and a bounce/);
@@ -279,7 +279,7 @@ test("the redeploy, the live charter index and the real end-of-job mail (seen by
   const lines = table.split(String.fromCharCode(10)).filter((l) => /^\| [A-Z]+\d+ \| /.test(l));
   assert.equal(lines.length, 10);
   const closed: string[] = [];
-  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); if (c[3] === "closed" && c[2] !== "closed") closed.push(c[1]!); }
+  for (const l of lines) { const c = l.split("|").map((x) => x.trim()); assert.equal(status(row(c[1]!)), ["KO2", "ML4", "DK1602"].includes(c[1]!) ? "closed" : c[3], `${c[1]}: the table's after is the register's (KO2, ML4 and DK1602 closed later)`); if (c[3] === "closed" && c[2] !== "closed") closed.push(c[1]!); }
   assert.deepEqual(closed.sort(), ["DK1807", "DK1811", "E9", "ML1", "ML3"], "exactly the five rows that closed");
   const plan = read("docs/deployment-plan.md");
   assert.match(plan, /E9 \(step 7; the end-of-job mail of a real governed run reached the owner's inbox after the redeploy\) and DK1811 \(step 5/);
@@ -427,4 +427,22 @@ test("step 12 on the hosted service (partial; seen by the lead, 2026-11-23): DK7
   assert.equal(lines.length, 4);
   for (const l of lines) { const c = l.split("|").map((x) => x.trim()); if (c[1] !== "DK1841") assert.equal(status(row(c[1]!)), c[3], `${c[1]}: the table's after is the register's`); }
   assert.equal(600 + 99_850 + 1_500 + 2 <= 1_104_600, true);
+});
+
+// The evidence of 2026-11-23 about 16:57 to 17:15 IST (O18, DK1602, KO2 and ML4 live) and the owner's five decisions of 17:20 IST: recorded without a secret or an address; each row judged by its own Done line.
+test("O18, DK1602, KO2 and ML4 live evidence and the five decisions of 2026-11-23 17:20 are recorded; closed only where the Done line is met", () => {
+  const ck = read("docs/live-run-checklist.md");
+  const part = ck.slice(ck.indexOf("## O18, DK1602, KO2 and ML4 on the hosted service, 2026-11-23"));
+  assert.ok(part.length > 500);
+  for (const frag of ["answered **401**", "2537 + 364 = 2901", "2407 + 180 = 2587", "5488 tokens (4118 in, 1370 out) over 4 Actions", "4 tries left", "8aa76014", "arrived", "GUARD_FAILED", "an agent sends at most 60 messages a day", "option C, unlimited for every agent"]) assert.ok(part.includes(frag), frag);
+  assert.doesNotMatch(part, /@[a-z0-9.-]+\.[a-z]{2,}|Bearer [A-Za-z0-9._-]{16,}|AGE-SECRET-KEY|\b\d{6}\b(?=\s*(is|was) the code)/i, "no address, token or code");
+  for (const id of ["O18", "DK1602", "ML4", "KO2"]) { const lr = rowOf(id).sort((a, b) => b.length - a.length)[0]!; assert.equal(status(lr), "closed", id); assert.match(lr, /deployment-evidence\.test\.ts/, `${id} cites its test`); }
+  for (const id of ["ML2", "ML5", "US1", "DK491", "DK185", "BZ2"]) assert.equal(status(rowOf(id).sort((a, b) => b.length - a.length)[0]!), "partial", id);
+  for (const id of ["DK440", "DK420"]) assert.equal(status(rowOf(id).sort((a, b) => b.length - a.length)[0]!), "open", id);
+  const od = read("docs/owner-decisions.md");
+  const sec = od.slice(od.indexOf("## Decisions of 2026-11-23, 17:20 IST"));
+  for (const frag of ["72 hours' notice", "stays opt-in for the beta", "stay OFF for the first 30 days", "unpublished until the AI-assisted legal review is accepted", "Apache License 2.0", "no public roadmap before the launch"]) assert.ok(sec.includes(frag), frag);
+  const q = read("docs/owner-questions-all.md");
+  assert.match(q, /\*\*Count of open questions: 48\*\* \(A 0 decisions/);
+  assert.doesNotMatch(q.split("## Answered, no action")[0]!, /^\d+\. \*\*(DK440 \/ NT1|DK420|US1|DK491 \/ DK185 \(the Insurer\)|BZ2, the open-source)/m, "the five answered questions are off the open list");
 });

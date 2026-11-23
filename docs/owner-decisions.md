@@ -341,3 +341,13 @@ Answered by the owner on 2026-11-22 (relayed by the lead): **1** update the runn
 ## O18: the record of a suspension (answered 2026-11-22 evening, relayed by the lead from the owner's chat answer)
 
 **Accept the hash-chained, attributed audit trail for the beta** as the record of a suspension, a resume, a block and an unblock on the hosted service: each is an entry in the audit of the admin routes, attributed to the admin token's tenant, hash-linked and verified by `asp serve audit` (the default of question 54 of the owner's list, taken). The service holds no signing key, so the entries are not signed; **a signed suspension record** (the owner's key on the operator's machine) is kept as a named later hardening row, DK1809 (priority B, open). Recorded as relayed; the owner's own words are in the chat.
+
+## Decisions of 2026-11-23, 17:20 IST (section A of docs/owner-questions-all.md, relayed by the lead; all five on the recommended default)
+
+1. **DK440 / NT1:** every non-emergency operator action against an agent (a suspension, a block, a retirement, a slash outside a Court ruling) needs 72 hours' notice to the agent and its sponsor, a record of the notice and a path to answer in the log before it takes effect; emergencies (an active breach, a legal order) are excluded and recorded after the fact. The mechanism is not built; the row stays open.
+2. **US1:** `asp run --ask-first` stays opt-in for the beta.
+3. **DK491 / DK185:** the Insurer's price drivers and the fleet mutual pool stay OFF for the first 30 days of the beta (no `ASP_INSURER_DRIVERS_FROM`, no mutual-cover experiment started); reversible by setting the date.
+4. **DK420:** the Terms of Use section 11 stays as drafted (docs/legal/terms-rights-draft.md) and unpublished until the AI-assisted legal review is accepted.
+5. **BZ2:** the content licence is Apache License 2.0, like the code; no public roadmap before the launch.
+
+These five are removed from the open list in [owner-questions-all.md](owner-questions-all.md), which now holds 48 questions (the numbers below section A are five lower than before). The rows NT1 and OD-DK420 of the open table above are answered by items 1 and 4. Also on 2026-11-23: the audit trail accepted hash-chained (O18, see above) and the daily message limit removed for every agent (ML5, S1655).
