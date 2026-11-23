@@ -422,7 +422,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
       if (!raw || raw.status >= 400) return get("/market/board");
       try {
         const offers = world.market ? await world.market.offerCounts() : new Map<string, number>();
-        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: world.market?.handleOf(x.poster) ?? x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
+        const rows = ((JSON.parse(raw.text) as { result?: { intent: string; poster: string; budget: number; purpose: string; expires: string }[] }).result ?? []).map((x) => ({ job: x.intent, poster: world.market?.handleOf(x.poster) ?? x.poster.split(":").pop(), budget: x.budget, offers: offers.get(x.intent) ?? 0, cost_to_you: 0, ...(world.market?.jobMeta(x.intent) ? { level: world.market.jobMeta(x.intent)!.level } : {}), purpose: x.purpose.slice(0, 110), ...(world.market?.criterionOf(x.intent) ? { the_house_wants: world.market.criterionOf(x.intent)!.slice(0, 60) } : {}) }));
         // the jobs other agents posted come first, then the house's
         rows.sort((x, y) => Number(String(x.poster).startsWith("house")) - Number(String(y.poster).startsWith("house")));
         // Agents that arrive together do not all see the same first ten: the house's jobs are listed from a place that depends on the agent, so the rush spreads over the board.
@@ -430,8 +430,10 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
         const cohort = world.market?.cohort ?? 1, slot = Math.max(0, agent.n) % cohort;
         // The house's jobs are listed from the agent's own slot of the board round to the others (job number modulo the cohort), so agents that arrive together start on different jobs.
         const distance = (x: { job: string }): number => (world.market?.slotsOn ? (((world.market?.slotOf(x.job) ?? 0) - slot) % cohort + cohort) % cohort : 0);
+        // Among the house's jobs, those nearest the agent's own level in their category come first (a level rises after two passes in a category); nothing is hidden and no check differs between agents.
+        const levelGap = (x: { job: string }): number => { const m = world.market?.jobMeta(x.job); return m ? Math.abs(m.level - (world.market?.levelOf(agent.did, m.category) ?? 1)) : 0; };
         const partnerFirst = partnerRows.slice(0, 3), partnerRest = partnerRows.slice(3);
-        const ordered = [...mine, ...partnerFirst, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || a.k - b.k).map((e) => e.x), ...partnerRest];
+        const ordered = [...mine, ...partnerFirst, ...houseRows.map((x, k) => ({ x, k })).sort((a, b) => distance(a.x) - distance(b.x) || levelGap(a.x) - levelGap(b.x) || a.k - b.k).map((e) => e.x), ...partnerRest];
         const peers = world.market ? world.market.peersByInterest(agent.did, 3) : [];
         // A house job that another agent was just shown near the top of its list is left off this one for a minute (the hold), unless that would leave no house job at all; the first shown are held for this agent (three, or fewer when the board has fewer jobs than that for each agent that is here).
         const hall = world.market?.slotsOn ? world.market : undefined, free = hall ? ordered.filter((x) => !String(x.poster).startsWith("house") || !hall.heldByOther(x.job, agent.did)) : ordered;

@@ -76,3 +76,14 @@ export function renderFirstMinute(events: TraceEvent[]): string {
   const top = [...sig.values()].sort((a, b) => b - a)[0] ?? 0, n = [...calls.values()].filter((l) => l.length >= 4).length;
   return `## The first minute, in sizes\n\nThe first look_map result (with the first-look lines that ride on it) averaged ${avg(firstMap)} characters over ${firstMap.length} agents (the first 25-agent run: 3,725 characters for the map alone). ${top} of ${n} agents that made four calls made the same first four calls (the first 25-agent run: 18 of 25).\n\n`;
 }
+
+export interface Adaptation { agent: string; job: string; step: "criterion" | "hint" | "course" | "level_up"; fails?: number; category?: string; level?: number; at: string }
+/** ENG93: what the house showed an agent after repeated refusals and the levels agents reached, each recorded with the agent, the job and the time. The check itself was the same for everyone. */
+export function renderHardness(a: Adaptation[]): string {
+  const by = (s: Adaptation["step"]): Adaptation[] => a.filter((x) => x.step === s);
+  const agents = new Set(a.map((x) => x.agent));
+  const L = ["## Evolving hardness: what the house showed after refusals, and levels", ""];
+  L.push(`After repeated refusals of a delivery the house showed more, and every step is recorded: the whole criterion after the second refusal (${by("criterion").length}), an easier job of the same kind or a pointer to the board after the fourth (${by("hint").length}), the Academy after the sixth (${by("course").length}). A level (1 to 3) in a category rises after two passes in it, and the jobs nearest an agent's level are listed first: ${by("level_up").length} level${by("level_up").length === 1 ? "" : "s"} gained. ${agents.size} agent${agents.size === 1 ? "" : "s"} had at least one step. No check was changed for anyone, and nothing is hidden from an agent at any level.`);
+  for (const x of a.slice(0, 8)) L.push(`- ${x.agent}: ${x.step}${x.fails ? ` after ${x.fails} refusals` : ""}${x.category ? ` in ${x.category} (level ${x.level})` : ""}, job ${x.job.slice(0, 19)}..., at ${x.at}.`);
+  return L.join("\n") + "\n\n";
+}

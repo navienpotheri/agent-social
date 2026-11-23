@@ -336,6 +336,19 @@ export class MarketHall {
   /** How many agents have been paid the first-job bonus (the credit economy table reads it). */
   bonusCount(): number { return this.bonusPaid.size; }
   private readonly houseChecks = new Map<string, HouseJob>(); // intent id -> the house job and its check
+  /** ENG93, the evolving harness: what an agent is shown after repeated refusals of a delivery, and a level for each category that rises after passes. The check itself is never changed for anyone; every adaptation is recorded. */
+  readonly adaptations: Array<{ agent: string; job: string; step: "criterion" | "hint" | "course" | "level_up"; fails?: number; category?: string; level?: number; at: string }> = [];
+  private readonly failsOf = new Map<string, number>();
+  private readonly passesIn = new Map<string, number>();
+  /** The level (1 to 3) an agent has reached in a category: one more after every two passes in it. */
+  levelOf(did: string, category: string): number { return Math.min(3, 1 + Math.floor((this.passesIn.get(`${did}|${category}`) ?? 0) / 2)); }
+  /** The category and level of a house job, for the board. */
+  jobMeta(intent: string): { category: string; level: number } | undefined { const h = this.houseChecks.get(intent); return h ? { category: h.category, level: h.level } : undefined; }
+  private easierSibling(c: HouseJob): { id: string; purpose: string } | undefined {
+    const taken = new Set([...this.contractState.values()].map((x) => x.intent));
+    for (const [id, h] of this.houseChecks) if (!taken.has(id) && !h.partner && h.category === c.category && h.level < c.level) return { id, purpose: h.purpose.replace(/^\[[a-z]+\] /, "").slice(0, 80) };
+    return undefined;
+  }
   /**
    * For a world that has no signed trace (a test of the Market alone): the agent gets a passport under one of the hall's own sponsors (the log lets a sponsor open ten agent passports a day, so each sponsors up to
    * eight) and then the same credits and standing Mandate as `adopt`.
@@ -558,7 +571,20 @@ export class MarketHall {
       const handle = this.agents.get(partnerOf.performer)?.agent.handle ?? "";
       if (!summary.toLowerCase().includes(handle.toLowerCase())) throw new Error(`name your partner (${handle}) in the delivery; nothing was recorded, deliver again`);
     }
-    if (hj) { const why = hj.check(summary); if (why) throw new Error(`the house did not accept this delivery (${why}); nothing was recorded, deliver again`); }
+    if (hj) {
+      const why = hj.check(summary);
+      if (why) {
+        const key = `${agent.did}|${contractId}`, n = (this.failsOf.get(key) ?? 0) + 1;
+        this.failsOf.set(key, n);
+        const at = new Date().toISOString();
+        let more = "";
+        // The ladder (the check is the same for everyone): from the second refusal the whole criterion is shown; from the fourth an easier job of the same kind, if one is open; from the sixth the Academy.
+        if (n >= 2) { more += ` The criterion for this job: "${hj.criterion}".`; if (n === 2) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "criterion", fails: n, at }); }
+        if (n >= 4) { const sib = this.easierSibling(hj); more += sib ? ` An easier job of the same kind is open: "${sib.purpose}" (offer_on_job ${sib.id}).` : " Another job of the same kind may suit you better: look_jobs."; if (n === 4) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "hint", fails: n, at }); }
+        if (n >= 6) { more += " The Academy has courses (look_courses); taking one is optional."; if (n === 6) this.adaptations.push({ agent: agent.handle, job: c.intent, step: "course", fails: n, at }); }
+        throw new Error(`the house did not accept this delivery (${why}); nothing was recorded, deliver again.${more}`);
+      }
+    }
     const d = this.mk("delivery", e.party, { contract: contractId, result: { summary: summary.slice(0, 900), artifacts: [] }, evidence: { trace: { uri: "asp://local/trace", sha256: "sha256:" + "2".repeat(64) }, forecasts: [] } }, c.mandate, contractId);
     c.delivery = await this.put(d);
     if (hj && (!partnerOf || partnerOf.delivery)) {
@@ -566,6 +592,7 @@ export class MarketHall {
       const owner = this.houseOf.get(c.intent) ?? this.p.house;
       for (const x of partnerOf ? [partnerOf, c] : [c]) {
         await this.settleAs(owner, x);
+        { const k = `${x.performer}|${hj.category}`, before = this.levelOf(x.performer, hj.category); this.passesIn.set(k, (this.passesIn.get(k) ?? 0) + 1); const after = this.levelOf(x.performer, hj.category); if (after > before) this.adaptations.push({ agent: this.agents.get(x.performer)?.agent.handle ?? x.performer, job: x.intent, step: "level_up", category: hj.category, level: after, at: new Date().toISOString() }); }
         if (!this.bonusPaid.has(x.performer)) { this.bonusPaid.add(x.performer); await this.mint(x.performer, FIRST_JOB_BONUS); }
       }
     }
