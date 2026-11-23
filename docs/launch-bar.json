@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 208,
+  "withdraw": 209,
   "after": 339,
-  "total": 608
+  "total": 609
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7450,6 +7450,19 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG118",
+   "pri": "A",
+   "status": "open",
+   "gap": "REINFORCEMENT LEARNING ON CODE REPAIR (Tier 2) AS A PRIORITY ITEM. The owner asks that reinforcement learning be tried alongside fine-tuning, because a few thousand examples are unlikely to give a ha…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }
