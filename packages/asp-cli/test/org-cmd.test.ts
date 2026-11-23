@@ -58,8 +58,8 @@ test("an organisation end to end: sign-on, a person signs in, a linked agent is 
     assert.equal(boss.json.role, "administrator");
 
     // a member sees the organisation with their own token and is refused the rest
-    assert.match((await ok(["org", "show", "--org", "acme", "--token", pat.json.token])).out, /you are u:pat \(member\)/);
-    assert.notEqual((await asp(f, ["org", "members", "--org", "acme", "--token", pat.json.token], env)).code, 0);
+    assert.match((await ok(["org", "show", "--org", "acme", `--token=${pat.json.token}`])).out, /you are u:pat \(member\)/);
+    assert.notEqual((await asp(f, ["org", "members", "--org", "acme", `--token=${pat.json.token}`], env)).code, 0);
     assert.match((await ok(["org", "members", "--org", "acme"])).out, /u:pat +member +active via sso/);
     await ok(["org", "role", "--org", "acme", "--member", "u:pat", "--role", "auditor"]);
 
