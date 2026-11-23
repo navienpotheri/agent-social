@@ -48,7 +48,7 @@ export function grade(job: RepoJob, copy: string, original: Record<string, strin
     if (!t) return { accepted: false, reason: "pilot/sum.test.mjs does not exist" };
     const asserts = (t.match(/assert[.(]/g) ?? []).length;
     if (asserts < 2) return { accepted: false, reason: `${asserts} assertions (two were asked for)` };
-    const r = spawnSync(process.execPath, ["--test", join(copy, f)], { cwd: copy, encoding: "utf8", timeout: 60_000 });
+    const r = spawnSync(process.execPath, ["--test", join(copy, f)], { cwd: copy, encoding: "utf8", timeout: 60_000, env: Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "NODE_TEST_CONTEXT")) });
     return r.status === 0 ? { accepted: true, reason: "node --test passes and the file holds two or more assertions" } : { accepted: false, reason: "node --test fails on the new file" };
   }
   if (job.id === "register-row") {
