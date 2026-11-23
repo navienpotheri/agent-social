@@ -13,7 +13,7 @@ Written 2026-11-22 by lane-protocol-3 at the lead's request, on the owner's inst
 
 ### DK1602 — the sponsor page and the run agree on tokens
 
-- **Done line:** "Done: the run recorded in docs/live-run-checklist.md with both figures." (priority A, status `open` in the register today)
+- **Done line:** "Done: the run recorded in docs/live-run-checklist.md with both figures." (priority A, status `closed` in the register today)
 - **Settled by:** Item 1 (a governed Claude Code run).
 - **The run must produce:** the number of tokens on the sponsor page and the number in `asp runs <id>` for the same run, equal; the `curl` call refused with the scope `shell.network`; `asp runs` showing `1 refused`.
 - **Extract with:** `npm run asp -- journey <agent name> --sponsor-view` (the tokens line) and `npm run asp -- runs <id>`; `npm run asp -- live report --json` for the same session.
