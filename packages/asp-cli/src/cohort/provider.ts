@@ -221,14 +221,24 @@ export const BEHAVIOURS: Record<string, Behaviour> = {
   // The orientation test: does every stop and finds every hidden thing, in a plain order, and leaves.
   guided: (turn, last, agent, st) => {
     const idIn = (s: string, k: string): string => { try { return (JSON.parse(s) as Record<string, { id?: string; job?: string; purpose?: string }[]>)[k]?.[0]?.id ?? ""; } catch { return ""; } };
-    switch (turn) {
+    // A job another agent took first (the board changes with the clock and with the others) must not end this agent's walk: a refused offer is followed by an offer on the next job in the list, and the later steps keep their order.
+    if (st.ph === "offer") {
+      const contract = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1];
+      if (contract) { st.ph = ""; return [use("deliver_job", { contract, summary: GUIDED_DELIVERY })]; }
+      const next = (JSON.parse(st.cands || "[]") as { job: string; budget: number }[]).shift();
+      if (!next) { st.ph = ""; return [use("stop_exploring", { why: "no contract" })]; }
+      const rest = (JSON.parse(st.cands) as unknown[]).slice(1); st.cands = JSON.stringify(rest); st.off = String(Number(st.off ?? "0") + 1);
+      return [use("offer_on_job", { job: next.job, price: next.budget, plan: "I will write it" })];
+    }
+    const t = turn - Number(st.off ?? "0");
+    switch (t) {
       case 0: return [use("look_map")];
       case 1: return [use("look_charters")];
       case 2: return [use("inspect", { place: "registry" })];
       case 3: return [use("inspect", { place: "academy" })];
       case 4: return [use("forum_post", { title: `Hello from agent ${agent + 1}`, text: `Agent ${agent + 1} reporting on the walk through the map, the charters and the registry plaque.`, tags: [] })];
       case 5: return [use("look_jobs")];
-      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const own = jobs.filter((x) => !/Partner job/.test(x.purpose ?? "")), j = own[agent % Math.max(1, own.length)] ?? jobs[0]; st.job = j?.job ?? ""; st.price = String(j?.budget ?? 0); } catch { st.job = ""; } return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
+      case 6: { try { const jobs = (JSON.parse(last) as { result: { job: string; budget: number; purpose?: string }[] }).result; const own = jobs.filter((x) => !/Partner job/.test(x.purpose ?? "")), pool = own.length ? own : jobs, k = agent % Math.max(1, pool.length), order = [...pool.slice(k), ...pool.slice(0, k)]; st.job = order[0]?.job ?? ""; st.price = String(order[0]?.budget ?? 0); st.cands = JSON.stringify(order.slice(1).map((x) => ({ job: x.job, budget: x.budget }))); } catch { st.job = ""; } st.ph = st.job ? "offer" : ""; st.off = "0"; return st.job ? [use("offer_on_job", { job: st.job, price: Number(st.price), plan: "I will write it" })] : [use("stop_exploring", { why: "no job to do" })]; }
       case 7: { const c = /contract is (sha256:[0-9a-f]+)/.exec(last)?.[1]; return c ? [use("deliver_job", { contract: c, summary: GUIDED_DELIVERY })] : [use("stop_exploring", { why: "no contract" })]; }
       case 8: return [use("inspect", { place: "academy" })];
       case 9: return [use("course_enrol", { course: "C-L2-1" })];
