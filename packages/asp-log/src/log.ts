@@ -3593,7 +3593,7 @@ export class EventLog {
   async electionsView(at?: string) {
     const all = await this.recordsOfTypes(["election", "candidacy", "ballot_commit", "ballot_reveal", "election_result", "recall_petition", "recall_vote", "recall_result"]);
     // the time is the one asked for, else the later of the wall clock and the newest record (a log with a clock of its own shows its own latest state)
-    const now = at ? Date.parse(at) : Math.max(Date.now(), ...all.map((r) => Date.parse(r.issued_at)));
+    const now = at ? Date.parse(at) : Math.max(this.now().getTime(), ...all.map((r) => Date.parse(r.issued_at)));
     const recs = all.filter((r) => Date.parse(r.issued_at) <= now);
     const T = (x: string) => `asp.${x}/v0.2`;
     const resultOf = new Map<string, AspRecord>();
