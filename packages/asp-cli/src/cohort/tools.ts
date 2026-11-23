@@ -1,4 +1,5 @@
 import { showCard } from "./lessons.ts";
+import { allowanceLine } from "./token-use.ts";
 import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
@@ -170,6 +171,8 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
   const out: string[] = [];
   const n = (k: number, one: string, many: string, tool: string): void => { if (k > 0) out.push(`${k} ${k === 1 ? one : many} (${tool})`); };
   try {
+    const bl = world.budgetOf ? allowanceLine(world.budgetOf(agent.handle).usedUsd, world.budgetOf(agent.handle).capUsd) : undefined;
+    if (bl) out.push(bl);
     const hall = world.market;
     if (hall) {
       const waiting = (await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered);
