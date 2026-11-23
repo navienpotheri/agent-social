@@ -262,7 +262,7 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
     if (hall) {
       for (const j of await hall.openJobList(agent, 1)) out.push(`A job you can do: "${j.purpose.slice(0, 60)}" pays ${j.budget} credits${j.wants ? `; the house wants ${j.wants.slice(0, 60)}` : ""} (offer_on_job ${j.job})`);
       const c = hall.courseList()[0];
-      if (c) out.push(`A course is open: ${c.title}, ${c.price} credits (course_enrol ${c.id})`);
+      if (c) out.push(`A course is open: ${c.title}, ${c.price} credits (course_enrol ${c.id})${courseUnlocks(world, c.id)}`);
       if (world.games) out.push("A game round is open: twenty-one, pick a number to stand at, 12 to 21, and play 200 hands (game_list)");
       if ((await hall.inbox(agent)).some((m) => m.to === agent.handle && !m.answered)) out.push("The house greeter has written to you (my_inbox)");
     }
@@ -272,6 +272,11 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 }
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
+/** What a course unlocks, as a true clause: the open house jobs that ask for its certificate and what they pay (empty when there are none). */
+export function courseUnlocks(world: WorldApi, course: string): string {
+  const j = world.market?.jobsRequiring(course) ?? [];
+  return j.length ? `; its certificate is also what ${j.length === 1 ? "this job asks" : "these jobs ask"} for: ${j.slice(0, 2).map((x) => `"${x.purpose}" pays ${x.budget}`).join("; ")}` : "";
+}
 /** The reads that may be folded when their answer repeats word for word. */
 const FOLDABLE = new Set(["look_jobs", "my_balance", "my_inbox", "my_jobs", "my_job_offers", "look_courses", "look_charters", "read_constitution", "look_activity", "look_map", "my_progress", "my_agenda"]);
 const folds = new WeakMap<object, Map<string, string>>();
@@ -441,7 +446,7 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
     const jobs = await hall.openJobList(agent, 20);
     for (const j of jobs.filter((x) => !/Partner job/.test(x.purpose)).slice(0, 2)) items.push({ near: nearTo(j.purpose), text: `a job: "${j.purpose.slice(0, 60)}" pays ${j.budget} mock credits and takes one short text (offer_on_job ${j.job})` });
     const c = hall.courseList()[0];
-    if (c) items.push({ near: nearTo(c.title), text: `a course: ${c.title}, ${c.price} mock credits to enrol; what it taught shows in my_progress (course_enrol ${c.id})` });
+    if (c) items.push({ near: nearTo(c.title), text: `a course: ${c.title}, ${c.price} mock credits to enrol; what it taught shows in my_progress${courseUnlocks(world, c.id)} (course_enrol ${c.id})` });
   }
   if (world.expedition) {
     const done = new Set(world.expedition.toured_(agent.did));

@@ -116,6 +116,11 @@ export class MarketHall {
       this.houseOf.set(r.intent, poster);
     }
   }
+  /** The open house jobs that ask for the certificate of a course, for the course line (diagnosis fix 6). */
+  jobsRequiring(course: string): Array<{ purpose: string; budget: number }> {
+    const taken = new Set([...this.contractState.values()].map((c) => c.intent));
+    return [...this.houseChecks.entries()].filter(([id, h]) => h.requires === course && !taken.has(id)).map(([, h]) => ({ purpose: h.purpose.replace(/^\[[a-z]+\] /, "").split(". ")[0]!.slice(0, 80), budget: h.budget }));
+  }
   /** Whether an agent holds the certificate of a course: a passed sitting. */
   hasCertificate(did: string, course: string): boolean { return this.sittingsOf(did, course).some((s) => s.passed); }
   /** Records a sitting outcome (what a course sitting does; also how a test gives a certificate). */
