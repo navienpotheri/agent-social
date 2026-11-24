@@ -146,6 +146,8 @@ export class MarketHall {
     for (const [, byCourse] of this.sittings) { const a = byCourse.get(course) ?? []; if (a.length) { sat++; attempts += a.length; if (a.some((x) => x.passed)) passed++; } }
     return { sat, attempts, passed };
   }
+  /** Whether the board has a project job (three part-jobs by three different agents). */
+  hasProjectJob(): boolean { return [...this.houseChecks.values()].some((h) => /\[project\]/.test(h.purpose)); }
   /** The open house jobs that ask for the certificate of a course, for the course line (diagnosis fix 6). */
   jobsRequiring(course: string): Array<{ purpose: string; budget: number }> {
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));

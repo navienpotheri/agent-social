@@ -40,4 +40,6 @@ export class Desert {
     return `You lit the ${beacon} beacon: all three are lit, by three different agents. The house referee paid each of them ${DESERT_PAY} mock credits. Your group has crossed.`;
   }
   crossed(): number { return this.done.size; }
+  /** How many beacons a group has lit and whether it has crossed. */
+  progress(group: number): { lit: number; done: boolean } { return { lit: this.lit.get(group)?.size ?? 0, done: this.done.has(group) }; }
 }

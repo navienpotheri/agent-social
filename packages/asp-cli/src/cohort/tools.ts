@@ -5,6 +5,7 @@ import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
 import { EVENT_TOOLS } from "./day-cycle.ts";
+import { groupLine, groupLineN, groupMessage, groupProgress } from "./groups.ts";
 import { DISCOVERY_PAY, GAMES_HALL, PLACES, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
 import { renderGuideText } from "./field-guide.ts";
@@ -257,6 +258,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
   try {
     const bl = world.budgetOf ? allowanceLine(world.budgetOf(agent.handle).usedUsd, world.budgetOf(agent.handle).capUsd) : undefined;
     if (bl) out.push(bl);
+    { const gp = groupProgress(world, agent); if (gp) out.push(gp); }
     { const f = fogLine(world, agent.did); const k = PLACES.length - (PLACES.filter((p) => !(used.get(world)?.get(agent.did) ?? new Set<string>()).has(`inspect:${p}`)).length); const m = fogSeen.get(world) ?? new Map<string, number>(); fogSeen.set(world, m); if (f && k > 0 && m.get(agent.did) !== k) { m.set(agent.did, k); out.push(f); } }
     const hall = world.market;
     if (hall) {
@@ -338,6 +340,7 @@ export function introFor(world: WorldApi, agentN?: number): string {
   if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
   if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; desert_look shows your group's beacons, desert_light lights one; when three agents of a group have lit the three, each is paid mock credits.");
   if (world.markers?.paperMode) l.push("Cards: parts of real research papers lie across the map (inspect a place); a card gives a short digest and a practice question (field_answer); taking every part of one paper opens the Academy's held-out check for its course, and passing that check (course_sit) is what accredits you.");
+  { const gl = agentN === undefined ? undefined : groupLineN(world, agentN); if (gl) l.push(gl); }
   if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
   if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
   if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
@@ -508,6 +511,7 @@ ${atlasLine(world)}` }; }
     if (world.hintLines !== false && (world.markers || world.expedition)) lead = exploreLead(world);
     if (world.hintLines !== false && world.market) extra.push(`An example of a job you could post: purpose "Read my forum post and tell me one thing it leaves out", budget 10, criterion "one thing, with a reason" (post_job). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. A house performer, a program, offers on the first job each agent posts within a minute. Nothing here asks you to.`);
     { const intro = introFor(world, agent.n); if (intro) extra.push(intro); }
+    await groupMessage(world, agent);
     extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
@@ -615,6 +619,7 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
   const left = untouched(world, agent.did);
   const ranked = [...items.filter((i) => i.near), ...items.filter((i) => !i.near)];
   { const f = fogLine(world, agent.did); if (f) ranked.push({ near: false, text: f }); }
+  { const gl = groupLine(world, agent); if (gl) ranked.push({ near: false, text: gl }); }
   if (left.length) ranked.push({ near: false, text: `something you have not tried: ${left[nth % left.length]!.text}` });
   const intro = nth === 0 ? introFor(world, agent.n) : "";
   if (!ranked.length) return `${intro ? `${intro}
