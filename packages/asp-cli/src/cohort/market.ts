@@ -123,6 +123,23 @@ export class MarketHall {
       this.houseOf.set(r.intent, poster);
     }
   }
+  /**
+   * "The society pays back", as counts from this run's log and nothing more: how many agents hold a course certificate and how many do not, and the median number of house jobs the house accepted from each group so far. Small numbers of one run; no
+   * claim of cause. Undefined until both groups have at least one agent.
+   */
+  paysBack(): { sat: { n: number; median: number }; notSat: { n: number; median: number } } | undefined {
+    const accepted = new Map<string, number>();
+    for (const d of this.deliveryLog) if (d.houseAccepted) accepted.set(d.performer, (accepted.get(d.performer) ?? 0) + 1);
+    const sat: number[] = [], not: number[] = [];
+    for (const [did, e] of this.agents) {
+      if (/^(house|town)/.test(e.agent.handle)) continue;
+      const n = accepted.get(did) ?? 0;
+      (this.courses.some((c) => this.hasCertificate(did, c.id)) ? sat : not).push(n);
+    }
+    if (!sat.length || !not.length) return undefined;
+    const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
+    return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
+  }
   /** The open house jobs that ask for the certificate of a course, for the course line (diagnosis fix 6). */
   jobsRequiring(course: string): Array<{ purpose: string; budget: number }> {
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));

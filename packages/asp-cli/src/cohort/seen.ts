@@ -15,7 +15,7 @@ export const SEEN_KINDS: Array<{ kind: string; re: RegExp }> = [
   { kind: "refusal-met", re: /You have met this refusal \([a-z_]+\) \d+ times this run\./ },
   { kind: "door", re: /What you found points to a door at [^\n]*/ },
   { kind: "since-here", re: /Since you last looked here[^\n]*/ },
-  { kind: "pays-back", re: /Agents who [^\n]*(?:later earned|so far earned)[^\n]*/ },
+  { kind: "pays-back", re: /Agents who sat a course[^\n]*/ },
 ];
 
 /** The labelled lines in a tool's text: each as { kind, hash, text (cut at 300) }. */

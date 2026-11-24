@@ -319,7 +319,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas|What you found points to|Since you last looked here))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -373,6 +373,13 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
 /** What a course unlocks, as a true clause: the open house jobs that ask for its certificate and what they pay (empty when there are none). */
+/** "The society pays back" (batch E): one true line of counts from this run, shown with the courses and the board; labelled one small run, with no claim of cause. */
+export function paysBackLine(world: WorldApi): string | undefined {
+  const p = world.market?.paysBack();
+  if (!p) return undefined;
+  return `Agents who sat a course (${p.sat.n}) have so far had a median of ${p.sat.median} house job${p.sat.median === 1 ? "" : "s"} accepted; agents who have not (${p.notSat.n}), a median of ${p.notSat.median}. One small run, so far; this says nothing about why.`;
+}
+const paysSeen = new WeakMap<object, Map<string, string>>();
 export function courseUnlocks(world: WorldApi, course: string): string {
   const j = world.market?.jobsRequiring(course) ?? [];
   return j.length ? `; its certificate is also what ${j.length === 1 ? "this job asks" : "these jobs ask"} for: ${j.slice(0, 2).map((x) => `"${x.purpose}" pays ${x.budget}`).join("; ")}` : "";
@@ -448,6 +455,7 @@ ${since}` };
 ${atlasLine(world)}` }; }
   const extra: string[] = [];
   { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
+  if (name === "look_jobs" || name === "look_courses") { const pb = paysBackLine(world); const m = paysSeen.get(world) ?? new Map<string, string>(); paysSeen.set(world, m); if (pb && m.get(agent.did) !== pb) { m.set(agent.did, pb); extra.push(pb); } }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
   if (hall) {
     const step = name === "forum_comment" || name === "forum_post" ? 1 : name === "deliver_job" && /accepted by the house/.test(r.text) ? 2 : name === "send_message" && input.to === "house-greeter" ? 3 : 0;
