@@ -28,8 +28,10 @@ export class RunRecorder {
   readonly path: string;
   private maxText: number;
   private now: () => string;
-  constructor(path: string, maxText = 1200, now: () => string = () => new Date().toISOString()) {
-    this.path = path; this.maxText = maxText; this.now = now;
+  /** The longest excerpt kept of a tool result (a society run keeps more of what its agents were shown); other text keeps `maxText`. */
+  private maxResult: number;
+  constructor(path: string, maxText = 1200, now: () => string = () => new Date().toISOString(), maxResult = maxText) {
+    this.path = path; this.maxText = maxText; this.maxResult = maxResult; this.now = now;
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, "");
   }
@@ -41,15 +43,21 @@ export class RunRecorder {
     return r.text.length > this.maxText ? `${r.text.slice(0, this.maxText)}...[+${r.text.length - this.maxText} chars]` : r.text;
   }
 
-  private clean(v: unknown): unknown {
-    if (typeof v === "string") return this.clip(v);
-    if (Array.isArray(v)) return v.map((x) => this.clean(x));
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, this.clean(x)]));
+  /** A tool call or result id (toolu_..., call_...) is a name that pairs a call with its result, not a secret: it is kept whole so that call and result can be matched. */
+  private static readonly CALL_ID = /^(?:toolu|srvtoolu|call|fc|msg)_[A-Za-z0-9_-]{4,100}$/;
+  private clean(v: unknown, key?: string, kind?: string): unknown {
+    if (typeof v === "string") {
+      if (key === "id" && RunRecorder.CALL_ID.test(v)) return v;
+      if (kind === "tool_result" && key === "text" && this.maxResult > this.maxText) { const mt = this.maxText; this.maxText = this.maxResult; try { return this.clip(v); } finally { this.maxText = mt; } }
+      return this.clip(v);
+    }
+    if (Array.isArray(v)) return v.map((x) => this.clean(x, key, kind));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, this.clean(x, k, kind)]));
     return v;
   }
 
   event(kind: string, data: Record<string, unknown> = {}): void {
-    const body = { n: ++this.n, at: this.now(), kind, data: this.clean(data) as Record<string, unknown>, prev: this.prev };
+    const body = { n: ++this.n, at: this.now(), kind, data: this.clean(data, undefined, kind) as Record<string, unknown>, prev: this.prev };
     const e: RunEvent = { ...body, hash: hashOf(body) };
     appendFileSync(this.path, JSON.stringify(e) + "\n");
     this.prev = e.hash;

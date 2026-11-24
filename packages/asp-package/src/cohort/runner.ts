@@ -84,7 +84,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
           ...(o.price ? { price: o.price } : {}),
           tokenCap: limits.maxTokens,
           loop: { equivalentCalls: o.loop?.equivalentCalls ?? 6, nearRepeats: o.loop?.nearRepeats ?? 8 },
-          runLog: new RunRecorder(runLogPath),
+          runLog: new RunRecorder(runLogPath, 1200, undefined, 4000),
           maxStrikes: o.maxStrikes ?? 5,
           onStop: (reason) => { entry.stopped = reason; },
         });
