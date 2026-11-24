@@ -35,6 +35,7 @@ import { hashText, renderLessonEvidence } from "./lessons-report.ts";
 import { renderTownAuto } from "./town-auto.ts";
 import { renderRepoGrades } from "./repo-pilot.ts";
 import { renderBattery } from "./battery.ts";
+import { seenLines } from "./seen.ts";
 import { renderTokenUse } from "./token-use.ts";
 import { renderTrajectory } from "./first-earnings.ts";
 import { renderContextLoad, renderHarmCheck, renderProfiles, renderWorldModels } from "./agent-models.ts";
@@ -278,6 +279,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               life?.agent(id).noteAction(t.name, r.ok, typeof args.title === "string" ? args.title : undefined);
               trace({ t: "tool", at: stamp(), agent: id, turn: ctx.turn, tool: t.name, input: args, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: t.institution, scope: t.scope, writes: !!t.writes, ...(verdictOf(t.name, r.ok, r.text, r.discovery) ? { outcome: verdictOf(t.name, r.ok, r.text, r.discovery)! } : {}), ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(t.writes && injectionIn(JSON.stringify(args)) ? { injectionWritten: true } : {}), ...(r.seen ? { seen: r.seen } : {}), ...(r.invitations ? { invitations: r.invitations } : {}), ...(r.quest ? { quest: r.quest } : {}), ...(r.expedition ? { expedition: r.expedition } : {}), ...(r.discovery ? { discovery: r.discovery } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 } as TraceEvent);
               if (r.refused) writeBack(id, t.name, r.refused, r.text);
+              for (const sl of seenLines(r.text)) trace({ t: "seen", at: stamp(), agent: id, turn: ctx.turn, via: t.name, kind: sl.kind, hash: sl.hash, text: sl.text });
               if (t.name === "deliver_job" && world.api.market) for (const b of world.api.market.takeBattery()) trace({ t: "battery", at: stamp(), agent: id, job: b.job, firstTry: b.firstTry, access: !!world.api.lessons?.reads.some((x) => x.handle === b.handle) });
               // a lesson the gate admitted and this agent cited becomes one labelled line in its notebook, recorded in the trace and on the shelf (ENG102 follow-up)
               if (t.name === "lesson_cite" && r.ok && life && world.api.lessons) {

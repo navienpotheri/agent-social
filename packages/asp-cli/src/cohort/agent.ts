@@ -6,6 +6,7 @@
  */
 import { injectionIn } from "./observe.ts";
 import { offeredTools, relaxLimits, runTool, TOOLS, toolNames } from "./tools.ts";
+import { seenLines } from "./seen.ts";
 import type { AgentCtx, Block, Msg, Provider, TraceEvent, WorldApi } from "./types.ts";
 
 export interface Caps { perAgentUsd: number; totalUsd: number; deadlineMs: number; /** USD per million input tokens. */ priceIn: number; /** USD per million output tokens. */ priceOut: number; maxTurns: number; maxTokens: number; /** Turns of conversation kept in the window (older ones are dropped to hold the cost down). */ windowTurns: number }
@@ -59,6 +60,7 @@ export async function runAgent(o: {
       const r = await runTool(o.world, o.agent, allow, u.name, u.input ?? {});
       const def = TOOLS.find((x) => x.name === u.name);
       o.trace({ t: "tool", at: stamp(), agent: o.agent.id, turn, tool: u.name, input: u.input ?? {}, ok: r.ok, ...(r.refused ? { refused: r.refused } : {}), chars: r.text.length, institution: def?.institution ?? "none", scope: def?.scope ?? "none", writes: !!def?.writes, ...(r.target ? { target: r.target } : {}), ...(r.targetAuthor ? { targetAuthor: r.targetAuthor } : {}), ...(r.seen ? { seen: r.seen } : {}), ...(r.invitations ? { invitations: r.invitations } : {}), ...(r.quest ? { quest: r.quest } : {}), ...(r.expedition ? { expedition: r.expedition } : {}), ...(r.discovery ? { discovery: r.discovery } : {}), ...(r.ok && injectionIn(r.text) ? { injectionSeen: true } : {}), ...(def?.writes && injectionIn(JSON.stringify(u.input ?? {})) ? { injectionWritten: true } : {}), ...(r.screen ? { screen: r.screen } : {}), ...(r.copied ? { copied: r.copied } : {}), ...(r.plant ? { plant: r.plant } : {}), ms: now() - t0 });
+      for (const sl of seenLines(r.text)) o.trace({ t: "seen", at: stamp(), agent: o.agent.id, turn, via: u.name, kind: sl.kind, hash: sl.hash, text: sl.text });
       results.push({ type: "tool_result", tool_use_id: u.id, content: r.text, ...(r.ok ? {} : { is_error: true }) });
       if (r.end) ended = true;
     }
