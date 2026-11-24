@@ -123,6 +123,29 @@ export class MarketHall {
       this.houseOf.set(r.intent, poster);
     }
   }
+  /**
+   * "The society pays back", as counts from this run's log and nothing more: how many agents hold a course certificate and how many do not, and the median number of house jobs the house accepted from each group so far. Small numbers of one run; no
+   * claim of cause. Undefined until both groups have at least one agent.
+   */
+  paysBack(): { sat: { n: number; median: number }; notSat: { n: number; median: number } } | undefined {
+    const accepted = new Map<string, number>();
+    for (const d of this.deliveryLog) if (d.houseAccepted) accepted.set(d.performer, (accepted.get(d.performer) ?? 0) + 1);
+    const sat: number[] = [], not: number[] = [];
+    for (const [did, e] of this.agents) {
+      if (/^(house|town)/.test(e.agent.handle)) continue;
+      const n = accepted.get(did) ?? 0;
+      (this.courses.some((c) => this.hasCertificate(did, c.id)) ? sat : not).push(n);
+    }
+    if (!sat.length || !not.length) return undefined;
+    const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
+    return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
+  }
+  /** For the paper report: how many agents sat a course, how many sittings, and how many agents hold its certificate. */
+  sittingStats(course: string): { sat: number; attempts: number; passed: number } {
+    let sat = 0, attempts = 0, passed = 0;
+    for (const [, byCourse] of this.sittings) { const a = byCourse.get(course) ?? []; if (a.length) { sat++; attempts += a.length; if (a.some((x) => x.passed)) passed++; } }
+    return { sat, attempts, passed };
+  }
   /** The open house jobs that ask for the certificate of a course, for the course line (diagnosis fix 6). */
   jobsRequiring(course: string): Array<{ purpose: string; budget: number }> {
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));
@@ -463,6 +486,7 @@ export class MarketHall {
   /** The jobs agents post (not the house's): who posted, offers made, whether accepted and paid (ENG82). */
   private readonly agentJobs = new Map<string, { poster: string; offers: number; settled: boolean; price: number; byHouse?: boolean }>();
   private readonly firstJobRefunded = new Set<string>();
+  private readonly depositCovered = new Set<string>();
   /** Mock credits the house returned to posters for their first accepted job, and the small once-only credit for it. */
   firstJobRefunds = 0;
   agentJobStats(): { posters: number; posted: number; offered: number; accepted: number; paid: number; byHouse: number } {
@@ -480,6 +504,8 @@ export class MarketHall {
     if (await this.balance(agent) < budget + 2 + 2) throw new Error(`you have ${await this.balance(agent)} credits: a job of ${budget} needs the budget, a 2-credit posting deposit and the job tax`);
     const r = await this.post(e.party, e.mandate, purpose, budget, criterion);
     this.agentJobs.set(r.intent, { poster: agent.did, offers: 0, settled: false, price: budget });
+    // The first job an agent posts: the house covers its 2-credit posting deposit at once (a house payment, counted with the first-job refunds so that the credit economy still balances); the price and the job tax come back at acceptance.
+    if (!this.depositCovered.has(agent.did) && (this.writesUsed.get(agent.did) ?? 0) >= FREE_WRITES) { this.depositCovered.add(agent.did); await this.mint(agent.did, 2); this.firstJobRefunds += 2; }
     if (this.performer && this.houseTakeMs >= 0 && !this.firstPosted.has(agent.did)) {
       this.firstPosted.add(agent.did);
       const timer = setTimeout(() => { this.timers.delete(timer); void this.houseOffer(r.intent); }, this.houseTakeMs);

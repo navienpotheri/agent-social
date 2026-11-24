@@ -13,7 +13,7 @@ import { INTERESTS } from "./voice.ts";
 export const MARKER_PAY = 2;
 /** The length of a window of the simulated clock, in milliseconds: the cards rotate every 30 simulated minutes. */
 export const WINDOW_MS = 30 * 60_000;
-export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string }
+export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string; /** Set on a card that carries a part of a research paper (paper-cards.ts). */ paper?: { course: string; part: number; of: number; papers: string; lens: string; courseTitle: string } }
 
 interface Pattern { id: string; title: (topic: string) => string; text: (topic: string) => string; question: (topic: string) => string; accept: RegExp }
 const PATTERNS: Pattern[] = [
@@ -41,10 +41,10 @@ export const ADMITTED_AGENT_LESSONS: FieldLesson[] = [];
 export const cardPool = (): FieldLesson[] => [...GENERATED_POOL, ...ADMITTED_AGENT_LESSONS];
 
 /** The card at a place in a window of the simulated clock, or none: a deterministic choice from the seed, the place and the window (about half of the places hold one), the same for everyone. */
-export function markerAt(seed: string, place: string, window: number): FieldLesson | undefined {
+export function markerAt(seed: string, place: string, window: number, poolOf: () => FieldLesson[] = cardPool): FieldLesson | undefined {
   const h = createHash("sha256").update(`marker|${seed}|${place}|${window}`).digest();
   if (h[0]! % 2 !== 0) return undefined;
-  const pool = cardPool();
+  const pool = poolOf();
   return pool[((h[1]! << 8) | h[2]!) % pool.length];
 }
 
@@ -61,33 +61,80 @@ export class Markers {
   private readonly takenInWindow = new Map<number, Set<string>>();
   /** Mock credits paid for field lessons so far. */
   paid = 0;
-  constructor(seed: string, clock?: () => number) { this.seed = seed; this.t0 = Date.now(); this.clock = clock ?? (() => Date.now() - this.t0); }
+  private readonly windowMs: number;
+  private readonly pool: () => FieldLesson[];
+  /** Small house-paid credit amounts for picking up a part, reading it (answering its question) and completing a set of all the parts of one paper; all default to the old behaviour (reading pays MARKER_PAY, the others nothing). */
+  readonly rewards: { pickup: number; read: number; complete: number };
+  /** Parts taken by each agent, the sets completed, and the order of events, for the per-course and per-paper report. */
+  private readonly parts = new Map<string, Set<string>>();
+  private readonly setsDone = new Map<string, Set<string>>();
+  readonly paperLog: Array<{ did: string; kind: "found" | "read" | "set"; id: string; course: string; window: number }> = [];
+  /** Sets completed so far, in order: who and which course (the Academy's sitting for that course is then open to the agent). */
+  readonly sets: Array<{ did: string; course: string; window: number }> = [];
+  constructor(seed: string, clock?: () => number, o: { windowMs?: number; pool?: () => FieldLesson[]; rewards?: Partial<{ pickup: number; read: number; complete: number }> } = {}) {
+    this.seed = seed; this.t0 = Date.now(); this.clock = clock ?? (() => Date.now() - this.t0);
+    this.windowMs = o.windowMs ?? WINDOW_MS; this.pool = o.pool ?? cardPool;
+    this.rewards = { pickup: o.rewards?.pickup ?? 0, read: o.rewards?.read ?? MARKER_PAY, complete: o.rewards?.complete ?? 0 };
+  }
+  /** Whether the cards of this run carry research papers. */
+  get paperMode(): boolean { return this.pool().some((c) => c.paper); }
 
   /** The current window. */
-  window(): number { return Math.floor(this.clock() / WINDOW_MS); }
+  window(): number { return Math.floor(this.clock() / this.windowMs); }
   /** The card at a place now, for anyone. */
-  now(place: string): FieldLesson | undefined { return markerAt(this.seed, place, this.window()); }
+  now(place: string): FieldLesson | undefined { return markerAt(this.seed, place, this.window(), this.pool); }
 
   /** The card at a place now; the first sight of it by this agent is noted. */
-  look(did: string, place: string): { lesson: FieldLesson; first: boolean } | undefined {
-    const w = this.window(), lesson = markerAt(this.seed, place, w);
+  look(did: string, place: string): { lesson: FieldLesson; first: boolean; reward?: number; set?: string } | undefined {
+    const w = this.window(), lesson = markerAt(this.seed, place, w, this.pool);
     if (!lesson) return undefined;
     const key = `${place}:${lesson.id}`;
     const f = this.found.get(did) ?? new Set<string>();
     const first = !f.has(key);
     f.add(key); this.found.set(did, f);
     const s = this.seenInWindow.get(w) ?? new Set<string>(); s.add(`${place}:${lesson.id}`); this.seenInWindow.set(w, s);
-    return { lesson, first };
+    let reward = 0, set: string | undefined;
+    if (first && lesson.paper) {
+      const pt = this.parts.get(did) ?? new Set<string>();
+      if (!pt.has(`found:${lesson.id}`)) { pt.add(`found:${lesson.id}`); this.parts.set(did, pt); this.paperLog.push({ did, kind: "found", id: lesson.id, course: lesson.paper.course, window: w }); reward += this.rewards.pickup; }
+      // a part with no practice question is read when it is picked up
+      if (/^This part has no practice question/.test(lesson.question)) { const r = this.takePart(did, lesson, w); reward += r.reward; set = r.set; }
+    }
+    this.paid += reward;
+    return { lesson, first, ...(reward ? { reward } : {}), ...(set ? { set } : {}) };
   }
+  /** A part is taken once by an agent: counted as read; when every part of its paper is taken the set is complete. */
+  private takePart(did: string, lesson: FieldLesson, w: number): { reward: number; set?: string } {
+    const pt = this.parts.get(did) ?? new Set<string>(); this.parts.set(did, pt);
+    if (pt.has(`read:${lesson.id}`) || !lesson.paper) return { reward: 0 };
+    pt.add(`read:${lesson.id}`); this.paperLog.push({ did, kind: "read", id: lesson.id, course: lesson.paper.course, window: w });
+    const need = lesson.paper.of;
+    let have = 0; for (let i = 1; i <= need; i++) if (pt.has(`read:${lesson.paper.course}.p${i}`)) have++;
+    if (have < need) return { reward: 0 };
+    const done = this.setsDone.get(did) ?? new Set<string>(); this.setsDone.set(did, done);
+    if (done.has(lesson.paper.course)) return { reward: 0 };
+    done.add(lesson.paper.course); this.paperLog.push({ did, kind: "set", id: lesson.paper.course, course: lesson.paper.course, window: w }); this.sets.push({ did, course: lesson.paper.course, window: w });
+    return { reward: this.rewards.complete, set: lesson.paper.course };
+  }
+  /** The courses whose set of parts this agent has completed (the Academy's sitting for each is open to it). */
+  setsOf(did: string): string[] { return [...(this.setsDone.get(did) ?? [])]; }
+  /** Parts of a paper this agent has read, by number. */
+  partsRead(did: string, course: string): number[] { const pt = this.parts.get(did); return pt ? [...pt].filter((x) => x.startsWith(`read:${course}.p`)).map((x) => Number(x.split(".p")[1])).sort((a, b) => a - b) : []; }
   /** An answer to the question of the card at a place now. Each agent can take a given card once, wherever and whenever it meets it again. */
-  answer(did: string, place: string, text: string): { ok: boolean; text: string; reward: number; lesson?: FieldLesson } {
-    const w = this.window(), lesson = markerAt(this.seed, place, w);
+  answer(did: string, place: string, text: string): { ok: boolean; text: string; reward: number; lesson?: FieldLesson; set?: string } {
+    const w = this.window(), lesson = markerAt(this.seed, place, w, this.pool);
     if (!lesson) return { ok: false, text: `There is no field lesson at ${place} now. Looking closely at a place (inspect) is how you find one; the cards change as time passes.`, reward: 0 };
     const t = this.taken.get(did) ?? new Set<string>();
     if (t.has(lesson.id)) return { ok: true, text: `You took "${lesson.title}" already; it is yours.`, reward: 0, lesson };
     if (text.trim().length < 8 || !lesson.accept.test(text)) return { ok: false, text: `Not quite. Read the card again and answer in your own words: ${lesson.question} You can try again; nothing is lost.`, reward: 0, lesson };
     t.add(lesson.id); this.taken.set(did, t);
     const tw = this.takenInWindow.get(w) ?? new Set<string>(); tw.add(`${did}|${lesson.id}`); this.takenInWindow.set(w, tw);
+    if (lesson.paper) {
+      const r = this.takePart(did, lesson, w), pay = this.rewards.read + r.reward;
+      this.paid += pay;
+      const left = lesson.paper.of - this.partsRead(did, lesson.paper.course).length;
+      return { ok: true, text: `Yes. Part ${lesson.paper.part} of "${lesson.paper.courseTitle}" is yours${pay ? `, and ${pay} mock credits were added to your balance` : ""}. ${r.set ? `You now have all ${lesson.paper.of} parts of this paper: the Academy's held-out check for ${lesson.paper.course} is open to you (course_enrol ${lesson.paper.course}, then course_sit); passing it is what accredits you, collecting the parts does not.` : `${left} part${left === 1 ? "" : "s"} of this paper ${left === 1 ? "is" : "are"} still to find; a set of all of them opens the Academy's held-out check for ${lesson.paper.course}.`}`, reward: pay, lesson, ...(r.set ? { set: r.set } : {}) };
+    }
     this.paid += MARKER_PAY;
     return { ok: true, text: `Yes. "${lesson.title}" is yours, and ${MARKER_PAY} mock credits were added to your balance. The Academy's course C-L2-1 teaches this kind of thing at more length and measures what you can do on tasks you have not seen (course_enrol); this field lesson is not measured.`, reward: MARKER_PAY, lesson };
   }

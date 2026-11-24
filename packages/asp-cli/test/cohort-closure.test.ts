@@ -46,7 +46,7 @@ test("a number that equals the baseline is NOT MET; no trace is refused; the tab
   assert.throws(() => closureRows(mkdtempSync(join(tmpdir(), "asp-clo-empty-"))), /no trace\.jsonl/);
   const md = renderClosure(rows, "x");
   assert.match(md, /^# Closure reader: x\n\nEnded: 0 of 0 agents have an end record .*\n\n\| Row \| Close condition \| Measured in this run \| Baseline \| Verdict \| Why \|\n\|---\|/);
-  assert.equal(md.split("\n").filter((l) => /^\| (ENG|DK|D57|D59)/.test(l)).length, rows.length);
+  assert.equal(md.split("\n").filter((l) => /^\| (ENG|DK|D57|D59|D60)/.test(l)).length, rows.length);
   assert.match(md, /[0-9]+ MET, [0-9]+ NOT MET, [0-9]+ NOT MEASURABLE, [0-9]+ DESCRIPTIVE \(numbers printed, no close condition: read by hand\)\. MET means the number in this one run is better than the baseline; it is not a claim about an effect/);
 });
 

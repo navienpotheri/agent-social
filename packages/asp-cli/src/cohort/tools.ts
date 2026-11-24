@@ -38,7 +38,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "forum_vote", description: "Vote a post or a comment up (1) or down (-1).", input_schema: obj({ target: str("the id of the post or comment", 200), value: { type: "integer", enum: [1, -1] } }, ["target", "value"]), scope: "write.forum", institution: "forum", writes: true },
   { name: "my_balance", description: "How many mock credits you have.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "read_history", description: "What the society's log holds about an agent: its records, newest last, one line each. Pass a did, or leave it out for your own.", input_schema: obj({ did: str("the agent's did", 200) }), scope: "read.market", institution: "log" },
-  { name: "post_job", description: "Post a job on the Market for another agent to do, paid from your own mock credits (the budget, plus a 2-credit posting deposit). Your first job is free: when it is accepted the house returns what it cost you and adds a small credit. The jobs agents post are listed before the house's.", input_schema: obj({ purpose: str("what the job is", 120), budget: { type: "integer", minimum: 5, maximum: 50 }, criterion: str("how you will tell it is done", 120) }, ["purpose", "budget", "criterion"]), scope: "write.market", institution: "market", writes: true },
+  { name: "post_job", description: "Post a job on the Market for another agent to do, paid from your own mock credits (the budget, plus a 2-credit posting deposit). Your first job is free: the house covers its 2-credit posting deposit when you post it, and when it is accepted returns the price and the job tax and adds a small credit. The jobs agents post are listed before the house's.", input_schema: obj({ purpose: str("what the job is", 120), budget: { type: "integer", minimum: 5, maximum: 50 }, criterion: str("how you will tell it is done", 120) }, ["purpose", "budget", "criterion"]), scope: "write.market", institution: "market", writes: true },
   { name: "offer_on_job", description: "Offer to do a job on the board. Use the job's id from look_jobs.", input_schema: obj({ job: str("the job's intent id from look_jobs", 200), price: { type: "integer", minimum: 1, maximum: 50 }, plan: str("what you will do", 120) }, ["job", "price", "plan"]), scope: "write.market", institution: "market", writes: true },
   { name: "my_job_offers", description: "The offers other agents have made on the jobs you posted.", input_schema: obj({}), scope: "read.market", institution: "market" },
   { name: "accept_offer", description: "Accept an offer on your job: the price goes into escrow and the other agent can start.", input_schema: obj({ offer: str("the offer's id from my_job_offers", 200) }, ["offer"]), scope: "write.market", institution: "market", writes: true },
@@ -58,6 +58,8 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "town_vote", description: "Vote on an open proposal (yes, no or abstain), once.", input_schema: obj({ proposal: str("the proposal's id, such as town-1", 20), choice: { type: "string", enum: ["yes", "no", "abstain"] } }, ["proposal", "choice"]), scope: "write.town", institution: "town", writes: true },
   { name: "game_list", description: "The games you can play, with their rules in one line, the open round of each and who has entered. Playing is never required.", input_schema: obj({}), scope: "read.games", institution: "games" },
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
+  { name: "desert_look", description: "The desert crossing for groups of three: your group, which of the three beacons are lit and by whom. Joining is never required.", input_schema: obj({}), scope: "read.desert", institution: "desert" },
+  { name: "desert_light", description: "Light one beacon (north, east or west) of your group. When three different agents of a group have lit the three, the house referee pays each of them a few mock credits, once. Each agent lights one.", input_schema: obj({ beacon: str("north, east or west", 10) }, ["beacon"]), scope: "write.desert", institution: "desert" },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
@@ -114,10 +116,10 @@ const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
  * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
  * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
  */
-export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", town: "--roles", library: "--library" };
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", desert: "--desert", town: "--roles", library: "--library" };
 export const GROUP_OF: Record<string, string> = {
   inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
-  game_list: "games", game_enter: "games", game_results: "games",
+  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert",
   role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
   my_agenda: "agenda", repo_read: "repo", repo_edit: "repo",
   assess_list: "assess", assess_submit: "assess",
@@ -223,6 +225,28 @@ export function atlasLine(world: WorldApi): string {
   const least = Math.min(...n.values()), names = PLACES.filter((p) => n.get(p) === least);
   return `Society atlas (counted from the log): agents who have looked closely at each place: ${PLACES.map((p) => `${p} ${n.get(p)}`).join(", ")}. Least visited: ${names.join(", ")} (${least}).`;
 }
+/**
+ * Exploration idea 4, finds that open places: a plaque or a door found at one place points to a door at another, fixed by the place (the same in every run): the place five on in the map's order. The line is shown only after the find, it is true
+ * (the place is always there to inspect), and nothing is asked. `doorFrom` is exported so the closure reader can count the pairs an agent followed (A looked at, then its door B).
+ */
+export const doorFrom = (place: string): string | undefined => { const i = (PLACES as readonly string[]).indexOf(place); return i < 0 ? undefined : PLACES[(i + 5) % PLACES.length]; };
+/** Exploration idea 5, what changed since you were last here: when an agent looks again at the market or the forum, one line of what changed since its last look (counted from the board and the feed). */
+const lastLook = new WeakMap<object, Map<string, { jobs?: number; posts?: number }>>();
+async function sinceLastHere(world: WorldApi, agent: AgentCtx, place: string): Promise<string | undefined> {
+  const m = lastLook.get(world) ?? new Map<string, { jobs?: number; posts?: number }>(); lastLook.set(world, m);
+  const key = `${agent.did}|${place}`, prev = m.get(key);
+  let now: { jobs?: number; posts?: number } | undefined, what = "";
+  try {
+    if (place === "market" && world.market) { now = { jobs: (await world.market.openJobList(agent, 100)).length }; what = "jobs open on the board"; }
+    else if (place === "forum") { const f = await world.get("/forum/feed?sort=new&limit=100"); if (f.status < 400) now = { posts: ((JSON.parse(f.text) as { posts?: unknown[] }).posts ?? []).length }; what = "posts in the forum"; }
+  } catch { return undefined; }
+  if (!now) return undefined;
+  m.set(key, now);
+  if (!prev) return undefined;
+  const a = now.jobs ?? now.posts ?? 0, b = prev.jobs ?? prev.posts ?? 0;
+  return a === b ? `Since you last looked here, nothing has changed in the ${what} (${a}).` : `Since you last looked here: ${a - b > 0 ? `${a - b} more` : `${b - a} fewer`} ${what} (${b} then, ${a} now).`;
+}
+const desertDoor = new WeakMap<object, Set<string>>();
 const refusalMet = new WeakMap<object, Map<string, number>>();
 const fogSeen = new WeakMap<object, Map<string, number>>();
 
@@ -296,7 +320,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -311,7 +335,9 @@ export function introFor(world: WorldApi, agentN?: number): string {
   const on = (g: string): boolean => !world.groups || world.groups.has(g);
   const l: string[] = [];
   if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
-  if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
+  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; desert_look shows your group's beacons, desert_light lights one; when three agents of a group have lit the three, each is paid mock credits.");
+  if (world.markers?.paperMode) l.push("Cards: parts of real research papers lie across the map (inspect a place); a card gives a short digest and a practice question (field_answer); taking every part of one paper opens the Academy's held-out check for its course, and passing that check (course_sit) is what accredits you.");
+  if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
   if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
   if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
   if (world.market) l.push("Jobs: you can take one (look_jobs, offer_on_job) or post one for another agent (post_job; the first is free)" + ".");
@@ -349,6 +375,13 @@ export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<
 
 /** Every observation ends with what is open to the agent now, so the next step is in view at the moment it would stop. The first one an agent makes also carries invitations, a write may carry the free-write line and a step of the first quest the quest line. */
 /** What a course unlocks, as a true clause: the open house jobs that ask for its certificate and what they pay (empty when there are none). */
+/** "The society pays back" (batch E): one true line of counts from this run, shown with the courses and the board; labelled one small run, with no claim of cause. */
+export function paysBackLine(world: WorldApi): string | undefined {
+  const p = world.market?.paysBack();
+  if (!p) return undefined;
+  return `Agents who sat a course (${p.sat.n}) have so far had a median of ${p.sat.median} house job${p.sat.median === 1 ? "" : "s"} accepted; agents who have not (${p.notSat.n}), a median of ${p.notSat.median}. One small run, so far; this says nothing about why.`;
+}
+const paysSeen = new WeakMap<object, Map<string, string>>();
 export function courseUnlocks(world: WorldApi, course: string): string {
   const j = world.market?.jobsRequiring(course) ?? [];
   return j.length ? `; its certificate is also what ${j.length === 1 ? "this job asks" : "these jobs ask"} for: ${j.slice(0, 2).map((x) => `"${x.purpose}" pays ${x.budget}`).join("; ")}` : "";
@@ -369,6 +402,7 @@ export function untouched(world: WorldApi, did: string): Array<{ key: string; te
   if (world.lessons && on("lessons") && !s.has("lesson_publish") && !s.has("lesson_read")) out.push({ key: "lessons", text: "a lesson card: if you have learned something here you can write it down with the tool you called as evidence, and a gate admits it before other agents see it; other agents' admitted lessons are listed by lesson_read" });
   if (world.market && on("assess") && !s.has("assess_list") && !s.has("assess_submit")) out.push({ key: "assess", text: "an assessment: you can say whether another agent's delivery meets the job's criterion, for 1 mock credit each (your first five); one call lists them (assess_list)" });
   if (world.market && !s.has("post_job") && world.market.hasFirstJobCredit(did)) out.push({ key: "posting", text: "a job you could post: the first job you post is free (what it cost comes back with 2 credits when you accept its delivery), and another agent does it for you (post_job)" });
+  if (world.desert && on("desert") && !s.has("desert_look") && !s.has("desert_light")) out.push({ key: "desert", text: "a desert crossing for a group of three: each lights one beacon (desert_light), and when the three are lit by three of you the house referee pays each a few mock credits; desert_look shows your group" });
   if (world.fieldGuide && !s.has("inspect:research-commons") && !s.has("unlock:reading-room")) out.push({ key: "guide", text: "the field guide to refusals, built from earlier runs, is in the Research and Commons; one call reads it (inspect research-commons)" });
   return out;
 }
@@ -409,11 +443,27 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   recordDiscovery(world, agent, name, input, r.discovery);
+  if (name === "inspect" && typeof input.place === "string") {
+    const place = input.place;
+    if (r.discovery === "plaque" || r.discovery === "door") { const d = doorFrom(place); if (d) r = { ...r, text: `${r.text}
+
+What you found points to a door at ${d} (inspect ${d}); nothing here is asked of you.` }; }
+    if (place === "town-hall" && world.desert) {
+      const key = `${agent.did}|desert-door`, seenD = desertDoor.get(world) ?? new Set<string>(); desertDoor.set(world, seenD);
+      if (!seenD.has(key)) { seenD.add(key); recordDiscovery(world, agent, "inspect", input, "door"); r = { ...r, text: `${r.text}
+
+A door at the back of the town hall leads out to the desert crossing, a small place for groups of three (desert_look); nothing here is asked of you.` }; }
+    }
+    const since = await sinceLastHere(world, agent, place); if (since) r = { ...r, text: `${r.text}
+
+${since}` };
+  }
   if (name === "look_map") { r = { ...r, text: `${r.text}
 
 ${atlasLine(world)}` }; }
   const extra: string[] = [];
   { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
+  if (name === "look_jobs" || name === "look_courses") { const pb = paysBackLine(world); const m = paysSeen.get(world) ?? new Map<string, string>(); paysSeen.set(world, m); if (pb && m.get(agent.did) !== pb) { m.set(agent.did, pb); extra.push(pb); } }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
   if (hall) {
     const step = name === "forum_comment" || name === "forum_post" ? 1 : name === "deliver_job" && /accepted by the house/.test(r.text) ? 2 : name === "send_message" && input.to === "house-greeter" ? 3 : 0;
@@ -649,6 +699,11 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
+    case "desert_look": case "desert_light": {
+      const d = world.desert; if (!d) return { ok: true, text: "There is no desert in this society." };
+      if (name === "desert_look") return { ok: true, text: d.look(agent.did, agent.n, world.agents ?? 0) };
+      try { return { ok: true, text: await d.light(agent.did, agent.handle, agent.n, world.agents ?? 0, String(input.beacon ?? "")) }; } catch (e) { return refuse("desert_refused", (e as Error).message); }
+    }
     case "game_list": case "game_enter": case "game_results": return await gameTool(world, agent, name, input);
     case "inspect": case "orientation_progress": case "field_answer": return await expeditionTool(world, agent, name, input);
     case "repo_edit": { const p = world.repoPilot; if (!p) return refuse("no_repo", "this society keeps no repository copies."); const bad = p.edit(agent.handle, String(input.which ?? ""), input.mode === "append" ? "append" : "replace", String(input.text ?? "")); return bad ? refuse("repo_refused", bad + ".") : { ok: true, text: `Changed ${String(input.which)} in your own copy (not the repository). A job that names it is graded there when you deliver.` }; }
@@ -781,7 +836,8 @@ async function expeditionTool(world: WorldApi, agent: AgentCtx, name: string, in
     return { ok: true, text: `${a.text}${tip}${a.reward && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : ""}`, ...(a.reward && a.lesson ? { discovery: `marker-taken:${a.lesson.id}` } : {}) };
   }
   const card = world.markers ? world.markers.look(agent.did, input.place as string) : undefined;
-  const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})` : "";
+  if (card?.reward) await world.market?.royalty(agent.did, card.reward);
+  const cardText = card ? `\nA card is pinned here: "${card.lesson.title}". ${card.lesson.text} Question: ${card.lesson.question} (field_answer, place ${input.place as string})${card.lesson.paper ? ` This card is part ${card.lesson.paper.part} of ${card.lesson.paper.of} of a paper (${card.lesson.paper.papers}).` : ""}${card.reward ? ` ${card.reward} mock credits were added to your balance for picking it up.` : ""}${card.set ? ` You now have all the parts of this paper: the Academy's held-out check for ${card.set} is open to you (course_enrol ${card.set}, then course_sit).` : ""}` : "";
   const cardFlag = card?.first ? { discovery: `marker-found:${card.lesson.id}` } : {};
   const guideText = input.place === "research-commons" && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.length ? `\n${renderGuideText(world.fieldGuide.guide)}` : "";
   const sayFinds = (found: boolean): string => (found && world.findsThread ? `${NL}Others may like to hear what you found: the Finds thread in the forum (post ${world.findsThread}); not required. A tip there that another agent uses and cites earns its author a small credit; an empty post earns nothing.` : "");

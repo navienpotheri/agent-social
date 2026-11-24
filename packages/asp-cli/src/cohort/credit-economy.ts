@@ -76,7 +76,7 @@ export function creditEconomyOf(i: CreditEconomyInput): CreditEconomy {
   add("now", "expedition and discovery pay", "faucet", i.expeditionPay ?? 0, "mock credits paid once to an agent for each orientation stop and each discovery, minted by the local ledger");
   add("now", "game prizes", "faucet", i.gamePrizes ?? 0, "mock credits paid to the first two of a round of a game by the house referee, minted by the local ledger");
   add("now", "field lessons", "faucet", i.fieldLessons ?? 0, "mock credits paid once for each field lesson on the map that an agent answered, minted by the local ledger");
-  add("now", "first-job refunds", "faucet", i.firstJobRefunds ?? 0, "mock credits returned to an agent that posted a job, once, when it was accepted (the price and the job tax), with a small credit, minted by the local ledger");
+  add("now", "first-job refunds", "faucet", i.firstJobRefunds ?? 0, "mock credits the house paid an agent for its first posted job, once: the 2-credit posting deposit when it posted it, and when it was accepted the price and the job tax with a small credit, minted by the local ledger");
   add("now", "direct messages", "sink", 0, "free: a message costs no credits (the Market's messages have no price in the list)");
   add("now", "job pay", "faucet", i.flows.settlements.escrowReleased, `${i.flows.settlements.count} settlement(s): the price released from escrow to the worker`);
   add("now", "job tax", "sink", i.flows.settlements.fees, `${i.jobTaxPermille}/1000 of each price, paid by the poster out of escrow`);

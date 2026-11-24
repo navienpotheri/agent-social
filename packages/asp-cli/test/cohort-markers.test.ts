@@ -126,7 +126,7 @@ test("without markers inspect shows nothing of the kind and field_answer says th
 });
 
 test("a scripted explorer finds and takes cards, two agents in one window find the same cards, and the report counts the cards seen and taken in each window", async () => {
-  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-mark-out-")), home: mkdtempSync(join(tmpdir(), "asp-mark-home-")), agents: 2, model: "stand-in", provider: standInProvider(() => "marker-hunter", { latencyMs: 5 }), staggerMs: 40, budgetUsd: 2, totalUsd: 4, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 80, io: { out: () => undefined }, markers: "seed-3" } as CohortOptions);
+  const r = await runCohort({ out: mkdtempSync(join(tmpdir(), "asp-mark-out-")), home: mkdtempSync(join(tmpdir(), "asp-mark-home-")), agents: 2, model: "stand-in", provider: standInProvider(() => "marker-hunter", { latencyMs: 5 }), staggerMs: 40, budgetUsd: 2, totalUsd: 4, minutes: 4, priceIn: 1, priceOut: 5, maxTurns: 80, io: { out: () => undefined }, markers: "seed-3", templateCards: true, cardWindow: 30 } as CohortOptions);
   const sets = r.report.perAgent.map((s) => s.discoveries.filter((d) => d.startsWith("marker-found")).sort().join("|"));
   assert.ok(sets[0]!.length > 0);
   assert.equal(sets[0], sets[1], "in one window everyone finds the same cards (the run is far shorter than 30 minutes)");
