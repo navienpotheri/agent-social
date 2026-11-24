@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PAPER_COURSES, PAPER_POOL, RULE_META } from "../src/cohort/paper-cards.ts";
+import { DEEP_COURSES, PAPER_COURSES, PAPER_POOL, RULE_META } from "../src/cohort/paper-cards.ts";
 import { Markers, MARKER_PLACES, markerAt } from "../src/cohort/markers.ts";
 import { renderPaperReport } from "../src/cohort/paper-report.ts";
 import { introFor, runTool, TOOLS } from "../src/cohort/tools.ts";
@@ -23,6 +23,7 @@ const SAMPLE: Record<string, string> = {
   "C-L14-1.p1": "I would check the vitals and the risk before urgent.", "C-L14-1.p2": "when the symptom is severe and the duration is long then refer", "C-L14-1.p3": "It should say the default and be honest about where it is unsure, with monitor as the default.",
   "C-L8-1.p1": "The rule that decided it and the seller, a short fact.", "C-L8-1.p2": "when the price is far below the category and reports exist then flag", "C-L8-1.p3": "Update the rule, narrow it or drop it, so the memory stays true.",
 };
+for (const d of DEEP_COURSES) d.tasks.forEach((t, i) => { SAMPLE[`${d.course}.p${i + 1}`] = t.model; });
 for (const m of RULE_META) { SAMPLE[`${m.course}.p1`] = `${m.features[0]} and ${m.features[1]}`; SAMPLE[`${m.course}.p2`] = `when the ${m.features[0]} is high then ${m.outcomes[0]}`; SAMPLE[`${m.course}.p3`] = m.ideaSample; }
 const all = new Set(TOOLS.map((t) => t.scope));
 test("eighteen papers, four parts each, seventy-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
@@ -38,7 +39,7 @@ test("eighteen papers, four parts each, seventy-two cards, each labelled and tra
     for (const p of c.parts) {
       const pc = PAPER_POOL.find((x) => x.id === `${c.course}.p${p.n}`)!;
       assert.match(pc.text, new RegExp(`Part ${p.n} of 4 of .* \\(course ${c.course}; lens ${c.lens}; papers `));
-      assert.ok(pc.text.length < 900, "a short digest");
+      assert.ok(pc.text.length < 3600, "a part is at most about 400 words");
       if (p.task) { assert.ok(p.task.accept.test(SAMPLE[pc.id]!), `${pc.id} accepts its model answer`); assert.ok(!p.task.accept.test("I do not know."), `${pc.id} does not accept a non-answer`); }
     }
   }
@@ -65,7 +66,7 @@ test("a set of all four parts completes the paper: pickups, reads and the set ar
       const part = PAPER_COURSES.find((c) => c.course === course)!.parts[Number(id.slice(-1)) - 1]!;
       if (part.task) {
         const r = (await call("field_answer", { place: p.place, answer: SAMPLE[id]! })).text;
-        assert.match(r, /Yes\. Part \d of /);
+        assert.match(r, /Yes\. [^]*Part \d of /);
         last = r;
       } else last = look;
     }
@@ -109,4 +110,20 @@ test("before and after: every sitting of a paper course is logged with what the 
     assert.match(rep, /### Before and after, by sitting/);
     assert.match(rep, /\| C-L9-1 \| 1, [\d.]+ \| 0, none \| 1, [\d.]+ \| 0, none \| 0, none \|/);
   } finally { await w.close(); }
+});
+
+test("the substantial courses: four parts of 250 to 400 words, the source and its type, three practice tasks with a worked model answer shown after a right answer, and a paragraph on what the course does and does not test", () => {
+  assert.ok(DEEP_COURSES.length >= 4);
+  for (const d of DEEP_COURSES) {
+    const c = PAPER_COURSES.find((x) => x.course === d.course)!;
+    assert.equal(d.parts.length, 4); assert.equal(d.tasks.length, 3);
+    for (const p of d.parts) { const words = p.text.split(/\s+/).length; assert.ok(words >= 230 && words <= 420, `${d.course} ${p.title}: ${words} words`); }
+    assert.ok(c.source && c.sourceType && c.tests, "source, type and what is tested");
+    assert.match(c.parts[0]!.digest, /./);
+    const first = PAPER_POOL.find((x) => x.id === `${d.course}.p1`)!, last = PAPER_POOL.find((x) => x.id === `${d.course}.p4`)!;
+    assert.match(first.text, /Source: .* Type: /); assert.match(last.text, /What this course does and does not test of the source: /);
+    assert.ok(/NOT test/.test(d.tests), `${d.course} says plainly what it does not test`);
+    for (const t of d.tasks) { assert.ok(t.accept.test(t.model), "the model answer is accepted"); assert.ok(!t.accept.test("I do not know."), "a non-answer is not"); }
+    assert.equal(first.paper!.model, d.tasks[0]!.model);
+  }
 });

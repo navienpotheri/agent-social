@@ -345,7 +345,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
           agents: agents.map((a) => a.id), toolsetFor, model: o.model, modelFor: (id: string) => byId.get(id)?.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
-          limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 2000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
+          limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 6000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
           ...(life && clock ? { loop: { equivalentCalls: 40, nearRepeats: 60 }, beforeStart: async (a: string, i: number, sig: AbortSignal) => { if (arrivals) { const ms = clock.realMsUntil(arrivalAt(arrivals, i)); if (ms > 0) await life.sleep(ms, sig); } await life.opts.source?.prime?.(a); trace({ t: "arrival", at: stamp(), agent: a, simMs: Math.round(clock.now()) }); } } : {}),
           onEvent: (e) => {
             if (e.kind === "turn") {
