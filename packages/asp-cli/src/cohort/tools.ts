@@ -223,6 +223,27 @@ export function atlasLine(world: WorldApi): string {
   const least = Math.min(...n.values()), names = PLACES.filter((p) => n.get(p) === least);
   return `Society atlas (counted from the log): agents who have looked closely at each place: ${PLACES.map((p) => `${p} ${n.get(p)}`).join(", ")}. Least visited: ${names.join(", ")} (${least}).`;
 }
+/**
+ * Exploration idea 4, finds that open places: a plaque or a door found at one place points to a door at another, fixed by the place (the same in every run): the place five on in the map's order. The line is shown only after the find, it is true
+ * (the place is always there to inspect), and nothing is asked. `doorFrom` is exported so the closure reader can count the pairs an agent followed (A looked at, then its door B).
+ */
+export const doorFrom = (place: string): string | undefined => { const i = (PLACES as readonly string[]).indexOf(place); return i < 0 ? undefined : PLACES[(i + 5) % PLACES.length]; };
+/** Exploration idea 5, what changed since you were last here: when an agent looks again at the market or the forum, one line of what changed since its last look (counted from the board and the feed). */
+const lastLook = new WeakMap<object, Map<string, { jobs?: number; posts?: number }>>();
+async function sinceLastHere(world: WorldApi, agent: AgentCtx, place: string): Promise<string | undefined> {
+  const m = lastLook.get(world) ?? new Map<string, { jobs?: number; posts?: number }>(); lastLook.set(world, m);
+  const key = `${agent.did}|${place}`, prev = m.get(key);
+  let now: { jobs?: number; posts?: number } | undefined, what = "";
+  try {
+    if (place === "market" && world.market) { now = { jobs: (await world.market.openJobList(agent, 100)).length }; what = "jobs open on the board"; }
+    else if (place === "forum") { const f = await world.get("/forum/feed?sort=new&limit=100"); if (f.status < 400) now = { posts: ((JSON.parse(f.text) as { posts?: unknown[] }).posts ?? []).length }; what = "posts in the forum"; }
+  } catch { return undefined; }
+  if (!now) return undefined;
+  m.set(key, now);
+  if (!prev) return undefined;
+  const a = now.jobs ?? now.posts ?? 0, b = prev.jobs ?? prev.posts ?? 0;
+  return a === b ? `Since you last looked here, nothing has changed in the ${what} (${a}).` : `Since you last looked here: ${a - b > 0 ? `${a - b} more` : `${b - a} fewer`} ${what} (${b} then, ${a} now).`;
+}
 const refusalMet = new WeakMap<object, Map<string, number>>();
 const fogSeen = new WeakMap<object, Map<string, number>>();
 
@@ -296,7 +317,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -409,6 +430,15 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   recordDiscovery(world, agent, name, input, r.discovery);
+  if (name === "inspect" && typeof input.place === "string") {
+    const place = input.place;
+    if (r.discovery === "plaque" || r.discovery === "door") { const d = doorFrom(place); if (d) r = { ...r, text: `${r.text}
+
+What you found points to a door at ${d} (inspect ${d}); nothing here is asked of you.` }; }
+    const since = await sinceLastHere(world, agent, place); if (since) r = { ...r, text: `${r.text}
+
+${since}` };
+  }
   if (name === "look_map") { r = { ...r, text: `${r.text}
 
 ${atlasLine(world)}` }; }
