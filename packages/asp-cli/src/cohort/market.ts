@@ -140,6 +140,10 @@ export class MarketHall {
     const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
     return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
   }
+  /** Every Academy sitting with what the agent had of the paper's cards at that time (before and after, next-run batch 3): the parts of that paper it had read, whether it had completed the set, and its experiment arm. */
+  readonly sittingLog: Array<{ handle: string; course: string; attempt: number; mean: number; passed: boolean; parts: number; set: boolean; arm?: string; at: string }> = [];
+  cardState?: (did: string, course: string) => { parts: number; set: boolean };
+  armOf?: (handle: string) => string | undefined;
   /** For the paper report: how many agents sat a course, how many sittings, and how many agents hold its certificate. */
   sittingStats(course: string): { sat: number; attempts: number; passed: number } {
     let sat = 0, attempts = 0, passed = 0;
@@ -619,6 +623,7 @@ export class MarketHall {
       const lines = describeSitting(card, result);
       const mine = this.sittings.get(agent.did) ?? new Map<string, { mean: number; err: number; passed: boolean }[]>();
       mine.set(card.id, [...(mine.get(card.id) ?? []), { mean: result.sitting.mean_permille / 10, err: result.sitting.error_bar_permille / 10, passed: result.sitting.passed }]);
+      { const cs = this.cardState?.(agent.did, card.id) ?? { parts: 0, set: false }, arm = this.armOf?.(agent.handle); this.sittingLog.push({ handle: agent.handle, course: card.id, attempt: result.attempt, mean: result.sitting.mean_permille / 10, passed: result.sitting.passed, parts: cs.parts, set: cs.set, ...(arm ? { arm } : {}), at: this.at() }); }
       this.sittings.set(agent.did, mine);
       if (!result.sitting.passed) return { passed: false, lines };
       const action = await this.put(this.mk("action", e.party, { contract: e.contract, scopes_used: [], summary: `sat ${card.id} attempt ${result.attempt}: passed` }, null, e.contract));

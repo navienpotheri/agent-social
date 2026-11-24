@@ -88,3 +88,25 @@ test("the card window is a setting: sixty simulated minutes by default in a coho
   assert.equal(a.window(), 0);
   assert.equal(b.window(), 1, "the old window is thirty minutes");
 });
+
+test("before and after: every sitting of a paper course is logged with what the agent had of the paper's cards; the report has a before, some part and whole set table; sittings stay unlocked", async () => {
+  const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-paper-ba-")), markers: "t", paperCards: true, cardWindowMin: 60 });
+  try {
+    const m = w.api.markers!, hall = w.api.market!;
+    const a = await w.enrol(0, "agent-01"); await hall.enrolStandalone(a);
+    const call = (n: string, i: Record<string, unknown> = {}) => runTool(w.api, a, all, n, i);
+    const course = "C-L9-1";
+    assert.match((await call("course_enrol", { course })).text, /./);
+    await call("course_sit", { course, answer: "{}" }); // a sitting before any card: unlocked
+    const ids = [1, 2, 3, 4].map((n) => `${course}.p${n}`), at = new Map<string, { place: string; window: number }>();
+    for (let win = 0; win < 600 && at.size < 4; win++) for (const place of MARKER_PLACES) { const c = markerAt("t", place, win, () => PAPER_POOL as never); if (c && ids.includes(c.id) && !at.has(c.id)) at.set(c.id, { place, window: win }); }
+    for (const id of ids) { const p = at.get(id)!; m.clock = () => p.window * 3_600_000 + 1000; await call("inspect", { place: p.place }); const part = PAPER_COURSES.find((c) => c.course === course)!.parts[Number(id.slice(-1)) - 1]!; if (part.task) await call("field_answer", { place: p.place, answer: SAMPLE[id]! }); }
+    await call("course_sit", { course, answer: JSON.stringify({ after: "the cards" }) });
+    const log = hall.sittingLog.filter((r) => r.course === course);
+    assert.equal(log.length, 2);
+    assert.deepEqual([log[0]!.parts, log[0]!.set, log[1]!.parts, log[1]!.set], [0, false, 4, true]);
+    const rep = renderPaperReport(m, (c) => hall.sittingStats(c), 1, hall.sittingLog);
+    assert.match(rep, /### Before and after, by sitting/);
+    assert.match(rep, /\| C-L9-1 \| 1, [\d.]+ \| 0, none \| 1, [\d.]+ \| 0, none \| 0, none \|/);
+  } finally { await w.close(); }
+});

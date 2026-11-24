@@ -117,6 +117,7 @@ export async function bootWorld(o: { dir: string; /** G2: groups of three assign
   }
   if (o.lessons) api.lessons = new LessonShelf(now);
   if (o.markers !== undefined) api.markers = new Markers(o.markers || "cohort", undefined, { ...(o.cardWindowMin ? { windowMs: o.cardWindowMin * 60_000 } : {}), ...(o.paperCards ? { pool: () => PAPER_POOL as never } : {}), ...(o.cardRewards ? { rewards: o.cardRewards } : o.paperCards ? { rewards: { pickup: 1, read: 1, complete: 3 } } : {}) });
+  if (api.markers) hall.cardState = (did, course) => ({ parts: api.markers!.partsRead(did, course).length, set: api.markers!.setsOf(did).includes(course) });
   if (o.dayCycle) {
     const d = new DayCycle(o.dayMs ? { dayMs: o.dayMs } : {});
     api.dayCycle = d;
