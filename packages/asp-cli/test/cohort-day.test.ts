@@ -171,7 +171,7 @@ test("ENG40: through the engine's wake path an agent waiting for a scheduled eve
   const out = mkdtempSync(join(tmpdir(), "asp-day-out-")), home = mkdtempSync(join(tmpdir(), "asp-day-home-"));
   const outLines: string[] = [], errLines: string[] = [];
   const io: Io = { out: (l) => outLines.push(l), err: (l) => errLines.push(l), env: { ASP_HOME: home, DAY_KEY: SECRET }, cwd: home };
-  const code = await main(["society", "cohort", "--local", "--agents", "1", "--model", "claude-haiku-5-5", "--api-key-env", "DAY_KEY", "--budget-usd", "0.40", "--provider-url", p.url, "--out", out, "--sim-speed", "20000", "--day-cycle"], io);
+  const code = await main(["society", "cohort", "--local", "--agents", "1", "--model", "claude-haiku-5-5", "--api-key-env", "DAY_KEY", "--budget-usd", "0.40", "--provider-url", p.url, "--out", out, "--sim-speed", "20000", "--day-minutes", "0.072", "--day-cycle"], io);
   assert.equal(code, 0, errLines.join("\n") + outLines.join("\n"));
   const dir = join(out, readdirSync(out).find((x) => x.startsWith("cohort-"))!);
   const events = readFileSync(join(dir, "trace.jsonl"), "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l));

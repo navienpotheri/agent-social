@@ -4,6 +4,7 @@ import { allowanceLine } from "./token-use.ts";
 import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
+import { EVENT_TOOLS } from "./day-cycle.ts";
 import { DISCOVERY_PAY, GAMES_HALL, PLACES, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
 import { renderGuideText } from "./field-guide.ts";
@@ -320,7 +321,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|On now: |Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -443,6 +444,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   recordDiscovery(world, agent, name, input, r.discovery);
+  if (world.dayCycle) { for (const f of world.dayCycle.current()) if (EVENT_TOOLS[f.id].includes(name)) { const k = world.dayCycle.key(f), s = world.dayCycle.attended.get(k) ?? new Set<string>(); s.add(agent.handle); world.dayCycle.attended.set(k, s); } }
   if (name === "inspect" && typeof input.place === "string") {
     const place = input.place;
     if (r.discovery === "plaque" || r.discovery === "door") { const d = doorFrom(place); if (d) r = { ...r, text: `${r.text}
@@ -463,6 +465,12 @@ ${since}` };
 ${atlasLine(world)}` }; }
   const extra: string[] = [];
   { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
+  if (world.dayCycle) {
+    // one short true line for each event that is on now, shown once to an agent that has not been to it (nothing is asked)
+    const dc = world.dayCycle, lines: string[] = [];
+    for (const f of dc.current()) { const k = dc.key(f), sh = dc.shown.get(k) ?? new Set<string>(), att = dc.attended.get(k); if (!sh.has(agent.handle) && !att?.has(agent.handle)) { sh.add(agent.handle); dc.shown.set(k, sh); lines.push(f.text); } }
+    if (lines.length) extra.push(`On now: ${lines.slice(-2).join(" ")}`);
+  }
   if (name === "look_jobs" || name === "look_courses") { const pb = paysBackLine(world); const m = paysSeen.get(world) ?? new Map<string, string>(); paysSeen.set(world, m); if (pb && m.get(agent.did) !== pb) { m.set(agent.did, pb); extra.push(pb); } }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
   if (hall) {
