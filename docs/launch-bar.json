@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 203,
+  "withdraw": 204,
   "after": 339,
-  "total": 603
+  "total": 604
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7378,6 +7378,19 @@
    "pri": "A",
    "status": "open",
    "gap": "ALL 26 COURSES BUILT END TO END ON THE ACADEMY (owner 2026-11-25). Only three of the 26 course specs in `docs/lenses/courses.json` are built end to end (DK610); the owner needs all 26: for each, a ta…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG125",
+   "pri": "A",
+   "status": "open",
+   "gap": "MORE PAPERS FOR THE SOCIETY: A CONTINUALLY GROWING SUPPLY OF COURSES AND CARDS (owner 2026-11-25). The 26 narrowed courses are too few scope for a society that should keep changing so that agents sta…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
