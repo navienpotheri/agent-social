@@ -223,6 +223,7 @@ export function atlasLine(world: WorldApi): string {
   const least = Math.min(...n.values()), names = PLACES.filter((p) => n.get(p) === least);
   return `Society atlas (counted from the log): agents who have looked closely at each place: ${PLACES.map((p) => `${p} ${n.get(p)}`).join(", ")}. Least visited: ${names.join(", ")} (${least}).`;
 }
+const refusalMet = new WeakMap<object, Map<string, number>>();
 const fogSeen = new WeakMap<object, Map<string, number>>();
 
 export async function openItems(world: WorldApi, agent: AgentCtx): Promise<string[]> {
@@ -397,6 +398,13 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (herdText && r.ok) rememberText(world, herdText, name === "forum_post" ? "post" : "comment", agent.handle, /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "", typeof input.post === "string" ? input.post : /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "");
   // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
   if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
+  // Two true lines after a refusal (from the 2026-11-23 analysis): which jobs are open now after an offer on a taken job, and how many times this agent has met this refusal (nothing is asked; the call is as it was)
+  if (!r.ok && r.refused) {
+    const rc = refusalMet.get(world) ?? new Map<string, number>(); refusalMet.set(world, rc);
+    const k = `${agent.did}|${r.refused}`, n = (rc.get(k) ?? 0) + 1; rc.set(k, n);
+    if (name === "offer_on_job" && r.refused === "market_refused" && /already taken|already has a contract/.test(r.text) && !/open now that you can do/.test(r.text) && world.market) { try { const open = (await world.market.openJobList(agent, 50)).length; r = { ...r, text: `${r.text} That job was taken; ${open} job${open === 1 ? " is" : "s are"} open to you (look_jobs).` }; } catch { /* the line is an aid */ } }
+    if (n >= 2) r = { ...r, text: `${r.text} You have met this refusal (${r.refused}) ${n} times this run.` };
+  }
   // A refusal that the field guide has advice for ends with where to read it (a fact; nothing is asked)
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
