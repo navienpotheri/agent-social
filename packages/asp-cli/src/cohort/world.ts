@@ -18,6 +18,7 @@ import { REPO_JOB_SPECS, RepoPilot } from "./repo-pilot.ts";
 import { Expedition } from "./expedition.ts";
 import { GameHall } from "./games.ts";
 import { Desert } from "./desert.ts";
+import { PAPER_COURSE_IDS, PAPER_POOL } from "./paper-cards.ts";
 import { DayCycle } from "./day-cycle.ts";
 import { Tips } from "./finds.ts";
 import { Markers } from "./markers.ts";
@@ -46,7 +47,7 @@ export interface World {
   plant?: { token: string; post: string };
 }
 
-export async function bootWorld(o: { dir: string; /** Exploration idea 6: the desert crossing; the number is how many agents the run has. */ desert?: number; /** ENG75: the in-society battery (four held-out jobs). */ battery?: boolean; /** ENG104: the house posts the repository jobs; each agent edits its own copy of a few files, never the repository. */ repoJobs?: boolean; /** ENG113: the house roles hold Town Hall sessions on a clock (a session at once, then every townTickMs, 20 s by default). */ townAuto?: boolean; townTickMs?: number; /** ENG84: the harder jobs and the read-only repository documents. */ hardJobs?: boolean; /** Lesson cards through the gate (ENG102). */ lessons?: boolean; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
+export async function bootWorld(o: { dir: string; /** Cards that carry research papers (paper-cards.ts) instead of the template cards. */ paperCards?: boolean; /** The card window in simulated minutes (default 30 here; a cohort run passes 60). */ cardWindowMin?: number; /** House-paid credits for picking up, reading and completing a set of parts. */ cardRewards?: { pickup?: number; read?: number; complete?: number }; /** Exploration idea 6: the desert crossing; the number is how many agents the run has. */ desert?: number; /** ENG75: the in-society battery (four held-out jobs). */ battery?: boolean; /** ENG104: the house posts the repository jobs; each agent edits its own copy of a few files, never the repository. */ repoJobs?: boolean; /** ENG113: the house roles hold Town Hall sessions on a clock (a session at once, then every townTickMs, 20 s by default). */ townAuto?: boolean; townTickMs?: number; /** ENG84: the harder jobs and the read-only repository documents. */ hardJobs?: boolean; /** Lesson cards through the gate (ENG102). */ lessons?: boolean; /** Cohort only, default off: the local forum takes long text without charge (ENG89). */ relaxLimits?: boolean; now?: () => Date; onLine?: (l: string) => void; /** The injection proxy's mode (default "label"). */ guard?: GuardMode; /** Plants the labelled test injection (rung I1). */ plantInjection?: boolean; /** A founding snapshot (snapshot.ts) whose posts and replies are written into the forum first, under founder accounts. */ snapshot?: Snapshot; /** A house event (rung of ENG42): a forum post that announces an open mic, and an invitation to the first arrival only; it spreads, or not, by what the agents tell each other. */ event?: boolean; /** The orientation expedition and the places to discover (expedition.ts). */ expedition?: boolean; /** Games with a house referee (games.ts); `gameRound` is how many entries fill a round (default four). */ games?: boolean; gameRound?: number; /** The day cycle (day-cycle.ts) on the simulated clock; it implies the open-mic post. */ dayCycle?: boolean; /** Roles and a Town Hall for the agents (town.ts). */ roles?: boolean; /** Each arrival is offered a question chosen from its identity-derived interests (ENG55). */ seedQuestions?: boolean; /** Course markers scattered over the map (markers.ts): the seed they are placed from. */ markers?: string }): Promise<World> {
   mkdirSync(o.dir, { recursive: true });
   const now = o.now ?? (() => new Date());
   // The keys of the local institutions live in this process only. No operator is named in the log, so mock credits are minted directly (as `asp credits grant` does on a local log).
@@ -54,7 +55,7 @@ export async function bootWorld(o: { dir: string; /** Exploration idea 6: the de
   mkdirSync(join(o.dir, "log"), { recursive: true });
   const handle = await LocalLog.open(join(o.dir, "log"), {});
   const hall = new MarketHall({ log: handle, parties, now });
-  await hall.init();
+  await hall.init(undefined, o.paperCards ? [...new Set(["C-L2-1", ...PAPER_COURSE_IDS])] : undefined); // with cards that carry papers, the Academy offers the eight courses whose parts are on the map
   const forum = forumRoutes({ root: join(o.dir, "forum"), handle, now, sponsorlessPosting: true, open: true, ...(o.relaxLimits ? { credits: { charge: () => true } } : {}) });
   // No tenant has a usable token: the admin entry is a placeholder with a hash of a random value nobody holds, so nothing authenticated is reachable from the agents' tools.
   const tenants: Tenant[] = [{ name: "owner-local", role: "admin", tokenSha256: hashToken(b64urlEncode(randomSeed())) }];
@@ -114,7 +115,7 @@ export async function bootWorld(o: { dir: string; /** Exploration idea 6: the de
     await hall.postRepoJobs(REPO_JOB_SPECS);
   }
   if (o.lessons) api.lessons = new LessonShelf(now);
-  if (o.markers !== undefined) api.markers = new Markers(o.markers || "cohort");
+  if (o.markers !== undefined) api.markers = new Markers(o.markers || "cohort", undefined, { ...(o.cardWindowMin ? { windowMs: o.cardWindowMin * 60_000 } : {}), ...(o.paperCards ? { pool: () => PAPER_POOL as never } : {}), ...(o.cardRewards ? { rewards: o.cardRewards } : {}) });
   if (o.dayCycle) {
     const d = new DayCycle();
     api.dayCycle = d;

@@ -140,6 +140,12 @@ export class MarketHall {
     const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
     return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
   }
+  /** For the paper report: how many agents sat a course, how many sittings, and how many agents hold its certificate. */
+  sittingStats(course: string): { sat: number; attempts: number; passed: number } {
+    let sat = 0, attempts = 0, passed = 0;
+    for (const [, byCourse] of this.sittings) { const a = byCourse.get(course) ?? []; if (a.length) { sat++; attempts += a.length; if (a.some((x) => x.passed)) passed++; } }
+    return { sat, attempts, passed };
+  }
   /** The open house jobs that ask for the certificate of a course, for the course line (diagnosis fix 6). */
   jobsRequiring(course: string): Array<{ purpose: string; budget: number }> {
     const taken = new Set([...this.contractState.values()].map((c) => c.intent));
