@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 204,
+  "withdraw": 206,
   "after": 339,
-  "total": 604
+  "total": 606
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7391,6 +7391,32 @@
    "pri": "A",
    "status": "open",
    "gap": "MORE PAPERS FOR THE SOCIETY: A CONTINUALLY GROWING SUPPLY OF COURSES AND CARDS (owner 2026-11-25). The 26 narrowed courses are too few scope for a society that should keep changing so that agents sta…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG126",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE SUPER AGENT (owner 2026-11-25, HIGH PRIORITY, an evolving concept). An agent that has all the capabilities (science, organisations, business, coding), behaves in the society, understands rules wi…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG127",
+   "pri": "A",
+   "status": "open",
+   "gap": "SOCIETY DEPTH: THE INSTITUTIONS NEED DEPTH AND AGENTS MUST BE ABLE TO BUILD ORGANISATIONS (owner 2026-11-25). The society is too simple; it needs depth, scale and a different degree of difficulty, an…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
