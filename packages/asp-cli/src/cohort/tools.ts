@@ -58,6 +58,8 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "town_vote", description: "Vote on an open proposal (yes, no or abstain), once.", input_schema: obj({ proposal: str("the proposal's id, such as town-1", 20), choice: { type: "string", enum: ["yes", "no", "abstain"] } }, ["proposal", "choice"]), scope: "write.town", institution: "town", writes: true },
   { name: "game_list", description: "The games you can play, with their rules in one line, the open round of each and who has entered. Playing is never required.", input_schema: obj({}), scope: "read.games", institution: "games" },
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
+  { name: "desert_look", description: "The desert crossing for groups of three: your group, which of the three beacons are lit and by whom. Joining is never required.", input_schema: obj({}), scope: "read.desert", institution: "desert" },
+  { name: "desert_light", description: "Light one beacon (north, east or west) of your group. When three different agents of a group have lit the three, the house referee pays each of them a few mock credits, once. Each agent lights one.", input_schema: obj({ beacon: str("north, east or west", 10) }, ["beacon"]), scope: "write.desert", institution: "desert" },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
@@ -114,10 +116,10 @@ const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
  * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
  * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
  */
-export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", town: "--roles", library: "--library" };
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", desert: "--desert", town: "--roles", library: "--library" };
 export const GROUP_OF: Record<string, string> = {
   inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
-  game_list: "games", game_enter: "games", game_results: "games",
+  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert",
   role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
   my_agenda: "agenda", repo_read: "repo", repo_edit: "repo",
   assess_list: "assess", assess_submit: "assess",
@@ -332,6 +334,7 @@ export function introFor(world: WorldApi, agentN?: number): string {
   const on = (g: string): boolean => !world.groups || world.groups.has(g);
   const l: string[] = [];
   if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
+  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; desert_look shows your group's beacons, desert_light lights one; when three agents of a group have lit the three, each is paid mock credits.");
   if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
   if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
   if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
@@ -390,6 +393,7 @@ export function untouched(world: WorldApi, did: string): Array<{ key: string; te
   if (world.lessons && on("lessons") && !s.has("lesson_publish") && !s.has("lesson_read")) out.push({ key: "lessons", text: "a lesson card: if you have learned something here you can write it down with the tool you called as evidence, and a gate admits it before other agents see it; other agents' admitted lessons are listed by lesson_read" });
   if (world.market && on("assess") && !s.has("assess_list") && !s.has("assess_submit")) out.push({ key: "assess", text: "an assessment: you can say whether another agent's delivery meets the job's criterion, for 1 mock credit each (your first five); one call lists them (assess_list)" });
   if (world.market && !s.has("post_job") && world.market.hasFirstJobCredit(did)) out.push({ key: "posting", text: "a job you could post: the first job you post is free (what it cost comes back with 2 credits when you accept its delivery), and another agent does it for you (post_job)" });
+  if (world.desert && on("desert") && !s.has("desert_look") && !s.has("desert_light")) out.push({ key: "desert", text: "a desert crossing for a group of three: each lights one beacon (desert_light), and when the three are lit by three of you the house referee pays each a few mock credits; desert_look shows your group" });
   if (world.fieldGuide && !s.has("inspect:research-commons") && !s.has("unlock:reading-room")) out.push({ key: "guide", text: "the field guide to refusals, built from earlier runs, is in the Research and Commons; one call reads it (inspect research-commons)" });
   return out;
 }
@@ -679,6 +683,11 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
+    case "desert_look": case "desert_light": {
+      const d = world.desert; if (!d) return { ok: true, text: "There is no desert in this society." };
+      if (name === "desert_look") return { ok: true, text: d.look(agent.did, agent.n, world.agents ?? 0) };
+      try { return { ok: true, text: await d.light(agent.did, agent.handle, agent.n, world.agents ?? 0, String(input.beacon ?? "")) }; } catch (e) { return refuse("desert_refused", (e as Error).message); }
+    }
     case "game_list": case "game_enter": case "game_results": return await gameTool(world, agent, name, input);
     case "inspect": case "orientation_progress": case "field_answer": return await expeditionTool(world, agent, name, input);
     case "repo_edit": { const p = world.repoPilot; if (!p) return refuse("no_repo", "this society keeps no repository copies."); const bad = p.edit(agent.handle, String(input.which ?? ""), input.mode === "append" ? "append" : "replace", String(input.text ?? "")); return bad ? refuse("repo_refused", bad + ".") : { ok: true, text: `Changed ${String(input.which)} in your own copy (not the repository). A job that names it is graded there when you deliver.` }; }
