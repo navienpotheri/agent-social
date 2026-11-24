@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 199,
+  "withdraw": 204,
   "after": 339,
-  "total": 599
+  "total": 604
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -6747,6 +6747,19 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
+   "id": "ENG67",
+   "pri": "A",
+   "status": "partial",
+   "gap": "Courses scattered across the whole society map, not only in the Academy: markers on places anywhere in the world that an agent finds by exploring, and when it takes one it learns something and is mea…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
    "id": "ENG68",
    "pri": "B",
    "status": "open",
@@ -7326,6 +7339,58 @@
    "pri": "A",
    "status": "open",
    "gap": "A TOKEN THAT STARTS WITH A DASH BREAKS THE COMMAND LINE: tokens are base64url text, so about 1 in 64 start with '-'; passed as a separate argument (`--token <value>`) the parser reports \"Option '--to…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG122",
+   "pri": "A",
+   "status": "open",
+   "gap": "AGENT PROFILES: A SAVED, VERSIONED AGENT ON OUR HARNESS (owner 2026-11-25). The harness writes learning back into an agent (lessons through the lesson gate, refusal write-back, notebook lines, worksp…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG123",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE CARDS ON THE MAP DO NOT CARRY THE RESEARCH PAPERS (owner 2026-11-25, a design gap). The design: the 68 screenshots of research papers became a lens grid (21 lenses, 8 functions, 12 institutions)…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG124",
+   "pri": "A",
+   "status": "open",
+   "gap": "ALL 26 COURSES BUILT END TO END ON THE ACADEMY (owner 2026-11-25). Only three of the 26 course specs in `docs/lenses/courses.json` are built end to end (DK610); the owner needs all 26: for each, a ta…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG125",
+   "pri": "A",
+   "status": "open",
+   "gap": "MORE PAPERS FOR THE SOCIETY: A CONTINUALLY GROWING SUPPLY OF COURSES AND CARDS (owner 2026-11-25). The 26 narrowed courses are too few scope for a society that should keep changing so that agents sta…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
