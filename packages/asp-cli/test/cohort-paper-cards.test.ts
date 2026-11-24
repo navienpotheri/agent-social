@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PAPER_COURSES, PAPER_POOL } from "../src/cohort/paper-cards.ts";
+import { PAPER_COURSES, PAPER_POOL, RULE_META } from "../src/cohort/paper-cards.ts";
 import { Markers, MARKER_PLACES, markerAt } from "../src/cohort/markers.ts";
 import { renderPaperReport } from "../src/cohort/paper-report.ts";
 import { introFor, runTool, TOOLS } from "../src/cohort/tools.ts";
@@ -23,10 +23,11 @@ const SAMPLE: Record<string, string> = {
   "C-L14-1.p1": "I would check the vitals and the risk before urgent.", "C-L14-1.p2": "when the symptom is severe and the duration is long then refer", "C-L14-1.p3": "It should say the default and be honest about where it is unsure, with monitor as the default.",
   "C-L8-1.p1": "The rule that decided it and the seller, a short fact.", "C-L8-1.p2": "when the price is far below the category and reports exist then flag", "C-L8-1.p3": "Update the rule, narrow it or drop it, so the memory stays true.",
 };
+for (const m of RULE_META) { SAMPLE[`${m.course}.p1`] = `${m.features[0]} and ${m.features[1]}`; SAMPLE[`${m.course}.p2`] = `when the ${m.features[0]} is high then ${m.outcomes[0]}`; SAMPLE[`${m.course}.p3`] = m.ideaSample; }
 const all = new Set(TOOLS.map((t) => t.scope));
-test("eight papers, four parts each, thirty-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
-  assert.equal(PAPER_COURSES.length, 8);
-  assert.equal(PAPER_POOL.length, 32);
+test("eighteen papers, four parts each, seventy-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
+  assert.equal(PAPER_COURSES.length, 18, "eight courses of tranche 1 and ten of tranche 2");
+  assert.equal(PAPER_POOL.length, 72);
   const cat = loadCatalogue(engineIds()).courses;
   for (const c of PAPER_COURSES) {
     const card = cat.find((x) => x.id === c.course)!;

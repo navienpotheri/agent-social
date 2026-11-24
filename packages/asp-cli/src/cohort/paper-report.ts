@@ -8,7 +8,7 @@ import type { Markers } from "./markers.ts";
 export interface SittingCounts { sat: number; attempts: number; passed: number }
 export function renderPaperReport(m: Markers, sittings: (course: string) => SittingCounts, agents: number): string {
   if (!m.paperMode) return "";
-  const L = ["## Paper cards: per course and per paper", "", `Eight papers in four numbered parts each (32 cards); a window of the simulated clock changes the cards; ${agents} agents. A part is found when an agent looks at its place and sees it, read when it answers the part's practice question (a part with no question is read when it is picked up); a set is all four parts of one paper; the Academy's held-out check for the course is the ONE sitting per paper (not a test per part). Counts of one run.`, "",
+  const L = ["## Paper cards: per course and per paper", "", `${PAPER_COURSES.length} papers in four numbered parts each (${PAPER_COURSES.length * 4} cards); a window of the simulated clock changes the cards; ${agents} agents. A part is found when an agent looks at its place and sees it, read when it answers the part's practice question (a part with no question is read when it is picked up); a set is all four parts of one paper; the Academy's held-out check for the course is the ONE sitting per paper (not a test per part). Counts of one run.`, "",
     "| Course | Papers | Part 1 found/read | Part 2 | Part 3 | Part 4 | Sets | Sat the check | Passed |", "|---|---|---|---|---|---|---|---|---|"];
   for (const c of PAPER_COURSES) {
     const cell = (n: number): string => {
