@@ -42,6 +42,8 @@ export interface WorldApi {
   /** The desert crossing for groups of three (desert.ts), when the run has it; `agents` is how many agents the run has. */
   desert?: import("./desert.ts").Desert;
   agents?: number;
+  /** Batch G2: groups of three are assigned by agent number (groups.ts). */
+  groupsOfThree?: boolean;
   /** The games of the local society (games.ts), when the run has them. */
   games?: import("./games.ts").GameHall;
   /** Whether the two true lines about learning and about more to find are shown in the first observation (ENG69); only when the run has markers or the tour. Undefined or true: shown. */

@@ -4,6 +4,9 @@ import { allowanceLine } from "./token-use.ts";
 import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
+import { EVENT_TOOLS } from "./day-cycle.ts";
+import { renderStatsText, statsOf } from "./stats.ts";
+import { groupLine, groupLineN, groupMessage, groupProgress } from "./groups.ts";
 import { DISCOVERY_PAY, GAMES_HALL, PLACES, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
 import { renderGuideText } from "./field-guide.ts";
@@ -60,6 +63,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
   { name: "desert_look", description: "The desert crossing for groups of three: your group, which of the three beacons are lit and by whom. Joining is never required.", input_schema: obj({}), scope: "read.desert", institution: "desert" },
   { name: "desert_light", description: "Light one beacon (north, east or west) of your group. When three different agents of a group have lit the three, the house referee pays each of them a few mock credits, once. Each agent lights one.", input_schema: obj({ beacon: str("north, east or west", 10) }, ["beacon"]), scope: "write.desert", institution: "desert" },
+  { name: "stats_look", description: "The statistics office: a price index of the jobs on the board, the volume of work, the agents without work, how credits are spread (Gini, the top three's share) and a shadow policy rate that is computed and never applied. Read only.", input_schema: obj({}), scope: "read.society", institution: "treasury" },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
@@ -116,10 +120,10 @@ const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
  * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
  * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
  */
-export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", desert: "--desert", town: "--roles", library: "--library" };
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", stats: "--stats", desert: "--desert", town: "--roles", library: "--library" };
 export const GROUP_OF: Record<string, string> = {
   inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
-  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert",
+  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert", stats_look: "stats",
   role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
   my_agenda: "agenda", repo_read: "repo", repo_edit: "repo",
   assess_list: "assess", assess_submit: "assess",
@@ -256,6 +260,7 @@ export async function openItems(world: WorldApi, agent: AgentCtx): Promise<strin
   try {
     const bl = world.budgetOf ? allowanceLine(world.budgetOf(agent.handle).usedUsd, world.budgetOf(agent.handle).capUsd) : undefined;
     if (bl) out.push(bl);
+    { const gp = groupProgress(world, agent); if (gp) out.push(gp); }
     { const f = fogLine(world, agent.did); const k = PLACES.length - (PLACES.filter((p) => !(used.get(world)?.get(agent.did) ?? new Set<string>()).has(`inspect:${p}`)).length); const m = fogSeen.get(world) ?? new Map<string, number>(); fogSeen.set(world, m); if (f && k > 0 && m.get(agent.did) !== k) { m.set(agent.did, k); out.push(f); } }
     const hall = world.market;
     if (hall) {
@@ -320,7 +325,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|On now: |Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -334,18 +339,23 @@ export const stripExtras = (s: string): string => s.replace(/^This society is fu
 export function introFor(world: WorldApi, agentN?: number): string {
   const on = (g: string): boolean => !world.groups || world.groups.has(g);
   const l: string[] = [];
-  if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
-  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; desert_look shows your group's beacons, desert_light lights one; when three agents of a group have lit the three, each is paid mock credits.");
-  if (world.markers?.paperMode) l.push("Cards: parts of real research papers lie across the map (inspect a place); a card gives a short digest and a practice question (field_answer); taking every part of one paper opens the Academy's held-out check for its course, and passing that check (course_sit) is what accredits you.");
-  if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
-  if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
-  if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
-  if (world.market) l.push("Jobs: you can take one (look_jobs, offer_on_job) or post one for another agent (post_job; the first is free)" + ".");
-  if (world.market) l.push("Courses: look_courses lists them; a certificate (course_sit) is what some jobs ask for.");
-  if (world.fieldGuide && (agentN === undefined || world.fieldGuide.offered(agentN))) l.push("A field guide to common refusals is in the Research and Commons (inspect research-commons).");
+  if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair, trading, in rounds of four (game_list, game_enter); the first two places are paid.");
+  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; three agents light three beacons (desert_look, desert_light) and each is paid.");
+  if (world.markers?.paperMode) { const r = world.markers.rewards; l.push("Cards: parts of real research papers lie on the map (inspect); each has a digest and a question (field_answer); a whole paper opens the Academy's held-out check for its course; passing it (course_sit) accredits you." + (r.pickup || r.read || r.complete ? ` The house pays mock credits: ${r.pickup} to pick up a part, ${r.read} to read one, ${r.complete} for a set.` : "")); }
+  { const gl = agentN === undefined ? undefined : groupLineN(world, agentN); if (gl) l.push(gl); }
+  if (world.findsThread || world.markers) l.push("Forum: forum_read, forum_post" + (world.findsThread ? "; a Finds thread is for what you came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect)" : "") + ".");
+  if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish (with a call of yours as evidence) goes through a gate; lesson_read lists admitted ones.");
+  if (world.market && on("assess")) l.push("Assessing: assess_list shows deliveries you may judge, 1 mock credit each (first five).");
+  if (world.market && world.groups?.has("stats")) l.push("Statistics: stats_look shows a price index, the volume of work, who is without work and how credits are spread; read only.");
+  if (world.market) l.push("Jobs: take one (look_jobs, offer_on_job) or post one (post_job; the first is free). Courses: look_courses; a certificate (course_sit) is what some jobs ask for. Messages: send_message, my_inbox.");
+  if (world.town && on("town")) l.push("Town Hall: town_hall, town_propose, town_vote" + (world.dayCycle ? "; market hour, social hour, open mic, course opening and town meeting come round" : "") + ".");
+  else if (world.dayCycle) l.push("Market hour, social hour, open mic, course opening and town meeting come round.");
+  if (world.library && on("library")) l.push("Library: library_search, library_read, library_cite, library_publish; workspace_write keeps a note.");
+  if (world.market?.hasProjectJob()) l.push("Harder jobs (look_jobs): a project of three part-jobs, repository jobs, jobs that ask for a certificate.");
+  l.push("Places (inspect): registry, courts, treasury, market, bank-insurer, shops, academy, clinic, research-commons, forum, leisure-events, town-hall, housing.");
+  if (world.fieldGuide && (agentN === undefined || world.fieldGuide.offered(agentN))) l.push("Field guide to refusals: inspect research-commons.");
   return l.length ? `What this society has, all of it optional:\n${l.map((x) => `- ${x}`).join("\n")}` : "";
 }
-
 export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   try {
@@ -443,6 +453,7 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
   recordDiscovery(world, agent, name, input, r.discovery);
+  if (world.dayCycle) { for (const f of world.dayCycle.current()) if (EVENT_TOOLS[f.id].includes(name)) { const k = world.dayCycle.key(f), s = world.dayCycle.attended.get(k) ?? new Set<string>(); s.add(agent.handle); world.dayCycle.attended.set(k, s); } }
   if (name === "inspect" && typeof input.place === "string") {
     const place = input.place;
     if (r.discovery === "plaque" || r.discovery === "door") { const d = doorFrom(place); if (d) r = { ...r, text: `${r.text}
@@ -463,6 +474,12 @@ ${since}` };
 ${atlasLine(world)}` }; }
   const extra: string[] = [];
   { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
+  if (world.dayCycle) {
+    // one short true line for each event that is on now, shown once to an agent that has not been to it (nothing is asked)
+    const dc = world.dayCycle, lines: string[] = [];
+    for (const f of dc.current()) { const k = dc.key(f), sh = dc.shown.get(k) ?? new Set<string>(), att = dc.attended.get(k); if (!sh.has(agent.handle) && !att?.has(agent.handle)) { sh.add(agent.handle); dc.shown.set(k, sh); lines.push(f.text); } }
+    if (lines.length) extra.push(`On now: ${lines.slice(-2).join(" ")}`);
+  }
   if (name === "look_jobs" || name === "look_courses") { const pb = paysBackLine(world); const m = paysSeen.get(world) ?? new Map<string, string>(); paysSeen.set(world, m); if (pb && m.get(agent.did) !== pb) { m.set(agent.did, pb); extra.push(pb); } }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
   if (hall) {
@@ -500,6 +517,7 @@ ${atlasLine(world)}` }; }
     if (world.hintLines !== false && (world.markers || world.expedition)) lead = exploreLead(world);
     if (world.hintLines !== false && world.market) extra.push(`An example of a job you could post: purpose "Read my forum post and tell me one thing it leaves out", budget 10, criterion "one thing, with a reason" (post_job). The first job you post is free: when you accept its delivery the house returns what it cost you and adds 2 credits. A house performer, a program, offers on the first job each agent posts within a minute. Nothing here asks you to.`);
     { const intro = introFor(world, agent.n); if (intro) extra.push(intro); }
+    await groupMessage(world, agent);
     extra.push(`About credits: they are mock. You are paid for jobs; you spend them on learning (courses) and on opening places that give you something to read or make (unlock). Neither is a score or a debt.`);
     extra.push(`Open invitations (none is required):\n${inv.map((x) => `- ${x}`).join("\n")}`);
   }
@@ -607,6 +625,7 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
   const left = untouched(world, agent.did);
   const ranked = [...items.filter((i) => i.near), ...items.filter((i) => !i.near)];
   { const f = fogLine(world, agent.did); if (f) ranked.push({ near: false, text: f }); }
+  { const gl = groupLine(world, agent); if (gl) ranked.push({ near: false, text: gl }); }
   if (left.length) ranked.push({ near: false, text: `something you have not tried: ${left[nth % left.length]!.text}` });
   const intro = nth === 0 ? introFor(world, agent.n) : "";
   if (!ranked.length) return `${intro ? `${intro}
@@ -699,6 +718,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
+    case "stats_look": { const s = await statsOf(world); return { ok: true, text: s ? renderStatsText(s) : "There is no market here to count." }; }
     case "desert_look": case "desert_light": {
       const d = world.desert; if (!d) return { ok: true, text: "There is no desert in this society." };
       if (name === "desert_look") return { ok: true, text: d.look(agent.did, agent.n, world.agents ?? 0) };

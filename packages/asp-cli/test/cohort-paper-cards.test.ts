@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PAPER_COURSES, PAPER_POOL } from "../src/cohort/paper-cards.ts";
+import { PAPER_COURSES, PAPER_POOL, RULE_META } from "../src/cohort/paper-cards.ts";
 import { Markers, MARKER_PLACES, markerAt } from "../src/cohort/markers.ts";
 import { renderPaperReport } from "../src/cohort/paper-report.ts";
 import { introFor, runTool, TOOLS } from "../src/cohort/tools.ts";
@@ -23,10 +23,11 @@ const SAMPLE: Record<string, string> = {
   "C-L14-1.p1": "I would check the vitals and the risk before urgent.", "C-L14-1.p2": "when the symptom is severe and the duration is long then refer", "C-L14-1.p3": "It should say the default and be honest about where it is unsure, with monitor as the default.",
   "C-L8-1.p1": "The rule that decided it and the seller, a short fact.", "C-L8-1.p2": "when the price is far below the category and reports exist then flag", "C-L8-1.p3": "Update the rule, narrow it or drop it, so the memory stays true.",
 };
+for (const m of RULE_META) { SAMPLE[`${m.course}.p1`] = `${m.features[0]} and ${m.features[1]}`; SAMPLE[`${m.course}.p2`] = `when the ${m.features[0]} is high then ${m.outcomes[0]}`; SAMPLE[`${m.course}.p3`] = m.ideaSample; }
 const all = new Set(TOOLS.map((t) => t.scope));
-test("eight papers, four parts each, thirty-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
-  assert.equal(PAPER_COURSES.length, 8);
-  assert.equal(PAPER_POOL.length, 32);
+test("eighteen papers, four parts each, seventy-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
+  assert.equal(PAPER_COURSES.length, 18, "eight courses of tranche 1 and ten of tranche 2");
+  assert.equal(PAPER_POOL.length, 72);
   const cat = loadCatalogue(engineIds()).courses;
   for (const c of PAPER_COURSES) {
     const card = cat.find((x) => x.id === c.course)!;
@@ -78,7 +79,7 @@ test("a set of all four parts completes the paper: pickups, reads and the set ar
     assert.match(rep, /\| C-L9-1 Passing a message another agent can use \| P7, P18, P53 \| 1\/1 \| 1\/1 \| 1\/1 \| 1\/1 \| 1 \| 0 \(0 sittings\) \| 0 \|/);
     // the Academy offers the course
     assert.match((await call("look_courses")).text, /C-L9-1/);
-    assert.match(introFor(w.api, 0), /Cards: parts of real research papers lie across the map/);
+    assert.match(introFor(w.api, 0), /Cards: parts of real research papers lie on the map/);
   } finally { await w.close(); }
 });
 
@@ -86,4 +87,26 @@ test("the card window is a setting: sixty simulated minutes by default in a coho
   const a = new Markers("s", () => 59 * 60_000, { windowMs: 60 * 60_000 }), b = new Markers("s", () => 59 * 60_000);
   assert.equal(a.window(), 0);
   assert.equal(b.window(), 1, "the old window is thirty minutes");
+});
+
+test("before and after: every sitting of a paper course is logged with what the agent had of the paper's cards; the report has a before, some part and whole set table; sittings stay unlocked", async () => {
+  const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-paper-ba-")), markers: "t", paperCards: true, cardWindowMin: 60 });
+  try {
+    const m = w.api.markers!, hall = w.api.market!;
+    const a = await w.enrol(0, "agent-01"); await hall.enrolStandalone(a);
+    const call = (n: string, i: Record<string, unknown> = {}) => runTool(w.api, a, all, n, i);
+    const course = "C-L9-1";
+    assert.match((await call("course_enrol", { course })).text, /./);
+    await call("course_sit", { course, answer: "{}" }); // a sitting before any card: unlocked
+    const ids = [1, 2, 3, 4].map((n) => `${course}.p${n}`), at = new Map<string, { place: string; window: number }>();
+    for (let win = 0; win < 600 && at.size < 4; win++) for (const place of MARKER_PLACES) { const c = markerAt("t", place, win, () => PAPER_POOL as never); if (c && ids.includes(c.id) && !at.has(c.id)) at.set(c.id, { place, window: win }); }
+    for (const id of ids) { const p = at.get(id)!; m.clock = () => p.window * 3_600_000 + 1000; await call("inspect", { place: p.place }); const part = PAPER_COURSES.find((c) => c.course === course)!.parts[Number(id.slice(-1)) - 1]!; if (part.task) await call("field_answer", { place: p.place, answer: SAMPLE[id]! }); }
+    await call("course_sit", { course, answer: JSON.stringify({ after: "the cards" }) });
+    const log = hall.sittingLog.filter((r) => r.course === course);
+    assert.equal(log.length, 2);
+    assert.deepEqual([log[0]!.parts, log[0]!.set, log[1]!.parts, log[1]!.set], [0, false, 4, true]);
+    const rep = renderPaperReport(m, (c) => hall.sittingStats(c), 1, hall.sittingLog);
+    assert.match(rep, /### Before and after, by sitting/);
+    assert.match(rep, /\| C-L9-1 \| 1, [\d.]+ \| 0, none \| 1, [\d.]+ \| 0, none \| 0, none \|/);
+  } finally { await w.close(); }
 });
