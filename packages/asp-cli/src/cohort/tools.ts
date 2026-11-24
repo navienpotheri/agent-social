@@ -5,6 +5,7 @@ import { REPO_FILES } from "./repo-pilot.ts";
 import { FIRST_JOB_BONUS, FREE_WRITES, START_CREDITS } from "./market.ts";
 import { NOTE_CHARS, WORKSPACE_FILES } from "./library.ts";
 import { EVENT_TOOLS } from "./day-cycle.ts";
+import { renderStatsText, statsOf } from "./stats.ts";
 import { groupLine, groupLineN, groupMessage, groupProgress } from "./groups.ts";
 import { DISCOVERY_PAY, GAMES_HALL, PLACES, STOPS, TOUR_PAY, TOUR_PLACES, stopOf } from "./expedition.ts";
 import { QUORUM } from "./town.ts";
@@ -62,6 +63,7 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "game_enter", description: "Enter your move in the open round of a game. Your move is committed by a hash; nobody sees it until the round is full and played by the house referee, who then pays a few mock credits to the first two.", input_schema: obj({ game: str("twenty-one or hide-and-seek", 20), move: str("your move as JSON, for example {\"stand_at\": 17}", 200) }, ["game", "move"]), scope: "write.games", institution: "games", writes: true },
   { name: "desert_look", description: "The desert crossing for groups of three: your group, which of the three beacons are lit and by whom. Joining is never required.", input_schema: obj({}), scope: "read.desert", institution: "desert" },
   { name: "desert_light", description: "Light one beacon (north, east or west) of your group. When three different agents of a group have lit the three, the house referee pays each of them a few mock credits, once. Each agent lights one.", input_schema: obj({ beacon: str("north, east or west", 10) }, ["beacon"]), scope: "write.desert", institution: "desert" },
+  { name: "stats_look", description: "The statistics office: a price index of the jobs on the board, the volume of work, the agents without work, how credits are spread (Gini, the top three's share) and a shadow policy rate that is computed and never applied. Read only.", input_schema: obj({}), scope: "read.society", institution: "treasury" },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
@@ -118,10 +120,10 @@ const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
  * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
  * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
  */
-export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", desert: "--desert", town: "--roles", library: "--library" };
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", stats: "--stats", desert: "--desert", town: "--roles", library: "--library" };
 export const GROUP_OF: Record<string, string> = {
   inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
-  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert",
+  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert", stats_look: "stats",
   role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
   my_agenda: "agenda", repo_read: "repo", repo_edit: "repo",
   assess_list: "assess", assess_submit: "assess",
@@ -344,6 +346,7 @@ export function introFor(world: WorldApi, agentN?: number): string {
   if (world.findsThread || world.markers) l.push("Forum: forum_read, forum_post" + (world.findsThread ? "; a Finds thread is for what you came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect)" : "") + ".");
   if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish (with a call of yours as evidence) goes through a gate; lesson_read lists admitted ones.");
   if (world.market && on("assess")) l.push("Assessing: assess_list shows deliveries you may judge, 1 mock credit each (first five).");
+  if (world.market && world.groups?.has("stats")) l.push("Statistics: stats_look shows a price index, the volume of work, who is without work and how credits are spread; read only.");
   if (world.market) l.push("Jobs: take one (look_jobs, offer_on_job) or post one (post_job; the first is free). Courses: look_courses; a certificate (course_sit) is what some jobs ask for. Messages: send_message, my_inbox.");
   if (world.town && on("town")) l.push("Town Hall: town_hall, town_propose, town_vote" + (world.dayCycle ? "; market hour, social hour, open mic, course opening and town meeting come round" : "") + ".");
   else if (world.dayCycle) l.push("Market hour, social hour, open mic, course opening and town meeting come round.");
@@ -715,6 +718,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
+    case "stats_look": { const s = await statsOf(world); return { ok: true, text: s ? renderStatsText(s) : "There is no market here to count." }; }
     case "desert_look": case "desert_light": {
       const d = world.desert; if (!d) return { ok: true, text: "There is no desert in this society." };
       if (name === "desert_look") return { ok: true, text: d.look(agent.did, agent.n, world.agents ?? 0) };

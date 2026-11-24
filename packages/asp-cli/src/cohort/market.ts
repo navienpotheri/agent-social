@@ -140,6 +140,14 @@ export class MarketHall {
     const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
     return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
   }
+  /** For the statistics office: every agent's handle and credits (house accounts left out), the handles that have a house delivery accepted or an agent-posted job settled, and how many agent jobs are settled. */
+  async agentBalances(): Promise<Array<{ handle: string; balance: number }>> {
+    const out: Array<{ handle: string; balance: number }> = [];
+    for (const [, e] of this.agents) if (!/^(house|town)/.test(e.agent.handle)) out.push({ handle: e.agent.handle, balance: await this.balance(e.agent) });
+    return out;
+  }
+  workDone(): Set<string> { const s = new Set<string>(); for (const d of this.deliveryLog) if (d.houseAccepted) s.add(d.handle); return s; }
+  settledAgentJobs(): number { return [...this.agentJobs.values()].filter((j) => j.settled).length; }
   /** Every Academy sitting with what the agent had of the paper's cards at that time (before and after, next-run batch 3): the parts of that paper it had read, whether it had completed the set, and its experiment arm. */
   readonly sittingLog: Array<{ handle: string; course: string; attempt: number; mean: number; passed: boolean; parts: number; set: boolean; arm?: string; at: string }> = [];
   cardState?: (did: string, course: string) => { parts: number; set: boolean };
