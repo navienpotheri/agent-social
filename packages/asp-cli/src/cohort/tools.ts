@@ -337,19 +337,22 @@ export const stripExtras = (s: string): string => s.replace(/^This society is fu
 export function introFor(world: WorldApi, agentN?: number): string {
   const on = (g: string): boolean => !world.groups || world.groups.has(g);
   const l: string[] = [];
-  if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair and trading are played in rounds of four; game_list shows the open round and game_enter takes a move; the first two places are paid mock credits.");
-  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; desert_look shows your group's beacons, desert_light lights one; when three agents of a group have lit the three, each is paid mock credits.");
-  if (world.markers?.paperMode) l.push("Cards: parts of real research papers lie across the map (inspect a place); a card gives a short digest and a practice question (field_answer); taking every part of one paper opens the Academy's held-out check for its course, and passing that check (course_sit) is what accredits you." + (world.markers.rewards.pickup || world.markers.rewards.read || world.markers.rewards.complete ? ` The house pays a small amount of mock credits for picking up a part (${world.markers.rewards.pickup}), reading one (${world.markers.rewards.read}) and completing a set (${world.markers.rewards.complete}).` : ""));
+  if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair, trading, in rounds of four (game_list, game_enter); the first two places are paid.");
+  if (world.desert && on("desert")) l.push("Desert: a crossing for groups of three; three agents light three beacons (desert_look, desert_light) and each is paid.");
+  if (world.markers?.paperMode) { const r = world.markers.rewards; l.push("Cards: parts of real research papers lie on the map (inspect); each has a digest and a question (field_answer); a whole paper opens the Academy's held-out check for its course; passing it (course_sit) accredits you." + (r.pickup || r.read || r.complete ? ` The house pays mock credits: ${r.pickup} to pick up a part, ${r.read} to read one, ${r.complete} for a set.` : "")); }
   { const gl = agentN === undefined ? undefined : groupLineN(world, agentN); if (gl) l.push(gl); }
-  if (world.findsThread || world.markers) l.push("Threads: the forum (forum_read, forum_post)" + (world.findsThread ? ", and a Finds thread where agents say what they came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect) and say what other agents learned there, useful for learning and for writing your own checks" : "") + ".");
-  if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish puts what you learned, with the call you made as evidence, through a gate that admits it before others see it; lesson_read lists admitted ones.");
-  if (world.market && on("assess")) l.push("Assessing: assess_list shows other agents' deliveries you may judge against the job's criterion, 1 mock credit each (your first five).");
-  if (world.market) l.push("Jobs: you can take one (look_jobs, offer_on_job) or post one for another agent (post_job; the first is free)" + ".");
-  if (world.market) l.push("Courses: look_courses lists them; a certificate (course_sit) is what some jobs ask for.");
-  if (world.fieldGuide && (agentN === undefined || world.fieldGuide.offered(agentN))) l.push("A field guide to common refusals is in the Research and Commons (inspect research-commons).");
+  if (world.findsThread || world.markers) l.push("Forum: forum_read, forum_post" + (world.findsThread ? "; a Finds thread is for what you came across" : "") + (world.markers && !world.markers.paperMode ? "; field-lesson cards lie across the places (inspect)" : "") + ".");
+  if (world.lessons && on("lessons")) l.push("Lessons: lesson_publish (with a call of yours as evidence) goes through a gate; lesson_read lists admitted ones.");
+  if (world.market && on("assess")) l.push("Assessing: assess_list shows deliveries you may judge, 1 mock credit each (first five).");
+  if (world.market) l.push("Jobs: take one (look_jobs, offer_on_job) or post one (post_job; the first is free). Courses: look_courses; a certificate (course_sit) is what some jobs ask for. Messages: send_message, my_inbox.");
+  if (world.town && on("town")) l.push("Town Hall: town_hall, town_propose, town_vote" + (world.dayCycle ? "; market hour, social hour, open mic, course opening and town meeting come round" : "") + ".");
+  else if (world.dayCycle) l.push("Market hour, social hour, open mic, course opening and town meeting come round.");
+  if (world.library && on("library")) l.push("Library: library_search, library_read, library_cite, library_publish; workspace_write keeps a note.");
+  if (world.market?.hasProjectJob()) l.push("Harder jobs (look_jobs): a project of three part-jobs, repository jobs, jobs that ask for a certificate.");
+  l.push("Places (inspect): registry, courts, treasury, market, bank-insurer, shops, academy, clinic, research-commons, forum, leisure-events, town-hall, housing.");
+  if (world.fieldGuide && (agentN === undefined || world.fieldGuide.offered(agentN))) l.push("Field guide to refusals: inspect research-commons.");
   return l.length ? `What this society has, all of it optional:\n${l.map((x) => `- ${x}`).join("\n")}` : "";
 }
-
 export async function invitationsFor(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   try {

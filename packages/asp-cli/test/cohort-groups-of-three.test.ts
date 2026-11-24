@@ -20,12 +20,12 @@ test("the introduction and the agenda name the group and what needs three, one h
     const ag = [] as Awaited<ReturnType<typeof w.enrol>>[];
     for (let i = 0; i < 4; i++) { const a = await w.enrol(i, `agent-0${i + 1}`); await w.api.market!.enrolStandalone(a); ag.push(a); }
     const call = (i: number, n: string, inp: Record<string, unknown> = {}) => runTool(w.api, ag[i]!, all, n, inp);
-    assert.match(introFor(w.api, 1), /Your group \(assigned by number.*\): agent-02, agent-01, agent-03\. What needs more than one of you: the desert crossing needs three of you to light the three beacons \(desert_look\); partner jobs need two of you/);
+    assert.match(introFor(w.api, 1), /Your group \(by number.*\): agent-02, agent-01, agent-03\. Needs more than one of you: the desert crossing needs three \(desert_look\); partner jobs need two/);
     const first = (await call(0, "look_map")).text;
-    assert.match(first, /What needs more than one of you/);
+    assert.match(first, /Needs more than one of you/);
     const inbox = (await call(0, "my_inbox")).text;
     assert.match(inbox, /You are in a group of three with agent-02 and agent-03: send_message to either reaches them/);
-    assert.match((await call(0, "my_agenda")).text, /Your group \(assigned by number/);
+    assert.match((await call(0, "my_agenda")).text, /Your group \(by number/);
     await call(0, "desert_light", { beacon: "north" });
     assert.match((await call(0, "my_balance")).text, /your group has lit 1 of 3 desert beacons \(desert_look\)/);
     await call(1, "desert_light", { beacon: "east" }); await call(2, "desert_light", { beacon: "west" });

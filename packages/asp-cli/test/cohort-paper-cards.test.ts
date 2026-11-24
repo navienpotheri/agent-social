@@ -79,7 +79,7 @@ test("a set of all four parts completes the paper: pickups, reads and the set ar
     assert.match(rep, /\| C-L9-1 Passing a message another agent can use \| P7, P18, P53 \| 1\/1 \| 1\/1 \| 1\/1 \| 1\/1 \| 1 \| 0 \(0 sittings\) \| 0 \|/);
     // the Academy offers the course
     assert.match((await call("look_courses")).text, /C-L9-1/);
-    assert.match(introFor(w.api, 0), /Cards: parts of real research papers lie across the map/);
+    assert.match(introFor(w.api, 0), /Cards: parts of real research papers lie on the map/);
   } finally { await w.close(); }
 });
 

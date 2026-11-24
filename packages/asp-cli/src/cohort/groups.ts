@@ -17,9 +17,9 @@ export function groupHandles(total: number, n: number): string[] {
 /** What needs three (or two) in this run, as plain facts naming the tools. */
 export function needsThree(world: WorldApi): string {
   const parts: string[] = [];
-  if (world.desert) parts.push("the desert crossing needs three of you to light the three beacons (desert_look)");
-  if (world.market?.hasProjectJob()) parts.push("the project job needs three part-jobs done by three different agents (look_jobs)");
-  if (world.market) parts.push("partner jobs need two of you (look_jobs lists them first)");
+  if (world.desert) parts.push("the desert crossing needs three (desert_look)");
+  if (world.market?.hasProjectJob()) parts.push("the project job needs three agents (look_jobs)");
+  if (world.market) parts.push("partner jobs need two (look_jobs)");
   return parts.join("; ");
 }
 /** The introduction and agenda line: who the group is and what needs three. */
@@ -27,7 +27,7 @@ export function groupLine(world: WorldApi, agent: AgentCtx): string | undefined 
   if (!world.groupsOfThree || world.agents === undefined) return undefined;
   const mates = groupHandles(world.agents, agent.n).filter((h) => h !== agent.handle);
   const need = needsThree(world);
-  return `Your group (assigned by number; a name for three agents who may work together, nothing is required): ${[agent.handle, ...mates].join(", ")}${mates.length ? "" : " (alone in this run)"}. ${need ? `What needs more than one of you: ${need}.` : ""}`.trim();
+  return `Your group (by number; nothing is required): ${[agent.handle, ...mates].join(", ")}${mates.length ? "" : " (alone in this run)"}. ${need ? `Needs more than one of you: ${need}.` : ""}`.trim();
 }
 /** The same line from an agent number alone (for the introduction). */
 export function groupLineN(world: WorldApi, n: number): string | undefined { return groupLine(world, { n, handle: handleOf(n) } as AgentCtx); }
