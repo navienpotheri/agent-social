@@ -6,7 +6,8 @@
  * The digests describe the idea the course teaches, in the course's own words; they are not the papers' text. Credits are mock accounting entries.
  */
 import { DEEP_1 } from "./paper-deep-1.ts";
-export const DEEP_COURSES = [...DEEP_1];
+import { DEEP_2 } from "./paper-deep-2.ts";
+export const DEEP_COURSES = [...DEEP_1, ...DEEP_2];
 export interface PaperTask { question: string; accept: RegExp; /** A worked model answer, shown after a right answer. */ model?: string }
 export interface PaperPart { n: number; title: string; digest: string; task?: PaperTask }
 export interface PaperCourse { course: string; lens: string; papers: string; title: string; parts: PaperPart[]; /** The primary source and its type, stated honestly, and what the sitting does and does not test of it (substantial courses). */ source?: string; sourceType?: string; tests?: string }
