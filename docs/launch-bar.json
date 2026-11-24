@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 208,
+  "withdraw": 209,
   "after": 339,
-  "total": 608
+  "total": 609
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7443,6 +7443,19 @@
    "pri": "A",
    "status": "open",
    "gap": "THE LEARNING-GAIN STUDY: THE CORE PREMISE (owner 2026-11-25). An agent that goes through the cards, the insight or paper behind each card, the Academy's check and the write-back must get better, subs…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG130",
+   "pri": "A",
+   "status": "open",
+   "gap": "PAPER-SPECIFIC PROBES: THE SITTINGS DO NOT MEASURE FIVE OF THE EIGHT PAPERS' OWN SKILLS (found by lane-society-2 while rewriting the cards, 2026-11-25). The Academy engines test rule induction, polic…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
