@@ -140,6 +140,8 @@ export class MarketHall {
     const med = (a: number[]): number => { const s = [...a].sort((x, y) => x - y), m = Math.floor(s.length / 2); return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2; };
     return { sat: { n: sat.length, median: med(sat) }, notSat: { n: not.length, median: med(not) } };
   }
+  /** A published course card by id (for the write-back after a pass). */
+  courseCard(id: string): { id: string; title: string } | undefined { const c = this.courses.find((x) => x.id === id); return c ? { id: c.id, title: c.title } : undefined; }
   /** For the statistics office: every agent's handle and credits (house accounts left out), the handles that have a house delivery accepted or an agent-posted job settled, and how many agent jobs are settled. */
   async agentBalances(): Promise<Array<{ handle: string; balance: number }>> {
     const out: Array<{ handle: string; balance: number }> = [];

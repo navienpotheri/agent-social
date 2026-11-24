@@ -338,6 +338,19 @@ export class AgentLife {
     try { writeFileSync(this.path, next); } catch { /* kept in memory */ }
     return "added";
   }
+  /**
+   * The write-back after a passed Academy sitting (ENG129, S3): one labelled line in the agent's own notebook, once for each course, saying what it passed and the answer that passed (its own, cut). Gated: only a passed sitting calls it. The agent can keep or
+   * delete the line. Returns what was done; the caller records it.
+   */
+  courseNote(n: { course: string; title: string; answer: string }): "added" | "skipped" {
+    if (this.notebook.includes(`(passed ${n.course})`)) return "skipped";
+    const line = `From the Academy, after you passed a held-out sitting (you can keep or delete this line): you passed ${n.course} "${n.title.slice(0, 60)}" (passed ${n.course}). The answer that passed was yours: ${n.answer.replace(/\s+/g, " ").slice(0, 280)}`;
+    const next = this.notebook ? `${this.notebook}\n${line}` : line;
+    if (next.length > this.limits.notebookChars) return "skipped";
+    this.notebook = next;
+    try { writeFileSync(this.path, next); } catch { /* kept in memory */ }
+    return "added";
+  }
   /** What the writeback added to what this agent was shown: the characters of the society's lines in each observation, and how many writes. */
   writebackStats(): { notes: number; shownChars: number; rules: Record<string, number> } { return { notes: this.wbNotes, shownChars: this.wbShown, rules: Object.fromEntries(this.wbMet) }; }
   /** The notebook as it is now (for the report and the tests). */
