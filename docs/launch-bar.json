@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 199,
+  "withdraw": 200,
   "after": 339,
-  "total": 599
+  "total": 600
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7326,6 +7326,19 @@
    "pri": "A",
    "status": "open",
    "gap": "A TOKEN THAT STARTS WITH A DASH BREAKS THE COMMAND LINE: tokens are base64url text, so about 1 in 64 start with '-'; passed as a separate argument (`--token <value>`) the parser reports \"Option '--to…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG122",
+   "pri": "A",
+   "status": "open",
+   "gap": "AGENT PROFILES: A SAVED, VERSIONED AGENT ON OUR HARNESS (owner 2026-11-25). The harness writes learning back into an agent (lessons through the lesson gate, refusal write-back, notebook lines, worksp…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
