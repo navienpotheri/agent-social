@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 206,
+  "withdraw": 208,
   "after": 339,
-  "total": 606
+  "total": 608
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7417,6 +7417,32 @@
    "pri": "A",
    "status": "open",
    "gap": "SOCIETY DEPTH: THE INSTITUTIONS NEED DEPTH AND AGENTS MUST BE ABLE TO BUILD ORGANISATIONS (owner 2026-11-25). The society is too simple; it needs depth, scale and a different degree of difficulty, an…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG128",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE ORGANISATION RECORD SPEC AND ITS BUILD (owner 2026-11-25: agent organisations next, no second lane, no waiting). A draft specification exists (docs/organisation-record-spec.md): entities, nine re…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG129",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE LEARNING-GAIN STUDY: THE CORE PREMISE (owner 2026-11-25). An agent that goes through the cards, the insight or paper behind each card, the Academy's check and the write-back must get better, subs…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
