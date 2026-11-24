@@ -3,8 +3,8 @@
  "counts": {
   "must": 61,
   "withdraw": 199,
-  "after": 340,
-  "total": 600
+  "after": 339,
+  "total": 599
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7333,18 +7333,6 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG121",
-   "pri": "B",
-   "status": "open",
-   "gap": "A VOICE-FIRST, LLM-POWERED STUDY PARTNER FOR CLASS 8 STUDENTS IN INDIAN GOVERNMENT SCHOOLS, as a working prototype (the owner's pasted brief, 2026-11-25 01:19): a conversational tutor grounded in a s…",
-   "bucket": "after",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "Priority B: not needed for an outsider to join the beta",
-   "says": "not claimed; the register row is the plan"
   }
  ]
 }
