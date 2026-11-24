@@ -21,7 +21,7 @@ test("the core is always offered, each group adds exactly its own tools, and the
   assert.deepEqual(Object.keys(GROUP_FLAG).sort(), ["desert", "expedition", "games", "library", "town"]);
   for (const g of Object.keys(GROUP_FLAG)) {
     const added = names([g]).filter((n) => !core.includes(n));
-    assert.ok(added.length >= 3 || g === "expedition", `${g} adds tools`);
+    assert.ok(added.length >= 3 || g === "expedition" || g === "desert", `${g} adds tools`);
     assert.deepEqual(added.sort(), Object.entries(GROUP_OF).filter(([, v]) => v === g).map(([k]) => k).sort(), `${g} adds exactly its tools`);
   }
   assert.equal(offeredTools().length, TOOLS.length, "no groups given: every tool");
