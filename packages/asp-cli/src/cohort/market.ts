@@ -76,13 +76,20 @@ export class MarketHall {
 
   /** Registers the local institutions, issues the price list and posts a few house jobs. */
   /** ENG84: the harder jobs (a project, a specialist job, repository tasks) are posted once, beside the house's batches, when the run has `--hard-jobs`; they are not counted in the batches or the slots. */
-  private hardPoster?: Party;
+  /** The house accounts for hard, repository and battery jobs: a poster at tier 1 may have only five open postings, so these jobs are spread over as many accounts (house-hard, house-hard-2, ...) as the run's flags need. */
+  private readonly spreadPosters: Party[] = [];
+  private async spreadPoster(): Promise<Party> {
+    for (const p of this.spreadPosters) if ((this.housePosted.get(p.did) ?? 0) < HOUSE_OPEN) { this.housePosted.set(p.did, (this.housePosted.get(p.did) ?? 0) + 1); return p; }
+    const n = this.spreadPosters.length, p = await this.newHousePoster(`did:web:cohort.local:users:house-hard${n ? `-${n + 1}` : ""}`);
+    this.spreadPosters.push(p); this.housePosted.set(p.did, 1);
+    return p;
+  }
   private async newHousePoster(did: string): Promise<Party> { const p = newParty(did); await this.put(this.mk("passport", p, { did: p.did, kind: "human", keys: keysOf(p) }, null, p.did)); await this.mint(p.did, 1600); return p; }
   readonly hardStats: Record<string, { taken: number; delivered: number; refused: number }> = {};
   async postHard(): Promise<void> {
     for (const j of HARD_JOBS) {
       const job: HouseJob = { ...j, ...(j.category === "specialist" ? { requires: this.courses[0]?.id ?? "C-L2-1" } : {}) };
-      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard"); // its own house account (never a numbered one: with 10 or more agents the numbered posters reach house-3 and a second key for the same DID is refused as BAD_SIGNATURE), so the cap on a tier-1 poster's open postings does not apply
+      const poster = await this.spreadPoster(); // its own house account (never a numbered one: with 10 or more agents the numbered posters reach house-3 and a second key for the same DID is refused as BAD_SIGNATURE), so the cap on a tier-1 poster's open postings does not apply
       const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
       this.houseChecks.set(r.intent, job);
       this.houseOf.set(r.intent, poster);
@@ -96,7 +103,7 @@ export class MarketHall {
   async postBatteryJobs(): Promise<void> { await this.postBattery(BATTERY_JOBS); }
   async postBattery(jobs: HouseJob[]): Promise<void> {
     for (const job of jobs) {
-      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard");
+      const poster = await this.spreadPoster();
       const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
       this.houseChecks.set(r.intent, job);
       this.houseOf.set(r.intent, poster);
@@ -110,7 +117,7 @@ export class MarketHall {
     for (const s of specs) {
       const tier = s.tag === "tier 1" ? 1 : s.tag === "tier 2" ? 2 : s.tag === "tier 3" ? 3 : 4;
       const job: HouseJob = { purpose: s.purpose, criterion: s.criterion, budget: s.budget, check: () => null, category: s.partner ? "partner" : "repository", level: s.level, ...(s.partner ? { partner: true } : {}), repo: { job: s.job, tier } };
-      const poster = this.hardPoster ??= await this.newHousePoster("did:web:cohort.local:users:house-hard");
+      const poster = await this.spreadPoster();
       const r = await this.post(poster, undefined, SEED_PREFIX + job.purpose, job.budget, job.criterion);
       this.houseChecks.set(r.intent, job);
       this.houseOf.set(r.intent, poster);
