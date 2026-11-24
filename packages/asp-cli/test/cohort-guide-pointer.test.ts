@@ -22,7 +22,7 @@ test("a refusal with advice in the guide ends with the pointer; one without, or 
     w.api.fieldGuide = { guide: buildGuide(FIRST_25_RUN, FIRST_25_RUN.source, 8), offered: (n: number) => n === 0 } as never;
     const r = await runTool(w.api, a, all, "forum_post", bad);
     assert.equal(r.ok, false);
-    assert.match(r.text, /Nothing was done; try again within them\. The house field guide has advice on this refusal \(inspect research-commons\)\.$/);
+    assert.match(r.text, /Nothing was done; try again within them\.( You have met this refusal \(bad_input\) \d+ times this run\.)? The house field guide has advice on this refusal \(inspect research-commons\)\.$/);
     assert.doesNotMatch((await runTool(w.api, b, all, "forum_post", bad)).text, /field guide/, "not offered to agent-02: no pointer");
     const unknown = await runTool(w.api, a, all, "not_a_tool", {});
     assert.doesNotMatch(unknown.text, /field guide/, "a rule the guide has no entry for gets no pointer");

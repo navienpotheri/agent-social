@@ -183,12 +183,56 @@ export function inputProblem(t: ToolDef, input: Record<string, unknown>, relaxed
  * questions nobody has answered. No item is a task; each names the tool that shows it. An empty list means nothing is open.
  */
 const questionCache = new WeakMap<object, { at: number; n: number }>();
+/** Fog of war (exploration idea 1): how many of the places on the map this agent has looked at closely (inspect), counted from its own calls, and which not yet. Undefined when it has looked at all of them. */
+export function fogLine(world: WorldApi, did: string): string | undefined {
+  const s = used.get(world)?.get(did) ?? new Set<string>();
+  const left = PLACES.filter((p) => !s.has(`inspect:${p}`));
+  if (!left.length) return undefined;
+  return `you have looked closely at ${PLACES.length - left.length} of ${PLACES.length} places (inspect <place>); not yet: ${left.join(", ")}`;
+}
+/**
+ * The discoveries feed (exploration idea 2): every find the system recorded (a door, a plaque, a rumour, a field lesson card, a place that opened) as one house line, never written by an agent; each agent is shown the ones others made since
+ * it was last shown any: at most three, newest first, once. Nothing is asked and no find is paid again.
+ */
+interface DiscoveryLog { entries: Array<{ seq: number; did: string; handle: string; place?: string; text: string }>; shown: Map<string, number>; keys: Set<string> }
+const discLogs = new WeakMap<object, DiscoveryLog>();
+export const discoveryLog = (world: WorldApi): DiscoveryLog => { let l = discLogs.get(world); if (!l) { l = { entries: [], shown: new Map(), keys: new Set() }; discLogs.set(world, l); } return l; };
+const DISCOVERY_WORDS: Record<string, string> = { door: "a door", plaque: "a plaque", rumour: "a rumour" };
+export function recordDiscovery(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>, discovery: string | undefined): void {
+  let what: string | undefined, place = typeof input.place === "string" ? input.place : undefined;
+  if (discovery) what = discovery.startsWith("marker-found:") ? "a field lesson card" : DISCOVERY_WORDS[discovery];
+  if (name === "unlock" && typeof input.id === "string") { what = `a place that opened (${input.id})`; place = undefined; }
+  if (!what) return;
+  const l = discoveryLog(world), key = `${agent.did}|${what}|${place ?? ""}`;
+  if (l.keys.has(key)) return;
+  l.keys.add(key);
+  l.entries.push({ seq: l.entries.length + 1, did: agent.did, handle: agent.handle, ...(place ? { place } : {}), text: `${agent.handle} found ${what}${place ? ` at ${place}` : ""}` });
+}
+/** What others found since this agent was last shown the feed: up to three lines, newest first; undefined when there is nothing new. */
+export function discoveriesFor(world: WorldApi, did: string): string | undefined {
+  const l = discLogs.get(world); if (!l) return undefined;
+  const from = l.shown.get(did) ?? 0, fresh = l.entries.filter((e) => e.seq > from && e.did !== did);
+  l.shown.set(did, l.entries.length);
+  if (!fresh.length) return undefined;
+  return `Since you last looked, others found (the house's record, nothing here is asked of you): ${fresh.slice(-3).reverse().map((e) => e.text).join("; ")}${fresh.length > 3 ? `; and ${fresh.length - 3} more` : ""}.`;
+}
+/** The society atlas (exploration idea 3): how many agents have looked closely at each place, from the agents' own inspect calls, and the least visited named as a fact. */
+export function atlasLine(world: WorldApi): string {
+  const u = used.get(world), n = new Map<string, number>(PLACES.map((p) => [p, 0]));
+  for (const s of u?.values() ?? []) for (const p of PLACES) if (s.has(`inspect:${p}`)) n.set(p, (n.get(p) ?? 0) + 1);
+  const least = Math.min(...n.values()), names = PLACES.filter((p) => n.get(p) === least);
+  return `Society atlas (counted from the log): agents who have looked closely at each place: ${PLACES.map((p) => `${p} ${n.get(p)}`).join(", ")}. Least visited: ${names.join(", ")} (${least}).`;
+}
+const refusalMet = new WeakMap<object, Map<string, number>>();
+const fogSeen = new WeakMap<object, Map<string, number>>();
+
 export async function openItems(world: WorldApi, agent: AgentCtx): Promise<string[]> {
   const out: string[] = [];
   const n = (k: number, one: string, many: string, tool: string): void => { if (k > 0) out.push(`${k} ${k === 1 ? one : many} (${tool})`); };
   try {
     const bl = world.budgetOf ? allowanceLine(world.budgetOf(agent.handle).usedUsd, world.budgetOf(agent.handle).capUsd) : undefined;
     if (bl) out.push(bl);
+    { const f = fogLine(world, agent.did); const k = PLACES.length - (PLACES.filter((p) => !(used.get(world)?.get(agent.did) ?? new Set<string>()).has(`inspect:${p}`)).length); const m = fogSeen.get(world) ?? new Map<string, number>(); fogSeen.set(world, m); if (f && k > 0 && m.get(agent.did) !== k) { m.set(agent.did, k); out.push(f); } }
     const hall = world.market;
     if (hall) {
       const waiting = (await hall.inbox(agent)).filter((m) => m.to === agent.handle && !m.answered);
@@ -252,7 +296,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Society atlas))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -354,10 +398,22 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
   if (herdText && r.ok) rememberText(world, herdText, name === "forum_post" ? "post" : "comment", agent.handle, /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "", typeof input.post === "string" ? input.post : /sha256:[0-9a-f]{64}/.exec(r.text)?.[0] ?? "");
   // At a stop, the number of things open to the agent is recorded for the report's premature-leave rate (it is not shown to the agent: the exit check of the engine's `leave` shows the items).
   if (r.ok && r.end) return { ...r, seen: `${(await openItems(world, agent)).length} open at stop` };
+  // Two true lines after a refusal (from the 2026-11-23 analysis): which jobs are open now after an offer on a taken job, and how many times this agent has met this refusal (nothing is asked; the call is as it was)
+  if (!r.ok && r.refused) {
+    const rc = refusalMet.get(world) ?? new Map<string, number>(); refusalMet.set(world, rc);
+    const k = `${agent.did}|${r.refused}`, n = (rc.get(k) ?? 0) + 1; rc.set(k, n);
+    if (name === "offer_on_job" && r.refused === "market_refused" && /already taken|already has a contract/.test(r.text) && !/open now that you can do/.test(r.text) && world.market) { try { const open = (await world.market.openJobList(agent, 50)).length; r = { ...r, text: `${r.text} That job was taken; ${open} job${open === 1 ? " is" : "s are"} open to you (look_jobs).` }; } catch { /* the line is an aid */ } }
+    if (n >= 2) r = { ...r, text: `${r.text} You have met this refusal (${r.refused}) ${n} times this run.` };
+  }
   // A refusal that the field guide has advice for ends with where to read it (a fact; nothing is asked)
   if (!r.ok && r.refused && world.fieldGuide?.offered(agent.n) && world.fieldGuide.guide.entries.some((e) => e.rule === r.refused) && !/field guide/.test(r.text)) r = { ...r, text: `${r.text} The house field guide has advice on this refusal (inspect research-commons).` };
   if (!r.ok || name === "do_nothing") return r;
+  recordDiscovery(world, agent, name, input, r.discovery);
+  if (name === "look_map") { r = { ...r, text: `${r.text}
+
+${atlasLine(world)}` }; }
   const extra: string[] = [];
+  { const d = discoveriesFor(world, agent.did); if (d) extra.push(d); }
   if (hall && isWrite) { const free = await hall.freeWrite(agent, before); if (free) extra.push(free); }
   if (hall) {
     const step = name === "forum_comment" || name === "forum_post" ? 1 : name === "deliver_job" && /accepted by the house/.test(r.text) ? 2 : name === "send_message" && input.to === "house-greeter" ? 3 : 0;
@@ -500,6 +556,7 @@ export async function agendaFor(world: WorldApi, agent: AgentCtx): Promise<strin
   const nth = ac.get(agent.did) ?? 0; ac.set(agent.did, nth + 1);
   const left = untouched(world, agent.did);
   const ranked = [...items.filter((i) => i.near), ...items.filter((i) => !i.near)];
+  { const f = fogLine(world, agent.did); if (f) ranked.push({ near: false, text: f }); }
   if (left.length) ranked.push({ near: false, text: `something you have not tried: ${left[nth % left.length]!.text}` });
   const intro = nth === 0 ? introFor(world, agent.n) : "";
   if (!ranked.length) return `${intro ? `${intro}
