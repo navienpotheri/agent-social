@@ -36,6 +36,7 @@ import { renderTownAuto } from "./town-auto.ts";
 import { renderRepoGrades } from "./repo-pilot.ts";
 import { renderBattery } from "./battery.ts";
 import { seenLines } from "./seen.ts";
+import { seedHouseLessons } from "./house-lessons.ts";
 import { renderTokenUse } from "./token-use.ts";
 import { renderTrajectory } from "./first-earnings.ts";
 import { renderContextLoad, renderHarmCheck, renderProfiles, renderWorldModels } from "./agent-models.ts";
@@ -121,6 +122,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** Next-run batch B1: house-seeded lesson cards through the gate, with a labelled house teacher and student (house-lessons.ts); needs lessons. */
+  houseLessons?: boolean;
   /** Diagnosis fix 8: show the whole descriptions of the optional tools (they are trimmed to their first sentence and limits by default). */
   noTrim?: boolean;
   /** The library and workspace tools (library.ts): offered only when asked for. */
@@ -201,6 +204,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
   trace({ t: "start", at: stamp(), run, model: o.model, provider: o.provider?.name ?? "anthropic", agents: o.agents, ...(o.voices ? { voices: true } : {}), hintLines: !o.noHints, toolGroups: [...(groups ?? [])], toolChars: toolListChars(offeredTools(groups)), toolCharsCore: toolListChars(offeredTools(new Set())), toolCharsAll: toolListChars(TOOLS), capUsdPerAgent: o.budgetUsd, capUsdTotal: o.totalUsd, minutes: o.minutes, tools: offeredTools(groups).map((x) => x.name), briefingSha256: createHash("sha256").update(BRIEFING).digest("hex") });  if (o.engine) trace({ t: "provenance", at: stamp(), model: o.model, settings: { ...REQUEST_SETTINGS } });
   const snapshot = o.fromSnapshot ? parseSnapshot(readFileSync(o.fromSnapshot, "utf8")) : undefined;
   const world = await bootWorld({ dir: join(dir, "society"), ...(o.desert ? { desert: o.agents } : {}), ...(o.noTownAuto ? {} : { townAuto: true, townTickMs: 4000 }), ...(o.hardJobs ? { hardJobs: true } : {}), ...(o.repoJobs ? { repoJobs: true } : {}), ...(o.battery ? { battery: true } : {}), ...(o.lessons ? { lessons: true } : {}), ...(o.relaxLimits ? { relaxLimits: true } : {}), onLine: (l) => o.io.out(l), ...(snapshot ? { snapshot } : {}), ...(o.event ? { event: true } : {}), ...(o.expedition ? { expedition: true } : {}), ...(o.markers !== undefined ? { markers: o.markers } : {}), ...(o.games ? { games: true, ...(o.gameRound ? { gameRound: o.gameRound } : {}) } : {}), ...(o.dayCycle ? { dayCycle: true } : {}), ...(o.voices ? { seedQuestions: true } : {}), ...(o.roles ? { roles: true } : {}), ...(o.injectionScreen ? { guard: o.injectionScreen } : {}), ...(o.plantInjection ? { plantInjection: true } : {}) });
+  if (o.houseLessons && world.api.lessons) await seedHouseLessons(world);
   if (world.api.event) trace({ t: "event", at: stamp(), key: world.api.event.key, post: world.api.event.post });
   world.api.groups = groups;
   let guideInfo: { guide: ReturnType<typeof buildGuide>; mode: "half" | "all" } | undefined;
