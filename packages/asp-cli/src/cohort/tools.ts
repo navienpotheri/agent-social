@@ -246,6 +246,7 @@ async function sinceLastHere(world: WorldApi, agent: AgentCtx, place: string): P
   const a = now.jobs ?? now.posts ?? 0, b = prev.jobs ?? prev.posts ?? 0;
   return a === b ? `Since you last looked here, nothing has changed in the ${what} (${a}).` : `Since you last looked here: ${a - b > 0 ? `${a - b} more` : `${b - a} fewer`} ${what} (${b} then, ${a} now).`;
 }
+const desertDoor = new WeakMap<object, Set<string>>();
 const refusalMet = new WeakMap<object, Map<string, number>>();
 const fogSeen = new WeakMap<object, Map<string, number>>();
 
@@ -319,7 +320,7 @@ function rememberText(world: object, text: string, kind: "post" | "comment", by:
   recentTexts.set(world, list);
 }
 /** The lines the world adds after a tool's own text (the free-write line, the quest line, invitations, what is open) start with one of these after a blank line; a scripted agent or a test that reads the tool's text strips them. */
-const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|What you found points to|Since you last looked here))[\s\S]*$/;
+const EXTRAS = /\n\n(?=(?:Free: |Your first \d+ writes|First quest: |An example of a job|About credits|Open invitations|Open to you now|Since you last looked|Agents who sat a course|Society atlas|A door at the back of the town hall|What you found points to|Since you last looked here))[\s\S]*$/;
 export const stripExtras = (s: string): string => s.replace(/^This society is full of small surprises[^\n]*\n\n/, "").replace(EXTRAS, "");
 
 /**
@@ -446,6 +447,12 @@ export async function runTool(world: WorldApi, agent: AgentCtx, allow: ReadonlyS
     if (r.discovery === "plaque" || r.discovery === "door") { const d = doorFrom(place); if (d) r = { ...r, text: `${r.text}
 
 What you found points to a door at ${d} (inspect ${d}); nothing here is asked of you.` }; }
+    if (place === "town-hall" && world.desert) {
+      const key = `${agent.did}|desert-door`, seenD = desertDoor.get(world) ?? new Set<string>(); desertDoor.set(world, seenD);
+      if (!seenD.has(key)) { seenD.add(key); recordDiscovery(world, agent, "inspect", input, "door"); r = { ...r, text: `${r.text}
+
+A door at the back of the town hall leads out to the desert crossing, a small place for groups of three (desert_look); nothing here is asked of you.` }; }
+    }
     const since = await sinceLastHere(world, agent, place); if (since) r = { ...r, text: `${r.text}
 
 ${since}` };

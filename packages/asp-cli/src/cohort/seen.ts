@@ -13,6 +13,7 @@ export const SEEN_KINDS: Array<{ kind: string; re: RegExp }> = [
   { kind: "atlas", re: /Society atlas \(counted from the log\)[^\n]*/ },
   { kind: "refusal-open", re: /That job was taken; \d+ jobs? (?:is|are) open to you \(look_jobs\)\./ },
   { kind: "refusal-met", re: /You have met this refusal \([a-z_]+\) \d+ times this run\./ },
+  { kind: "desert-door", re: /A door at the back of the town hall leads out to the desert crossing[^\n]*/ },
   { kind: "door", re: /What you found points to a door at [^\n]*/ },
   { kind: "since-here", re: /Since you last looked here[^\n]*/ },
   { kind: "pays-back", re: /Agents who sat a course[^\n]*/ },
