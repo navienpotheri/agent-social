@@ -125,6 +125,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** Turn the notebook line after a passed Academy sitting off (the control for ENG129 S3). */
+  noCourseWriteback?: boolean;
   /** The read-only statistics office: the tool stats_look and a report section. */
   stats?: boolean;
   /** G2: assigned groups of three, told who they are and what needs three. */
@@ -302,6 +304,14 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               if (r.refused) writeBack(id, t.name, r.refused, r.text);
               for (const sl of seenLines(r.text)) trace({ t: "seen", at: stamp(), agent: id, turn: ctx.turn, via: t.name, kind: sl.kind, hash: sl.hash, text: sl.text });
               if (t.name === "deliver_job" && world.api.market) for (const b of world.api.market.takeBattery()) trace({ t: "battery", at: stamp(), agent: id, job: b.job, firstTry: b.firstTry, access: !!world.api.lessons?.reads.some((x) => x.handle === b.handle) });
+              // after a passed Academy sitting, one labelled line in the agent's own notebook (the write-back of the course), once for each course, recorded in the trace (ENG129 S3)
+              if (t.name === "course_sit" && r.ok && /^PASSED\./.test(r.text) && life) {
+                const course = String(args.course ?? ""), card = world.api.market?.courseCard(course);
+                if (card && !o.noCourseWriteback) {
+                  const action = life.agent(id).courseNote({ course, title: card.title, answer: String(args.answer ?? "") });
+                  trace({ t: "course_notebook", at: stamp(), agent: id, course, action, hash: createHash("sha256").update(`${id}|${course}`).digest("hex").slice(0, 16) });
+                }
+              }
               // a lesson the gate admitted and this agent cited becomes one labelled line in its notebook, recorded in the trace and on the shelf (ENG102 follow-up)
               if (t.name === "lesson_cite" && r.ok && life && world.api.lessons) {
                 const card = world.api.lessons.get(String(args.id ?? ""));
@@ -335,7 +345,7 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
           agents: agents.map((a) => a.id), toolsetFor, model: o.model, modelFor: (id: string) => byId.get(id)?.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
-          limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 2000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
+          limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 6000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
           ...(life && clock ? { loop: { equivalentCalls: 40, nearRepeats: 60 }, beforeStart: async (a: string, i: number, sig: AbortSignal) => { if (arrivals) { const ms = clock.realMsUntil(arrivalAt(arrivals, i)); if (ms > 0) await life.sleep(ms, sig); } await life.opts.source?.prime?.(a); trace({ t: "arrival", at: stamp(), agent: a, simMs: Math.round(clock.now()) }); } } : {}),
           onEvent: (e) => {
             if (e.kind === "turn") {

@@ -13,7 +13,7 @@ import { INTERESTS } from "./voice.ts";
 export const MARKER_PAY = 2;
 /** The length of a window of the simulated clock, in milliseconds: the cards rotate every 30 simulated minutes. */
 export const WINDOW_MS = 30 * 60_000;
-export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string; /** Set on a card that carries a part of a research paper (paper-cards.ts). */ paper?: { course: string; part: number; of: number; papers: string; lens: string; courseTitle: string } }
+export interface FieldLesson { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string; /** Set on a card that carries a part of a research paper (paper-cards.ts). */ paper?: { course: string; part: number; of: number; papers: string; lens: string; courseTitle: string; model?: string } }
 
 interface Pattern { id: string; title: (topic: string) => string; text: (topic: string) => string; question: (topic: string) => string; accept: RegExp }
 const PATTERNS: Pattern[] = [
@@ -133,7 +133,7 @@ export class Markers {
       const r = this.takePart(did, lesson, w), pay = this.rewards.read + r.reward;
       this.paid += pay;
       const left = lesson.paper.of - this.partsRead(did, lesson.paper.course).length;
-      return { ok: true, text: `Yes. Part ${lesson.paper.part} of "${lesson.paper.courseTitle}" is yours${pay ? `, and ${pay} mock credits were added to your balance` : ""}. ${r.set ? `You now have all ${lesson.paper.of} parts of this paper: the Academy's held-out check for ${lesson.paper.course} is open to you (course_enrol ${lesson.paper.course}, then course_sit); passing it is what accredits you, collecting the parts does not.` : `${left} part${left === 1 ? "" : "s"} of this paper ${left === 1 ? "is" : "are"} still to find; a set of all of them opens the Academy's held-out check for ${lesson.paper.course}.`}`, reward: pay, lesson, ...(r.set ? { set: r.set } : {}) };
+      return { ok: true, text: `Yes. ${lesson.paper.model ? `A worked model answer: ${lesson.paper.model} ` : ""}Part ${lesson.paper.part} of "${lesson.paper.courseTitle}" is yours${pay ? `, and ${pay} mock credits were added to your balance` : ""}. ${r.set ? `You now have all ${lesson.paper.of} parts of this paper: the Academy's held-out check for ${lesson.paper.course} is open to you (course_enrol ${lesson.paper.course}, then course_sit); passing it is what accredits you, collecting the parts does not.` : `${left} part${left === 1 ? "" : "s"} of this paper ${left === 1 ? "is" : "are"} still to find; a set of all of them opens the Academy's held-out check for ${lesson.paper.course}.`}`, reward: pay, lesson, ...(r.set ? { set: r.set } : {}) };
     }
     this.paid += MARKER_PAY;
     return { ok: true, text: `Yes. "${lesson.title}" is yours, and ${MARKER_PAY} mock credits were added to your balance. The Academy's course C-L2-1 teaches this kind of thing at more length and measures what you can do on tasks you have not seen (course_enrol); this field lesson is not measured.`, reward: MARKER_PAY, lesson };

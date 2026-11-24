@@ -333,6 +333,9 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
+import { runCardEffect, renderRows } from "./cohort/card-effect.ts";
+import { PAPER_COURSE_IDS } from "./cohort/paper-cards.ts";
+import { anthropicProvider } from "./cohort/provider.ts";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
 import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
@@ -789,6 +792,9 @@ export const OPTIONS = {
   markers: { type: "boolean" },
   games: { type: "boolean" },
   desert: { type: "boolean" },
+  courses: { type: "string" },
+  n: { type: "string" },
+  headroom: { type: "boolean" },
   stats: { type: "boolean" },
   groups: { type: "boolean" },
   "day-minutes": { type: "string" },
@@ -6285,6 +6291,7 @@ async function lensCommand(sub: string | undefined, v: Values, io: Io): Promise<
 }
 
 async function academyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "card-effect") return await cardEffectCommand(v, io);
   const local = await openLog(home, logEnv);
   const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
   try {
@@ -6293,6 +6300,20 @@ async function academyCommand(home: string, sub: string | undefined, rest: strin
     if (e instanceof AcademyUsage) throw new UsageError(e.message);
     throw e;
   }
+}
+
+/** `asp academy card-effect`: control, placebo and treatment arms for each course, scored by the course's own sitting (the learning-gain study, step 1). */
+async function cardEffectCommand(v: Values, io: Io): Promise<number> {
+  const stand = v.provider === "stand-in";
+  const model = stand ? "stand-in" : v.model;
+  if (!model) throw new UsageError("asp academy card-effect --model <name> --api-key-env <VAR> --courses <ids|all> --n <samples per arm> [--seed <s>] [--out <dir>] [--total-usd <cap>] [--headroom]");
+  const ids = !v.courses || v.courses === "all" ? PAPER_COURSE_IDS : String(v.courses).split(",").map((x) => x.trim()).filter(Boolean);
+  const n = Math.max(1, Math.trunc(Number(v.n ?? "10")) || 10), cap = Number(v["total-usd"] ?? "5");
+  if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
+  const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
+  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent));
+  return 0;
 }
 
 async function telemetryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {

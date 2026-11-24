@@ -5,9 +5,12 @@
  * part and collecting does not accredit. Tranche 1 was eight papers, thirty-two parts: the three courses first built (evals, communication, reflection) and five more (teaching, economy, belief, honest failure, memory). Tranche 2 adds ten more courses of the same shape (registrar, court, housing, events, orders, registry writes, record keeping, research notes, draft review, self-correction): eighteen papers, seventy-two cards.
  * The digests describe the idea the course teaches, in the course's own words; they are not the papers' text. Credits are mock accounting entries.
  */
-export interface PaperTask { question: string; accept: RegExp }
+import { DEEP_1 } from "./paper-deep-1.ts";
+import { DEEP_2 } from "./paper-deep-2.ts";
+export const DEEP_COURSES = [...DEEP_1, ...DEEP_2];
+export interface PaperTask { question: string; accept: RegExp; /** A worked model answer, shown after a right answer. */ model?: string }
 export interface PaperPart { n: number; title: string; digest: string; task?: PaperTask }
-export interface PaperCourse { course: string; lens: string; papers: string; title: string; parts: PaperPart[] }
+export interface PaperCourse { course: string; lens: string; papers: string; title: string; parts: PaperPart[]; /** The primary source and its type, stated honestly, and what the sitting does and does not test of it (substantial courses). */ source?: string; sourceType?: string; tests?: string }
 
 const T = (question: string, accept: RegExp): PaperTask => ({ question, accept });
 
@@ -88,20 +91,26 @@ export const RULE_META: RuleMeta[] = [
 ];
 export const RULE_COURSES: PaperCourse[] = RULE_META.map(ruleCourse);
 PAPER_COURSES.push(...RULE_COURSES);
+// the substantial courses (learning-gain study, step 4): four parts of 250 to 400 words, three practice tasks with model answers, the source and its type, and what the sitting does and does not test
+for (const d of DEEP_COURSES) {
+  const c = PAPER_COURSES.find((x) => x.course === d.course); if (!c) continue;
+  c.source = d.source; c.sourceType = d.sourceType; c.tests = d.tests;
+  c.parts = d.parts.map((p, i): PaperPart => ({ n: i + 1, title: p.title, digest: p.text, ...(d.tasks[i] ? { task: { question: d.tasks[i]!.question, accept: d.tasks[i]!.accept, model: d.tasks[i]!.model } } : {}) }));
+}
 
 /** A card of the pool: the same shape as a field lesson, with the paper it carries. */
-export interface PaperCard { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string; paper: { course: string; part: number; of: number; papers: string; lens: string; courseTitle: string } }
+export interface PaperCard { id: string; title: string; text: string; question: string; accept: RegExp; level: 1 | 2 | 3; topic: string; paper: { course: string; part: number; of: number; papers: string; lens: string; courseTitle: string; model?: string } }
 
-const header = (c: PaperCourse, p: PaperPart): string => `Part ${p.n} of ${c.parts.length} of "${c.title}" (course ${c.course}; lens ${c.lens}; papers ${c.papers}).`;
+const header = (c: PaperCourse, p: PaperPart): string => `Part ${p.n} of ${c.parts.length} of "${c.title}" (course ${c.course}; lens ${c.lens}; papers ${c.papers}).${c.source && p.n === 1 ? ` Source: ${c.source}. Type: ${c.sourceType}.` : ""}`;
 export const PAPER_POOL: PaperCard[] = PAPER_COURSES.flatMap((c) => c.parts.map((p): PaperCard => ({
   id: `${c.course}.p${p.n}`,
   title: `${c.title}, part ${p.n}: ${p.title}`,
-  text: `${header(c, p)} ${p.digest}`,
+  text: `${header(c, p)} ${p.digest}${c.tests && p.n === c.parts.length ? ` What this course does and does not test of the source: ${c.tests}` : ""}`,
   question: p.task?.question ?? "This part has no practice question; reading it is enough.",
   accept: p.task?.accept ?? /.*/,
   level: (Math.min(p.n, 3)) as 1 | 2 | 3,
   topic: c.course,
-  paper: { course: c.course, part: p.n, of: c.parts.length, papers: c.papers, lens: c.lens, courseTitle: c.title },
+  paper: { course: c.course, part: p.n, of: c.parts.length, papers: c.papers, lens: c.lens, courseTitle: c.title, ...(p.task?.model ? { model: p.task.model } : {}) },
 })));
 export const PAPER_COURSE_IDS = PAPER_COURSES.map((c) => c.course);
 export const partsOf = (course: string): number => PAPER_COURSES.find((c) => c.course === course)?.parts.length ?? 0;
