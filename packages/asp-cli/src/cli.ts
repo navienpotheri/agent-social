@@ -333,7 +333,7 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
-import { runCardEffect, renderRows } from "./cohort/card-effect.ts";
+import { runCardEffect, renderInterference, renderRows } from "./cohort/card-effect.ts";
 import { PAPER_COURSE_IDS } from "./cohort/paper-cards.ts";
 import { anthropicProvider } from "./cohort/provider.ts";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -795,6 +795,7 @@ export const OPTIONS = {
   courses: { type: "string" },
   n: { type: "string" },
   headroom: { type: "boolean" },
+  interference: { type: "boolean" },
   stats: { type: "boolean" },
   groups: { type: "boolean" },
   "day-minutes": { type: "string" },
@@ -6311,8 +6312,8 @@ async function cardEffectCommand(v: Values, io: Io): Promise<number> {
   const n = Math.max(1, Math.trunc(Number(v.n ?? "10")) || 10), cap = Number(v["total-usd"] ?? "5");
   if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
   const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
-  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
-  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent));
+  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, interference: !!v.interference, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent) + renderInterference(r.interference));
   return 0;
 }
 

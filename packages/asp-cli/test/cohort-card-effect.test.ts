@@ -37,3 +37,13 @@ test("the placebo has the length of the treatment and says nothing of the course
   assert.deepEqual(bootstrapDiff([5, 5, 5], [5, 5, 5], "x"), [0, 0]);
   assert.ok(estimate({ courses: ["a", "b"], n: 10, headroom: false, model: "claude-haiku-5-5" }).calls === 60);
 });
+
+test("--interference gives the artifact written for each course as memory to the other courses and reports the change with an interval and the worst course", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-ce-int-"));
+  const r = await run(["--courses", "C-L9-1,C-L2-1,C-L11-1", "--n", "2", "--interference", "--out", dir]);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /## Interference: does the memory written for course A make the model worse on the other courses\?/);
+  assert.match(r.out, /\| C-L9-1 \| 4 \| [+-]?[\d.]+ \(-?[\d.]+ to -?[\d.]+\) \| C-L[\d-]+ [+-]?[\d.]+ \|/);
+  const raw = JSON.parse(readFileSync(join(dir, "card-effect-samples.json"), "utf8")) as { samples: { arm: string; from?: string }[] };
+  assert.equal(raw.samples.filter((s) => s.arm === "memory").length, 3 * 2 * 2, "three memories, two other courses, two samples");
+});
