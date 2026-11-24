@@ -463,6 +463,7 @@ export class MarketHall {
   /** The jobs agents post (not the house's): who posted, offers made, whether accepted and paid (ENG82). */
   private readonly agentJobs = new Map<string, { poster: string; offers: number; settled: boolean; price: number; byHouse?: boolean }>();
   private readonly firstJobRefunded = new Set<string>();
+  private readonly depositCovered = new Set<string>();
   /** Mock credits the house returned to posters for their first accepted job, and the small once-only credit for it. */
   firstJobRefunds = 0;
   agentJobStats(): { posters: number; posted: number; offered: number; accepted: number; paid: number; byHouse: number } {
@@ -480,6 +481,8 @@ export class MarketHall {
     if (await this.balance(agent) < budget + 2 + 2) throw new Error(`you have ${await this.balance(agent)} credits: a job of ${budget} needs the budget, a 2-credit posting deposit and the job tax`);
     const r = await this.post(e.party, e.mandate, purpose, budget, criterion);
     this.agentJobs.set(r.intent, { poster: agent.did, offers: 0, settled: false, price: budget });
+    // The first job an agent posts: the house covers its 2-credit posting deposit at once (a house payment, counted with the first-job refunds so that the credit economy still balances); the price and the job tax come back at acceptance.
+    if (!this.depositCovered.has(agent.did) && (this.writesUsed.get(agent.did) ?? 0) >= FREE_WRITES) { this.depositCovered.add(agent.did); await this.mint(agent.did, 2); this.firstJobRefunds += 2; }
     if (this.performer && this.houseTakeMs >= 0 && !this.firstPosted.has(agent.did)) {
       this.firstPosted.add(agent.did);
       const timer = setTimeout(() => { this.timers.delete(timer); void this.houseOffer(r.intent); }, this.houseTakeMs);

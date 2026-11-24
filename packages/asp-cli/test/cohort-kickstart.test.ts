@@ -86,7 +86,7 @@ test("ENG33: the first five writes cost nothing (a posting deposit or tuition co
     const sixth = await call("post_job", { purpose: "Count the open jobs on the board", budget: 10, criterion: "a number" });
     assert.equal(sixth.ok, true, sixth.text);
     assert.doesNotMatch(sixth.text, /Free:|first 5 writes/);
-    assert.equal(await hall.balance(a), 98, "the sixth write cost its 2-credit deposit");
+    assert.equal(await hall.balance(a), 100, "the sixth write was the first posted job: the house covers its 2-credit deposit (batch B2)");
     assert.equal(hall.freeWriteRefunds(), 2);
     assert.equal(FREE_WRITES, 5);
   } finally { await w.close(); }

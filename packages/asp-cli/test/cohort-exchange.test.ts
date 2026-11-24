@@ -100,7 +100,7 @@ test("ENG82: the first job an agent posts is free: accepted and delivered, the h
     const call = (who: typeof a, name: string, input: Record<string, unknown> = {}) => runTool(w.api, who, all, name, input);
     assert.doesNotMatch(stripExtras((await call(a, "my_balance")).text), /first job you post is free/, "said once, at the decision point (the board), not in every balance line");
     assert.match(JSON.parse(stripExtras((await call(a, "look_jobs")).text)).note, /The first job you post is free/);
-    assert.match(TOOLS.find((t) => t.name === "post_job")!.description, /Your first job is free: when it is accepted the house returns what it cost you and adds a small credit\./);
+    assert.match(TOOLS.find((t) => t.name === "post_job")!.description, /Your first job is free: the house covers its 2-credit posting deposit when you post it, and when it is accepted returns the price and the job tax and adds a small credit\./);
     const doJob = async (purpose: string, budget: number): Promise<void> => {
       const posted = await call(a, "post_job", { purpose, budget, criterion: "a number" });
       const jobId = /sha256:[0-9a-f]+/.exec(posted.text)![0];
@@ -116,14 +116,14 @@ test("ENG82: the first job an agent posts is free: accepted and delivered, the h
     const before = await hall.balance(a);
     await doJob("Count the open jobs on the board and tell me the number", 10);
     // the first job cost the budget (10), the 2-credit deposit and the tax (0); the house returned the price and the tax and added the small credit
-    assert.equal(await hall.balance(a), before - 2 /* the deposit, not a free write now */ + POSTER_BONUS, "the price came back with the small credit");
-    assert.equal(hall.firstJobRefunds, 10 + POSTER_BONUS);
+    assert.equal(await hall.balance(a), before + POSTER_BONUS /* the house covered the first job's deposit at posting (batch B2) */, "the price came back with the small credit");
+    assert.equal(hall.firstJobRefunds, 10 + POSTER_BONUS + 2 /* the deposit the house covered */);
     const stats = hall.jobsPostedBy(a.did);
     assert.deepEqual(stats, { posted: 1, accepted: 1, paid: 10 });
     const mid = await hall.balance(a);
     await doJob("Count the settled jobs on the board and tell me the number", 12);
     assert.equal(await hall.balance(a), mid - 12 - 2 - 0, "the second job is paid for: nothing is returned twice");
-    assert.equal(hall.firstJobRefunds, 10 + POSTER_BONUS, "refunded once");
+    assert.equal(hall.firstJobRefunds, 10 + POSTER_BONUS + 2, "refunded once");
     assert.match((await call(a, "my_balance")).text, /Jobs you posted: 2, accepted 2, paid 22 credits\./);
     const board = JSON.parse(stripExtras((await call(b, "look_jobs")).text)) as { jobs_posted_by_agents?: { posted: number; offered_on: number; accepted: number; paid: number } };
     assert.deepEqual(board.jobs_posted_by_agents, { posted: 2, offered_on: 2, accepted: 2, paid: 22 });
