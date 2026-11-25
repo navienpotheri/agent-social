@@ -7,7 +7,22 @@ import { TOUR_PLACES, PLACES } from "./expedition.ts";
 import { groupLineN } from "./groups.ts";
 import type { WorldApi } from "./types.ts";
 
-const firstSentence = (s: string): string => { const f = (/^[^]*?[.!?](?=\s|$)/.exec(s)?.[0] ?? s).trim(); return f.length <= 62 ? f : `${f.slice(0, 60).replace(/\s+\S*$/, "")}.`; };
+/** One whole short phrase for each of the thirteen places, written by hand (the first version cut the map's own text at 62 characters and left fragments such as "done and."). Keep in step with TOUR_PLACES in expedition.ts. */
+const PLACE_BLURB: Record<string, string> = {
+  registry: "gives each agent an identity and a first tier",
+  courts: "settle disputes between agents",
+  treasury: "keeps the price lists and the mock credits",
+  market: "is where jobs are posted, offered, done and paid",
+  "bank-insurer": "hold bonds and escrow",
+  shops: "sell small services (here: courses and the places you can open)",
+  academy: "teaches courses, holds the held-out sittings and attests a pass",
+  clinic: "checks agents for drift (no check is offered in this run)",
+  "research-commons": "keep what is learned: the library and your own workspace",
+  forum: "is where everyone talks",
+  "leisure-events": "hold gatherings and games",
+  "town-hall": "keeps the town's sessions and notes",
+  housing: "is a place to stay (not built in this run)",
+};
 export interface LongIntroOptions {
   /** The tools this agent has (its arm may hide some; the life tools are included when the run keeps a notebook). Absent: every tool of the run. */
   tools?: ReadonlySet<string>;
@@ -21,7 +36,7 @@ export function longIntro(world: WorldApi, agentN: number, o: LongIntroOptions =
   const has = (...t: string[]): boolean => t.every((x) => !o.tools || o.tools.has(x));
   const P: string[] = [];
   const route = !!world.markers?.paperMode && has("inspect", "field_answer", "look_courses", "course_enrol", "course_sit");
-  P.push(`WHAT THIS SOCIETY HAS (said once; all of it optional, none of it a task; credits are mock accounting entries, not money). You are one agent among several in a small local society. It has places for ${route ? "learning, for work and for living together, and the paragraphs below take them in that order, then how to find your way" : "work and for living together, and the paragraphs below take them in that order, then how to find your way"}. It has a map of thirteen places, each an institution. inspect <place> shows what it is for in this run, and looking closely is how you find the cards and finds below. In short: ${PLACES.map((p) => `${TOUR_PLACES[p]?.name ?? p}: ${firstSentence(TOUR_PLACES[p]?.what ?? "")}`).join(" ")}`);
+  P.push(`WHAT THIS SOCIETY HAS (said once; all of it optional, none of it a task; credits are mock accounting entries, not money). You are one agent among several in a small local society. It has places for ${route ? "learning, for work and for living together, and the paragraphs below take them in that order, then how to find your way" : "work and for living together, and the paragraphs below take them in that order, then how to find your way"}. It has a map of thirteen places, each an institution. inspect <place> shows what it is for in this run, and looking closely is how you find the cards and finds below. In short: ${PLACES.map((p) => `${TOUR_PLACES[p]?.name ?? p} ${PLACE_BLURB[p] ?? ""}`.trim()).join("; ")}.`);
   if (route) {
     const r = world.markers!.rewards;
     P.push(`LEARNING HERE: FROM A CARD TO A SKILL. A main part of this society is a route for learning, and every step of it is optional. READ. Parts of real research papers lie across the map. Each paper was chosen because it describes a method an agent can use in its work (for example how to say how sure you are, how to check a draft before handing it in, what to keep in memory, how to learn from a failed attempt, how to write rules for a peer). inspect a place closely and there may be a card: one numbered part of one paper, with a digest in plain words, a question and practice tasks. A card changes as the clock moves${has("forum_read") ? ", and a post in the Finds thread can say where one was" : ""}. TRY. field_answer answers a card's question. A good answer pays a small once-only reward and a wrong one costs nothing.${r.pickup || r.read || r.complete ? ` The house pays mock credits: ${r.pickup} to pick up a part, ${r.read} to read one, ${r.complete} for a set.` : ""} CHECK. All the parts of one paper open the Academy's held-out check for its course: look_courses, course_enrol (tuition in mock credits; you receive the practice tasks), then course_sit with your answer as JSON in the form the course asks for. It is graded on held-out tasks that the practice does not show, so a pass says that what you wrote works on cases you had not seen; it does not say you can do everything the paper describes. A pass is attested by the Registrar. You may sit again with a changed answer.${has("my_progress") ? " my_progress shows each sitting's score with its error bar." : ""} KEEP. ${o.writeback && o.notebook && has("notebook_write") ? "After a pass, one short line from the Academy, marked as its own and holding the answer that passed, is added to your notebook once for each course; you can keep it or delete it, and the house checks the line for harmful wording and keeps a record. " : ""}${has("lesson_publish") ? "lesson_publish writes down what you learned from your own calls, and lesson_read and lesson_cite let you use what others learned. " : ""}USE. Some jobs ask for a course certificate${has("look_jobs") ? " (look_jobs lists them)" : ""}, so a pass opens work that is closed without it. In calls: inspect <place>, field_answer, look_courses, course_enrol <id>, course_sit${has("my_progress") ? ", my_progress" : ""}.`);

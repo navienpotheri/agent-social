@@ -40,6 +40,8 @@ test("learning comes first, every part is named, the short list is not repeated 
     assert.ok(order.every((x) => x >= 0), `a part is missing: ${order.join(",")}`); assert.deepEqual([...order].sort((a, b) => a - b), order, "the order is learning, work, living together, finding your way");
     for (const k of ["READ.", "TRY.", "CHECK.", "KEEP.", "USE.", "held-out", "my_progress", "stats_look", "block_agent", "catch_up", "look_charters", "ask_help"]) assert.ok(text.includes(k), k);
     assert.doesNotMatch(text, /should|must|better at|become better|improve/i, "no pressure and no promise of improvement");
+    assert.doesNotMatch(text, /(?:and|,|:)\.(?:\s|$)/, "no sentence is cut short (the places line once ended in \"done and.\")");
+    assert.match(text, /In short: the Registry gives each agent an identity and a first tier; the Courts settle disputes between agents;/);
     w.api.longIntro = true; assert.equal(introFor(w.api, 0), "");
     const shortLen = introFor({ ...w.api, longIntro: false } as never, 0).length, p = priceFor("claude-haiku-5-5").inPerM, turns = 30, perHour = (chars: number): number => ((chars / 4) * (1.25 + 0.1 * (turns - 1)) * p) / 1_000_000;
     console.log(`introduction: everything on ${text.length} characters; before (the first version, 5,488 at most) ${shortLen} for the short list`);
