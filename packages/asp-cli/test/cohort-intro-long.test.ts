@@ -49,3 +49,17 @@ test("learning comes first, every part is named, the short list is not repeated 
     assert.ok(text.length >= 8000 && text.length <= 13000, `${text.length}`); assert.ok(perHour(text.length) < 0.02);
   } finally { await w.close(); }
 });
+
+test("an agent without inspect and without the card route (the control arm) reads nothing about inspect or cards (found by the 4-agent smoke run of 2026-11-25: the opening told it to look closely to find the cards)", async () => {
+  const w = await bootWorld({ dir: mkdtempSync(join(tmpdir(), "asp-long5-")), ...ALL as object } as never);
+  try {
+    w.api.groups = new Set(["expedition", "games", "town", "library", "lessons", "assess", "desert", "stats", "agenda"]);
+    const gone = new Set(["inspect", "field_answer", "course_enrol", "course_sit", "look_courses", "lesson_publish", "lesson_read", "lesson_cite"]);
+    const mine = new Set([...TOOLS.map((t) => t.name), ...LIFE].filter((n) => !gone.has(n)));
+    const text = longIntro(w.api, 0, { notebook: true, writeback: false, tools: mine });
+    assert.doesNotMatch(text, /\binspect\b/, "no mention of a tool the agent does not have");
+    assert.doesNotMatch(text, /\bcards?\b/i, "no mention of cards to the arm that has none");
+    assert.doesNotMatch(text, /LEARNING HERE/);
+    assert.match(text, /THE MAP AND WHAT OTHERS FOUND/, "the rest of the introduction is still there");
+  } finally { await w.close(); }
+});
