@@ -9,14 +9,15 @@ const card = (id: string) => cat.courses.find((c) => c.id === id)!;
 test("the catalogue loads with the three probe courses and each says it is a probe", () => {
   assert.deepEqual(cat.problems, []);
   for (const id of ["C-L7-3", "C-L14-4", "C-L8-7"]) { assert.ok(card(id) && ENGINES[card(id).generator.engine], id); assert.equal(constructOf(id), "paper-specific probe"); assert.ok(treatmentText(id).includes("Part 1"), "the card parts of the same paper are the treatment"); }
-  assert.equal(constructOf("C-L9-1"), "generic rule-writing"); assert.equal(PROBE_COURSES.size, 6, "three policy probe courses and the three specified probes");
+  assert.equal(constructOf("C-L9-1"), "generic rule-writing"); assert.equal(PROBE_COURSES.size, 8, "three policy probe courses and the five specified probes");
 });
 test("calibration: stating the share as the probability passes; saying 0.99 for everything fails; the same seed gives the same score", () => {
-  const good = { bins: Array.from({ length: 11 }, (_, i) => ({ late_of_10: i, confidence: Math.min(0.95, Math.max(0.05, i / 10)) })) }, bad = { bins: [{ late_of_10: 0, confidence: 0.99 }] };
+  const good = { bins: Array.from({ length: 11 }, (_, i) => ({ late_of_10: i, confidence: 0.35 + 0.5 * (i / 10 - 0.5) })) }, proportional = { bins: Array.from({ length: 11 }, (_, i) => ({ late_of_10: i, confidence: Math.min(0.95, Math.max(0.05, i / 10)) })) }, bad = { bins: [{ late_of_10: 0, confidence: 0.99 }] };
   const a = sit(card("C-L7-3"), good, "h", 1, "anchor"), b = sit(card("C-L7-3"), good, "h", 1, "anchor"), c = sit(card("C-L7-3"), bad, "h", 1, "anchor");
   assert.equal(a.passed, true, JSON.stringify(a.runs[0]));
   assert.deepEqual(a.runs.map((r) => r.score_permille), b.runs.map((r) => r.score_permille));
   assert.equal(c.passed, false); assert.ok(c.mean_permille < a.mean_permille);
+  assert.ok(sit(card("C-L7-3"), proportional, "h", 1, "anchor").mean_permille <= a.mean_permille, "the obvious proportional table (late share as probability) is not better than the shrunk one: the task has headroom");
   assert.equal(sit(card("C-L7-3"), "nonsense", "h", 1, "anchor").passed, false);
 });
 test("verification: checking the three attributes against the table passes; checking against the draft changes nothing and fails; precision before and after are reported", () => {

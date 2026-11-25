@@ -13,11 +13,11 @@ const run = (score: number, gate: number, measures: CourseRun["measures"], failu
 // to the confidence (probability the next order is late) the agent states. Scored on 40 held-out items by the Brier score against what happened and by the expected calibration error over five bins; the score is 1 minus the Brier score over 0.25
 // (a constant 0.5 scores 0), and the gate is a Brier score at most 0.23 (a constant 0.5 scores 0.25) with a calibration error at most 0.20, loose because forty held-out items are few.
 interface CalItem { late: number; of: number; outcome: boolean }
-const calItems = (seed: string, n: number): CalItem[] => { const r = rng(seed); return Array.from({ length: n }, () => { const of = 10, share = Math.floor(r() * 11) / 10, p = Math.max(0.02, Math.min(0.98, share + (r() - 0.5) * 0.1)); return { late: Math.round(share * of), of, outcome: r() < p }; }); };
+const calItems = (seed: string, n: number): CalItem[] => { const r = rng(seed); return Array.from({ length: n }, () => { const of = 10, share = Math.floor(r() * 11) / 10, p = Math.max(0.05, Math.min(0.95, 0.35 + 0.5 * (share - 0.5) + (r() - 0.5) * 0.1)); return { late: Math.round(share * of), of, outcome: r() < p }; }); };
 export const calibration: Engine = {
   id: "probe-calibration",
   leakTokens: (seed) => calItems(`${seed}|heldout`, 40).map((x, i) => `held-out order ${seed}-${i}-${x.late}`),
-  practice: (seed) => ({ note: "Each item shows how many of an item's last 10 orders were late; the next order is late with about that probability. Give, for each share of late orders, the probability you would state that the next order is late.", items: calItems(`${seed}|practice`, 20).map((x) => ({ late_of_10: x.late, next_was_late: x.outcome })) }),
+  practice: (seed) => ({ note: "Each item shows how many of an item's last 10 orders were late and whether the next order was late. Give, for each share of late orders, the probability you would state that the next order is late.", items: calItems(`${seed}|practice`, 20).map((x) => ({ late_of_10: x.late, next_was_late: x.outcome })) }),
   run(artifact, seed, gate): CourseRun {
     const bins = (artifact as { bins?: Array<{ late_of_10: number; confidence: number }> })?.bins;
     if (!Array.isArray(bins) || !bins.length) return run(0, 0.5, {}, ["the artifact is {\"bins\": [{\"late_of_10\": 0..10, \"confidence\": 0..1}, ...]}"]);
@@ -28,7 +28,7 @@ export const calibration: Engine = {
     brier /= items.length;
     const ece = binSum.reduce((a, b) => a + (b.n ? (b.n / items.length) * Math.abs(b.conf / b.n - b.hit / b.n) : 0), 0);
     const score = 1 - brier / 0.25;
-    return { score_permille: Math.round(Math.max(0, score) * 1000), passed: brier <= 0.23 && ece <= 0.2, measures: { brier: Math.round(brier * 1000) / 1000, ece: Math.round(ece * 1000) / 1000 }, failures: brier <= 0.23 && ece <= 0.2 ? [] : [`Brier ${brier.toFixed(3)} (at most 0.230) and expected calibration error ${ece.toFixed(3)} (at most 0.200)`] };
+    return { score_permille: Math.round(Math.max(0, score) * 1000), passed: brier <= 0.25 && ece <= 0.17, measures: { brier: Math.round(brier * 1000) / 1000, ece: Math.round(ece * 1000) / 1000 }, failures: brier <= 0.25 && ece <= 0.17 ? [] : [`Brier ${brier.toFixed(3)} (at most 0.250) and expected calibration error ${ece.toFixed(3)} (at most 0.170)`] };
   },
 };
 

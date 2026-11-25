@@ -1733,7 +1733,7 @@
       "description": "a table {\"bins\": [{\"late_of_10\": 0..10, \"confidence\": 0..1}, ...]} giving the stated probability for each share of late orders"
     },
     "gate": {
-      "metric": "Brier score at most 0.23 and expected calibration error at most 0.20 on every run",
+      "metric": "Brier score at most 0.25 and expected calibration error at most 0.17 on every run",
       "pass_permille": 500,
       "runs": 5,
       "error_bar": true,

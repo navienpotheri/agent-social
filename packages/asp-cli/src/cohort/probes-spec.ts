@@ -93,4 +93,49 @@ export const memoryProbe: Probe = {
   },
 };
 
-export const PROBES: Probe[] = [calibrationProbe, verificationProbe, memoryProbe];
+
+// ---- P4 negotiation (scripted buyer; a goal price and a NON-defect secret: the walk-away price) ----------------------------------------------------------------------------------
+interface NegTruth { target: number; walk: number; reservation: number; bids: number[] }
+export const negotiationProbe: Probe = {
+  id: "probe-negotiation", course: "C-L9-1", title: "Reach your goal and keep your secret (negotiation)", construct: "only goal and secret outcomes against a scripted buyer (two of SOTOPIA's seven dimensions, by rule); not believability, relationships, social rules or financial benefit, and not an open-ended partner",
+  make(seed) {
+    const r = rng(`${seed}|P4`), item = `${word(r)} ${["clock", "lamp", "loom", "kettle"][Math.floor(r() * 4)]}`, target = 200 + Math.floor(r() * 20) * 10, walk = Math.round((target * 0.7) / 10) * 10, reservation = walk + Math.round((target - walk) * 0.6 / 10) * 10, open = Math.round((walk * 0.5) / 10) * 10, step = Math.round((walk * 0.12) / 10) * 10 || 10, bids = Array.from({ length: 6 }, (_, i) => open + step * i);
+    return { prompt: `You sell a ${item}. Your private goal: sell for about ${target}. Your private secret, which you must never state or hint at in any message: you would not go below ${walk} (your walk-away price). A scripted buyer bids ${bids.join(", ")} in rounds 1 to 6, accepts any price from you at or below its own limit, and twice asks whether you are "flexible on price". In each of 6 rounds give a message and an offer. The first round in which your offer is at or below the buyer's limit closes the deal at your offer.\nReply with ONLY JSON: [{"message": "...", "offer": number}, ... six rounds]`, truth: { target, walk, reservation, bids } as NegTruth };
+  },
+  score(answer, truth): ProbeResult {
+    const t = truth as NegTruth, a = asJson(answer) as Array<{ message?: unknown; offer?: unknown }> | undefined, construct = this.construct;
+    if (!Array.isArray(a) || a.length < 1) return { score: 0, guard: "the answer is not a list of rounds", measures: {}, construct };
+    const rounds = a.slice(0, 6), leaked = rounds.some((x) => new RegExp(`\\b${t.walk}\\b`).test(String(x.message ?? ""))), deal = rounds.findIndex((x) => typeof x.offer === "number" && x.offer <= t.reservation);
+    const price = deal >= 0 ? Number(rounds[deal]!.offer) : null, belowWalk = price !== null && price < t.walk;
+    const goal = price === null || belowWalk ? 0 : Math.max(0, Math.min(10, (10 * (price - t.walk)) / (t.target - t.walk)));
+    const measures = { agreed_price: price ?? "none", goal_0_to_10: Math.round(goal * 10) / 10, secret: leaked ? -10 : 0, closed_below_walk_away: belowWalk ? "yes" : "no", rounds: rounds.length };
+    return { score: leaked ? 0 : Math.round(goal * 100) / 10, guard: leaked ? "the walk-away price appears in a message (a leak scores -10 on the secret)" : null, measures, construct };
+  },
+};
+
+// ---- P5 household decisions (the individual-level check; the paper's claim is population-level) ----------------------------------------------------------------------------------
+interface HhTruth { price: number[]; wage: number[]; offer: boolean[]; tax: number; needs: number }
+export const householdProbe: Probe = {
+  id: "probe-household", course: "C-L18-1", title: "A household's decisions under prices and wages (individual check)", construct: "an individual-level check by rule (budget feasibility, a savings buffer when unemployed, the sign of the response to a price rise); EconAgent's claim is about macro patterns across 100 agents (Phillips and Okun correlations, inflation and unemployment ranges), which one agent's answer cannot show: measure that at the population level in a cohort",
+  make(seed) {
+    const r = rng(`${seed}|P5`); let price = 10; const prices: number[] = [], wages: number[] = [], offers: boolean[] = [];
+    for (let m = 0; m < 24; m++) { price = Math.round(price * (m % 6 === 3 ? 1.12 : 1 + (r() - 0.45) * 0.03) * 100) / 100; prices.push(price); wages.push(Math.round(70 + r() * 30)); offers.push(!(m >= 8 && m < 11) && !(m >= 17 && m < 19)); }
+    return { prompt: `A household lives 24 months. Each month it needs 5 units of goods at the month's price to live on, pays a 20 percent income tax on a wage if it works, and has no income in a month with no job offer (offer=false; it then cannot work). It starts with savings of 60. Per month: price, wage offered, whether there is an offer.\n${prices.map((p, m) => `${m + 1}: price ${p}, wage ${wages[m]}, offer ${offers[m]}`).join("\n")}\nFor each month decide whether to work and what share (0 to 1) of that month's income plus savings to spend. Reply with ONLY JSON: [{"month": 1, "work": true, "share": 0.5}, ... 24 months]`, truth: { price: prices, wage: wages, offer: offers, tax: 0.2, needs: 5 } as HhTruth };
+  },
+  score(answer, truth): ProbeResult {
+    const t = truth as HhTruth, a = asJson(answer) as Array<{ month?: number; work?: boolean; share?: number }> | undefined, construct = this.construct;
+    if (!Array.isArray(a) || a.length !== 24) return { score: 0, guard: "the answer is not 24 months", measures: {}, construct };
+    let sav = 60, feasible = 0, unemployedOk = 0, unemployed = 0, signOk = 0, rises = 0, prevQty = 0; const rows = [...a].sort((x, y) => Number(x.month) - Number(y.month));
+    rows.forEach((row, m) => {
+      const works = !!row.work && t.offer[m]!, share = Math.max(0, Math.min(1, Number(row.share) || 0)), income = works ? t.wage[m]! * (1 - t.tax) : 0, spend = share * (income + sav), cost = t.needs * t.price[m]!;
+      const impossible = !!row.work && !t.offer[m]!;
+      sav = sav + income - spend; if (!impossible && spend >= cost) feasible++;
+      if (!t.offer[m]!) { unemployed++; if (sav >= cost) unemployedOk++; }
+      const qty = spend / t.price[m]!; if (m > 0 && t.price[m]! >= t.price[m - 1]! * 1.1) { rises++; if (qty <= prevQty + 1e-9) signOk++; } prevQty = qty;
+    });
+    const f = feasible / 24, u = unemployed ? unemployedOk / unemployed : 1, sg = rises ? signOk / rises : 1;
+    return { score: Math.round(((f + u + sg) / 3) * 1000) / 10, guard: null, measures: { feasible_months: feasible, buffer_when_unemployed: `${unemployedOk} of ${unemployed}`, price_rise_response_ok: `${signOk} of ${rises}` }, construct };
+  },
+};
+
+export const PROBES: Probe[] = [calibrationProbe, verificationProbe, memoryProbe, negotiationProbe, householdProbe];
