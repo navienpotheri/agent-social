@@ -127,6 +127,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** Append every model call to <run>/agents/<id>/turns.jsonl (the request as sent and the reply), for replaying the prompts through an open model. Local only; no keys. */
+  recordPrompts?: boolean;
   /** The output-token cap of one model reply in an engine run (default 1024); a reasoning model needs more. */
   replyTokens?: number;
   /** Phase A organisations: tools org_found and the others, a simulation ledger beside the log. */
@@ -367,7 +369,7 @@ ${longIntro(world.api, a.n, { notebook: !!life, writeback: !o.noCourseWriteback,
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };
         const res = await runEngine({
-          agents: agents.map((a) => a.id), toolsetFor, model: o.model, ...(o.replyTokens ? { replyTokens: o.replyTokens } : {}), modelFor: (id: string) => byId.get(id)?.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
+          agents: agents.map((a) => a.id), toolsetFor, model: o.model, ...(o.replyTokens ? { replyTokens: o.replyTokens } : {}), ...(o.recordPrompts ? { recordTurn: (id: string, e: unknown) => { const d = join(dir, "agents", id); mkdirSync(d, { recursive: true }); appendFileSync(join(d, "turns.jsonl"), JSON.stringify(e) + "\n"); } } : {}), modelFor: (id: string) => byId.get(id)?.model, keyEnv: o.engine.keyEnv, env: o.engine.env, perAgentUsd: o.budgetUsd, totalUsd: o.totalUsd,
           ...(o.engine.price ? { price: o.engine.price } : {}),
           ...(o.engine.parallel ? { parallel: o.engine.parallel } : {}), ...(o.engine.upstream ? { upstream: o.engine.upstream } : {}),
           limits: { maxTurns: o.maxTurns ?? 60, wallClockMs: o.minutes * 60_000, maxResultChars: 6000, maxTokens: o.maxAgentTokens ?? 200_000 }, ...(o.economy ? { economy: o.economy } : {}), runDir: join(dir, "agents"), signal: ac.signal,
