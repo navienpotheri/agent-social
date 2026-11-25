@@ -22,7 +22,11 @@ export class OrgLedger {
   private seq = 0;
   private readonly cfg: { [K in keyof typeof DEFAULTS]: number };
   constructor(agents: Record<string, number>, cfg: { [K in keyof typeof DEFAULTS]: number } = { ...DEFAULTS }) { this.cfg = cfg; for (const [a, v] of Object.entries(agents)) this.balances.set(a, v); this.initial = Object.values(agents).reduce((x, y) => x + y, 0); }
-  readonly initial: number;
+  initial: number;
+  /** The house grants an agent simulation credits the first time it meets the organisations (a declared mint); these are NOT the agent's credits in the log (Phase A). */
+  ensure(agent: string, grant = 50): void { if (!this.balances.has(agent)) { this.balances.set(agent, grant); this.minted += grant; this.put("grant", "-", agent, grant, "simulation credits for the organisations (not in the log)"); } }
+  /** The officers of an organisation: its founder and its largest other shareholder (at least two once there are two investors), so one sleeping officer does not stall a routine payment. */
+  officers(id: string): string[] { const o = this.orgs.get(id); if (!o) return []; const others = [...o.shares.entries()].filter(([a]) => a !== o.founder).sort((x, y) => y[1] - x[1]).map(([a]) => a); return [o.founder, ...others.slice(0, 1)]; }
   private bal = (a: string): number => this.balances.get(a) ?? 0;
   private put(kind: string, org: string, who: string, amount: number, note: string): void { const prev = this.journal.at(-1)?.hash ?? "genesis", body = { n: ++this.seq, kind, org, who, amount, note, prev }; this.journal.push({ ...body, hash: createHash("sha256").update(JSON.stringify(body)).digest("hex") }); }
   /** The sum of every credit the ledger holds: agents, treasuries and the escrow. It equals the initial credits plus the mints minus the burns, always. */
@@ -82,6 +86,20 @@ export class OrgLedger {
     const income = o.periodIncome, out = o.periodOut, retained = Math.max(0, income - out); o.retained += retained; o.periodsNoIncome = income === 0 ? o.periodsNoIncome + 1 : 0;
     const owed = o.unpaid.reduce((x, y) => x + y.amount, 0); if (o.periodsNoIncome >= this.cfg.wind_up_periods && owed > o.treasury && o.state === "open") { o.state = "distressed"; this.put("org_distress", id, "house", owed, `${o.periodsNoIncome} periods without income`); }
     this.put("org_period_close", id, "house", retained, `period ${o.period} income ${income} out ${out}`); o.period++; o.periodIncome = 0; o.periodOut = 0; return { income, out, retained };
+  }
+  /** The report section: the organisations of the run, labelled as a simulation ledger beside the log. */
+  render(): string {
+    const L = ["## Organisations", "", "Phase A organisation ledger (not in the log): a simulation ledger beside the log, with simulation credits granted by the house; Phase B needs a real agent-to-organisation transfer record.", ""];
+    if (!this.orgs.size) { L.push("No organisation was founded."); return L.join("\n") + "\n"; }
+    L.push("| Organisation | State | Treasury | Shares held (concentration) | Members | Wages paid | Dividends | Unpaid |", "|---|---|---|---|---|---|---|---|");
+    for (const o of this.orgs.values()) {
+      const tot = [...o.shares.values()].reduce((x, y) => x + y, 0), top = [...o.shares.values()].sort((a, b) => b - a)[0] ?? 0;
+      const paid = (kind: string): number => this.journal.filter((e) => e.org === o.id && e.kind === "org_move" && e.note === kind).reduce((x, e) => x + e.amount, 0);
+      L.push(`| ${o.id} ${o.name} | ${o.state} | ${o.treasury} | ${tot ? `${Math.round((100 * top) / tot)}% held by the largest` : "none"} | ${o.members.size} | ${paid("wage")} | ${paid("dividend")} | ${o.unpaid.reduce((x, u) => x + u.amount, 0)} |`);
+    }
+    const open = [...this.orgs.values()].filter((o) => o.state === "open").length, failed = [...this.orgs.values()].filter((o) => o.state === "failed").length, closed = [...this.orgs.values()].filter((o) => o.state === "closed").length, distress = [...this.orgs.values()].filter((o) => o.state === "distressed").length;
+    L.push("", `${this.orgs.size} founded, ${open} open, ${failed} failed to open (investments returned), ${distress} in distress, ${closed} wound up. The journal has ${this.journal.length} entries and ${this.verifyJournal() ? "verifies" : "DOES NOT verify"}; credits held ${this.total()} against ${this.initial + this.minted - this.burned} expected (${this.conserved() ? "conserved" : "NOT conserved"}).`);
+    return L.join("\n") + "\n";
   }
   /** Wind-up: wages first, then other debts, then the bond and what is left to the shareholders by shares; the organisation closes. */
   windUp(id: string): { ok: boolean; why?: string } {

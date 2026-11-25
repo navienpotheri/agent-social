@@ -24,7 +24,7 @@ test("stats_look counts from the log: the first reading of the price index is 10
     const t = (await runTool(w.api, a, all, "stats_look", {})).text;
     assert.match(t, /^Statistics office \(counted from the log; read only; mock credits\)\. Jobs open \d+, mean budget [\d.]+, price index 100 \(first reading = 100\)\./);
     assert.match(t, /2 of 2 agents have no accepted delivery yet/);
-    assert.match(t, /organisations hold 0% \(no organisations in this run\)\. Shadow policy rate [-\d.]+% \(.*never applied/);
+    assert.match(t, /organisations hold 0% of the simulation credits of the organisation ledger\. Shadow policy rate [-\d.]+% \(.*never applied/);
     const s = await statsOf(w.api);
     assert.equal(s!.agents, 2); assert.equal(s!.priceIndex, 100);
     assert.equal(await w.api.market!.balance(a), before, "looking costs nothing");
