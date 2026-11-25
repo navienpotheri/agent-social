@@ -796,6 +796,7 @@ export const OPTIONS = {
   courses: { type: "string" },
   n: { type: "string" },
   headroom: { type: "boolean" },
+  "max-tokens": { type: "string" },
   interference: { type: "boolean" },
   stats: { type: "boolean" },
   groups: { type: "boolean" },
@@ -6313,7 +6314,7 @@ async function cardEffectCommand(v: Values, io: Io): Promise<number> {
   const n = Math.max(1, Math.trunc(Number(v.n ?? "10")) || 10), cap = Number(v["total-usd"] ?? "5");
   if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
   const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
-  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, interference: !!v.interference, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, interference: !!v.interference, ...(v["max-tokens"] ? { maxTokens: Math.max(500, Math.trunc(Number(v["max-tokens"]) || 4000)) } : {}), ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
   io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent) + renderInterference(r.interference));
   return 0;
 }

@@ -47,3 +47,23 @@ test("--interference gives the artifact written for each course as memory to the
   const raw = JSON.parse(readFileSync(join(dir, "card-effect-samples.json"), "utf8")) as { samples: { arm: string; from?: string }[] };
   assert.equal(raw.samples.filter((s) => s.arm === "memory").length, 3 * 2 * 2, "three memories, two other courses, two samples");
 });
+
+import { parseJson, formHint, renderDiagnostics, runCardEffect, type Sample } from "../src/cohort/card-effect.ts";
+import { ENGINES, engineIds, loadCatalogue } from "../src/lens-courses/index.ts";
+test("the answer's JSON is read from fences and from prose with braces; the form hint names the exact fields; truncation and zeros are diagnosed with the engine's reason", async () => {
+  assert.deepEqual(parseJson('Here you go:\n```json\n{"lessons": ["when a=b then c"]}\n```\nDone.'), { lessons: ["when a=b then c"] });
+  assert.deepEqual(parseJson('I think {this} is fine: {"lessons": ["x"]} and that is all'), { lessons: ["x"] });
+  assert.equal(parseJson("no json here"), undefined);
+  const cat = loadCatalogue(engineIds()).courses;
+  assert.match(formHint(cat.find((c) => c.id === "C-L19-1")!), /"lessons": \["when <feature>=<value>/);
+  assert.match(formHint(cat.find((c) => c.id === "C-L11-1")!), /"grader": \{"kind": "code"\}, "graders"/);
+  // a provider that is cut at the cap and one that answers in the wrong shape
+  let n = 0;
+  const provider = { name: "fake", async complete() { n++; return n % 2 ? { blocks: [{ type: "text" as const, text: '{"lessons": [' }], usage: { input: 10, output: 4000 }, stop: "max_tokens" } : { blocks: [{ type: "text" as const, text: '{"rules": ["a"]}' }], usage: { input: 10, output: 10 }, stop: "end_turn" }; } };
+  const r = await runCardEffect({ provider, model: "fake", courses: ["C-L19-1"], n: 2, seed: "1", totalUsd: 5, headroom: true }, () => undefined);
+  const s = r.samples as Sample[];
+  assert.ok(s.some((x) => x.truncated && x.unparsable), "a cut answer is marked");
+  assert.ok(s.some((x) => !x.unparsable && x.score === 0 && /rule lines/.test(x.reason ?? "")), "a parsable zero carries the engine's reason");
+  assert.match(renderDiagnostics(s, ["C-L19-1"]), /\| C-L19-1 \| control \| 2 \| 1 \| 1 \| 1 \| /);
+  assert.ok(ENGINES["rule-triage"]);
+});
