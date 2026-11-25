@@ -14,7 +14,7 @@ import type { Provider } from "./types.ts";
 
 export type Arm = "control" | "placebo" | "treatment";
 export interface CardEffectOptions { /** After the arms: the artifact written for course A (treatment arm) is given as memory while the model sits the held-out items of every other course, against the same items without it: does a write-back make the agent worse elsewhere? */ interference?: boolean; provider: Provider; model: string; courses: string[]; n: number; seed: string; totalUsd: number; headroom: boolean; out?: string; maxTokens?: number; price?: { inPerM: number; outPerM: number } }
-export interface Sample { /** For the interference arm: the course whose artifact was given as memory. */ from?: string; course: string; arm: Arm | "memory"; i: number; score: number; answer: string; inputTokens: number; outputTokens: number; error?: string }
+export interface Sample { /** The model's answer was cut at the output-token cap, so it may be incomplete. */ truncated?: boolean; /** No JSON could be read from the answer. */ unparsable?: boolean; /** Why the engine scored the answer zero, in its own words, and the raw measures. */ reason?: string; measures?: Record<string, unknown>; /** For the interference arm: the course whose artifact was given as memory. */ from?: string; course: string; arm: Arm | "memory"; i: number; score: number; answer: string; inputTokens: number; outputTokens: number; error?: string }
 export interface InterferenceRow { from: string; pairs: number; meanChange: number | null; ci: [number, number] | null; worst: { course: string; change: number } | null }
 /** What each row measures: the course's engine either scores generic rule-writing or a probe of the paper's own skill (paper-specific probes are registered by id). */
 /** The paper-specific probe courses and the course whose card parts carry the same paper (ENG130). */
@@ -36,17 +36,29 @@ export function bootstrapDiff(a: number[], b: number[], seed: string): [number, 
 export const treatmentText = (course: string): string => { const c = PAPER_COURSES.find((x) => x.course === (PROBE_BASE[course] ?? course)); return c ? c.parts.map((p) => `Part ${p.n} of ${c.parts.length}: ${p.title}. ${p.digest}`).join("\n\n") : ""; };
 export const placeboText = (len: number): string => PLACEBO.repeat(Math.ceil(len / PLACEBO.length)).slice(0, len);
 
+/** The form of the answer the engine will read, given to every arm: a sitting agent learns it from the practice tasks and the engine's first refusal, and a model should not be scored zero for guessing a field name. */
+export function formHint(card: CourseCard): string {
+  if (card.generator.engine === "evolving-evals") return 'Form: {"grader": {"kind": "code"}, "graders": [{"id": "g1", "kind": "absent", "pattern": "<regular expression>"}, {"id": "g2", "kind": "present", "pattern": "<regex>"}, {"id": "g3", "kind": "number_over", "output_pattern": "<regex with one capture group>", "input_pattern": "<regex with one capture group>"}, {"id": "g4", "kind": "same_as_input", "output_pattern": "<regex with one capture group>", "input_pattern": "<regex with one capture group>"}]}. At most 12 graders, each pattern at most 80 characters, no nested quantifiers and no lookaround; a grader flags (fails) a bad output; "kind" inside "graders" is one of absent, present, number_over, same_as_input.';
+  if (card.artifact.kind === "lesson") return 'Form: {"lessons": ["when <feature>=<value> and <feature>=<value> then <action>", ...]}: a JSON object with a list of at most six STRINGS, each exactly that form (features, values and actions as they appear in the runbook and the tasks; no reason, no brackets and no extra words in the line; a rule about a name or a one-off is refused).';
+  return `Form: ${card.artifact.description}. Use the exact field names the practice tasks show.`;
+}
 function promptFor(card: CourseCard, practice: unknown, arm: Arm): string {
-  const task = `Task: ${card.title}. ${card.concept}\nWrite the answer the course asks for: ${card.artifact.description}.\nThe practice tasks you may study (the graded ones are different):\n${JSON.stringify(practice).slice(0, 6000)}\nReply with ONLY the JSON of your answer, nothing else.`;
+  const task = `Task: ${card.title}. ${card.concept}\nWrite the answer the course asks for: ${card.artifact.description}.\n${formHint(card)}\nThe practice tasks you may study (the graded ones are different):\n${JSON.stringify(practice).slice(0, 20000)}\nReply with ONLY the JSON of your answer, nothing else.`;
   const treat = treatmentText(card.id);
   const pre = arm === "control" ? "" : arm === "treatment" ? `Read this first:\n${treat}\n\n` : `Read this first:\n${placeboText(treat.length)}\n\n`;
   return pre + task;
 }
-const parseJson = (text: string): unknown => { const m = /[{[][^]*[}\]]/.exec(text); try { return JSON.parse(m ? m[0] : text); } catch { return undefined; } };
+/** The JSON in an answer: the whole text, a fenced block, or the first balanced object or array in prose. */
+export function parseJson(text: string): unknown {
+  const tries: string[] = [text.trim()]; const fence = /```(?:json)?\s*([^]*?)```/i.exec(text); if (fence) tries.push(fence[1]!.trim());
+  for (let i = 0; i < text.length; i++) { const c = text[i]; if (c !== "{" && c !== "[") continue; let d = 0, str = false, esc = false; for (let j = i; j < text.length; j++) { const ch = text[j]!; if (str) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') str = false; continue; } if (ch === '"') str = true; else if (ch === "{" || ch === "[") d++; else if (ch === "}" || ch === "]") { d--; if (d === 0) { tries.push(text.slice(i, j + 1)); break; } } } if (tries.length > 6) break; }
+  for (const t of tries) { try { const v = JSON.parse(t); if (v !== null && typeof v === "object") return v; } catch { /* try the next */ } }
+  return undefined;
+}
 
 export function estimate(o: Pick<CardEffectOptions, "courses" | "n" | "headroom" | "model" | "price" | "maxTokens">): { calls: number; usd: number; line: string } {
   const arms = o.headroom ? 1 : 3, calls = o.courses.length * o.n * arms, p = o.price ?? priceFor(o.model);
-  const inTok = 1500 + 900, outTok = o.maxTokens ?? 1500; // a rough bound: the task, the practice set and the card parts in; the answer out
+  const inTok = 1500 + 900, outTok = o.maxTokens ?? 4000; // a rough bound: the task, the practice set and the card parts in; the answer out
   const usd = calls * ((inTok * p.inPerM + outTok * p.outPerM) / 1_000_000);
   return { calls, usd, line: `${o.courses.length} course${o.courses.length === 1 ? "" : "s"} x ${o.n} samples x ${arms} arm${arms === 1 ? "" : "s"} = ${calls} model calls, at most about $${usd.toFixed(2)} (bound from ~${inTok} tokens in and ${outTok} out per call, ${p.inPerM}/${p.outPerM} USD per million tokens)` };
 }
@@ -69,7 +81,7 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
         const pre = arm === "control" ? "" : arm === "treatment" ? `Read this first:\n${treat}\n\n` : `Read this first:\n${placeboText(treat.length)}\n\n`;
         let answer = "", err: string | undefined, inT = 0, outT = 0, score = 0;
         try {
-          const r = await o.provider.complete({ system: "You are taking a short check. Follow the instruction exactly.", messages: [{ role: "user", content: pre + made.prompt }], tools: [], maxTokens: o.maxTokens ?? 3000 });
+          const r = await o.provider.complete({ system: "You are taking a short check. Follow the instruction exactly.", messages: [{ role: "user", content: pre + made.prompt }], tools: [], maxTokens: o.maxTokens ?? 4000 });
           answer = r.blocks.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n"); inT = r.usage.input; outT = r.usage.output; spent += (inT * p.inPerM + outT * p.outPerM) / 1_000_000;
           score = probe.score(answer, made.truth).score;
         } catch (e) { err = (e as Error).message.slice(0, 200); }
@@ -81,15 +93,23 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
     for (let i = 0; i < o.n && !stopped; i++) for (const arm of arms) {
       if (spent >= o.totalUsd) { stopped = true; say(`The dollar cap ($${o.totalUsd.toFixed(2)}) was reached: the study stops here.`); break; }
       const practice = ENGINES[card.generator.engine]!.practice(`card-effect|${o.seed}|${course}|${i}`);
-      let answer = "", err: string | undefined, inT = 0, outT = 0, score = 0;
+      let answer = "", err: string | undefined, inT = 0, outT = 0, score = 0, truncated = false, unparsable = false, reason: string | undefined, measures: Record<string, unknown> | undefined;
       try {
-        const r = await o.provider.complete({ system: "You are taking a short course check. Follow the instruction exactly.", messages: [{ role: "user", content: promptFor(card, practice, arm) }], tools: [], maxTokens: o.maxTokens ?? 1500 });
+        const cap = o.maxTokens ?? 4000;
+        const r = await o.provider.complete({ system: "You are taking a short course check. Follow the instruction exactly.", messages: [{ role: "user", content: promptFor(card, practice, arm) }], tools: [], maxTokens: cap });
         answer = r.blocks.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n"); inT = r.usage.input; outT = r.usage.output;
+        truncated = r.stop === "max_tokens" || outT >= cap;
         spent += (inT * p.inPerM + outT * p.outPerM) / 1_000_000;
         const artifact = parseJson(answer);
-        score = artifact === undefined ? 0 : sit(card, artifact, `card-effect-${arm}-${i}`, 1, `card-effect|${o.seed}|${course}|${i}`).mean_permille / 10;
+        if (artifact === undefined) { unparsable = true; reason = truncated ? "the answer was cut at the output-token cap, so no complete JSON could be read" : "no JSON object or list could be read from the answer"; }
+        else {
+          const sitting = sit(card, artifact, `card-effect-${arm}-${i}`, 1, `card-effect|${o.seed}|${course}|${i}`);
+          score = sitting.mean_permille / 10;
+          const first = sitting.runs[0]; measures = { runs: sitting.runs.length, passed: sitting.passed, min_permille: sitting.min_permille, ...(first?.measures ?? {}) };
+          if (score === 0) reason = first?.failures[0] ?? "the engine scored zero without a reason";
+        }
       } catch (e) { err = (e as Error).message.slice(0, 200); }
-      samples.push({ course, arm, i, score, answer: answer.slice(0, 4000), inputTokens: inT, outputTokens: outT, ...(err ? { error: err } : {}) });
+      samples.push({ course, arm, i, score, answer: answer.slice(0, 6000), inputTokens: inT, outputTokens: outT, ...(truncated ? { truncated } : {}), ...(unparsable ? { unparsable } : {}), ...(reason ? { reason } : {}), ...(measures ? { measures } : {}), ...(err ? { error: err } : {}) });
     }
   }
   // Interference: the artifact a model wrote for course A (after the cards) is memory for the held-out items of the other courses
@@ -126,12 +146,25 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
     const c = of("control"), pl = of("placebo"), tr = of("treatment");
     rows.push({ construct: constructOf(course), course, title: card.title, n: c.length, control: c.length ? mean(c) : null, placebo: pl.length ? mean(pl) : null, treatment: tr.length ? mean(tr) : null, diff: c.length && tr.length ? mean(tr) - mean(c) : null, ci: c.length && tr.length ? bootstrapDiff(tr, c, `${o.seed}|${course}`) : null });
   }
+  const diag = renderDiagnostics(samples, o.courses);
+  if (diag) say(diag);
   if (o.out) {
     mkdirSync(o.out, { recursive: true });
     writeFileSync(join(o.out, "card-effect-samples.json"), JSON.stringify({ model: o.model, seed: o.seed, samples }, null, 2) + "\n");
     writeFileSync(join(o.out, "card-effect.md"), renderRows(rows, o, spent) + renderInterference(interference));
   }
   return { rows, samples, spent, interference };
+}
+/** Per course and arm: how many answers could not be parsed, were cut at the token cap, or parsed and still scored zero, and the engine's most common reason: a floor of zeros is not a measure. */
+export function renderDiagnostics(samples: Sample[], courses: string[]): string {
+  const L = ["", "## Diagnostics: what the zeros are", "", "| Course | Arm | n | Unparsable | Cut at the token cap | Parsable and zero | Most common reason for a zero |", "|---|---|---|---|---|---|---|"]; let any = false;
+  for (const c of courses) for (const arm of ["control", "placebo", "treatment"] as const) {
+    const s = samples.filter((x) => x.course === c && x.arm === arm && !x.error); if (!s.length) continue; any = true;
+    const zeros = s.filter((x) => x.score === 0), parsableZero = zeros.filter((x) => !x.unparsable), reasons = new Map<string, number>(); for (const z of zeros) { const r = (z.reason ?? "no reason recorded").slice(0, 90); reasons.set(r, (reasons.get(r) ?? 0) + 1); }
+    const top = [...reasons.entries()].sort((a, b) => b[1] - a[1])[0];
+    L.push(`| ${c} | ${arm} | ${s.length} | ${s.filter((x) => x.unparsable).length} | ${s.filter((x) => x.truncated).length} | ${parsableZero.length} | ${top ? `${top[0]} (${top[1]})` : "none"} |`);
+  }
+  return any ? L.join("\n") + "\n" : "";
 }
 export function renderInterference(rows: InterferenceRow[]): string {
   if (!rows.length) return "";
