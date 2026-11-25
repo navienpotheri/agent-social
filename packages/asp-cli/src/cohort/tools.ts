@@ -337,6 +337,7 @@ export const stripExtras = (s: string): string => s.replace(/^This society is fu
  * Nothing is asked of the agent and no payoff is promised beyond what the tool does.
  */
 export function introFor(world: WorldApi, agentN?: number): string {
+  if (world.longIntro) return "";
   const on = (g: string): boolean => !world.groups || world.groups.has(g);
   const l: string[] = [];
   if (world.games && on("games")) l.push("Games: twenty-one, hide-and-seek, word-pair, trading, in rounds of four (game_list, game_enter); the first two places are paid.");
