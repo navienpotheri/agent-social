@@ -355,7 +355,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
           })) : [];
           return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (o.signals ? signalsBriefing(o.signals) : "") + (o.shortIntro ? "" : `
 
-${longIntro(world.api, a.n, { notebook: !!life })}`) + (a.persona ? `
+${longIntro(world.api, a.n, { notebook: !!life, writeback: !o.noCourseWriteback, tools: new Set([...tools.map((t) => t.name), ...lifeTools.map((t) => t.name)]) })}`) + (a.persona ? `
 
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };
