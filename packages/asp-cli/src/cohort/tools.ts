@@ -64,6 +64,14 @@ const RAW_TOOLS: ToolDef[] = [
   { name: "desert_look", description: "The desert crossing for groups of three: your group, which of the three beacons are lit and by whom. Joining is never required.", input_schema: obj({}), scope: "read.desert", institution: "desert" },
   { name: "desert_light", description: "Light one beacon (north, east or west) of your group. When three different agents of a group have lit the three, the house referee pays each of them a few mock credits, once. Each agent lights one.", input_schema: obj({ beacon: str("north, east or west", 10) }, ["beacon"]), scope: "write.desert", institution: "desert" },
   { name: "stats_look", description: "The statistics office: a price index of the jobs on the board, the volume of work, the agents without work, how credits are spread (Gini, the top three's share) and a shadow policy rate that is computed and never applied. Read only.", input_schema: obj({}), scope: "read.society", institution: "treasury" },
+  { name: "org_found", description: "Found an organisation in the Phase A organisation ledger (a simulation ledger, not in the log): a name, a pool target in simulation credits and the days to raise it. Others invest (one share per credit); if the pool is met it opens with a treasury, and if not every investment is returned. Costs a small founding fee.", input_schema: obj({ name: str("the organisation's name", 60), pool_target: { type: "integer", minimum: 1, maximum: 500 }, days: { type: "integer", minimum: 1, maximum: 30 } }, ["name", "pool_target"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_invest", description: "Invest simulation credits in an organisation that is forming: one share per credit, locked until it opens or the deadline passes.", input_schema: obj({ org: str("the organisation id", 20), amount: { type: "integer", minimum: 1, maximum: 500 } }, ["org", "amount"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_join", description: "Join an open organisation as an employee, contractor or partner at a wage per period (an agent belongs to at most three).", input_schema: obj({ org: str("the organisation id", 20), role: str("employee, contractor or partner", 12), wage: { type: "integer", minimum: 0, maximum: 100 } }, ["org", "role", "wage"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_leave", description: "Leave an organisation you belong to.", input_schema: obj({ org: str("the organisation id", 20) }, ["org"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_pay", description: "An officer pays a wage, a debt or a dividend out of the treasury. A payment the treasury cannot cover is not made and is recorded as unpaid; a dividend comes only from retained profit.", input_schema: obj({ org: str("the organisation id", 20), to: str("the agent handle", 20), amount: { type: "integer", minimum: 1, maximum: 500 }, kind: str("wage, debt or dividend", 10) }, ["org", "to", "amount", "kind"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_close_period", description: "An officer closes the organisation's period: wages are paid, retained profit is recorded. The house also closes every period at its market hour, so no officer has to be awake.", input_schema: obj({ org: str("the organisation id", 20) }, ["org"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_wind_up", description: "An officer winds up an organisation in distress (no income for three periods and unpaid debts above its treasury): wages first, then other debts, then the shareholders by shares.", input_schema: obj({ org: str("the organisation id", 20) }, ["org"]), scope: "write.orgs", institution: "orgs", writes: true },
+  { name: "org_look", description: "Read the organisations (or one): state, treasury, shares, members, unpaid items and the officers. Phase A is a simulation ledger beside the log.", input_schema: obj({ org: str("an organisation id, or leave empty for all", 20) }), scope: "read.orgs", institution: "orgs" },
   { name: "game_results", description: "The leaderboard and the latest rounds with every player's score and transcript hash: what a spectator sees.", input_schema: obj({ game: str("limit to one game", 20) }), scope: "read.games", institution: "games" },
   { name: "inspect", description: "Look closely at one place on the map, such as registry or academy. Some places have more to see than the map shows; most have nothing more.", input_schema: obj({ place: str("a place id from the map", 40) }, ["place"]), scope: "read.society", institution: "map" },
   { name: "field_answer", description: "Answer the question on a card you found at a place by looking closely at it (inspect). A good answer is a small once-only reward; nothing is lost by a wrong one. If a post in the Finds thread told you where the card was, you may cite it (cite): its author earns a small credit.", input_schema: obj({ place: str("the place where you found the card", 40), answer: str("your answer in your own words", 300), cite: str("the id of a post in the Finds thread that told you where this card was, if one did", 90) }, ["place", "answer"]), scope: "write.field", institution: "map", writes: true },
@@ -120,10 +128,10 @@ const BY_NAME = new Map([...TOOLS, ...LIFE_DEFS].map((t) => [t.name, t]));
  * Tool groups that are offered only when the run turns them on (row ENG66): the tool list is paid for on every turn, so what not every agent needs is left out unless the run asks for it. The core (the forum, the Market,
  * the Academy, messages, the map, credits and progress, catch_up, suggest and the engine's own tools) is always offered. A group is fixed for the whole run, which keeps the cached prefix of the prompt stable between turns.
  */
-export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", stats: "--stats", desert: "--desert", town: "--roles", library: "--library" };
+export const GROUP_FLAG: Record<string, string> = { expedition: "--orientation or --markers", games: "--games", stats: "--stats", orgs: "--orgs", desert: "--desert", town: "--roles", library: "--library" };
 export const GROUP_OF: Record<string, string> = {
   inspect: "expedition", orientation_progress: "expedition", field_answer: "expedition",
-  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert", stats_look: "stats",
+  game_list: "games", game_enter: "games", game_results: "games", desert_look: "desert", desert_light: "desert", stats_look: "stats", org_found: "orgs", org_invest: "orgs", org_join: "orgs", org_leave: "orgs", org_pay: "orgs", org_close_period: "orgs", org_wind_up: "orgs", org_look: "orgs",
   role_take: "town", town_hall: "town", town_propose: "town", town_vote: "town",
   my_agenda: "agenda", repo_read: "repo", repo_edit: "repo",
   assess_list: "assess", assess_submit: "assess",
@@ -719,6 +727,7 @@ async function runToolInner(world: WorldApi, agent: AgentCtx, allow: ReadonlySet
     case "course_enrol": case "course_sit": return await academyTool(world, agent, name, input);
     case "unlock": case "my_progress": return await progressTool(world, agent, name, input);
     case "role_take": case "town_hall": case "town_propose": case "town_vote": return await townTool(world, agent, name, input);
+    case "org_found": case "org_invest": case "org_join": case "org_leave": case "org_pay": case "org_close_period": case "org_wind_up": case "org_look": return orgTool(world, agent, name, input);
     case "stats_look": { const s = await statsOf(world); return { ok: true, text: s ? renderStatsText(s) : "There is no market here to count." }; }
     case "desert_look": case "desert_light": {
       const d = world.desert; if (!d) return { ok: true, text: "There is no desert in this society." };
@@ -816,6 +825,25 @@ async function townTool(world: WorldApi, agent: AgentCtx, name: string, input: R
     const p = t.propose(agent.did, agent.handle, { title: input.title as string, kind: input.kind as string, key: input.key as string, value });
     return { ok: true, text: `Proposal ${p.id} is open: ${p.title}. Other agents can vote on it, and the weekly town meeting decides it (${QUORUM} votes are needed).` };
   } catch (e) { return refuse("town_refused", (e as Error).message); }
+}
+
+/** The organisation tools (Phase A: a simulation ledger beside the log; orgs.ts). Not built: org_object and org_vote (windows, a quorum), the link to the real balances. */
+function orgTool(world: WorldApi, agent: AgentCtx, name: string, input: Record<string, unknown>): ToolResult {
+  const L = world.orgs; if (!L) return { ok: true, text: "There are no organisations in this society." };
+  L.ensure(agent.handle);
+  const org = String(input.org ?? ""), fail = (why: string): ToolResult => refuse("org_refused", why), now = Date.now();
+  const show = (id: string): string => { const o = L.orgs.get(id)!; return `${id} "${o.name}": ${o.state}; treasury ${o.treasury}, bond ${o.bond}, retained ${o.retained}; shares ${[...o.shares].map(([a, s]) => `${a} ${s}`).join(", ") || "none"} of the pool target ${o.poolTarget}; members ${[...o.members].map(([a, m]) => `${a} (${m.role}, wage ${m.wage})`).join(", ") || "none"}; unpaid ${o.unpaid.filter((u) => u.amount > 0).map((u) => `${u.to} ${u.amount}`).join(", ") || "none"}; officers ${L.officers(id).join(", ")}; period ${o.period}.`; };
+  const officer = (id: string): boolean => L.officers(id).includes(agent.handle);
+  if (name === "org_look") { const ids = org ? [org] : [...L.orgs.keys()]; if (org && !L.orgs.has(org)) return fail("there is no such organisation"); return { ok: true, text: `Phase A organisation ledger (a simulation ledger beside the log, not in the log). You hold ${L.balances.get(agent.handle) ?? 0} simulation credits.\n${ids.length ? ids.map(show).join("\n") : "No organisation has been founded."}` }; }
+  if (name === "org_found") { const id = `org-${L.orgs.size + 1}`, r = L.found(id, agent.handle, String(input.name ?? "").slice(0, 60), Number(input.pool_target), now + Number(input.days ?? 7) * 86_400_000); return r.ok ? { ok: true, text: `Founded ${id}. Others can org_invest until the deadline; if the pool of ${input.pool_target} is met it opens, otherwise every investment is returned. The founding fee was burned.` } : fail(r.why!); }
+  if (!L.orgs.has(org)) return fail("there is no such organisation");
+  if (name === "org_invest") { const r = L.invest(org, agent.handle, Number(input.amount), now); if (!r.ok) return fail(r.why!); const s = L.settleFounding(org, now); return { ok: true, text: `Invested ${input.amount}: ${input.amount} shares, locked.${s === "open" ? " The pool is met and the organisation is OPEN, with a treasury." : ""}` }; }
+  if (name === "org_join") { const r = L.join(org, agent.handle, String(input.role) as "employee", Number(input.wage)); return r.ok ? { ok: true, text: `You joined ${org}. Its house-run payroll pays your wage at each period close, if the treasury covers it.` } : fail(r.why!); }
+  if (name === "org_leave") return L.leave(org, agent.handle) ? { ok: true, text: `You left ${org}.` } : fail("you are not a member");
+  if (!officer(org)) return fail("only an officer of the organisation may do this");
+  if (name === "org_pay") { const r = L.pay(org, String(input.to), Number(input.amount), String(input.kind) as "wage"); return r.paid ? { ok: true, text: "Paid." } : fail(r.note); }
+  if (name === "org_close_period") { const r = L.closePeriod(org); return { ok: true, text: `Period closed: income ${r.income}, paid out ${r.out}, retained ${r.retained}.` }; }
+  const w = L.windUp(org); return w.ok ? { ok: true, text: `${org} was wound up: wages first, then debts, then the shareholders.` } : fail(w.why!);
 }
 
 /** The game tools (games.ts): the rules, an entry committed by a hash, and the results a spectator would see. */

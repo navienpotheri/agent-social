@@ -4,6 +4,7 @@
  * the local institutions (operator, owner, Treasury, the Market, a bank), all generated in memory for the run and never saved; it acts as each agent's clerk and signs only what the agent's tool call asks for.
  * It seeds a price list and a few house jobs so that the board is not empty. Credits are mock accounting entries, not money.
  */
+import { formHint, formProblem } from "./form-hint.ts";
 import { b64urlEncode, cosign, createRecord, publicKeyFromSeed, randomSeed, type AspRecord, type Signer } from "@agent-social/asp-core";
 import { createHash } from "node:crypto";
 import { institutionDid, REGISTRAR_DID, SEED_PREFIX, TREASURY_DID } from "@agent-social/asp-log";
@@ -47,6 +48,7 @@ export const POSTER_BONUS = 2;
 
 interface Enrolled { agent: AgentCtx; party: Party; mandate: string; contract: string }
 
+const withForm = (card: CourseCard, practice: unknown): unknown => (practice && typeof practice === "object" && !Array.isArray(practice) ? { form: formHint(card), ...(practice as object) } : { form: formHint(card), practice });
 export class MarketHall {
   private readonly log: LocalLog;
   private readonly p: Parties;
@@ -609,13 +611,13 @@ export class MarketHall {
     if (!card) throw new Error(`there is no course ${courseId} here: ${this.courses.map((c) => c.id).join(", ") || "none"}`);
     const reader = this.log.log as never;
     const open = await openEnrolment(reader, card, agent.did);
-    if (open) return { enrolment: open.id, practice: ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, open.id, 1)), tuition: 0 };
+    if (open) return { enrolment: open.id, practice: withForm(card, ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, open.id, 1))), tuition: 0 };
     const course = await courseRecordFor(reader, card);
     if (!course) throw new Error("the course is not published");
     if (await this.balance(agent) < card.price) throw new Error(`you have ${await this.balance(agent)} credits and the tuition is ${card.price}`);
     const purchase = await this.put(this.mk("purchase", e.party, { service: courseService(card), institution: institutionDid("academy"), price_list: this.priceList, quantity: 1, amount: credit(card.price), idempotency: `course-${++this.n}`, mandate: e.mandate }, null, agent.did));
     const enrolment = await this.put(this.mk("enrolment", e.party, { course: course.id, purchase }, null, agent.did));
-    return { enrolment, practice: ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, enrolment, 1)), tuition: card.price };
+    return { enrolment, practice: withForm(card, ENGINES[card.generator.engine].practice(practiceSeed(card, agent.did, enrolment, 1))), tuition: card.price };
   }
 
   /** The agent sits the course with an answer (the artifact the course asks for): graded on held-out tasks drawn from the log's head now; a pass is reported in an Action and attested by the Registrar. */
@@ -627,7 +629,8 @@ export class MarketHall {
     const open = await openEnrolment(reader, card, agent.did);
     if (!open) throw new Error(`you are not enrolled in ${courseId}: use course_enrol first`);
     let artifact: unknown;
-    try { artifact = JSON.parse(answer); } catch { throw new Error("your answer must be JSON in the form the course asks for"); }
+    try { artifact = JSON.parse(answer); } catch { throw new Error(`your answer must be JSON in the form the course asks for. ${formHint(card)}`); }
+    { const bad = formProblem(card, artifact); if (bad) return { passed: false, lines: [`refused (wrong_form): ${bad}. ${formHint(card)} No sitting was used up.`] }; }
     try {
       const result = await runSitting(card, { holder: agent.did, enrolment: open.id, artifact }, { reader, ledger: this.ledger, now: () => this.at() });
       const lines = describeSitting(card, result);

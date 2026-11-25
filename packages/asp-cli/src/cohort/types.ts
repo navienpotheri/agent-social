@@ -44,6 +44,8 @@ export interface WorldApi {
   agents?: number;
   /** Batch G2: groups of three are assigned by agent number (groups.ts). */
   groupsOfThree?: boolean;
+  /** Phase A organisations: a simulation ledger beside the log (orgs.ts), when the run has `--orgs`. */
+  orgs?: import("./orgs.ts").OrgLedger;
   /** The longer introduction is in the agents' cached system text, so the short list at the first look is not repeated. */
   longIntro?: boolean;
   /** The games of the local society (games.ts), when the run has them. */

@@ -36,12 +36,8 @@ export function bootstrapDiff(a: number[], b: number[], seed: string): [number, 
 export const treatmentText = (course: string): string => { const c = PAPER_COURSES.find((x) => x.course === (PROBE_BASE[course] ?? course)); return c ? c.parts.map((p) => `Part ${p.n} of ${c.parts.length}: ${p.title}. ${p.digest}`).join("\n\n") : ""; };
 export const placeboText = (len: number): string => PLACEBO.repeat(Math.ceil(len / PLACEBO.length)).slice(0, len);
 
-/** The form of the answer the engine will read, given to every arm: a sitting agent learns it from the practice tasks and the engine's first refusal, and a model should not be scored zero for guessing a field name. */
-export function formHint(card: CourseCard): string {
-  if (card.generator.engine === "evolving-evals") return 'Form: {"grader": {"kind": "code"}, "graders": [{"id": "g1", "kind": "absent", "pattern": "<regular expression>"}, {"id": "g2", "kind": "present", "pattern": "<regex>"}, {"id": "g3", "kind": "number_over", "output_pattern": "<regex with one capture group>", "input_pattern": "<regex with one capture group>"}, {"id": "g4", "kind": "same_as_input", "output_pattern": "<regex with one capture group>", "input_pattern": "<regex with one capture group>"}]}. At most 12 graders, each pattern at most 80 characters, no nested quantifiers and no lookaround; a grader flags (fails) a bad output; "kind" inside "graders" is one of absent, present, number_over, same_as_input.';
-  if (card.artifact.kind === "lesson") return 'Form: {"lessons": ["when <feature>=<value> and <feature>=<value> then <action>", ...]}: a JSON object with a list of at most six STRINGS, each exactly that form (features, values and actions as they appear in the runbook and the tasks; no reason, no brackets and no extra words in the line; a rule about a name or a one-off is refused).';
-  return `Form: ${card.artifact.description}. Use the exact field names the practice tasks show.`;
-}
+import { formHint } from "./form-hint.ts";
+export { formHint };
 function promptFor(card: CourseCard, practice: unknown, arm: Arm): string {
   const task = `Task: ${card.title}. ${card.concept}\nWrite the answer the course asks for: ${card.artifact.description}.\n${formHint(card)}\nThe practice tasks you may study (the graded ones are different):\n${JSON.stringify(practice).slice(0, 20000)}\nReply with ONLY the JSON of your answer, nothing else.`;
   const treat = treatmentText(card.id);

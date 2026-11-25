@@ -7,7 +7,8 @@
  */
 import { DEEP_1 } from "./paper-deep-1.ts";
 import { DEEP_2 } from "./paper-deep-2.ts";
-export const DEEP_COURSES = [...DEEP_1, ...DEEP_2];
+import { DEEP_3 } from "./paper-deep-3.ts";
+export const DEEP_COURSES = [...DEEP_1, ...DEEP_2, ...DEEP_3];
 export interface PaperTask { question: string; accept: RegExp; /** A worked model answer, shown after a right answer. */ model?: string }
 export interface PaperPart { n: number; title: string; digest: string; task?: PaperTask }
 export interface PaperCourse { course: string; lens: string; papers: string; title: string; parts: PaperPart[]; /** The primary source and its type, stated honestly, and what the sitting does and does not test of it (substantial courses). */ source?: string; sourceType?: string; tests?: string }
@@ -93,7 +94,9 @@ export const RULE_COURSES: PaperCourse[] = RULE_META.map(ruleCourse);
 PAPER_COURSES.push(...RULE_COURSES);
 // the substantial courses (learning-gain study, step 4): four parts of 250 to 400 words, three practice tasks with model answers, the source and its type, and what the sitting does and does not test
 for (const d of DEEP_COURSES) {
-  const c = PAPER_COURSES.find((x) => x.course === d.course); if (!c) continue;
+  let c = PAPER_COURSES.find((x) => x.course === d.course);
+  if (!c && d.lens && d.papers && d.title) { c = { course: d.course, lens: d.lens, papers: d.papers, title: d.title, parts: [] }; PAPER_COURSES.push(c); }
+  if (!c) continue;
   c.source = d.source; c.sourceType = d.sourceType; c.tests = d.tests;
   c.parts = d.parts.map((p, i): PaperPart => ({ n: i + 1, title: p.title, digest: p.text, ...(d.tasks[i] ? { task: { question: d.tasks[i]!.question, accept: d.tasks[i]!.accept, model: d.tasks[i]!.model } } : {}) }));
 }
