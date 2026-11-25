@@ -37,6 +37,7 @@ import { renderRepoGrades } from "./repo-pilot.ts";
 import { renderBattery } from "./battery.ts";
 import { seenLines } from "./seen.ts";
 import { renderGroups } from "./groups.ts";
+import { applyGate, newSigningKey, recordOf, renderWatch, signRecord, staticHarmScreen } from "./regression.ts";
 import { longIntro } from "./intro-long.ts";
 import { renderStatsReport } from "./stats.ts";
 import { renderPaperReport } from "./paper-report.ts";
@@ -126,6 +127,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** R4: what to do with a write-back (a course pass, an admitted lesson) the regression screen flags: off, warn (default: apply and say so) or block (hold it, never remove a capability). */
+  regressionGate?: "off" | "warn" | "block";
   /** Keep the short introduction at the first look instead of the longer one in the cached system text. */
   shortIntro?: boolean;
   /** Turn the notebook line after a passed Academy sitting off (the control for ENG129 S3). */
@@ -285,6 +288,15 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
             else trace({ t: "leave", at: stamp(), agent: n.agent, simMs: Math.round(n.simAt), sinceArrivalMs: Math.round(n.sinceArrivalSimMs), pending: n.pending, afterCheck: n.afterCheck, reason: n.reason });
           }, ...(o.life.sleep ? { sleep: o.life.sleep } : {}) }) : undefined;
         // ENG78: a refusal written back to the notebook of an agent in the writeback arm (no model call); the trace says what was done.
+        // R4: a check at each write-back (a course pass, an admitted lesson): the STATIC harm screen (labelled so; the measured check is `asp academy regression-check`), a signed record in the trace, and the gate
+        const runKey = newSigningKey(), gateMode = o.regressionGate ?? "warn";
+        const gateCheck = (id: string, kind: string, text: string): boolean => {
+          if (gateMode === "off") return true;
+          const screen = staticHarmScreen(text), g = applyGate(gateMode, screen.verdict);
+          const rec = signRecord(recordOf({ kind: "regression_check", method: "static_harm_screen", agent: id, change: { kind, hash: `sha256:${createHash("sha256").update(text).digest("hex")}`, chars: text.length }, before: [], after: [], placebo_sd: {}, flags: [], verdict: screen.verdict, min_detectable_drop: {}, at: stamp() }), runKey.privateKey);
+          trace({ t: "regression_check", at: stamp(), agent: id, kind, method: "static_harm_screen", verdict: screen.verdict, reasons: screen.reasons, gate: gateMode, applied: g.apply, note: g.note, hash: rec.hash, ...(rec.signature ? { signature: rec.signature } : {}) });
+          return g.apply;
+        };
         const writeBack = (id: string, tool: string, rule: string, reason: string) => {
           if (arms?.get(id) !== "writeback" || !life) return;
           const action = life.agent(id).writeback({ tool, rule, reason });
@@ -311,7 +323,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               // after a passed Academy sitting, one labelled line in the agent's own notebook (the write-back of the course), once for each course, recorded in the trace (ENG129 S3)
               if (t.name === "course_sit" && r.ok && /^PASSED\./.test(r.text) && life) {
                 const course = String(args.course ?? ""), card = world.api.market?.courseCard(course);
-                if (card && !o.noCourseWriteback) {
+                if (card && !o.noCourseWriteback && gateCheck(id, "course", String(args.answer ?? ""))) {
                   const action = life.agent(id).courseNote({ course, title: card.title, answer: String(args.answer ?? "") });
                   trace({ t: "course_notebook", at: stamp(), agent: id, course, action, hash: createHash("sha256").update(`${id}|${course}`).digest("hex").slice(0, 16) });
                 }
@@ -319,7 +331,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               // a lesson the gate admitted and this agent cited becomes one labelled line in its notebook, recorded in the trace and on the shelf (ENG102 follow-up)
               if (t.name === "lesson_cite" && r.ok && life && world.api.lessons) {
                 const card = world.api.lessons.get(String(args.id ?? ""));
-                if (card?.decision.admitted) {
+                if (card?.decision.admitted && gateCheck(id, "lesson", card.lesson)) {
                   const action = life.agent(id).lessonNote({ id: card.id, handle: card.handle, title: card.title, lesson: card.lesson });
                   world.api.lessons.notebookWrites.push({ id: card.id, handle: a.handle, at: stamp(), action, hash: card.hash });
                   trace({ t: "lesson_notebook", at: stamp(), agent: id, id: card.id, hash: card.hash, action });
@@ -409,13 +421,14 @@ ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. 
     }
   }
   const statsPart = o.stats ? await renderStatsReport(world.api) : "";
+  const watchPart = o.experiment ? renderWatch(events as never, assignAccess(Array.from({ length: o.agents }, (_, i) => handleOf(i)), o.experiment.seed), (world.api.market?.sittingLog ?? []).map((x) => ({ handle: x.handle, passed: x.passed })), (world.api.lessons?.cards ?? []).map((c) => ({ handle: c.handle, lesson: c.lesson }))) : "";
   const report = analyse(events);
   const { markdown, json } = renderReport(report);
   const markdownPath = join(dir, "report.md");
   const eco = economyOf(events);
   const eng = engagementOf(events, o.life?.engagedMinutes ?? 30);
   const kr = o.kinds ? kindsReport(events, o.life?.engagedMinutes ?? 30) : undefined;  const mr = o.models ? modelsReport(events, o.budgetUsd, o.life?.engagedMinutes ?? 30) : undefined;  const wr = o.writeback ? writebackReport(events) : undefined;  const pv = o.engine ? provenanceOf(events) : undefined;  const xr = o.experiment ? experimentReport({ resources: o.experiment.resources, arms: new Map(events.filter((e): e is Extract<TraceEvent, { t: "agent" }> => e.t === "agent" && !!e.access).map((e) => [e.agent, e.access!])), scores: [], events }) : undefined;  writeFileSync(markdownPath, (logPart ? `${markdown}\n${renderLogSections(logPart, { perAgent: report.perAgent })}\n` : markdown) + `\n${renderEconomy(eco)}` + (world.api.games ? `\n${renderGames(world.api.games)}` : "") + (world.api.dayCycle ? `\n${renderDayCycle(world.api.dayCycle, events.filter((e): e is Extract<TraceEvent, { t: "wake" }> => e.t === "wake" && e.kinds.includes("event")).map((e) => ({ agent: e.agent, because: e.because })))}` : "") + (world.api.town ? `\n${renderTown(world.api.town)}` : "") + (findsPart ? `\n${findsPart}` : "") + (talkPart ? `\n${talkPart}` : "") + (world.api.markers ? `\n${renderMarkerWindows(world.api.markers)}` : "") + (world.api.groupsOfThree ? `
-${renderGroups(world.api)}` : "") + (statsPart ? `\n${statsPart}` : "") + (world.api.markers?.paperMode ? `\n${renderPaperReport(world.api.markers, (c) => world.api.market!.sittingStats(c), o.agents, world.api.market!.sittingLog)}` : "") + (guideInfo ? `\n${renderGuideComparison(events, (h) => { const k = Number(/(\d+)$/.exec(h)?.[1] ?? "0") - 1; return !!world.api.fieldGuide?.offered(k); }, guideInfo.guide)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (xr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderExperiment(xr)}`); writeFileSync(join(dir, "experiment.json"), JSON.stringify(xr, null, 2) + "\n"); }  { const oc = outcomesReport(events); writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderOutcomes(oc)}`); writeFileSync(join(dir, "outcomes.json"), JSON.stringify(oc, null, 2) + "\n"); }  if (sg) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderSignals(sg)}`); writeFileSync(join(dir, "signals.json"), JSON.stringify(sg, null, 2) + "\n"); }  if (pv) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderProvenance(pv)}`); writeFileSync(join(dir, "provenance.json"), JSON.stringify(pv, null, 2) + "\n"); }  if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  { const rc = countRefusals(events); writeFileSync(join(dir, "refusal-counts.json"), JSON.stringify({ counts: rc.counts, agents: rc.agents }, null, 2) + "\n"); } /* the counts that a later run can build its field guide from */ if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
+${renderGroups(world.api)}` : "") + (statsPart ? `\n${statsPart}` : "") + (watchPart ? `\n${watchPart}` : "") + (world.api.markers?.paperMode ? `\n${renderPaperReport(world.api.markers, (c) => world.api.market!.sittingStats(c), o.agents, world.api.market!.sittingLog)}` : "") + (guideInfo ? `\n${renderGuideComparison(events, (h) => { const k = Number(/(\d+)$/.exec(h)?.[1] ?? "0") - 1; return !!world.api.fieldGuide?.offered(k); }, guideInfo.guide)}` : "") + (o.life ? `\n${renderEngagement(eng)}` : "") + (creditEconomy ? `\n${renderCreditEconomy(creditEconomy)}\n` : ""));  if (kr) writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderKinds(kr)}`);  if (xr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderExperiment(xr)}`); writeFileSync(join(dir, "experiment.json"), JSON.stringify(xr, null, 2) + "\n"); }  { const oc = outcomesReport(events); writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderOutcomes(oc)}`); writeFileSync(join(dir, "outcomes.json"), JSON.stringify(oc, null, 2) + "\n"); }  if (sg) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderSignals(sg)}`); writeFileSync(join(dir, "signals.json"), JSON.stringify(sg, null, 2) + "\n"); }  if (pv) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderProvenance(pv)}`); writeFileSync(join(dir, "provenance.json"), JSON.stringify(pv, null, 2) + "\n"); }  if (wr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderWriteback(wr)}`); writeFileSync(join(dir, "writeback.json"), JSON.stringify(wr, null, 2) + "\n"); }  if (mr) { writeFileSync(markdownPath, readFileSync(markdownPath, "utf8") + `\n${renderModels(mr)}`); writeFileSync(join(dir, "models.json"), JSON.stringify(mr, null, 2) + "\n"); }  const byKind = (pick: (k: NonNullable<typeof kr>["kinds"][Kind] & object) => unknown) => kr ? { byKind: Object.fromEntries(Object.entries(kr.kinds).map(([k, v]) => [k, pick(v!)])) } : {};  { const rc = countRefusals(events); writeFileSync(join(dir, "refusal-counts.json"), JSON.stringify({ counts: rc.counts, agents: rc.agents }, null, 2) + "\n"); } /* the counts that a later run can build its field guide from */ if (o.life) writeFileSync(join(dir, "engagement.json"), JSON.stringify({ ...eng, ...byKind((k) => k.engagement), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.engagement])) } : {}) }, null, 2) + "\n");  writeFileSync(join(dir, "economy.json"), JSON.stringify({ ...eco, ...byKind((k) => k.economy), ...(mr ? { byModel: Object.fromEntries(Object.entries(mr.models).map(([k, v]) => [k, v.economy])) } : {}) }, null, 2) + "\n");  if (kr) writeFileSync(join(dir, "kinds.json"), JSON.stringify(kr, null, 2) + "\n");
   if (world.api.markers?.paperMode && world.api.market) writeFileSync(join(dir, "paper-sittings.json"), JSON.stringify(world.api.market.sittingLog, null, 2) + "\n");
   if (creditEconomy) writeFileSync(join(dir, "credit-economy.json"), JSON.stringify(creditEconomy, null, 2) + "\n");
   if (signed) writeFileSync(join(dir, "signed-trace.json"), JSON.stringify(signed, null, 2) + "\n");
