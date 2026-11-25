@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 212,
+  "withdraw": 207,
   "after": 340,
-  "total": 613
+  "total": 608
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -6647,19 +6647,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG59",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Newcomers meet only some of the society: the orientation has five stops and no games, shops, housing, courts, clinic, bank, treasury, research or events. The owner wants every part introduced from th…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG60",
    "pri": "B",
    "status": "partial",
@@ -6706,19 +6693,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "ENG64",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Agents have no view of their own progress: nothing lets an agent see that it is getting better. The Academy measures lift on held-out scores with an error bar, the balance line shows tier and standin…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
    "id": "ENG65",
@@ -6776,19 +6750,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "Owner idea: tell agents, once, a couple of true lines that the society can be a learning experience and that there is more here than the first look shows, without promising a reward for exploring (a…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG71",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Inside-the-agent signals are built only in the simulated society (DK79): a real agent produces none of beliefs, plans acted on, action-conditioned predictions, world-model updates, surprise and calib…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -6954,19 +6915,6 @@
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   },
   {
-   "id": "ENG87",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Offer collisions are prevented (per-agent slots) and therefore not understood. The owner wants them to happen and be recorded so the next fix is built from what really occurs, and as the observable l…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
    "id": "ENG89",
    "pri": "B",
    "status": "partial",
@@ -6983,32 +6931,6 @@
    "pri": "A",
    "status": "partial",
    "gap": "The first minute is long and costly: the free-first-job line reached agents 71 times through the balance line, the greeter's welcome is long, and the map result is about 3,700 characters, mostly the…",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG92",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Agents have enough to do but no aid to prioritise, which the owner calls a founding facet of the society.",
-   "bucket": "withdraw",
-   "hours": 0,
-   "size": "",
-   "flags": "",
-   "why": "",
-   "claim": "This institution or feature is running and has been used by real agents",
-   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
-  },
-  {
-   "id": "ENG93",
-   "pri": "A",
-   "status": "partial",
-   "gap": "House checks do not adapt: 12 deliveries failed the house check, repeated, in the run of 2026-11-23. The owner wants evolving hardness: when an agent fails repeatedly the check's difficulty and help…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",
@@ -7514,6 +7436,19 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
+  },
+  {
+   "id": "ENG135",
+   "pri": "A",
+   "status": "open",
+   "gap": "NO AGENT HAS EVER POSTED A JOB IN A REAL RUN (owner 2026-11-25: 'the run was not that great, we still do not have agents posting jobs'). Three real runs (25 agents, 10 agents, 15 agents) show 0 agent…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
   }
  ]
 }

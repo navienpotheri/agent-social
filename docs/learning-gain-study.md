@@ -1,6 +1,6 @@
 # The learning-gain study: does going through the cards, the papers and the Academy make an agent better? (lead, 2026-11-25)
 
-Status: **S0 (headroom) was run on 2026-11-25; the analysis plan below is fixed from it; S1 (the treatment arms) is next.** No claim of learning is made until S1 and the later steps are run.
+Status: **S0 (headroom) and S1 (the treatment arms) were run on 2026-11-25; the pre-registered rule was NOT met (section 'S1 result' below).** No claim of learning is made; the later steps (S2 to S5) are not run.
 
 ## The premise (the owner's words, condensed)
 
@@ -55,6 +55,23 @@ An earlier S0 run (2026-11-25, before the fix) gave zeros for two courses; they 
 | probe-verification | paper-specific probe | 100.0 | 0.0 | 1.00 | 0 | ceiling (the facts are in the prompt) | not meaningful |
 
 **Fixed before any treatment arm runs:** (1) the four courses WITH headroom (C-L2-1, probe-memory, probe-negotiation, probe-household) carry the tiers below; (2) C-L19-1 and probe-calibration are run and reported apart as low-headroom; (3) C-L11-1 and probe-verification are at the ceiling and are reported as such, never as failures of the cards (row ENG134 hardens them); (4) the primary measure is the agent's first sitting; (5) n = 40 per arm, except probe-memory where n = 100 is needed for a 10-point effect; (6) the tiers are those of the section "Pre-registered success rule" above, read over the four headroom courses: detectable = pooled difference at least 5 with the 95 percent interval excluding zero and the placebo pooled difference not; substantial = pooled at least 10, at least two of the four courses individually positive with intervals excluding zero, the placebo flat, and the interference arm showing no drop above 3 points.
+
+## S1 result (2026-11-25; the owner's run, claude-haiku-5-5, n = 40 per arm, USD 6.64)
+
+Scores are the course's own sitting score in percent on fresh held-out seeds; control sees the task only, placebo an unrelated text of the same length as the cards, cards the course's four card parts; the interval is a bootstrap 95 percent interval for cards minus control.
+
+| Course | Control | Placebo | Cards | Cards minus control (95% interval) |
+|---|---|---|---|---|
+| C-L2-1 lessons | 82.0 | 83.5 | 81.4 | -0.6 (-6.6 to 4.4) |
+| probe-memory | 74.0 | 55.5 | 73.5 | -0.5 (-12.5 to 11.5) |
+| probe-negotiation | 55.1 | 54.0 | 52.4 | -2.7 (-7.7 to 2.3) |
+| probe-household | 40.4 | 34.7 | 33.7 | -6.7 (-13.5 to -0.1) |
+
+**The rule fixed in advance is not met:** the pooled difference over the four headroom courses is about -2.6, against +5 for the detectable tier and +10 for the substantial tier; no course shows a positive difference. In this study, reading the card text in the prompt did not improve this small strong model on these four courses.
+
+Two readings inside the numbers. (1) probe-household: 9 of 40 answers in the cards arm and 11 of 40 in the placebo arm scored 0 and none in the control arm, so a long text in the prompt breaks about a quarter of the answers on this probe; without the zeros the means are 43.5 (cards), 47.9 (placebo) and 40.4 (control), so the cards are no better than unrelated text. (2) probe-memory: unrelated text of the same length cut the score from 74.0 to 55.5 (the share of perfect answers from 0.45 to 0.15) and the cards restored it (0.525) but not above control: they undid a distraction and added no skill.
+
+What this does not say: that cards never help. It is one model, one prompt form and 40 samples a course, with wide intervals (memory spans 24 points). The next steps are the same study on an open model (more headroom, but a smaller model may also be distracted more by long text), a digest-only arm, cards that carry new information that the model cannot already have (the society's own rules, the refusal field guide, the write-back line from a passed sitting), and the feedback loop (in the 15-agent live run of 2026-11-25 all three agents that sat C-L2-1 failed the first sitting and passed within seconds on the second or third, and 5 of 7 deliveries retried after a house refusal then passed).
 
 ## The ladder of studies (cheap first)
 
