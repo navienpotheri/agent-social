@@ -69,7 +69,9 @@ export async function verifyCohortRun(dir: string, o: { env?: NodeJS.ProcessEnv;
 
   // 5. outcomes match the log
   const byDid = new Map(summary.agents.map((a) => [a.did, a]));
-  const actions = ((await local.log.recordsOfTypes(["action"])) as AspRecord[]).filter((r) => byDid.has(r.issuer));
+  // Only the Actions that are tool calls (signed by the run, assurance runtime_observed): the Academy also writes an Action under the agent's identity for each sitting ("sat C-L2-1 attempt 1: passed"),
+  // which is not a tool call and was counted as one (the 15-agent dry run of 2026-11-25 failed this check for an agent that sat a course).
+  const actions = ((await local.log.recordsOfTypes(["action"])) as AspRecord[]).filter((r) => byDid.has(r.issuer) && (r.body as { assurance?: string }).assurance === "runtime_observed");
   const refusals = ((await local.log.recordsOfTypes(["gateway_refusal"])) as AspRecord[]).filter((r) => byDid.has(r.issuer));
   const trouble: string[] = [];
   for (const a of summary.agents) {

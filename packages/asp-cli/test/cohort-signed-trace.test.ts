@@ -58,6 +58,17 @@ test("DK1801: a stand-in run leaves a signed Action for every tool call and a re
   assert.equal(v.checks.length, 9);
 });
 
+test("DK1801: a run in which an agent sits a course verifies: the Academy's sitting Action under the agent's identity is not a tool call (found by the 15-agent dry run of 2026-11-25)", async () => {
+  const r = await runCohort({
+    out: mkdtempSync(join(tmpdir(), "asp-cohort-st-")), home: mkdtempSync(join(tmpdir(), "asp-cohort-st-home-")), agents: 2, model: "stand-in-model",
+    provider: standInProvider((i) => ["student", "explorer"][i % 2]!), staggerMs: 100, budgetUsd: 1, totalUsd: 5, minutes: 5, priceIn: 1, priceOut: 5, io: { out: () => undefined },
+  });
+  const log = readFileSync(join(r.dir, "society", "log", "log.ndjson"), "utf8");
+  assert.match(log, /sat C-L2-1 attempt 1/, "the student sat the course, so the log holds the Academy's sitting Action");
+  const v = await verifyCohortRun(r.dir);
+  assert.deepEqual(failed(v), [], JSON.stringify(v.checks.filter((c) => !c.ok)));
+});
+
 test("DK1801: verify fails an over-cap spend, a key in a file, an altered summary, a missing Action and a broken log, and each failure names its check", async () => {
   const r = await run();
   // 1. a model reply that pushes an agent over its cap
