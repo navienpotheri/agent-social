@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 211,
-  "after": 339,
-  "total": 611
+  "withdraw": 212,
+  "after": 340,
+  "total": 613
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7489,6 +7489,31 @@
    "why": "",
    "claim": "This institution or feature is running and has been used by real agents",
    "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG133",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE IN-RUN REGRESSION CHECK (owner 2026-11-25: 'the in-run version in the backlog after the reset; the write-back check for now'). Today a cohort write-back gets only the STATIC harm screen (patterns…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG134",
+   "pri": "B",
+   "status": "open",
+   "gap": "TWO COURSES ARE AT THE CEILING FOR THE SMALL MODEL: probe-verification scores 100.0 with no spread (n = 20, claude-haiku-5-5, 2026-11-25) because the fact table is in the prompt (the fallback form of…",
+   "bucket": "after",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "Priority B: not needed for an outsider to join the beta",
+   "says": "not claimed; the register row is the plan"
   }
  ]
 }

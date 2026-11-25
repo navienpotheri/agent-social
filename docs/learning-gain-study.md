@@ -1,6 +1,6 @@
 # The learning-gain study: does going through the cards, the papers and the Academy make an agent better? (lead, 2026-11-25)
 
-Status: **design, with a cheap first step the lane can build now.** Nothing here has been run; no claim of learning is made until it is.
+Status: **S0 (headroom) was run on 2026-11-25; the analysis plan below is fixed from it; S1 (the treatment arms) is next.** No claim of learning is made until S1 and the later steps are run.
 
 ## The premise (the owner's words, condensed)
 
@@ -38,6 +38,23 @@ Two pre-registered tiers, judged on the courses that have headroom (a control me
 - **Substantial:** the pooled mean difference is at least **10 points**, at least **half** of the courses show a positive difference whose interval excludes zero, the placebo shows none, and the interference arm shows **no drop above 3 points** on other courses.
 
 If neither tier is met, the route does not yet work, and the report says which courses did and did not and why (headroom, card quality, scorer). The per-course table is always reported in full; no course is dropped after the results. Inside the society (S2) the same tiers apply with 5 repeats of 15 agents, and a smaller effect there is expected because agents choose what to read.
+
+## S0 result and the fixed analysis plan (2026-11-25; the owner's runs, claude-haiku-5-5, the exact answer form shown to every arm)
+
+An earlier S0 run (2026-11-25, before the fix) gave zeros for two courses; they were answer-form errors, not lack of skill (the engines accept one exact JSON shape and the model had never been shown it), so that run is discarded. The numbers below are control-arm scores with the form shown: n = 40 for the three generic courses, n = 20 for the five probes, fresh held-out seeds, USD 2.63 together (raw files: asp-live-keyonly/card-effect-headroom-2 and card-effect-headroom-probes).
+
+| Course | Construct | Control mean | Spread (sd) | Share at 100 | Room | Class | Minimum detectable difference, n = 40 per arm |
+|---|---|---|---|---|---|---|---|
+| probe-household | paper-specific probe (household decisions) | 36.3 | 13.3 | 0 | 63.7 | headroom | 8.3 |
+| probe-negotiation | paper-specific probe (goal and secret) | 57.8 | 6.0 | 0 | 42.2 | headroom | 3.7 |
+| probe-memory | paper-specific probe (memory operations) | 67.0 | 25.4 | 0.30 | 33.0 | headroom, noisy (two modes) | 15.9 (n = 100 needed for 10 points) |
+| C-L2-1 | generic rule-writing (lessons from failures) | 78.2 | 9.9 | 0.03 | 21.8 | headroom | 6.2 |
+| probe-calibration | paper-specific probe | 85.0 | 14.7 | 0 | 15.0 | little room | 9.2 |
+| C-L19-1 | generic rule-writing (rules for a peer) | 85.7 | 1.8 | 0 | 14.3 | little room (the model always writes much the same rule and misses the rare cases) | 1.1 |
+| C-L11-1 | generic rule-writing (evals) | 95.0 | 22.1 | 0.95 | 5.0 | ceiling | not meaningful |
+| probe-verification | paper-specific probe | 100.0 | 0.0 | 1.00 | 0 | ceiling (the facts are in the prompt) | not meaningful |
+
+**Fixed before any treatment arm runs:** (1) the four courses WITH headroom (C-L2-1, probe-memory, probe-negotiation, probe-household) carry the tiers below; (2) C-L19-1 and probe-calibration are run and reported apart as low-headroom; (3) C-L11-1 and probe-verification are at the ceiling and are reported as such, never as failures of the cards (row ENG134 hardens them); (4) the primary measure is the agent's first sitting; (5) n = 40 per arm, except probe-memory where n = 100 is needed for a 10-point effect; (6) the tiers are those of the section "Pre-registered success rule" above, read over the four headroom courses: detectable = pooled difference at least 5 with the 95 percent interval excluding zero and the placebo pooled difference not; substantial = pooled at least 10, at least two of the four courses individually positive with intervals excluding zero, the placebo flat, and the interference arm showing no drop above 3 points.
 
 ## The ladder of studies (cheap first)
 
