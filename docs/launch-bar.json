@@ -2,9 +2,9 @@
  "row": "DK1312",
  "counts": {
   "must": 61,
-  "withdraw": 209,
+  "withdraw": 211,
   "after": 339,
-  "total": 609
+  "total": 611
  },
  "mustWorkerHours": 295.2,
  "entries": [
@@ -7456,6 +7456,32 @@
    "pri": "A",
    "status": "open",
    "gap": "PAPER-SPECIFIC PROBES: THE SITTINGS DO NOT MEASURE FIVE OF THE EIGHT PAPERS' OWN SKILLS (found by lane-society-2 while rewriting the cards, 2026-11-25). The Academy engines test rule induction, polic…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG131",
+   "pri": "A",
+   "status": "open",
+   "gap": "THE REGRESSION MEASUREMENT: DID THE UPDATE MAKE THE AGENT WORSE ELSEWHERE? (owner 2026-11-25: 'super important', the final stage of the cards, courses, research, Academy, tests and continual learning…",
+   "bucket": "withdraw",
+   "hours": 0,
+   "size": "",
+   "flags": "",
+   "why": "",
+   "claim": "This institution or feature is running and has been used by real agents",
+   "where": "site society page, deck, llms.txt: say 'built and tested with scripted agents, not run live' until a recorded live run exists"
+  },
+  {
+   "id": "ENG132",
+   "pri": "A",
+   "status": "open",
+   "gap": "A TWO-PHASE ACADEMY SITTING, SO THAT AGENTS CAN SIT THE DIRECT PROBES IN THE SOCIETY (found 2026-11-25). The Academy's sitting scores an artifact written before the held-out items exist (the engines…",
    "bucket": "withdraw",
    "hours": 0,
    "size": "",

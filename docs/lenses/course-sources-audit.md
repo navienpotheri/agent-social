@@ -1,6 +1,6 @@
 # Source audit of the 26 courses: is each anchored in a published paper? (lead, 2026-11-25)
 
-Status: **first pass from our own records** (courses.json, papers.md, candidates.md); the venue of a few papers was checked on the web today (see the verified list below); every other venue is as our files record it and is to be verified. The owner's rule (final, 2026-11-25): a course's anchor must be a **published paper**; an insight or note may sit beside it as a labelled supplementary insight but cannot be the anchor, and a course with no published anchor puts no cards on the map until it has one.
+Status: **first pass from our own records** (courses.json, papers.md, candidates.md); the venue of a few papers was checked on the web today (see the verified list below); every other venue is as our files record it and is to be verified. The owner's rule (final, 2026-11-25, revised): a course's anchor is a **published paper or an arXiv preprint** (a preprint is fine); an **insight** is also allowed but only from **very credible sources**, labelled as an insight. A course anchored only by a weak note is not used until it has a proper anchor.
 
 Classification used: **peer-reviewed** (a conference, workshop or journal venue named in our records), **preprint only** (arXiv with no venue), **not a paper** (the title or cite says blog, post, cheat sheet or note), **unknown** (no venue recorded). The classes are by keyword from our own text, so they are a first reading, not a verdict.
 
@@ -48,5 +48,5 @@ Result: **15 peer-reviewed, 9 preprint only, 0 not a paper, 2 unknown** (of 26 c
 ## What this means for the cards
 
 - **Tranche 1 (the eight built first):** C-L2-1 reflection (Reflexion: peer-reviewed), C-L9-1 communication (SOTOPIA), C-L19-1 teaching (AutoManual), C-L18-1 economy (EconAgent), C-L7-1 belief (Tian), C-L14-1 honest failure (CoVe: Findings of ACL 2024), C-L8-1 memory (Mem0: preprint) are anchored or nearly; **C-L11-1 evals** has only notes as its screenshot sources and needs a published anchor: **DyVal (ICLR 2024)** is a candidate, with JudgeAgent as a supplementary preprint.
-- A preprint is not a published paper in the strict sense: the owner decides whether an arXiv preprint counts (Mem0, ACE, JudgeAgent, Memento-Skills and most of the 2026 candidates are preprints).
+- **Preprints are acceptable** (the owner, 2026-11-25), so the nine courses anchored by a preprint only (Mem0, Zep, Inner Monologue, Agent Workflow Memory, ICAL, Dynamic Cheatsheet, OMNI-EPIC, AutoGuide, and the evals sources) need no further anchor; only the courses whose sources are weak notes (C-L11-1 evals, anchor DyVal, ICLR 2024; C-L2-4, an owner proposal) need attention.
 - Next: verify every venue from the proceedings page, replace note-only anchors, and record the verified venue and a link beside each course.

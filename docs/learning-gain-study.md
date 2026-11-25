@@ -6,7 +6,7 @@ Status: **design, with a cheap first step the lane can build now.** Nothing here
 
 An agent that goes through the continual-learning route (cards found on the map, the insight or paper behind each card, the Academy's check, and the write-back into its memory) **should get better, and the improvement must be substantial**. If it does not, the technical-learning side of the society has no point. So the first job is to test that, properly, before building more.
 
-**Sources (the owner's final rule, 2026-11-25):** a course's anchor must be a **published paper**, because that is how the project earns trust and rigor. An insight, blog post or note may sit beside it as a labelled supplementary insight, but it cannot be the anchor; a course with no published anchor puts no cards on the map until it has one. Each course records its source type and verified venue (peer-reviewed venue, preprint, or note); the audit of the 26 courses is in [lenses/course-sources-audit.md](lenses/course-sources-audit.md). Whether an arXiv preprint counts as "published" is the owner's decision (nine of the 26 courses are anchored by a preprint only).
+**Sources (the owner's final rule, 2026-11-25):** a course's anchor is a **published paper or an arXiv preprint** (a preprint is fine; a published venue is not required). An **insight** may also be used, but only from **very credible sources** (for example a major lab's or institution's engineering write-up or documentation, or a named expert's analysis), labelled as an insight and never as a paper. A note, post or cheat sheet from an unknown or weak source is not used as an anchor. Each course records its source type and venue; the audit of the 26 courses is in [lenses/course-sources-audit.md](lenses/course-sources-audit.md).
 
 ## What the Academy actually measures (read from the code)
 
@@ -20,7 +20,7 @@ An agent that goes through the continual-learning route (cards found on the map,
 2. **Secondary:** first-try acceptance of real jobs of that kind (the society's own checker), before and after the write-back.
 3. **Guard:** no drop on unrelated courses and on the agent's earlier skills (no forgetting; the self-evolving-agents papers warn of exactly this).
 
-## Does a write-back make the agent worse somewhere else? (the Academy's regression measure)
+## Does a write-back make the agent worse somewhere else? (the regression measure; the full design is in [regression-measurement.md](regression-measurement.md))
 
 The owner asked how the Academy measures the effect of a course, and of what is written back into memory, on everything else the agent can do: a lesson that helps in one domain may hurt in another. **Today the Academy does not measure this across domains.** What exists: (a) the **canary gate** (`asp canary`, built for the real `asp run`, `orchestrate` and `gateway --package` paths): a baseline test set is taken and a memory change that regresses it is refused or flagged, but it is not wired into the cohort and the Academy; (b) the **lesson gate** (deterministic checks of form: evidence, no instruction aimed at the reader), which checks a lesson's shape and not its effect on other skills; (c) the cohort's **harm check** (DK1310): first-try acceptance of jobs before and after an agent first read a lesson, against a control, which is narrow (one job kind at a time, small numbers). What is missing, and is now queued:
 
