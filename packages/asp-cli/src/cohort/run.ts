@@ -37,6 +37,7 @@ import { renderRepoGrades } from "./repo-pilot.ts";
 import { renderBattery } from "./battery.ts";
 import { seenLines } from "./seen.ts";
 import { renderGroups } from "./groups.ts";
+import { longIntro } from "./intro-long.ts";
 import { renderStatsReport } from "./stats.ts";
 import { renderPaperReport } from "./paper-report.ts";
 import { seedHouseLessons } from "./house-lessons.ts";
@@ -125,6 +126,8 @@ export interface CohortOptions {
   noTownAuto?: boolean;
   /** Diagnosis fix 3: do not fold a repeated identical read into one line (on by default). */
   noFold?: boolean;
+  /** Keep the short introduction at the first look instead of the longer one in the cached system text. */
+  shortIntro?: boolean;
   /** Turn the notebook line after a passed Academy sitting off (the control for ENG129 S3). */
   noCourseWriteback?: boolean;
   /** The read-only statistics office: the tool stats_look and a report section. */
@@ -271,6 +274,7 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
         const byId = new Map<string, AgentCtx>(agents.map((a) => [a.id, a]));
         const allow = new Set([...TOOLS, ...LIFE_DEFS].map((t) => t.scope));
         const clock = o.life ? new SimClock({ speed: o.life.speed, now: o.life.clockNow ?? Date.now }) : undefined;
+        world.api.longIntro = !o.shortIntro;
         if (world.api.markers && clock) world.api.markers.clock = () => clock.now(); // the cards rotate on the simulated clock
         if (world.api.dayCycle && clock) world.api.dayCycle.now = () => clock.now(); // the events fall due on the simulated clock, whoever is awake to be told
         const arrivals = o.life?.arrivals ? parseArrivals(o.life.arrivals) : undefined;
@@ -337,7 +341,9 @@ export async function runCohort(o: CohortOptions): Promise<CohortResult> {
               return r;
             },
           })) : [];
-          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (o.signals ? signalsBriefing(o.signals) : "") + (a.persona ? `
+          return { tools: [...tools, ...lifeTools], summary: () => mine?.summaryText(), ...(mine ? { idle: (_agent: string, text: string, signal: AbortSignal) => mine.idle(text, signal) } : {}), system: () => (life ? BRIEFING.replace("When you have done enough, use stop_exploring.", ENGAGED_ENDING) : BRIEFING) + (o.signals ? signalsBriefing(o.signals) : "") + (o.shortIntro ? "" : `
+
+${longIntro(world.api, a.n, { notebook: !!life })}`) + (a.persona ? `
 
 ${a.persona}` : ""), opening: () => (mine ? mine.observation("You are here now. Begin whenever you like. You may rest, wait for things to happen, keep a notebook, or leave for good; none of it is required.") : "You are here now. Begin whenever you like.") };
         };

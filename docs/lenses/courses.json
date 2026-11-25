@@ -1,7 +1,10 @@
 [
   {
     "id": "C-L11-1",
-    "intake": { "id": "lens-evals-1", "sha256": "sha256:68c0344b8bebe325c996728a459c0bf0e408d1e3a227c55a7ad7087fe74527f1" },
+    "intake": {
+      "id": "lens-evals-1",
+      "sha256": "sha256:68c0344b8bebe325c996728a459c0bf0e408d1e3a227c55a7ad7087fe74527f1"
+    },
     "title": "Writing evals that evolve",
     "concept": "An agent turns its own failures into a small suite of code graders, checks the suite against hidden labels it never sees, and keeps it as a skill. The papers behind it are P24 (the evals cheat sheet), P25 (agents that write, call, grade and review agents) and P17 (simulate then validate); their licences are in docs/lenses/papers.md.",
     "paper": "P24, P25, P17",
@@ -1685,6 +1688,200 @@
     },
     "cohort": "a cohort compares the procedures each member wrote and the tail cases that broke the tables",
     "risks": "a lookup of the common values (the tail score catches it); a procedure that is right only for small values (the tail score catches it); a table copied from practice (the common score catches it)",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L7-3",
+    "title": "Stating a confidence: a calibration probe",
+    "concept": "A paper-specific probe for Just Ask for Calibration (Tian et al.): the learner states, for each share of late orders in an item's history, the probability that the next order is late; the held-out items are scored by the Brier score and the expected calibration error. A toy world.",
+    "paper": "K018 (Tian et al. 2023)",
+    "lens": "L7-belief-recalibration",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "bank-insurer",
+        "function": "reflect"
+      },
+      {
+        "institution": "treasury",
+        "function": "reflect"
+      },
+      {
+        "institution": "clinic",
+        "function": "reflect"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the 20 practice orders and say how often the next order was late for each share of late orders, with nothing scored",
+    "generator": {
+      "engine": "probe-calibration",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 20,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the Brier score and the expected calibration error (five bins) of the stated confidences against what happened on 40 held-out orders per run; a constant 0.5 scores zero",
+      "checker": "the outcomes are drawn from the hidden probability near the stated share with a seeded shift; the learner sees 20 practice outcomes and never the held-out ones"
+    },
+    "artifact": {
+      "kind": "policy",
+      "description": "a table {\"bins\": [{\"late_of_10\": 0..10, \"confidence\": 0..1}, ...]} giving the stated probability for each share of late orders"
+    },
+    "gate": {
+      "metric": "Brier score at most 0.25 and expected calibration error at most 0.17 on every run",
+      "pass_permille": 500,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks (the pass mark in permille is the lint floor; the engine's own Brier and calibration marks decide)"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "deterministic: the same artifact and seed give the same score; a paper-specific probe (row ENG130), not generic rule-writing"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the rules each member wrote for the same claim log",
+    "risks": "rules fitted to the logged claims; rules so broad that they investigate honest claims; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L14-4",
+    "title": "Checking a draft against an independent source: a verification probe",
+    "concept": "A paper-specific probe for Chain-of-Verification (Dhuliawala et al.): a draft lists claims; the learner chooses which attributes to check and against which source, the independent table or the draft itself; checking against the draft confirms every claim, checking against the table catches the wrong ones. Scored by lookup.",
+    "paper": "K016 (Dhuliawala et al. 2023)",
+    "lens": "L14-honest-failure-and-pressure",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "clinic",
+        "function": "perceive"
+      },
+      {
+        "institution": "courts",
+        "function": "perceive"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read a practice draft and its table and mark the wrong claims by hand, with nothing scored",
+    "generator": {
+      "engine": "probe-verification",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 12,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the precision of the claims kept after the checks on 12 held-out claims per run, and the share of the true claims kept; precision before the check is reported",
+      "checker": "the table is the truth of the seed; a check against the draft cannot catch anything because the draft agrees with itself"
+    },
+    "artifact": {
+      "kind": "policy",
+      "description": "a list {\"checks\": [{\"attribute\": \"city\"|\"year\"|\"field\", \"source\": \"table\"|\"draft\"}, ...]}"
+    },
+    "gate": {
+      "metric": "precision at least 0.90 with at least 80 percent of the true claims kept on every run",
+      "pass_permille": 900,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must meet both marks"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "deterministic: the same artifact and seed give the same score; a paper-specific probe (row ENG130), not generic rule-writing"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the intake rules each member wrote for the same visit log",
+    "risks": "rules fitted to the logged visits; rules so broad that they send everyone to urgent; a hoard of repeats",
+    "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
+  },
+  {
+    "id": "C-L8-7",
+    "title": "Memory operations: an add, update, delete or leave-alone probe",
+    "concept": "A paper-specific probe for Mem0 (Chhikara et al.): in a scripted dialogue of facts about a user, the learner chooses the operation ADD, UPDATE, DELETE or NOOP for each kind of message (new, same, changed, refined, less, retracted); the final memory is compared with the true state exactly.",
+    "paper": "K003 (Chhikara et al. 2025)",
+    "lens": "L8-memory-consolidation",
+    "also_lenses": [
+      "L2-reflection-experience"
+    ],
+    "cells": [
+      {
+        "institution": "shops",
+        "function": "remember"
+      },
+      {
+        "institution": "housing",
+        "function": "remember"
+      },
+      {
+        "institution": "forum",
+        "function": "remember"
+      }
+    ],
+    "prerequisites": [],
+    "price": 30,
+    "free_first_lesson": "read the practice dialogue and say what the memory should hold at the end, with nothing scored",
+    "generator": {
+      "engine": "probe-memory",
+      "seed_source": "the log head at the time of the sitting, the holder and the attempt: nothing the learner controls ahead of time",
+      "practice": 8,
+      "heldout": 40,
+      "runs": 5
+    },
+    "scorer": {
+      "kind": "code",
+      "description": "the share of memory keys that end exactly right after the dialogue of a held-out seed is run through the learner's operations",
+      "checker": "the true final state is computed from the generator; every kind of message is in every dialogue"
+    },
+    "artifact": {
+      "kind": "policy",
+      "description": "a map {\"operations\": {\"new\": \"ADD\", \"same\": ..., \"changed\": ..., \"refined\": ..., \"less\": ..., \"retracted\": ...}}"
+    },
+    "gate": {
+      "metric": "every memory key right on every run",
+      "pass_permille": 1000,
+      "runs": 5,
+      "error_bar": true,
+      "note": "every one of the five runs must have the final memory exactly right"
+    },
+    "write_back": {
+      "target": "memory_rules",
+      "through_gate": true,
+      "note": "the rules enter the agent's memory through the lesson gate, replayed on the course's held-out tasks, with the Action of the sitting as evidence, as one signed change in its lineage"
+    },
+    "grading": {
+      "mode": "code",
+      "note": "deterministic: the same artifact and seed give the same score; a paper-specific probe (row ENG130), not generic rule-writing"
+    },
+    "teacher": {
+      "share_permille": 200,
+      "options": "self-paced; a peer teacher who has passed it earns 20% of the price; a cohort works the same practice set and sits different held-out seeds"
+    },
+    "cohort": "a cohort compares the listing rules each member wrote for the same log",
+    "risks": "rules fitted to the logged listings; rules so broad that they hold honest sellers; a hoard of repeats",
     "kill_switch": "a signed record withdraws the course; no score from it enters a tier, rank, bond floor or eligibility"
   }
 ]

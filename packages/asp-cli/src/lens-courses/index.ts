@@ -10,6 +10,7 @@ import "./rule-courses-5.ts";
 import "./rule-courses-6.ts";
 import "./rule-courses-7.ts";
 import "./procedure.ts";
+import "./probes.ts";
 export { ENGINES, attestation, engineIds, sit, type CourseRun, type Engine, type Sitting } from "./engines.ts";
 export * from "./catalogue.ts";
 export { writeBack, REPLAY_TASKS } from "./writeback.ts";

@@ -333,7 +333,7 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
-import { runCardEffect, renderRows } from "./cohort/card-effect.ts";
+import { runCardEffect, renderInterference, renderRows } from "./cohort/card-effect.ts";
 import { PAPER_COURSE_IDS } from "./cohort/paper-cards.ts";
 import { anthropicProvider } from "./cohort/provider.ts";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -792,9 +792,11 @@ export const OPTIONS = {
   markers: { type: "boolean" },
   games: { type: "boolean" },
   desert: { type: "boolean" },
+  "short-intro": { type: "boolean" },
   courses: { type: "string" },
   n: { type: "string" },
   headroom: { type: "boolean" },
+  interference: { type: "boolean" },
   stats: { type: "boolean" },
   groups: { type: "boolean" },
   "day-minutes": { type: "string" },
@@ -1442,7 +1444,7 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
       if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
       if (rest[0] === "closure") return closureCmd(rest[1], { out: (l) => io.out(l) });
       if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
-      const cohortFlags = { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], "token-cap": v["token-cap"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], kinds: v.kinds, models: v.models, writeback: v.writeback, seed: v.seed, experiment: v.experiment, access: v.access, signals: v.signals, "signals-text": v["signals-text"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "no-voices": v["no-voices"], "house-event": v["house-event"], orientation: v.orientation, "field-guide": v["field-guide"], "guide-mode": v["guide-mode"], "no-hints": v["no-hints"], "job-slots": v["job-slots"], "relax-limits": v["relax-limits"], lessons: v.lessons, assess: v.assess, agenda: v.agenda, "hard-jobs": v["hard-jobs"], "repo-jobs": v["repo-jobs"], battery: v.battery, "no-town-auto": v["no-town-auto"], "no-fold": v["no-fold"], "no-trim": v["no-trim"], library: v.library, markers: v.markers, games: v.games, desert: v.desert, stats: v.stats, groups: v.groups, "day-minutes": v["day-minutes"], "template-cards": v["template-cards"], "card-window": v["card-window"], "card-rewards": v["card-rewards"], "house-lessons": v["house-lessons"], "day-cycle": v["day-cycle"], roles: v.roles, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] };      if (rest[0] === "repeat") { try { return await repeatCmd({ home, flags: { ...cohortFlags, runs: v.runs }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      if (rest[0] === "compare") { try { return compareCmd(rest[1], rest[2], { out: (l) => io.out(l) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      try { return await cohortCmd({ home, flags: cohortFlags, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+      const cohortFlags = { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], "token-cap": v["token-cap"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], kinds: v.kinds, models: v.models, writeback: v.writeback, seed: v.seed, experiment: v.experiment, access: v.access, signals: v.signals, "signals-text": v["signals-text"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "no-voices": v["no-voices"], "house-event": v["house-event"], orientation: v.orientation, "field-guide": v["field-guide"], "guide-mode": v["guide-mode"], "no-hints": v["no-hints"], "job-slots": v["job-slots"], "relax-limits": v["relax-limits"], lessons: v.lessons, assess: v.assess, agenda: v.agenda, "hard-jobs": v["hard-jobs"], "repo-jobs": v["repo-jobs"], battery: v.battery, "no-town-auto": v["no-town-auto"], "no-fold": v["no-fold"], "no-trim": v["no-trim"], library: v.library, markers: v.markers, games: v.games, desert: v.desert, "short-intro": v["short-intro"], stats: v.stats, groups: v.groups, "day-minutes": v["day-minutes"], "template-cards": v["template-cards"], "card-window": v["card-window"], "card-rewards": v["card-rewards"], "house-lessons": v["house-lessons"], "day-cycle": v["day-cycle"], roles: v.roles, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] };      if (rest[0] === "repeat") { try { return await repeatCmd({ home, flags: { ...cohortFlags, runs: v.runs }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      if (rest[0] === "compare") { try { return compareCmd(rest[1], rest[2], { out: (l) => io.out(l) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      try { return await cohortCmd({ home, flags: cohortFlags, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
     }
     if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
     if (cmd === "journey") {
@@ -6311,8 +6313,8 @@ async function cardEffectCommand(v: Values, io: Io): Promise<number> {
   const n = Math.max(1, Math.trunc(Number(v.n ?? "10")) || 10), cap = Number(v["total-usd"] ?? "5");
   if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
   const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
-  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
-  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent));
+  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, interference: !!v.interference, ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent) + renderInterference(r.interference));
   return 0;
 }
 

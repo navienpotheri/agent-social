@@ -18,7 +18,7 @@ test("the arms, the cost line, the table with an interval and the raw files", as
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /Cost: 2 courses x 3 samples x 3 arms = 18 model calls/);
   assert.ok(r.out.indexOf("Cost:") < r.out.indexOf("| Course |"), "the cost is printed before the table");
-  assert.match(r.out, /\| C-L9-1 Passing a message another agent can use \| 3 \| [\d.]+ \| [\d.]+ \| [\d.]+ \| [+-]?[\d.]+ \(-?[\d.]+ to -?[\d.]+\) \|/);
+  assert.match(r.out, /\| C-L9-1 Passing a message another agent can use \| generic rule-writing \| 3 \| [\d.]+ \| [\d.]+ \| [\d.]+ \| [+-]?[\d.]+ \(-?[\d.]+ to -?[\d.]+\) \|/);
   const raw = JSON.parse(readFileSync(join(dir, "card-effect-samples.json"), "utf8")) as { samples: { arm: string; course: string }[] };
   assert.equal(raw.samples.length, 18);
   assert.deepEqual([...new Set(raw.samples.map((s) => s.arm))].sort(), ["control", "placebo", "treatment"]);
@@ -27,7 +27,7 @@ test("the arms, the cost line, the table with an interval and the raw files", as
 test("--headroom runs only the control arm; a dollar cap stops the study", async () => {
   const h = await run(["--courses", "C-L9-1", "--n", "2", "--headroom"]);
   assert.match(h.out, /1 course x 2 samples x 1 arm = 2 model calls/);
-  assert.match(h.out, /\| C-L9-1 .* \| 2 \| [\d.]+ \| n\/a \| n\/a \| n\/a \|/);
+  assert.match(h.out, /\| C-L9-1 .* \| generic rule-writing \| 2 \| [\d.]+ \| n\/a \| n\/a \| n\/a \|/);
   const capped = await run(["--courses", "C-L9-1", "--n", "5", "--total-usd", "0"]);
   assert.match(capped.out, /The dollar cap \(\$0\.00\) was reached: the study stops here\./);
 });
@@ -36,4 +36,14 @@ test("the placebo has the length of the treatment and says nothing of the course
   assert.equal(p.length, t.length); assert.ok(t.includes("Part 1 of 4") && !p.includes("Part 1"));
   assert.deepEqual(bootstrapDiff([5, 5, 5], [5, 5, 5], "x"), [0, 0]);
   assert.ok(estimate({ courses: ["a", "b"], n: 10, headroom: false, model: "claude-haiku-5-5" }).calls === 60);
+});
+
+test("--interference gives the artifact written for each course as memory to the other courses and reports the change with an interval and the worst course", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "asp-ce-int-"));
+  const r = await run(["--courses", "C-L9-1,C-L2-1,C-L11-1", "--n", "2", "--interference", "--out", dir]);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /## Interference: does the memory written for course A make the model worse on the other courses\?/);
+  assert.match(r.out, /\| C-L9-1 \| 4 \| [+-]?[\d.]+ \(-?[\d.]+ to -?[\d.]+\) \| C-L[\d-]+ [+-]?[\d.]+ \|/);
+  const raw = JSON.parse(readFileSync(join(dir, "card-effect-samples.json"), "utf8")) as { samples: { arm: string; from?: string }[] };
+  assert.equal(raw.samples.filter((s) => s.arm === "memory").length, 3 * 2 * 2, "three memories, two other courses, two samples");
 });
