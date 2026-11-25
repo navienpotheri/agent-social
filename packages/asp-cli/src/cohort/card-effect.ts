@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { priceFor } from "@agent-social/asp-package";
 import { ENGINES, engineIds, loadCatalogue, sit, type CourseCard } from "../lens-courses/index.ts";
 import { PAPER_COURSES } from "./paper-cards.ts";
+import { PROBES } from "./probes-spec.ts";
 import type { Provider } from "./types.ts";
 
 export type Arm = "control" | "placebo" | "treatment";
@@ -18,7 +19,7 @@ export interface InterferenceRow { from: string; pairs: number; meanChange: numb
 /** What each row measures: the course's engine either scores generic rule-writing or a probe of the paper's own skill (paper-specific probes are registered by id). */
 /** The paper-specific probe courses and the course whose card parts carry the same paper (ENG130). */
 export const PROBE_BASE: Record<string, string> = { "C-L7-3": "C-L7-1", "C-L14-4": "C-L14-1", "C-L8-7": "C-L8-1" };
-export const PROBE_COURSES = new Set<string>(Object.keys(PROBE_BASE));
+export const PROBE_COURSES = new Set<string>([...Object.keys(PROBE_BASE), ...PROBES.map((p) => p.id)]);
 export const constructOf = (course: string): string => (PROBE_COURSES.has(course) ? "paper-specific probe" : "generic rule-writing");
 export interface CourseRow { construct: string; course: string; title: string; n: number; control: number | null; placebo: number | null; treatment: number | null; diff: number | null; ci: [number, number] | null }
 
@@ -59,6 +60,23 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
   const p = o.price ?? priceFor(o.model);
   let spent = 0, stopped = false;
   for (const course of o.courses) {
+    const probe = PROBES.find((x) => x.id === course);
+    if (probe) {
+      // a paper-specific probe (the lead's specification, ENG130): the model is shown the items of a fresh seed and answers in JSON; a rule-based scorer scores the answer
+      for (let i = 0; i < o.n && !stopped; i++) for (const arm of arms) {
+        if (spent >= o.totalUsd) { stopped = true; say(`The dollar cap ($${o.totalUsd.toFixed(2)}) was reached: the study stops here.`); break; }
+        const made = probe.make(`card-effect|${o.seed}|${course}|${i}`), treat = treatmentText(probe.course);
+        const pre = arm === "control" ? "" : arm === "treatment" ? `Read this first:\n${treat}\n\n` : `Read this first:\n${placeboText(treat.length)}\n\n`;
+        let answer = "", err: string | undefined, inT = 0, outT = 0, score = 0;
+        try {
+          const r = await o.provider.complete({ system: "You are taking a short check. Follow the instruction exactly.", messages: [{ role: "user", content: pre + made.prompt }], tools: [], maxTokens: o.maxTokens ?? 3000 });
+          answer = r.blocks.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("\n"); inT = r.usage.input; outT = r.usage.output; spent += (inT * p.inPerM + outT * p.outPerM) / 1_000_000;
+          score = probe.score(answer, made.truth).score;
+        } catch (e) { err = (e as Error).message.slice(0, 200); }
+        samples.push({ course, arm, i, score, answer: answer.slice(0, 4000), inputTokens: inT, outputTokens: outT, ...(err ? { error: err } : {}) });
+      }
+      continue;
+    }
     const card = byId.get(course); if (!card || !ENGINES[card.generator.engine]) { say(`${course}: no such built course; skipped.`); continue; }
     for (let i = 0; i < o.n && !stopped; i++) for (const arm of arms) {
       if (spent >= o.totalUsd) { stopped = true; say(`The dollar cap ($${o.totalUsd.toFixed(2)}) was reached: the study stops here.`); break; }
@@ -103,7 +121,7 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
   }
   const rows: CourseRow[] = [];
   for (const course of o.courses) {
-    const card = byId.get(course); if (!card) continue;
+    const card = byId.get(course) ?? (() => { const pr = PROBES.find((x) => x.id === course); return pr ? { id: pr.id, title: pr.title } : undefined; })(); if (!card) continue;
     const of = (a: Arm): number[] => samples.filter((s) => s.course === course && s.arm === a && !s.error).map((s) => s.score);
     const c = of("control"), pl = of("placebo"), tr = of("treatment");
     rows.push({ construct: constructOf(course), course, title: card.title, n: c.length, control: c.length ? mean(c) : null, placebo: pl.length ? mean(pl) : null, treatment: tr.length ? mean(tr) : null, diff: c.length && tr.length ? mean(tr) - mean(c) : null, ci: c.length && tr.length ? bootstrapDiff(tr, c, `${o.seed}|${course}`) : null });
