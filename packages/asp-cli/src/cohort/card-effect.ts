@@ -15,7 +15,10 @@ export type Arm = "control" | "placebo" | "treatment";
 export interface CardEffectOptions { /** After the arms: the artifact written for course A (treatment arm) is given as memory while the model sits the held-out items of every other course, against the same items without it: does a write-back make the agent worse elsewhere? */ interference?: boolean; provider: Provider; model: string; courses: string[]; n: number; seed: string; totalUsd: number; headroom: boolean; out?: string; maxTokens?: number; price?: { inPerM: number; outPerM: number } }
 export interface Sample { /** For the interference arm: the course whose artifact was given as memory. */ from?: string; course: string; arm: Arm | "memory"; i: number; score: number; answer: string; inputTokens: number; outputTokens: number; error?: string }
 export interface InterferenceRow { from: string; pairs: number; meanChange: number | null; ci: [number, number] | null; worst: { course: string; change: number } | null }
-export interface CourseRow { course: string; title: string; n: number; control: number | null; placebo: number | null; treatment: number | null; diff: number | null; ci: [number, number] | null }
+/** What each row measures: the course's engine either scores generic rule-writing or a probe of the paper's own skill (paper-specific probes are registered by id). */
+export const PROBE_COURSES = new Set<string>();
+export const constructOf = (course: string): string => (PROBE_COURSES.has(course) ? "paper-specific probe" : "generic rule-writing");
+export interface CourseRow { construct: string; course: string; title: string; n: number; control: number | null; placebo: number | null; treatment: number | null; diff: number | null; ci: [number, number] | null }
 
 const PLACEBO = "A good loaf starts with flour, water, salt and a little yeast. Mix them until no dry flour is left, cover the bowl and let the dough rest in a warm place until it has doubled. Knead it briefly, shape it, and let it rise a second time before it goes into a hot oven. The crust is done when it is deep brown and the loaf sounds hollow when tapped underneath. Let it cool before slicing, or the crumb will be gummy. ";
 const rng = (seed: string): (() => number) => { let a = [...seed].reduce((h, c) => (Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0), 2166136261); return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
@@ -101,7 +104,7 @@ export async function runCardEffect(o: CardEffectOptions, say: (s: string) => vo
     const card = byId.get(course); if (!card) continue;
     const of = (a: Arm): number[] => samples.filter((s) => s.course === course && s.arm === a && !s.error).map((s) => s.score);
     const c = of("control"), pl = of("placebo"), tr = of("treatment");
-    rows.push({ course, title: card.title, n: c.length, control: c.length ? mean(c) : null, placebo: pl.length ? mean(pl) : null, treatment: tr.length ? mean(tr) : null, diff: c.length && tr.length ? mean(tr) - mean(c) : null, ci: c.length && tr.length ? bootstrapDiff(tr, c, `${o.seed}|${course}`) : null });
+    rows.push({ construct: constructOf(course), course, title: card.title, n: c.length, control: c.length ? mean(c) : null, placebo: pl.length ? mean(pl) : null, treatment: tr.length ? mean(tr) : null, diff: c.length && tr.length ? mean(tr) - mean(c) : null, ci: c.length && tr.length ? bootstrapDiff(tr, c, `${o.seed}|${course}`) : null });
   }
   if (o.out) {
     mkdirSync(o.out, { recursive: true });
@@ -118,8 +121,8 @@ export function renderInterference(rows: InterferenceRow[]): string {
 }
 const f1 = (x: number | null): string => (x === null ? "n/a" : x.toFixed(1));
 export function renderRows(rows: CourseRow[], o: Pick<CardEffectOptions, "model" | "n" | "seed" | "headroom">, spent: number): string {
-  const L = [`# Card effect: model ${o.model}, n ${o.n} per arm, seed ${o.seed}${o.headroom ? " (headroom: control arm only)" : ""}`, "", "Scores are the course's own sitting score in percent on fresh held-out seeds. Treatment minus control has a bootstrap 95 percent interval (2,000 resamples). One run; the interval is the spread of this run, not a claim about other models.", "", "| Course | n | Control | Placebo | Treatment | Treatment minus control (95% interval) |", "|---|---|---|---|---|---|"];
-  for (const r of rows) L.push(`| ${r.course} ${r.title} | ${r.n} | ${f1(r.control)} | ${f1(r.placebo)} | ${f1(r.treatment)} | ${r.diff === null ? "n/a" : `${r.diff >= 0 ? "+" : ""}${r.diff.toFixed(1)} (${r.ci![0].toFixed(1)} to ${r.ci![1].toFixed(1)})`} |`);
+  const L = [`# Card effect: model ${o.model}, n ${o.n} per arm, seed ${o.seed}${o.headroom ? " (headroom: control arm only)" : ""}`, "", "Scores are the course's own sitting score in percent on fresh held-out seeds. Treatment minus control has a bootstrap 95 percent interval (2,000 resamples). One run; the interval is the spread of this run, not a claim about other models.", "", "| Course | Construct measured | n | Control | Placebo | Treatment | Treatment minus control (95% interval) |", "|---|---|---|---|---|---|---|"];
+  for (const r of rows) L.push(`| ${r.course} ${r.title} | ${r.construct} | ${r.n} | ${f1(r.control)} | ${f1(r.placebo)} | ${f1(r.treatment)} | ${r.diff === null ? "n/a" : `${r.diff >= 0 ? "+" : ""}${r.diff.toFixed(1)} (${r.ci![0].toFixed(1)} to ${r.ci![1].toFixed(1)})`} |`);
   L.push("", `Spent about $${spent.toFixed(2)} by the token counts the service returned.`);
   return L.join("\n") + "\n";
 }
