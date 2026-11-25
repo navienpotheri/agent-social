@@ -99,6 +99,8 @@ export interface RunAgentOptions {
   now?: () => number;
   /** The gateway's host header is not needed; extra headers are not sent. Max tokens of one reply. */
   replyTokens?: number;
+  /** Called with every model request as sent (system, tools, messages after fold and cache marks, max_tokens) and the reply, for `--record-prompts`: local files only, no key. */
+  recordTurn?: (e: { turn: number; at: string; request: unknown; reply: unknown }) => void;
   /** How long one tool may run. */
   toolTimeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -230,18 +232,19 @@ export async function runAgent(o: RunAgentOptions): Promise<AgentOutcome> {
       markCache();
       let reply: { id?: string; model?: string; content?: Block[]; stop_reason?: string } | undefined;
       let droppedForThisCall = false;
+      let sentBody = "";
       for (let attempt = 0; ; attempt++) {
         let res: Response | undefined, networkError = false;
         try {
           res = await doFetch(`${o.gatewayUrl.replace(/\/$/, "")}/v1/messages`, {
             method: "POST", headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" }, signal: wall.signal,
-            body: JSON.stringify({ model: o.model, max_tokens: o.replyTokens ?? 1024, system, tools: decl, messages: withHistoryBreakpoint(messages, histCache) }),
+            body: (sentBody = JSON.stringify({ model: o.model, max_tokens: o.replyTokens ?? 1024, system, tools: decl, messages: withHistoryBreakpoint(messages, histCache) })),
           });
         } catch (e) {
           if (wall.signal.aborted) return finish(o.signal.aborted ? "stopped" : "wall_clock");
           networkError = true; void e;
         }
-        if (res && res.ok) { reply = (await res.json().catch(() => undefined)) as typeof reply; if (!reply) return finish("provider_error", "the answer was not JSON"); break; }
+        if (res && res.ok) { reply = (await res.json().catch(() => undefined)) as typeof reply; if (!reply) return finish("provider_error", "the answer was not JSON"); if (o.recordTurn) { try { o.recordTurn({ turn: turns, at: new Date().toISOString(), request: JSON.parse(sentBody), reply }); } catch { /* recording never stops a run */ } } break; }
         const status = res?.status ?? 0;
         const text = res ? await res.text().catch(() => "") : "";
         let message = ""; try { const j = JSON.parse(text) as { error?: { message?: string } }; message = j.error?.message ?? ""; } catch { message = text.slice(0, 200); }

@@ -17,6 +17,8 @@ export interface CohortOptions {
   modelFor?: (agent: string) => string | undefined;
   /** The output-token cap of one reply (default 1024); a reasoning model may need more. */
   replyTokens?: number;
+  /** `--record-prompts`: every model request as sent and its reply, per agent. */
+  recordTurn?: (agent: string, e: { turn: number; at: string; request: unknown; reply: unknown }) => void;
   /** The NAME of the environment variable that holds the provider key. The key is read from it once and never stored anywhere. */
   keyEnv: string;
   perAgentUsd: number;
@@ -97,7 +99,7 @@ export async function runCohort(o: CohortOptions): Promise<{ outcomes: AgentOutc
         let out: AgentOutcome;
         try {
           out = await runAgent({
-            agent, toolset, model: o.modelFor?.(agent) ?? o.model, gatewayUrl: entry.url, limits, signal: total.signal, ...(o.replyTokens ? { replyTokens: o.replyTokens } : {}), ...(o.economy ? { economy: o.economy } : {}),
+            agent, toolset, model: o.modelFor?.(agent) ?? o.model, gatewayUrl: entry.url, limits, signal: total.signal, ...(o.replyTokens ? { replyTokens: o.replyTokens } : {}), ...(o.recordTurn ? { recordTurn: (e: { turn: number; at: string; request: unknown; reply: unknown }) => o.recordTurn!(agent, e) } : {}), ...(o.economy ? { economy: o.economy } : {}),
             ...(o.sleep ? { sleep: o.sleep } : {}),
             ...(o.toolTimeoutMs ? { toolTimeoutMs: o.toolTimeoutMs } : {}),
             observe: () => { const s = g.summary(); return { spendUsd: s.spendUsd, tokens: s.tokens, refused: s.blocked.reduce((n, b) => n + b.count, 0), ...(entry.stopped ? { stopped: entry.stopped } : {}), runLog: runLogPath }; },
