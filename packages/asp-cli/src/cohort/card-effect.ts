@@ -16,7 +16,9 @@ export interface CardEffectOptions { /** After the arms: the artifact written fo
 export interface Sample { /** For the interference arm: the course whose artifact was given as memory. */ from?: string; course: string; arm: Arm | "memory"; i: number; score: number; answer: string; inputTokens: number; outputTokens: number; error?: string }
 export interface InterferenceRow { from: string; pairs: number; meanChange: number | null; ci: [number, number] | null; worst: { course: string; change: number } | null }
 /** What each row measures: the course's engine either scores generic rule-writing or a probe of the paper's own skill (paper-specific probes are registered by id). */
-export const PROBE_COURSES = new Set<string>();
+/** The paper-specific probe courses and the course whose card parts carry the same paper (ENG130). */
+export const PROBE_BASE: Record<string, string> = { "C-L7-3": "C-L7-1", "C-L14-4": "C-L14-1", "C-L8-7": "C-L8-1" };
+export const PROBE_COURSES = new Set<string>(Object.keys(PROBE_BASE));
 export const constructOf = (course: string): string => (PROBE_COURSES.has(course) ? "paper-specific probe" : "generic rule-writing");
 export interface CourseRow { construct: string; course: string; title: string; n: number; control: number | null; placebo: number | null; treatment: number | null; diff: number | null; ci: [number, number] | null }
 
@@ -30,7 +32,7 @@ export function bootstrapDiff(a: number[], b: number[], seed: string): [number, 
   d.sort((x, y) => x - y);
   return [d[Math.floor(0.025 * d.length)]!, d[Math.floor(0.975 * d.length)]!];
 }
-export const treatmentText = (course: string): string => { const c = PAPER_COURSES.find((x) => x.course === course); return c ? c.parts.map((p) => `Part ${p.n} of ${c.parts.length}: ${p.title}. ${p.digest}`).join("\n\n") : ""; };
+export const treatmentText = (course: string): string => { const c = PAPER_COURSES.find((x) => x.course === (PROBE_BASE[course] ?? course)); return c ? c.parts.map((p) => `Part ${p.n} of ${c.parts.length}: ${p.title}. ${p.digest}`).join("\n\n") : ""; };
 export const placeboText = (len: number): string => PLACEBO.repeat(Math.ceil(len / PLACEBO.length)).slice(0, len);
 
 function promptFor(card: CourseCard, practice: unknown, arm: Arm): string {
