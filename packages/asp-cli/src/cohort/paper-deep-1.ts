@@ -4,7 +4,7 @@
  * (docs/lenses/paper-briefs.md, full-text reads of the arXiv versions, 2026-11-25); worked examples are invented for teaching and are not from the sources. Source types are stated honestly: an arXiv preprint is not claimed to be peer reviewed.
  */
 export interface DeepTask { question: string; model: string; accept: RegExp }
-export interface DeepCourse { course: string; source: string; sourceType: string; tests: string; parts: Array<{ title: string; text: string }>; tasks: DeepTask[] }
+export interface DeepCourse { /** Set for a course that has no short digest yet: the lens, the paper ids and the title for the new course entry. */ lens?: string; papers?: string; title?: string; course: string; source: string; sourceType: string; tests: string; parts: Array<{ title: string; text: string }>; tasks: DeepTask[] }
 
 export const DEEP_1: DeepCourse[] = [
   { course: "C-L2-1", source: "Reflexion (Shinn et al., arXiv 2303.11366, v4 2023) and ACE, Agentic Context Engineering (Zhang et al., arXiv 2510.04618, v3 2026)", sourceType: "Reflexion: NeurIPS 2023 (venue verified); ACE: an arXiv preprint. The screenshot sources P3, P20 and P34 are a notes post, a blog post and a short note: supplementary insights, not the anchor",

@@ -26,9 +26,9 @@ const SAMPLE: Record<string, string> = {
 for (const d of DEEP_COURSES) d.tasks.forEach((t, i) => { SAMPLE[`${d.course}.p${i + 1}`] = t.model; });
 for (const m of RULE_META) { SAMPLE[`${m.course}.p1`] = `${m.features[0]} and ${m.features[1]}`; SAMPLE[`${m.course}.p2`] = `when the ${m.features[0]} is high then ${m.outcomes[0]}`; SAMPLE[`${m.course}.p3`] = m.ideaSample; }
 const all = new Set(TOOLS.map((t) => t.scope));
-test("eighteen papers, four parts each, seventy-two cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
-  assert.equal(PAPER_COURSES.length, 18, "eight courses of tranche 1 and ten of tranche 2");
-  assert.equal(PAPER_POOL.length, 72);
+test("twenty papers, four parts each, eighty cards, each labelled and traceable to a built course; the courses are built on the Academy with a held-out sitting", () => {
+  assert.equal(PAPER_COURSES.length, 20, "eight courses of tranche 1, ten of tranche 2 and two of the remaining courses");
+  assert.equal(PAPER_POOL.length, 80);
   const cat = loadCatalogue(engineIds()).courses;
   for (const c of PAPER_COURSES) {
     const card = cat.find((x) => x.id === c.course)!;
