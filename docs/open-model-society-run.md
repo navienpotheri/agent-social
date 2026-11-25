@@ -6,7 +6,7 @@ What this is for: the same cohort that ran on a hosted model (rows ENG96, ENG83,
 
 ## 0. What you need
 
-- One rented GPU with at least 32 GB of memory for Inkling-2-Mini (the model card recommends 32 GB or more; its checkpoint is about 20 GB in a mixed NVFP4 and MXFP8 format, which some GPUs may not read directly: see step 7), or one 80 GB GPU for a larger model such as `openai/gpt-oss-120b`. An 80 GB H100 has recently cost roughly 2 to 4 US dollars an hour at specialist clouds; **prices move, look at the page when you rent.** The first hour is a test; a one-hour 15-agent run needs about the same again.
+- One rented GPU with at least 32 GB of memory for Inkling-2-Mini (the model card recommends 32 GB or more; its checkpoint is about 20 GB in a mixed NVFP4 and MXFP8 format, which some GPUs may not read directly: see step 7; the draft model card measured on one H200), or one 80 GB GPU for a larger model such as `openai/gpt-oss-120b`. An 80 GB H100 has recently cost roughly 2 to 4 US dollars an hour at specialist clouds; **prices move, look at the page when you rent.** The first hour is a test; a one-hour 15-agent run needs about the same again.
 - An SSH key pair on your own machine. The server on the pod is reached through an SSH tunnel (`ssh -L 30000:localhost:30000 <pod>`), so no port is opened to the internet and no key to a model service is needed: the cohort tool only needs the name of *some* environment variable holding *some* text.
 - This repository on your machine, with `npm install` done.
 
@@ -16,16 +16,38 @@ Rent one GPU pod with a recent CUDA image and 100 GB of disk (the weights are ab
 
 ## 2. Serve the model (SGLang first, then with the draft model)
 
-The model: `thinkingmachines/Inkling-2-Mini` (Apache 2.0, a mixture-of-experts model, 26.4B parameters of which 3.4B are active, tool use built in). SGLang serves the Anthropic Messages API at `/v1/messages`; so does vLLM 0.11.1 and later. Nothing in this repository needs a new provider: the cohort's Anthropic provider is pointed at your server.
+The model: `thinkingmachines/Inkling-2-Mini` (Apache 2.0, released 2026-11-20, a multimodal mixture-of-experts model, 26.4B parameters of which 3.4B are active; the middle 12 of its 24 layers run three times with shared weights, 48 layer applications per token; 8 of 128 experts per token; a single checkpoint of about 20 GB in mixed NVFP4 and MXFP8; 32 GB or more of GPU memory recommended; built for agents and tool use). SGLang and vLLM both serve the Anthropic Messages API at `/v1/messages`, so nothing in this repository needs a new provider: the cohort's Anthropic provider is pointed at your server. **The commands below are copied from the model cards read on 2026-11-25** (the cards' own text; the Messages API at /v1/messages is from the servers' documentation, not from the cards).
+
+**Plain SGLang, with pip (the model card's command):**
 
 ```
-pod$ docker run --gpus all --rm -p 30000:30000 -v ~/.cache/huggingface:/root/.cache/huggingface lmsysorg/sglang:inkling-2-mini \
-       python3 -m sglang.launch_server --model-path thinkingmachines/Inkling-2-Mini --host 127.0.0.1 --port 30000
+pod$ pip install sglang
+pod$ python3 -m sglang.launch_server --model-path "thinkingmachines/Inkling-2-Mini" --host 0.0.0.0 --port 30000
 ```
 
-Two things to look up in the SGLang (or vLLM) documentation **at the time you run it**, because I could not confirm them: the **tool-call parser flag** for this model (the model card does not state one in the notes I was given; without a parser the server returns text where a tool call should be, and the smoke test in step 4 will say so), and the exact image tag. If the model will not serve, fall back to `Qwen/Qwen3-8B` (dense, Apache 2.0, thinking off) or `openai/gpt-oss-20b`; for vLLM the flags are of the form `vllm serve <model> --enable-auto-tool-choice --tool-call-parser <parser>` with the parser named in the vLLM documentation for that model.
+**Plain SGLang, with the model card's Docker image** (`lmsysorg/sglang:latest`; the draft model's card names the image `lmsysorg/sglang:inkling-2-mini` for the speculative run, which is the safer choice for both):
 
-**Optional speed-up, after the plain run works:** the 0.5B draft model `incoai/Inkling-2-Mini-DFlash2` makes generation faster without changing what the model says (the card says 1.4 to 2.7 times; the target model still checks every token). It needs SGLang with the official image above, the compatibility patch script named on the draft model's card (`sglang_inkling_dflash2.py`), and the flags `--speculative-algorithm DFLASH --speculative-draft-model-path incoai/Inkling-2-Mini-DFlash2 --speculative-num-draft-tokens 8 --attention-backend fa4 --speculative-draft-attention-backend fa4`. Run the plain server for the first test and the behaviour run; use the draft only for a second run, and say in the report which one produced which numbers.
+```
+pod$ docker run --gpus all --shm-size 32g -p 30000:30000 -v ~/.cache/huggingface:/root/.cache/huggingface --ipc=host \
+       lmsysorg/sglang:inkling-2-mini \
+       python3 -m sglang.launch_server --model-path "thinkingmachines/Inkling-2-Mini" --host 0.0.0.0 --port 30000
+```
+
+(The card's example passes `--env "HF_TOKEN=<secret>"`; the weights are public, so no token should be needed; if the download asks for one, that is your own Hugging Face account on the pod, never sent anywhere else.) **vLLM as the alternative** (the model card's command): `pip install vllm` then `vllm serve "thinkingmachines/Inkling-2-Mini"` (port 8000; use `--provider-url http://localhost:8000` and tunnel port 8000).
+
+**What the cards do NOT say, and the smoke test decides:** neither card names a **tool-call parser** flag, and the commands above do not set one. The cohort needs the server to return tool calls as `tool_use` blocks. If the smoke test in step 4 says `NO TOOL CALL`, look in the SGLang or vLLM documentation for the parser that goes with this model (SGLang `--tool-call-parser <name>`; vLLM `--enable-auto-tool-choice --tool-call-parser <name>`) and restart; if none exists for it, use the fallback `Qwen/Qwen3-8B` (dense, Apache 2.0, thinking off) or `openai/gpt-oss-20b`.
+
+**Optional speed-up, after the plain run works: the DFlash 2 draft model** `incoai/Inkling-2-Mini-DFlash2` (0.5B; not a standalone model: it drafts tokens for the target to verify, so the target's sampling distribution is preserved and behaviour is unchanged; only speed changes). From its card, on one H200 with FlashAttention 4, block size 8, the official sampling defaults and 4,096 new tokens: about 2.0 to 2.8 times faster than plain decoding at one request at a time, 1.4 to 1.8 times at eight at a time, and 1.5 to 1.9 times at thirty-two. Run it inside the official image `lmsysorg/sglang:inkling-2-mini`:
+
+```
+pod$ hf download incoai/Inkling-2-Mini-DFlash2 sglang_inkling_dflash2.py --local-dir ./inkling-dflash2
+pod$ python ./inkling-dflash2/sglang_inkling_dflash2.py
+pod$ python -m sglang.launch_server --model-path thinkingmachines/Inkling-2-Mini \
+       --speculative-algorithm DFLASH --speculative-draft-model-path incoai/Inkling-2-Mini-DFlash2 \
+       --speculative-num-draft-tokens 8 --attention-backend fa4 --speculative-draft-attention-backend fa4
+```
+
+(The second line applies the card's compatibility patch; add `--host 0.0.0.0 --port 30000` as above. `fa4` is FlashAttention 4 and may need a newer GPU generation: if the server refuses it, run the plain server.) Use the plain server for the first test and the behaviour run, and the draft only for a second run; say in the report which produced which numbers.
 
 ## 3. The tunnel
 
