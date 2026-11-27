@@ -68,7 +68,7 @@ test("asp run --local: the same governed session with no service and no account,
     // A local session has no ledger (no service, no account), so its summary has no credits line; one with a service shows credits in every summary (run-quota-full.test.ts).
     assert.doesNotMatch(local.out + "\n" + local.err, /credit/i, "a local session has nothing to say about credits");
     // A refusal says what to do next, with the host the command used (a newcomer is stuck without it, UC-137).
-    assert.match(local.out, /to allow {2}this session has no network\. To let it reach a host, name it:\n {12}asp run claude-code --allow-network example\.com --prompt/);
+    assert.match(local.out, /to allow {2}the gateway refuses calls that reach the network for this session\. To let it reach a host, name it:\n {12}asp run claude-code --allow-network example\.com --prompt/);
     assert.ok(!/tool_use:Bash/.test(local.out), "the call never reached the agent");
     const lhome = join(f.aspHome, "local");
     assert.ok(existsSync(join(lhome, "keys")) && existsSync(join(lhome, "local-identities.json")));
@@ -89,4 +89,13 @@ test("asp run --local: the same governed session with no service and no account,
     assert.equal((await asp(f.aspHome, ["run", "claude-code", "--local", "--agent", "helper", "--prompt", "x"], env)).code, 2);
     assert.equal((await asp(f.aspHome, ["run", "claude-code", "--local", "--headless", "--contract", "c", "--prompt", "x"], env)).code, 2);
   } finally { upstream.close(); }
+});
+
+test("T4: the help says the environment wins over a saved login and what to do with no service, and the offline run works with the saved login unreachable", async () => {
+  const f = makeFixture();
+  const help = await asp(f.aspHome, ["help", "account"]);
+  assert.equal(help.code, 0);
+  assert.match(help.out, /ASP_LOG_URL and ASP_LOG_TOKEN in your shell WIN over the login saved by asp join/);
+  assert.match(help.out, /unset ASP_LOG_URL ASP_LOG_TOKEN/);
+  assert.match(help.out, /asp run <runtime> --local runs a governed session with local identities and records on this machine only/);
 });

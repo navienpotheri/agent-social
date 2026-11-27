@@ -17,8 +17,10 @@ export const rankOf = (scope: string): number => RANK[scope] ?? 3;
 
 const WRAPPER_WORDS = new Set(["env", "time", "nohup", "nice", "ionice", "command", "builtin", "exec", "sudo", "doas", "stdbuf", "timeout", "setsid", "then", "do", "else", "if", "while", "until", "!", "{", "(", "watch", "xargs"]);
 const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh", "fish", "cmd", "powershell", "pwsh", "busybox"]);
-const INTERPRETERS = new Set(["python", "python2", "python3", "node", "nodejs", "deno", "bun", "ruby", "perl", "php", "lua", "rscript", "pwsh", "powershell"]);
-const NET_VERBS = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "invoke-webrequest", "iwr", "invoke-restmethod", "irm", "aws", "gsutil", "gcloud", "az", "rclone", "twine", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks"]);
+const INTERPRETERS = new Set(["python", "python2", "python3", "node", "nodejs", "deno", "bun", "ruby", "perl", "php", "lua", "rscript", "r", "julia", "osascript", "pwsh", "powershell"]);
+const NET_VERBS = new Set(["curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "telnet", "ftp", "tftp", "ping", "ping6", "nslookup", "dig", "host", "socat", "aria2c", "lynx", "links", "w3m", "http", "https", "httpie", "invoke-webrequest", "iwr", "invoke-restmethod", "irm", "aws", "gsutil", "gcloud", "az", "rclone", "twine", "mosh", "traceroute", "tracepath", "whois", "nmap", "masscan", "npx", "bunx", "pnpx", "wscat", "websocat", "mutt", "mail", "sendmail", "ssmtp", "swaks", "ssh-keyscan", "bitsadmin", "start-bitstransfer", "pscp", "plink"]);
+/** Programs that fetch and run what a URL in their arguments points at (HTA, script host, registrar, installer, DLL runner): a URL argument is network use. */
+const URL_ARG_VERBS = new Set(["mshta", "cscript", "wscript", "regsvr32", "msiexec", "rundll32", "installutil", "msbuild"]);
 const NPM_NET = new Set(["install", "i", "ci", "add", "update", "up", "upgrade", "publish", "exec", "dlx", "create", "view", "audit", "login", "outdated", "info", "search", "init", "x"]);
 const PIP_NET = new Set(["install", "download", "search", "wheel"]);
 const CARGO_NET = new Set(["install", "fetch", "publish", "update", "add", "search", "login", "yank"]);
@@ -29,7 +31,7 @@ const GIT_LOCAL = new Set(["status", "diff", "log", "show", "branch", "ls-files"
 const DATA_READ = new Set(["cat", "type", "ls", "dir", "pwd", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "findstr", "tree", "stat", "file", "echo", "printf", "sed", "jq", "yq", "sort", "uniq", "cut", "tr", "diff", "cmp", "comm", "column", "nl", "od", "xxd", "basename", "dirname", "realpath", "readlink", "du", "df", "date", "uname", "whoami", "which", "true", "false", "test", "[", "cd", "pushd", "popd", "tac", "rev", "fold", "fmt", "paste", "join", "split", "md5sum", "sha1sum", "sha256sum", "shasum", "cksum", "less", "more", "get-content", "select-string", "get-childitem", "gc", "gci", "sls", "write-output", "write-host", "find", "id", "hostname", "env", "printenv", "sleep", "expr", "seq", "tee", "xargs", "git"]);
 const DATA_WRITE = new Set(["cp", "mv", "rm", "mkdir", "touch", "ln", "chmod", "chown", "install", "dd", "truncate", "rmdir", "set-content", "add-content", "out-file", "new-item", "remove-item", "copy-item", "move-item", "rename-item", "clear-content", "del", "copy", "move", "md", "ni", "ri", "si", "sc", "ac"]);
 const RUNNERS = new Set(["make", "npm", "pnpm", "yarn", "bun", "pytest", "python", "python3", "node", "go", "cargo", "tsc", "eslint", "prettier", "jest", "vitest", "mocha", "ruby", "mvn", "gradle", "gradlew", "dotnet", "java", "javac", "gcc", "g++", "clang", "cmake", "ctest", "rustc", "deno", "php", "phpunit", "rspec", "bash", "sh", "git", "./"]);
-const NET_CODE = /\b(socket|urllib|urlopen|requests\.|httpx|aiohttp|http\.client|httplib|net\/http|net\.connect|net\.Socket|https?\.(get|request)|require\(['"]https?['"]\)|from ['"]node:https?['"]|fetch\s*\(|XMLHttpRequest|WebSocket|file_get_contents\s*\(\s*['"]https?|curl_init|fsockopen|IO::Socket|LWP|Net::HTTP|TCPSocket|URI\.open|open-uri|Invoke-WebRequest|Invoke-RestMethod|WebClient|dns\.resolve|getaddrinfo|gethostbyname)/i;
+const NET_CODE = /\b(socket|urllib|urlopen|requests\.|httpx|aiohttp|http\.client|httplib|net\/http|net\.connect|net\.Socket|https?\.(get|request)|require\(['"]https?['"]\)|from ['"]node:https?['"]|fetch\s*\(|XMLHttpRequest|WebSocket|file_get_contents\s*\(\s*['"]https?|curl_init|fsockopen|IO::Socket|LWP|Net::HTTP|TCPSocket|URI\.open|open-uri|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|WebClient|DownloadFile|DownloadData|DownloadString|UploadString|UploadFile|UploadData|BitsTransfer|dns\.resolve|getaddrinfo|gethostbyname|Downloads\.download|download\.file|download\s*\(|curl_download|HTTP\.(get|post|request|open)|url\s*\(\s*['"]https?|readLines\s*\(\s*url|read\.csv\s*\(\s*['"]https?)/i;
 const EXEC_CODE = /\b(system|popen|subprocess|exec[lv]?p?e?|spawn|child_process|shell_exec|passthru|proc_open|Runtime\.getRuntime|qx|os\.execute)\b|`[^`]*`/i;
 
 /** Shell-like word splitting that keeps quoted text as part of the word (quotes removed). */
@@ -83,7 +85,24 @@ const baseName = (w: string) => (w.split(/[\\/]/).pop() ?? w).toLowerCase().repl
 interface Ctx { vars: Map<string, string>; depth: number; unreadable: boolean; scopes: string[]; hasNonData: boolean; localScopes: string[] }
 
 function subst(text: string, vars: Map<string, string>): string {
-  return text.replace(/\$\{IFS\}|\$IFS/g, " ").replace(/\$\{(\w+)\}|\$(\w+)/g, (m, a, b) => vars.get(a ?? b) ?? m);
+  return staticSubstitutions(text.replace(/\$\{IFS\}|\$IFS/g, " ").replace(/\$\{(\w+)\}|\$(\w+)/g, (m, a, b) => vars.get(a ?? b) ?? m));
+}
+
+/**
+ * A command substitution whose value is known without running anything is replaced by its value, so that a verb spelled through it is read as the verb: $(echo curl), $(printf curl), $(which curl), $(command -v curl),
+ * $(echo Y3VybA== | base64 -d) and their backtick forms. Anything else (a substitution that runs a program) is left as it is and read as before. Class found by the containment benchmark (a command substitution for the verb).
+ */
+export function staticSubstitutions(text: string): string {
+  const value = (body: string): string | undefined => {
+    const b = body.trim();
+    const b64 = /^(?:echo|printf)\s+(?:-\w+\s+)*(?:"([^"]*)"|'([^']*)'|(\S+))\s*\|\s*base64\s+(?:-d|-D|--decode)$/.exec(b);
+    if (b64) { try { const out = Buffer.from(b64[1] ?? b64[2] ?? b64[3] ?? "", "base64").toString("latin1"); return /^[\x20-\x7e]+$/.test(out) ? out : undefined; } catch { return undefined; } }
+    const e = /^(?:echo|printf)\s+(?:-\w+\s+)*(?:"([^"$`]*)"|'([^']*)'|([^\s|;&<>$`"']+))$/.exec(b);
+    if (e) return e[1] ?? e[2] ?? e[3];
+    const w = /^(?:which|command\s+-v|type\s+-p|whereis)\s+([A-Za-z0-9_.+-]+)$/.exec(b);
+    return w ? w[1] : undefined;
+  };
+  return text.replace(/\$\(((?:[^()]|\([^()]*\))*)\)/g, (m, body: string) => value(body) ?? m).replace(/`([^`]*)`/g, (m, body: string) => value(body) ?? m);
 }
 
 /** Innermost text of a command substitution, backticks or process substitution. */
@@ -110,23 +129,31 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     seg = rhs;
   }
   // Plain assignments (a=git) feed later segments.
+  const alias = /^alias\s+([\w.-]+)=(?:"([^"]*)"|'([^']*)'|(\S+))$/.exec(seg);
+  if (alias) { ctx.vars.set("alias:" + alias[1], alias[2] ?? alias[3] ?? alias[4] ?? ""); return seg; }
   const asg = /^(\w+)=(\S*)$/.exec(seg);
   if (asg) { ctx.vars.set(asg[1], words(asg[2])[0] ?? ""); return seg; }
   seg = subst(seg, ctx.vars);
+  // A .NET download or upload called from PowerShell (BM1): (New-Object Net.WebClient).DownloadFile(...) is network use whatever else the line says.
+  if (/\b(?:Net\.WebClient|System\.Net\.Http\.HttpClient)\b|\.(?:Download(?:File|Data|String)|Upload(?:File|Data|String|Values))(?:Async)?\s*\(/i.test(seg)) { note(ctx, "shell.network"); return seg; }
   for (const sub of inner(seg)) scanText(sub, ctx);
   let w = words(seg.replace(/\$\([^)]*\)|`[^`]*`/g, "x"));
   // Leading assignments and wrapper words.
-  while (w.length) {
-    const b = baseName(w[0]);
-    if (/^\w+=/.test(w[0]) || WRAPPER_WORDS.has(b)) {
-      if (b === "xargs") { const rest = w.slice(1); const i = rest.findIndex((x) => !x.startsWith("-")); if (i >= 0) scanText(rest.slice(i).join(" "), ctx); ctx.hasNonData = true; return seg; }
-      w = w.slice(1);
-      if (b === "timeout" || b === "nice") w = w.slice(1); // their first argument is a number
+  // An index, not a slice at every step: a long run of leading assignments must not make the reading quadratic (found by the fuzz of the gateway's edges).
+  let wi = 0;
+  while (wi < w.length) {
+    const b = baseName(w[wi]);
+    if (/^\w+=/.test(w[wi]) || WRAPPER_WORDS.has(b)) {
+      if (b === "xargs") { const rest = w.slice(wi + 1); const i = rest.findIndex((x) => !x.startsWith("-")); if (i >= 0) scanText(rest.slice(i).join(" "), ctx); ctx.hasNonData = true; return seg; }
+      wi++;
+      if (b === "timeout" || b === "nice") wi++; // their first argument is a number
       continue;
     }
     break;
   }
+  w = w.slice(wi);
   if (!w.length) return seg;
+  { const al = ctx.vars.get("alias:" + w[0]); if (al !== undefined) { scanText(al + " " + w.slice(1).join(" "), ctx); ctx.hasNonData = true; return seg; } }
   let verb = baseName(w[0]);
   const args = w.slice(1);
   if (verb.startsWith("$")) { ctx.unreadable = true; note(ctx, "shell.indirect"); return seg; }
@@ -150,7 +177,8 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     note(ctx, "shell.network"); return seg;
   }
   const offline = lowerArgs.includes("--offline");
-  if (verb === "npm" || verb === "pnpm" || verb === "yarn" || verb === "bun" || verb === "npx" || verb === "pnpx" || verb === "bunx") {
+  const bunEval = verb === "bun" && lowerArgs.some((a) => /^(-e|-p|--eval|--print)$/.test(a));
+  if (!bunEval && (verb === "npm" || verb === "pnpm" || verb === "yarn" || verb === "bun" || verb === "npx" || verb === "pnpx" || verb === "bunx")) {
     const s = sub(true);
     if (verb === "npx" || verb === "pnpx" || verb === "bunx") { if (!offline && !lowerArgs.includes("--no-install")) note(ctx, "shell.network"); else ctx.localScopes.push("shell.exec"); return seg; }
     if (s === "install" || s === "i" || s === "ci" || s === "add" || NPM_NET.has(s)) { if (!offline || s === "publish") note(ctx, "shell.network"); else ctx.localScopes.push("shell.exec"); return seg; }
@@ -162,16 +190,29 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     if (PIP_NET.has(s) || ["add", "sync", "lock", "update", "pip", "tool", "publish", "self"].includes(s)) { note(ctx, "shell.network"); return seg; }
     ctx.localScopes.push("shell.exec"); return seg;
   }
-  if (INTERPRETERS.has(verb.replace(/\d+(\.\d+)*$/, "")) || INTERPRETERS.has(verb)) {
+  if (verb === "deno" && lowerArgs[0] === "eval" && args.length > 1) { const dcode = args.slice(1).join(" "); if (NET_CODE.test(dcode)) { note(ctx, "shell.network"); return seg; } for (const cmd of argumentLists(dcode)) { const before = ctx.scopes.length; scanText(cmd, ctx); if (ctx.scopes.length > before) return seg; } ctx.localScopes.push("shell.exec"); return seg; }
+  if (verb === "deno" && (lowerArgs[0] === "run" || lowerArgs[0] === "install") && args.some((a) => /^(https?|ftp):\/\//i.test(a))) { note(ctx, "shell.network"); return seg; }
+  if (URL_ARG_VERBS.has(verb) && args.some((a) => /(^|[:=/"'])(https?|ftp):\/\/|^\\\\[\w.-]+\\/i.test(a))) { note(ctx, "shell.network"); return seg; }
+  if (verb === "wsl" || verb === "wsl.exe") {
+    // wsl [options] [command]: the command is read as any other; wsl alone, or with a distribution and nothing to run, is a local shell.
+    let i = 0; while (i < args.length) { const a = lowerArgs[i]; if (a === "-d" || a === "--distribution" || a === "-u" || a === "--user" || a === "--cd") { i += 2; continue; } if (a === "-e" || a === "--exec" || a === "--") { i++; break; } if (a.startsWith("-")) { i++; continue; } break; }
+    const rest = args.slice(i).join(" "); if (rest.trim()) { scanText(rest, ctx); ctx.hasNonData = true; return seg; }
+    ctx.localScopes.push("shell.exec"); return seg;
+  }
+  if (INTERPRETERS.has(verb.replace(/\d+(\.\d+)*$/, "")) || INTERPRETERS.has(verb) || bunEval) {
     if (lowerArgs[0] === "-m" && (lowerArgs[1] === "pip" || lowerArgs[1] === "ensurepip") && PIP_NET.has(lowerArgs.slice(2).find((a) => !a.startsWith("-")) ?? "")) { note(ctx, "shell.network"); return seg; }
     if (lowerArgs[0] === "-m" && ["http.server", "smtpd", "ftplib", "urllib.request"].includes(lowerArgs[1] ?? "")) { note(ctx, "shell.network"); return seg; }
-    const codeIdx = args.findIndex((a, i) => /^-(c|e|r|eval|command)$/i.test(a) && i + 1 < args.length);
+    const codeIdx = args.findIndex((a, i) => /^--?(c|e|r|p|pe|eval|print|command)$/i.test(a) && i + 1 < args.length);
     const code = codeIdx >= 0 ? args.slice(codeIdx + 1).join(" ") : "";
     if (code) {
+      if (verb === "osascript") { scanText(code, ctx); ctx.hasNonData = true; if (ctx.scopes.length) return seg; }
       if (NET_CODE.test(code)) { note(ctx, "shell.network"); return seg; }
+      // A command passed as a list (BM19): subprocess.run([sys.executable,'-m','pip','install','x']), execFile('curl',['http://x']), system('git','push'), os.execvp('curl', ['curl', url]).
+      for (const cmd of argumentLists(code)) { const before = ctx.scopes.length; scanText(cmd, ctx); if (ctx.scopes.length > before) return seg; }
       if (EXEC_CODE.test(code)) { scanText(code.replace(/^.*?(system|popen|run|exec\w*|spawn\w*)\s*\(\s*['"]/i, ""), ctx); }
       ctx.localScopes.push("shell.exec"); return seg;
     }
+    if ((verb === "powershell" || verb === "pwsh") && args.length && !args[0].startsWith("-")) { scanText(args.join(" "), ctx); ctx.hasNonData = true; if (ctx.scopes.length) return seg; }
     ctx.localScopes.push("shell.exec"); return seg; // a script file: contents not read
   }
   if (verb === "cargo") { const s = sub(true); if (CARGO_NET.has(s)) { note(ctx, "shell.network"); return seg; } ctx.localScopes.push("shell.exec"); return seg; }
@@ -180,6 +221,15 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     const s = sub(true);
     if (SYS_NET.has(s) || ["push", "restore", "fetch", "require", "outdated", "search", "download"].includes(s) || (verb === "gem" && s === "install")) { note(ctx, "shell.network"); return seg; }
     ctx.localScopes.push("shell.exec"); return seg;
+  }
+  // Windows download tools (BM1): certutil fetches a URL with -urlcache or -verifyctl; BITS (bitsadmin, Start-BitsTransfer) is in the verb list above.
+  if (verb === "certutil" || verb === "certutil.exe") { if (lowerArgs.some((a) => /^[-/](urlcache|verifyctl|url|ping)/.test(a))) { note(ctx, "shell.network"); return seg; } ctx.localScopes.push("shell.exec"); return seg; }
+  // A container reaches the network by itself (BM1): running, creating, starting or executing in one, or building or composing one, is network use whatever the command inside says; docker-compose is the same tool.
+  if (verb === "docker-compose" || verb === "podman-compose") { note(ctx, "shell.network"); return seg; }
+  if ((verb === "docker" || verb === "podman" || verb === "nerdctl") && ["run", "create", "start", "exec", "build", "compose", "buildx"].includes(sub(true))) {
+    // A container started or built with its network switched off (--network none) is the careful way to run one, so it is not network use.
+    const noNet = lowerArgs.some((a, i) => /^--net(work)?=none$/.test(a) || (/^--net(work)?$/.test(a) && lowerArgs[i + 1] === "none"));
+    if (!noNet) { note(ctx, "shell.network"); return seg; }
   }
   if (verb === "docker" || verb === "podman" || verb === "nerdctl") {
     const s = sub(true);
@@ -194,9 +244,10 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
     ctx.localScopes.push(lowerArgs.includes("-delete") ? "repo.write" : "repo.read"); return seg;
   }
   if (verb === "eval" || verb === "source" || verb === ".") { scanText(args.join(" "), ctx); ctx.hasNonData = true; return seg; }
+  if ((verb === "powershell" || verb === "pwsh") && args.length && !args[0].startsWith("-")) { scanText(args.join(" "), ctx); ctx.hasNonData = true; return seg; }
   if (SHELLS.has(verb)) {
     const c = args.findIndex((a) => /^-\w*c$/i.test(a) || a.toLowerCase() === "/c" || a.toLowerCase() === "-command");
-    if (c >= 0) { scanText(args.slice(c + 1).join(" "), ctx); ctx.hasNonData = true; return seg; }
+    if (c >= 0) { scanText(args.slice(c + 1).join(" ").replace(/^\s*(["'])([\s\S]*)\1\s*$/, "$2"), ctx); ctx.hasNonData = true; return seg; }
     // A shell reading its input from a pipe or a file: what feeds it decides.
     ctx.hasNonData = true;
     if (prev !== undefined) {
@@ -219,6 +270,33 @@ function scanSegment(seg: string, ctx: Ctx, prev: string | undefined): string {
   ctx.localScopes.push("shell.exec");
   if (!RUNNERS.has(verb) && !/^\.{0,2}\//.test(w[0]) && !/^[a-z][\w.+-]*$/.test(verb)) ctx.hasNonData = true;
   return seg;
+}
+
+/**
+ * The commands interpreter code runs by passing the program and its arguments as separate strings (BM19): for each call of a process-starting function, the quoted strings in its argument text in order,
+ * with the interpreter's own path (sys.executable, process.execPath, RbConfig.ruby) read as `python` or `node`. Keyword arguments (shell=True) and non-literals are left out, so the result is the command
+ * the program would run when every part is a literal; it is then read like any command. A list built at run time is not read (the sandbox's egress block is what stops that).
+ */
+function argumentLists(code: string): string[] {
+  const out: string[] = [];
+  const call = /\b(?:subprocess\.\w+|Popen|check_output|check_call|os\.(?:exec\w+|spawn\w+|system|popen)|execFile\w*|execvp?e?|spawn\w*|fork_exec|system|exec|popen\d?|IO\.popen|Open3\.\w+|proc_open|pcntl_exec)\s*\(/g;
+  for (const m of code.matchAll(call)) {
+    let depth = 1, i = m.index! + m[0].length, q = "";
+    const start = i;
+    for (; i < code.length && depth > 0; i++) {
+      const ch = code[i];
+      if (q) { if (ch === "\\") i++; else if (ch === q) q = ""; continue; }
+      if (ch === "'" || ch === "\"") q = ch; else if (ch === "(" || ch === "[" || ch === "{") depth++; else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    }
+    const argText = code.slice(start, i - 1);
+    const parts: string[] = [];
+    for (const t of argText.matchAll(/(["'])((?:\\.|(?!\1).)*)\1|\b(sys\.executable|process\.execPath|RbConfig\.ruby|PHP_BINARY)\b/g)) {
+      if (t[3]) parts.push(/sys\.executable/.test(t[3]) ? "python" : /execPath/.test(t[3]) ? "node" : t[3] === "PHP_BINARY" ? "php" : "ruby");
+      else parts.push(t[2]);
+    }
+    if (parts.length > 1) out.push(parts.map((p) => (/[\s'"]/.test(p) ? JSON.stringify(p) : p)).join(" "));
+  }
+  return out;
 }
 
 /** Removes shell comments (# outside quotes, at a word start). */

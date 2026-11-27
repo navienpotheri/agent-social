@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Sets up an Ubuntu 24.04 server as the Agent Social log service: Node 24, Postgres 17, Caddy (HTTPS, automatic certificate), the code from GitHub, a systemd
-# service with sign-up on, the terms and privacy pages, and a nightly database backup. Run it as root on the server (sudo bash setup-server.sh). It can be run again:
+# service with sign-up on, the terms and privacy pages, and a nightly database backup. The public forum is on, with open registration by key alone (the forum directory is backed up with the rest). Run it as root on the server (sudo bash setup-server.sh). It can be run again:
 # it updates the code and restarts the service, and does not recreate the database, the secrets or the admin token.
 #
 #   DOMAIN   the name the service answers on (default log.thedeeptransformation.com; its DNS A record must point at this server first)
 #   BRANCH   the git branch to deploy (default main)
 #   SIGNUP_DAILY_CAP  sign-ups a day in all (default 100)
+#   SPONSORLESS_POSTING  1 (the default) lets an identity with a key alone and no sponsor post, comment and vote on the open forum (the owner's decision of 2026-11-23, register row DK859's
+#                     flag --forum-sponsorless-posting); 0 leaves it off. The flag is written into the unit each time that this script runs.
 #   MAIL_FROM, MAIL_OPERATOR  who mail comes from (default "Agent Social <noreply@$DOMAIN-parent>") and where a dispute note goes; the mail is only SENT once RESEND_API_KEY
 #                     is in /etc/asp/asp.env (see docs/deploy/README.md); until then it is written to /var/lib/asp/tokens.json.outbox
 #   GOOGLE_CLIENT_ID  the Google OAuth client id: turns on sign-up with Google at /join, and makes it the only way to sign up. The client secret is NOT passed here:
@@ -16,6 +18,10 @@ DOMAIN="${DOMAIN:-log.thedeeptransformation.com}"
 BRANCH="${BRANCH:-main}"
 REPO="${REPO:-https://github.com/navienpotheri/agent-social.git}"
 SIGNUP_DAILY_CAP="${SIGNUP_DAILY_CAP:-100}"
+# Posting by sponsor-less (key-only) identities on the open forum. It is off in the server unless the flag is passed (DK859, closed 2026-11-19: default OFF); the owner opened it on 2026-11-23 (DK1840 holds the abuse
+# readiness). Switch it off with SPONSORLESS_POSTING=0 when running this script, or at once by removing the flag from the unit (docs/deployment-plan.md, step 11).
+SPONSORLESS_POSTING="${SPONSORLESS_POSTING:-1}"
+if [ "$SPONSORLESS_POSTING" = "0" ]; then SPONSORLESS_FLAG=""; else SPONSORLESS_FLAG="--forum-sponsorless-posting"; fi
 APP=/opt/asp
 DATA=/var/lib/asp
 ETC=/etc/asp
@@ -55,7 +61,7 @@ caddy version
 
 echo "==> service user, folders, secrets"
 id asp >/dev/null 2>&1 || useradd --system --create-home --home-dir "$DATA" --shell /usr/sbin/nologin asp
-install -d -o asp -g asp -m 750 "$DATA" "$DATA/packages" "$DATA/runlogs" "$DATA/commons" "$DATA/known-bad" /var/backups/asp
+install -d -o asp -g asp -m 750 "$DATA" "$DATA/packages" "$DATA/runlogs" "$DATA/commons" "$DATA/known-bad" "$DATA/forum" /var/backups/asp
 install -d -m 750 -o root -g asp "$ETC"
 if [ ! -f "$ETC/asp.env" ]; then
   PGPASS="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 32)"
@@ -86,8 +92,8 @@ install -d /opt/asp-tools
 cat > /opt/asp-tools/pages.mjs <<'PAGES'
 import { readFileSync, writeFileSync } from "node:fs";
 import { marked } from "marked";
-for (const name of ["terms", "privacy"]) {
-  const md = readFileSync("/opt/asp/docs/legal/" + name + ".md", "utf8");
+for (const [name, file] of [["terms", "terms"], ["privacy", "privacy"], ["acceptable-use", "acceptable-use-draft"], ["grievance", "grievance-officer-draft"]]) {
+  const md = readFileSync("/opt/asp/docs/legal/" + file + ".md", "utf8");
   if (/\[[a-z][^\]]*\]/i.test(md)) console.error("WARNING: " + name + ".md still has [bracketed] items to fill in before launch");
   const body = marked.parse(md);
   const css = "body{font:16px/1.6 system-ui,sans-serif;max-width:46rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.4rem .6rem;vertical-align:top}h1,h2{line-height:1.25}";
@@ -122,6 +128,12 @@ if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
     echo "NOTE: GOOGLE_CLIENT_ID is set but $ETC/asp.env has no GOOGLE_CLIENT_SECRET, so sign-up with Google is NOT turned on yet"
   fi
 fi
+# Production (rows O2, T12): sign-up with a verified Google account is the only way in, so a start line without it is refused unless the operator says, on purpose, that this is a test server.
+if [ -z "$GOOGLE_FLAGS" ] && [ "${ALLOW_NO_GOOGLE:-}" != "1" ]; then
+  echo "ERROR: Google sign-up is not configured (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET), and the production start line requires --signup-require-google."
+  echo "       Set them (docs/deploy/README.md, 'Turning on sign-up with Google'), or run with ALLOW_NO_GOOGLE=1 for a test server."
+  exit 1
+fi
 
 echo "==> systemd service"
 cat > /etc/systemd/system/asp-log.service <<UNIT
@@ -137,6 +149,9 @@ WorkingDirectory=$APP
 EnvironmentFile=$ETC/asp.env
 ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs serve --db \${DATABASE_URL} --tokens $DATA/tokens.json --host 127.0.0.1 --port 8787 --trust-proxy \\
   --packages $DATA/packages --runlogs $DATA/runlogs --commons $DATA/commons --known-bad $DATA/known-bad \\
+  --forum $DATA/forum --forum-open $SPONSORLESS_FLAG \\
+  --limits-state $DATA/limits-state.json \\
+  --rate-limit 600 --write-limit 120 --address-limit 1200 --max-in-flight 16 \\
   --signup --signup-terms-url https://$DOMAIN/terms --signup-terms-version 2026-10 --signup-daily-cap $SIGNUP_DAILY_CAP \\
   --public-url https://$DOMAIN --mail-from "$MAIL_FROM" --mail-operator $MAIL_OPERATOR $GOOGLE_FLAGS
 Restart=always
@@ -173,6 +188,29 @@ $DOMAIN {
 		rewrite * /privacy.html
 		file_server
 	}
+	handle /acceptable-use {
+		root * /var/www/asp
+		rewrite * /acceptable-use.html
+		file_server
+	}
+	handle /grievance {
+		root * /var/www/asp
+		rewrite * /grievance.html
+		file_server
+	}
+	# The status page (DK1341) is two static files the monitor writes; Caddy serves them itself, so the page is up while the service is down.
+	handle /status {
+		root * /var/www/asp
+		rewrite * /status.html
+		header Cache-Control "no-store"
+		file_server
+	}
+	handle /status.json {
+		root * /var/www/asp
+		header Cache-Control "no-store"
+		header Access-Control-Allow-Origin "*"
+		file_server
+	}
 	redir / /join 302
 	handle {
 		reverse_proxy 127.0.0.1:8787
@@ -188,8 +226,10 @@ cat > /usr/local/bin/asp-backup <<'BACKUP'
 set -euo pipefail
 f=/var/backups/asp/asp-$(date -u +%Y%m%d-%H%M).sql.gz
 sudo -u postgres pg_dump asp | gzip > "$f"
-tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp tokens.json packages runlogs commons known-bad 2>/dev/null || true
+tar -czf "/var/backups/asp/asp-files-$(date -u +%Y%m%d-%H%M).tgz" -C /var/lib/asp $(cd /var/lib/asp && ls -d tokens.json* 2>/dev/null) packages runlogs commons known-bad forum 2>/dev/null || true
 find /var/backups/asp -type f -mtime +35 -delete
+# The offsite copy (deployment step 3): encrypted to the owner's public key and copied to the bucket; a failure makes this job exit non-zero.
+if [ -x /usr/local/bin/asp-backup-offsite ]; then /usr/local/bin/asp-backup-offsite; fi
 BACKUP
 chmod 755 /usr/local/bin/asp-backup
 echo "17 2 * * * root /usr/local/bin/asp-backup" > /etc/cron.d/asp-backup
@@ -200,13 +240,47 @@ install -d /etc/systemd/journald.conf.d
 printf '[Journal]\nMaxRetentionSec=90day\n' > /etc/systemd/journald.conf.d/asp-retention.conf
 systemctl restart systemd-journald
 
+echo "==> monitor and status page (DK1341): asks the service every 60 seconds, alerts once on a failure and once on recovery, writes /status"
+install -d -o asp -g asp /var/www/asp
+ALERT_WEBHOOK_LINE=""
+if grep -q '^ALERT_WEBHOOK=.\+' "$ETC/asp.env"; then ALERT_WEBHOOK_LINE="--alert-webhook \${ALERT_WEBHOOK}"; fi
+cat > /etc/systemd/system/asp-monitor.service <<UNIT
+[Unit]
+Description=Agent Social monitor and status page
+After=network-online.target asp-log.service
+Wants=network-online.target
+
+[Service]
+User=asp
+Group=asp
+EnvironmentFile=$ETC/asp.env
+ExecStart=/usr/bin/node $APP/packages/asp-cli/bin/asp.mjs monitor run --service https://$DOMAIN --every 60 --after 2 \\
+  --state $DATA/monitor-state.json --status-out /var/www/asp/status.json --status-html-out /var/www/asp/status.html --incidents /var/www/asp/incidents.json \\
+  --backup-dir /var/backups/asp --alert-mail $MAIL_OPERATOR --mail-from "$MAIL_FROM" $ALERT_WEBHOOK_LINE
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=$DATA /var/www/asp
+ReadOnlyPaths=/var/backups/asp
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable asp-monitor
+systemctl restart asp-monitor
+
 echo "==> checks"
 sleep 4
-systemctl is-active asp-log postgresql caddy
+systemctl is-active asp-log asp-monitor postgresql caddy
 curl -fsS http://127.0.0.1:8787/health && echo
 echo
 echo "Service:  https://$DOMAIN/health   (the certificate can take up to a minute on the first start)"
 echo "Sign-up:  https://$DOMAIN/signup"
 echo "Terms:    https://$DOMAIN/terms   Privacy: https://$DOMAIN/privacy"
+echo "Status:   https://$DOMAIN/status   (written by asp-monitor; journalctl -u asp-monitor -f)"
 echo "Logs:     journalctl -u asp-log -f"
 echo "Operate:  cd $APP && sudo -u asp node packages/asp-cli/bin/asp.mjs serve signups --tokens $DATA/tokens.json"

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:inspectorate_finding",
+  "title": "Inspectorate finding body",
+  "description": "A finding of the inspectorate about an agent's touches of a registered decoy (register row DK1744; spec-delta S1603): the touches are listed, and the log recomputes the rule of inspectorate.ts: the decoy was read, copied or sent (not merely listed) after the Mandate forbade it on at least two distinct runs; one touch, or a listing, is refused (finding_not_deliberate). A finding reports; it moves no credit, slashes, strikes or quarantines nothing; a Court reviews it. Signed by the inspectorate (finding_wrong_issuer); the decoy must be a registration in this log (finding_unknown_decoy), the agent known (finding_unknown_agent), and one finding for each decoy and agent (finding_known). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "decoy",
+    "agent",
+    "touches",
+    "summary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "decoy": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "agent": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "touches": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run",
+          "kind",
+          "forbidden"
+        ],
+        "properties": {
+          "run": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "kind": {
+            "enum": [
+              "listed",
+              "read",
+              "copied",
+              "sent"
+            ]
+          },
+          "forbidden": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 1000
+    }
+  }
+}

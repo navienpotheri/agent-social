@@ -20,7 +20,7 @@ class Job:
 
     _SNAPSHOT_FIELDS = (
         "state", "head", "last_issued_at", "length", "contract_id", "principal", "performer", "bank",
-        "review_deadline", "open_checkpoint", "open_checkpoint_expires", "latest_delivery", "acceptance", "ruling", "redeliveries",
+        "review_deadline", "ruling_window_seconds", "appeal_hold_seconds", "disputed_at", "ruling_at", "open_checkpoint", "open_checkpoint_expires", "open_checkpoint_at", "deadline", "deadline_binds", "approval_wait_ms", "latest_delivery", "acceptance", "ruling", "redeliveries",
     )
 
     def __init__(self, resolve: KeyResolver | None = None, schemas: SchemaSet | None = None):
@@ -36,8 +36,16 @@ class Job:
         self.performer: str | None = None
         self.bank: str | None = None
         self.review_deadline: str | None = None
+        self.ruling_window_seconds: int | None = None
+        self.appeal_hold_seconds: int | None = None
+        self.ruling_at: str | None = None
+        self.disputed_at: str | None = None
         self.open_checkpoint: str | None = None
         self.open_checkpoint_expires: str | None = None
+        self.open_checkpoint_at: str | None = None
+        self.deadline: str | None = None
+        self.deadline_binds = False
+        self.approval_wait_ms = 0
         self.latest_delivery: str | None = None
         self.acceptance: str | None = None
         self.ruling: str | None = None
@@ -97,6 +105,11 @@ class Job:
                 r["id"], b["principal"], b["performer"], b["bank"],
             )
             self.review_deadline = b.get("review_deadline")
+            self.deadline = b.get("deadline")
+            self.deadline_binds = b.get("deadline_binds") is True
+            self.approval_wait_ms = 0
+            self.ruling_window_seconds = b.get("ruling_window_seconds")
+            self.appeal_hold_seconds = b.get("appeal_hold_seconds")
         try:
             self._check_issuer(t["issuer"], r)
             for g in t.get("guards", []):
@@ -105,7 +118,7 @@ class Job:
         except AspError:
             # A rejected record leaves the job unchanged.
             if rtype == "contract":
-                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = None
+                self.contract_id = self.principal = self.performer = self.bank = self.review_deadline = self.ruling_window_seconds = self.appeal_hold_seconds = None
             raise
 
         self._record(t, rtype, r)
@@ -136,6 +149,8 @@ class Job:
     def _guard(self, name: str, r: Record) -> bool:
         b = r["body"]
         match name:
+            case "not_self_hire":
+                return b.get("principal") != b.get("performer")
             case "cosigned_by_performer":
                 return self._cosigned_by(r, self.performer)
             case "cosigned_by_principal":
@@ -165,18 +180,35 @@ class Job:
                 return b.get("cites") is not None and b.get("cites") == self.acceptance
             case "cites_ruling":
                 return b.get("cites") is not None and b.get("cites") == self.ruling
+            case "delivered_in_time":
+                # S1441 (T21): a binding deadline is extended by the time the performer waited for its principal to answer Checkpoints.
+                return (not self.deadline_binds or self.deadline is None
+                        or _ms(r["issued_at"]) <= _ms(self.deadline) + self.approval_wait_ms)
             case "past_review_deadline":
                 return (self.review_deadline is not None
                         and datetime.fromisoformat(r["issued_at"]) > datetime.fromisoformat(self.review_deadline))
+            case "past_ruling_window":
+                return (self.ruling_window_seconds is not None and self.disputed_at is not None
+                        and (datetime.fromisoformat(r["issued_at"]) - datetime.fromisoformat(self.disputed_at)).total_seconds() > self.ruling_window_seconds)
+            case "past_appeal_window":
+                # No hold on the contract: not held (older contracts). With one: after the hold past the ruling, or both parties waive it by cosigning.
+                return (self.appeal_hold_seconds is None
+                        or (self.ruling_at is not None
+                            and (datetime.fromisoformat(r["issued_at"]) - datetime.fromisoformat(self.ruling_at)).total_seconds() >= self.appeal_hold_seconds)
+                        or (self._cosigned_by(r, self.principal) and self._cosigned_by(r, self.performer)))
         raise ValueError(f"unknown guard {name}")
 
     def _record(self, t: dict[str, Any], rtype: str, r: Record) -> None:
         if rtype == "checkpoint":
             self.open_checkpoint = r["id"]
             self.open_checkpoint_expires = r["body"].get("expires")
+            self.open_checkpoint_at = r["issued_at"]
         if rtype == "attestation" and "Checkpoint" in t["from"]:
+            if self.open_checkpoint_at is not None:
+                self.approval_wait_ms += max(0, _ms(r["issued_at"]) - _ms(self.open_checkpoint_at))
             self.open_checkpoint = None
             self.open_checkpoint_expires = None
+            self.open_checkpoint_at = None
         if rtype == "delivery":
             self.latest_delivery = r["id"]
         for e in t.get("effects", []):
@@ -186,6 +218,9 @@ class Job:
                 self.redeliveries += 1
             elif e == "record_ruling":
                 self.ruling = r["id"]
+                self.ruling_at = r["issued_at"]
+            elif e == "mark_disputed":
+                self.disputed_at = r["issued_at"]
             else:
                 raise ValueError(f"unknown effect {e}")
 
@@ -198,3 +233,8 @@ def _describe(r: Record) -> str:
     b = r["body"]
     extra = [f"{k}={b[k]}" for k in ("kind", "verdict", "basis") if isinstance(b.get(k), str)]
     return " ".join([r["type"], *extra])
+
+
+def _ms(ts: str) -> int:
+    """Milliseconds since the epoch of an ISO 8601 timestamp (whole milliseconds, as the TypeScript side counts them)."""
+    return round(datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp() * 1000)

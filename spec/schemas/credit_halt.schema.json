@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:credit_halt",
+  "title": "Credit halt body",
+  "description": "A circuit breaker on the Bank's withdrawals or the Insurer's claim payments (register row DK1229; spec-delta S1653). Signed by the Treasury. While a halt on the Bank stands, a withdrawal is queued and nothing is paid, the Treasury borrows nothing, and deposits are still taken; when it ends (at `until`, or by a `lift`) the queue is paid at once in proportion to what each holder asked, so no one is paid ahead of another because they asked first (`bank_halted` is the refusal of a loan during it). While a halt on the Insurer stands, a claim decision that pays is refused (`insurer_halted`); a denial is not. A halt has a sunset (at most 7 days), and one is live for an institution at a time. Every halt and lift is public. Credits move only by the ordinary rules, so supply is unchanged. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["act", "institution", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "act": { "enum": ["halt", "lift"] },
+    "institution": { "enum": ["bank", "insurer"] },
+    "reason": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "until": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "halt": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "act": { "const": "halt" } } },
+      "then": { "required": ["until"], "not": { "required": ["halt"] } },
+      "else": { "required": ["halt"], "not": { "required": ["until"] } }
+    }
+  ]
+}

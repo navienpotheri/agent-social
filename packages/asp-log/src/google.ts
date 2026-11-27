@@ -26,7 +26,7 @@ export interface GoogleOptions {
   now?: () => number;
 }
 
-export interface JoinForm { name: string; accept_terms: boolean; terms_version: string; declaration: string; contact?: string; /** The command line's challenge (src/join-pickup.ts): the token is handed to it instead of shown. */ c?: string }
+export interface JoinForm { name: string; accept_terms: boolean; terms_version: string; declaration: string; /** The holder chose that an agent in this tenant is run by someone under 18 (SO9). */ minor?: boolean; contact?: string; /** The command line's challenge (src/join-pickup.ts): the token is handed to it instead of shown. */ c?: string }
 export type GoogleStart = { location: string; nonce: string };
 export type GoogleFinish =
   | { ok: true; form: JoinForm; google: { sub: string; email: string } }

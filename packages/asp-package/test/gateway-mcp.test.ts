@@ -89,6 +89,45 @@ test("commons tools: search and show read the shared library, cite signs through
   assert.deepEqual(cited, ["sha256:a|fixed my seed"]);
 });
 
+test("forum tools: feed and show read the forum; post, comment and vote sign through the caller and need the tool.forum_write scope", async () => {
+  const seen: string[] = [];
+  const forum = createServer((req, res) => {
+    seen.push(`${req.method} ${req.url}`);
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(req.url!.startsWith("/forum/posts/")
+      ? { ok: true, title: "Cite your sources", author: "did:a", score: 2, text: "Say where you read it.", comments: [{ id: "sha256:c", author: "did:b", score: 1, text: "Agreed." }] }
+      : { ok: true, posts: [{ id: "sha256:p", title: "Cite your sources", author: "did:a", score: 2, comments: 1, tags: ["method"], hidden: false }] }));
+  });
+  await new Promise<void>((r) => forum.listen(0, "127.0.0.1", r));
+  servers.push(forum);
+  const furl = `http://127.0.0.1:${(forum.address() as { port: number }).port}`;
+  const acts: string[] = [];
+  const act = async (kind: string, fields: Record<string, unknown>) => { acts.push(`${kind} ${JSON.stringify(fields)}`); return { id: "sha256:new" }; };
+
+  // Read-only: no key, so no write tools.
+  const ro = await start({ mcp: { asp: { forum: { url: furl } } } });
+  assert.deepEqual((await rpc(`${ro.base}/mcp/asp`, "tools/list")).body.result.tools.map((t: any) => t.name), ["asp_forum_feed", "asp_forum_show"]);
+  assert.match(text(await rpc(`${ro.base}/mcp/asp`, "tools/call", { name: "asp_forum_feed", arguments: { sort: "top" } })), /sha256:p {2}Cite your sources {2}by did:a {2}2 pts, 1 comments {2}#method/);
+  assert.match(seen[0], /GET \/forum\/feed\?sort=top/);
+  assert.match(text(await rpc(`${ro.base}/mcp/asp`, "tools/call", { name: "asp_forum_show", arguments: { id: "sha256:p" } })), /Say where you read it\.[\s\S]*did:b \(1 pts\): Agreed\./);
+
+  // With a key but without the scope: the write is refused and nothing is signed.
+  const noScope = await start({ mcp: { asp: { forum: { url: furl, act } } } });
+  assert.equal((await rpc(`${noScope.base}/mcp/asp`, "tools/list")).body.result.tools.length, 5);
+  const refused = await rpc(`${noScope.base}/mcp/asp`, "tools/call", { name: "asp_forum_post", arguments: { title: "t", text: "x" } });
+  assert.equal(refused.body.result.isError, true);
+  assert.match(text(refused), /tool\.forum_write is not granted/);
+  assert.deepEqual(acts, []);
+
+  // With the scope: each tool signs through the caller.
+  const granted = await start({ scopes: ["tool.forum_write"], mcp: { asp: { forum: { url: furl, act } } } });
+  const u = `${granted.base}/mcp/asp`;
+  assert.match(text(await rpc(u, "tools/call", { name: "asp_forum_post", arguments: { title: "T", text: "body", tags: ["a"], contract: "c1" } })), /Posted: sha256:new/);
+  assert.match(text(await rpc(u, "tools/call", { name: "asp_forum_comment", arguments: { post: "sha256:p", text: "hi" } })), /Commented/);
+  assert.match(text(await rpc(u, "tools/call", { name: "asp_forum_vote", arguments: { target: "sha256:p", value: "down" } })), /Voted/);
+  assert.deepEqual(acts, ['post {"title":"T","text":"body","tags":["a"],"contract":"c1"}', 'comment {"post":"sha256:p","text":"hi"}', 'vote {"target":"sha256:p","value":-1}']);
+});
+
 test("the MCP proxy judges every call: an allowed tool is forwarded, a refused one never reaches the server and is a strike (stdio and HTTP upstreams)", async () => {
   const fake = fileURLToPath(new URL("./fake-mcp-server.mjs", import.meta.url));
   const up = stdioUpstream(process.execPath, [fake]);
@@ -154,4 +193,20 @@ test("the gateway's own asp tools need no scope when the gateway serves them, an
   const notServed = await ask({});
   assert.equal(notServed.reply.choices[0].message.tool_calls, undefined);
   assert.deepEqual(notServed.summary.blocked, [{ scope: "mcp.asp.asp_memory_write", count: 1 }]);
+});
+
+test("DK240: under a Mandate that names hosts, an MCP tool with no destination in its call is refused unless its server declares destinations the Mandate allows", async () => {
+  const { mcpDestinationProblem } = await import("../src/index.ts");
+  const hosts = ["api.example.org"];
+  const call = (name: string, args: Record<string, unknown> = {}) => ({ name, args });
+  // No host limit in the Mandate: nothing to check.
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", {}), undefined), undefined);
+  // A fixed-endpoint tool whose server declares nothing is refused; one that declares an allowed host is not; one that declares a host outside the Mandate is refused.
+  assert.match(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts)!, /does not declare where its tools reach/);
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts, { fetcher: ["api.example.org"] }), undefined);
+  assert.match(mcpDestinationProblem(call("mcp__fetcher__get", { id: 7 }), hosts, { fetcher: ["evil.example"] })!, /evil\.example, which is not one this job's Mandate allows/);
+  // A tool that names a destination is judged by the host check as before; the gateway's own tools are never held up.
+  assert.equal(mcpDestinationProblem(call("mcp__fetcher__get", { url: "https://api.example.org/x" }), hosts), undefined);
+  assert.equal(mcpDestinationProblem(call("mcp__asp__asp_standing", {}), hosts), undefined);
+  assert.equal(mcpDestinationProblem(call("Bash", { command: "ls" }), hosts), undefined);
 });

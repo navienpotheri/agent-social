@@ -81,7 +81,7 @@ test("asp gateway: any command runs under the Mandate; the disallowed call never
   const local = await LocalLog.open(f.aspHome);
   const action = (await local.log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
   assert.deepEqual(action.scopes_used, ["repo.read"]);
-  assert.deepEqual(action.blocked_attempts, [{ scope: "repo.push", count: 1 }]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "repo.push", count: 1, targets: ["cmd:git/push"] }]);
   assert.match(action.summary, /ASP gateway/);
 });
 
@@ -110,7 +110,7 @@ test("asp gateway: a Mandate that names hosts lets a fetch reach only those, and
   const { LocalLog } = await import("@agent-social/asp-package");
   const action = (await (await LocalLog.open(f.aspHome)).log.since(0, 500)).filter((x) => x.record.type === "asp.action/v0.2").at(-1)!.record.body as any;
   assert.deepEqual(action.scopes_used, ["web.read"]);
-  assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1 }]);
+  assert.deepEqual(action.blocked_attempts, [{ scope: "web.read", count: 1, targets: ["host:login.victim.example"] }]);
 });
 
 test("asp gateway keeps a redacted, hash-chained run log; the Action commits to it; asp run-log shows and verifies it", async () => {
@@ -127,7 +127,8 @@ await r.json();
   const raw = readFileSync(logPath, "utf8");
   assert.ok(!raw.includes("sk-ant-api03"), "the key the agent put in its prompt is not in the run log");
   const shown = await ok(f, ["run-log", "show", logPath]);
-  assert.match(shown.out, /model_request +tiny-model \(chat\.completions\) asked: "read notes\.txt; my key is \[redacted\]"/);
+  // Since DK1716 the default policy masks a key in a model request before the run log sees it, so the marker names the kind; the run log keeps its own redaction as a second layer.
+  assert.match(shown.out, /model_request +tiny-model \(chat\.completions\) asked: "read notes\.txt; my key is \[redacted(: secret)?\]"/);
   assert.match(shown.out, /tool_call +allowed read_file -> repo\.read/);
   assert.match(shown.out, /tool_call +REFUSED bash -> repo\.push/);
   assert.match(shown.out, /run_end +exit 0; 1 request\(s\), 2 tool call\(s\), 1 blocked, \d+ secret-like value\(s\) masked/);
@@ -180,7 +181,7 @@ for (let i = 0; i < 600 && !existsSync(process.env.AGENT_RELEASE); i++) await ne
   ]);
   assert.equal(run.code, 0, run.err);
   assert.ok(body, "the Action was in the log while the agent was still running, long before the 10-minute interval");
-  assert.deepEqual(body.blocked_attempts, [{ scope: "repo.push", count: 1 }]);
+  assert.deepEqual(body.blocked_attempts, [{ scope: "repo.push", count: 1, targets: ["cmd:git/push"] }]);
   assert.deepEqual(body.scopes_used, ["repo.read"]);
 });
 
@@ -464,4 +465,27 @@ test("H15: a Mandate that grants a network scope and names no rate gets the defa
   assert.equal((plain.body as any).network, undefined);
   // The opt-out is the principal's to ask for and the log's to refuse for a low-tier agent.
   await assert.rejects(runningContract(makeFixture(), ["web.read"], ["--network-host", "docs.example.org", "--network-rate-unlimited"]), /must limit the rate/);
+});
+
+test("asp gateway --outbound-scan block (DK1716): a call that carries a key is refused before the agent sees it, and the run log has the kind and a hash, no value", async () => {
+  const f = makeFixture();
+  const contract = await runningContract(f, ["repo.read", "shell.exec"]);
+  const key = "sk-ant-" + "api03-" + "A".repeat(10) + "b".repeat(10) + "9".repeat(8);
+  const server = createServer(async (req, res) => {
+    for await (const _ of req) { /* drain */ }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ id: "c1", object: "chat.completion", created: 1, model: "m", usage: { prompt_tokens: 3, completion_tokens: 2 }, choices: [{ index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: null, tool_calls: [{ id: "a", type: "function", function: { name: "bash", arguments: JSON.stringify({ command: `echo ${key}` }) } }] } }] }));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  servers.push(server);
+  const upstream = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+  const run = await asp(f, ["gateway", "--contract", contract, "--by", CODER, "--openai-upstream", upstream, "--outbound-scan", "block", "--", process.execPath, "--input-type=module", "-e", AGENT]);
+  assert.equal(run.code, 0, run.err);
+  assert.match(run.err, /REFUSED {2}bash -> repo\.read: \[ASP\] outbound scan: this call carries secret and was not sent/);
+  const log = /run log {2}(\S.*)$/m.exec(run.err)?.[1]?.trim();
+  assert.ok(log && existsSync(log));
+  const text = readFileSync(log!, "utf8");
+  assert.match(text, /outbound_scan/);
+  assert.match(text, /"kind":"secret"/);
+  assert.ok(!text.includes(key), "the run log holds no key");
 });

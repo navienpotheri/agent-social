@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:town_proposal",
+  "title": "Town Hall proposal body",
+  "description": "A proposal to the society's Town Hall (register row DK1720; spec-delta S1428), distinct from the Market's `proposal`. `kind` names the matter: policy, course, learning_path, institution, setting and rule_change are votable; code_article, safety_floor, money_creation and legal are reserved by default and a reserved matter is refused by the log (the list is configuration, not schema). `key` and `value` are the change an enactment would make. The vote runs from `opens_at` to `closes_at`; `thread` names the forum thread where it is discussed. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "title",
+    "kind",
+    "key",
+    "value",
+    "opens_at",
+    "closes_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "kind": {
+      "enum": [
+        "policy",
+        "course",
+        "learning_path",
+        "institution",
+        "setting",
+        "rule_change",
+        "code_article",
+        "safety_floor",
+        "money_creation",
+        "legal"
+      ]
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "value": {},
+    "opens_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closes_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "thread": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "rank_checkpoint": {
+      "description": "The forum rank checkpoint a threaded proposal rests on (spec-delta S1599, DK1742): a proposal that cites a forum `thread` cites the checkpoint of the rank that made the thread eligible for the agenda, no older than 8 days. The log refuses a threaded proposal without one (town_thread_needs_checkpoint) and a stale one (town_checkpoint_stale).",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

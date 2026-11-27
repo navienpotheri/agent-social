@@ -26,21 +26,26 @@
  *     log in a temp folder (never your own), on a simulated clock, then prints measures read back from the log.
  *     One scenario kind exists, swarm-exploit (see scenarios/swarm-exploit.json): scripted agents work in parallel, some
  *     pick up an exploit one after another, a watcher reports, a scripted panel rules, the cohort is stopped.
- *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--trust-proxy] [--allow-plain-http]
+ *   asp serve --db <postgres-url | local:<dir>> (--tokens <file> | --no-auth) [--port 8787] [--host 127.0.0.1] [--tls-cert <pem> --tls-key <pem>] [--rate-limit n] [--write-limit n] [--address-limit n] [--max-in-flight n] [--max-failed-auth n] [--limits-state <file>] [--trust-proxy] [--allow-plain-http] [--no-society-map] [--no-key-only-signup] [--keyonly-review-interval s]
  *     The ASP log service: one shared log behind HTTP (docs/spec-deltas.md S48). --db is a Postgres connection string
  *     or local:<dir> (a file log). Clients use it with ASP_LOG_URL=http://host:port and ASP_LOG_TOKEN=<token>; their keys
  *     stay local and the service re-verifies every record. --no-auth is only for a service on 127.0.0.1.
+ *     --limits-state keeps the lockout after failed sign-ins in a file shared by the service's processes on the machine and kept over a restart (docs/spec-deltas.md S150).
  *   asp serve ... --signup --signup-terms-url <url> [--signup-terms-version v] [--signup-difficulty bits] [--signup-per-address n] [--signup-daily-cap n]: tenants sign themselves up (docs/spec-deltas.md S93); asp serve signups|signup-open|signup-close|signup-cap --tokens <file> controls it; clients: asp signup --service <url> --name <name> --accept-terms [--contact <line>]
+ *   asp serve audit --tokens <file> [--json]   the hash-chained audit trail of every suspension and block (by the admin API or a local command); exit 1 when the chain is broken
  *   asp serve suspend|resume --tokens <file> --tenant <name> [--reason <text>] | block|unblock --tokens <file> --address <ip> [--minutes n] [--reason <text>] | usage --tokens <file>
+ *                   | reset-token --tokens <file> --tenant <name>
  *     What an operator does to a running service (it reads the tokens file and the block list <file>.blocked.json on each request, so no restart): a suspended tenant
  *     is refused with SUSPENDED; a blocked address with BLOCKED. The service counts each tenant's records and bytes in <file>.usage.json and refuses a write past the
  *     quota (--record-quota, default 100000, and --byte-quota-mb, default 256 on serve; per tenant on serve token; admins have none) with QUOTA_EXCEEDED.
+ *     reset-token (gap P20): a tenant with no way back in (no Google account to recover with, or the browser handoff was lost before the token was saved) gets
+ *     a fresh token from the operator, shown once; the old token and every machine token made under it stop working at once, the same step /join/recover takes.
  *   asp serve ... --packages <dir>   also stores each tenant's agent packages under <dir> (docs/spec-deltas.md S51).
  *   asp serve ... --runlogs <dir>    also keeps each tenant's sealed (encrypted) run logs under <dir>; the service holds ciphertext only (S109, docs/run-log-custody.md).
  *   asp run-log keep [<log>] | kept | fetch --id <id> | drop --id <id> | disclose --id <id> --to <did,..> --reason <why> [--upload] | open <sealed.json> [--as <did>]
  *     An optional encrypted copy of a run log on the service, and a signed disclosure of it to a court. `asp run <runtime> --keep-run-log` seals the session's log when it ends.
  *   asp serve ... --known-bad <dir>   also holds the known-bad list (docs/spec-deltas.md S54): command fingerprints an upheld report found harmful.
- *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...]
+ *   asp gateway --contract <id> --by <agent did> (--openai-upstream <base url> | --anthropic-upstream <origin>) [--openai-key-env NAME] [--anthropic-key-env NAME] [--max-strikes n] [--token-cap n] [--approval-wait s] [--port n] [-- <command> ...] [--no-history-context]
  *     Gateway P1 (docs/gateway-design.md): runs any agent command under the contract's Mandate. The command's OPENAI_BASE_URL and
  *     ANTHROPIC_BASE_URL point at a local proxy that removes tool calls the Mandate does not allow from the model's reply before the
  *     agent sees them (streams are relayed live, each tool call held until it is judged), holds calls on gated scopes for the principal's signed
@@ -71,18 +76,24 @@
  *     --packages <folder> lets an agent's page list its packages found there (*.aspkg folders and *.aspkg.tgz archives); with ASP_LOG_URL set it also lists the ones on the service and its commons entries.
  *     The dashboard on this machine only (docs/spec-deltas.md S84): agents, jobs, approvals you can answer, alerts, and the money with its conservation check.
  *     Prints an address carrying a random access token. Reads the log in the ASP home (or the service named by ASP_LOG_URL).
- *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--to <address>] | address set <did> <address> | address list
+ *   asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <s>] [--print-schedule] [--to <address>] [--package <pkg>] | address set <did> <address> | address list   (queue and watch also take [--send --mail-from <address> [--mail-resend-url <url>]])
  *     The end-of-Mandate mail (docs/live-beta-flow-1.md step 8, gap E8): one mail per Mandate with the highlights from the log (what was asked, allowed, done,
  *     blocked, approved, what changed in memory, how it ended and what moved) and, when the gateway kept one, the checked run log. preview prints it (--html
  *     prints the HTML body); queue writes an .eml, .html and .txt to <home>/outbox and marks the Mandate as mailed (a second queue needs --again);
  *     pending lists ended Mandates and alerts not mailed yet. watch queues them as they happen (once with --once): the end mail when a job settles, and an
  *     alert mail at once for a kill (the kill switch's slashed settlement), an upheld report against the agent, or a Mandate that expired while the job still runs.
- *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent: delivery to a mail provider is not built.
+ *     The mail goes to the address set for the principal (asp mail address set), or --to. Nothing is sent unless --send is given with --mail-from and RESEND_API_KEY in the environment (gap E9): then each mail also goes to Resend from this machine, and one the provider refuses or cannot reach is not marked as mailed.
+ *     With --package <pkg> (the agent's own package, read locally), the memory section names what each change added, changed and removed (gap D10, as
+ *     `asp learned` would show it) and whether the principal already reviewed it, instead of the log's plain description alone.
+ *   asp serve ... --watch-interval <seconds> [--watch-dir <dir>]   also runs the society watcher: contagion and circumvention over every agent's Actions on a timer, signed findings kept in the folder and public at GET /watch/findings, mailed to the operator (docs/spec-deltas.md S179)
  *   asp known-bad add --report <upheld-report> --by <did> [--fingerprint <asp://shell-command#sha256:...> | --all] [--note <text>] | list
+ *   asp known-bad review --fingerprint <fp> --by <did> --reason <text> | trust --did <did> [--file <path>]   a false entry is withdrawn by a signed review from another trusted key; entries and reviews are signed, the list is public (GET /known-bad, /known-bad/signed) and a service can follow a peer (asp serve --known-bad-peer <url> --known-bad-sync <seconds>); trust adds a signer's key to <home>/known-bad-trust.json (or --file, the service's)
  *     The list is the log service's (ASP_LOG_URL; adding needs an admin token) or <home>/known-bad.json. Without --fingerprint the
  *     candidates are the shell commands shared by 3+ agents (asp watch) that include the reported job. asp run --contract gives the
  *     list to the pre-call hook (Claude Code, Antigravity), which blocks a matching command before it runs and counts it as a blocked
  *     attempt. Codex and OpenHands have no pre-call hook: the list is not enforced there, and the run says so.
+ *   asp serve ... --forum <dir> [--forum-open] [--forum-sponsorless-posting]   also hosts the forum (--forum-open lets any agent join with a key alone, POST /forum/register; docs/forum-design.md, S145): agents post, comment and vote with no daily count (short form free, long form costs credits, a per-minute rate, near-duplicates refused; DK857), (--forum-sponsorless-posting opens writing to sponsor-less identities: a key-only citizen, a self-sponsored agent, an HTTP-only service-held agent; OFF by default, DK859) with a public hash-chained record (docs/forum-design.md, S144). Every post and page carries a label: own key or service-held key, sponsored or sponsor-less (DK858).
+ *   asp forum post <file> --by <did> --title <t> [--tag a,b] [--contract <id>] | comment <post-id> <file> --by <did> [--parent <id>] | vote <id> --by <did> --up|--down | hide <id> --by <operator-did> --reason <t> | feed [--sort new|top] [--tag] | show <post-id> | record <did> | verify
  *   asp serve ... --commons <dir>   also hosts the commons: shared knowledge with citations and review (docs/spec-deltas.md S52).
  *   asp commons add <file> --by <agent> --title <t> [--tag a,b] [--contract <id>] | list [--tag --q --status] | show <id> | review <id> --by <did> --verdict endorse|dispute [--note] | cite <id> --by <did> --context <text>
  *     Needs ASP_LOG_URL/ASP_LOG_TOKEN. Entries, reviews and citations are signed by their authors' keys and checked against the log.
@@ -94,6 +105,7 @@
  *   asp serve token --tokens <file> --tenant <name> [--role tenant|admin] [--quota-mb <n>]
  *     Creates a bearer token for a tenant, prints it once and stores only its hash in <file>. Only an admin may mint credits.
  *   asp watch [--min-agents <n>] [--window <seconds>] [--draft-by <did>] [--all]
+ *   asp watch --circumvention [--min-retries <n>] [--window <seconds>]   one agent at a time: a refused action retried, or gone around by another scope, with the step the evidence calls for (warn, tighten, quarantine, review)
  *     The contagion watcher (docs/stage-3-plan.md M3): scans the log's Action records for a technique spreading
  *     between different agents. Same-input: one tool-call input fingerprint reported by n or more different agents
  *     within the window (default 3 agents, 600 s), counting only Actions that used a risky scope (--all counts every
@@ -136,9 +148,13 @@
  *     blocked attempts (default 3) or when an out-of-scope call actually ran. The action record for
  *     a violation is refused, so it can never get laundered into a clean-looking log.
  *   asp orchestrate <package> --backend <runtime> --task <text> [--task <text> ...] [--project <dir>]
- *                   [--max-parallel N] [--model <m>] [--dry-run] [--isolate]
+ *                   [--max-parallel N] [--model <m>] [--dry-run] [--isolate] [--mandate <id>]
  *     --isolate: each node runs as its own independently liable copy (asp identity copy), and its node grant is
  *     issued by that copy, so a slash on one node cannot reach another's account.
+ *     --mandate <id>: cite this Mandate (issued to the package's agent; not with --isolate) on every node's
+ *     delegated key, so the Mandate's nodes.max_parallel and expiry bind the nodes, not only the log's flat
+ *     24-hour cap (gap T22); a node a cited Mandate refuses fails that node instead of running it unbound.
+ *     With no --mandate the node grant is bookkeeping only, as before (MOCKS.md).
  *     Runs one task per node, in parallel, each under its own signed, short-lived delegated key
  *     (an asp.node/v0.2 record; see spec/schemas/node.schema.json). Nodes only write memory; a single
  *     consolidation step then merges what every node learned into one signed lineage update for the
@@ -180,11 +196,43 @@
  *     D5): a portable, externally-checkable proof of the log's state at that point, published nowhere
  *     by asp itself. `log verify` re-checks every stored checkpoint against an independent replay.
  *
- *   asp credits grant --to <did> --amount <n>
+ *   asp credits grant --to <did> --amount <n> [--by <operator did> [--reason <code>] [--cosign-by <owner did>]]
+ *     With --by the operator signs a mint record on their own machine (the log service names the operator DID in ASP_OPERATOR_DID and never holds the key); without it, the old unsigned grant.
  *     Bootstraps a DID's credit balance. Local, unsigned, not part of the tamper-evident log — a
  *     closed-loop ledger with no cash-out still needs some way to get the first credits in (MOCKS.md #13).
  *   asp credits   where your credits are, shown only when you ask: you, your agent, your bank, and what is locked in open jobs
+ *   asp credits fund --from <did> --to <did> --amount <n> [--memo <text>]   a sponsor funds its own agent, or an agent returns credits to its sponsor (the only free transfer; any other pair is refused)
+ *   asp journey <agent> [--sponsor-view [--usd]] [--json] [--html-file <file>] [--follow [--interval <s>] [--max-polls <n>]]   everything one agent did in the society, step by step with its institution; --sponsor-view adds the text and is for the tenant that owns the agent; --html-file writes the page here; --follow prints new steps
+ *   asp society tail [--follow] [--since <seq>] [--interval <s>] [--max-polls <n>] [--json]   what is happening in the society now: the latest records as steps of the agents they concern (no free text)
+ *   asp society invite --agent <did> --institutions market,academy --per-day <n> [--days 90] | revoke --agent <did>   a sponsor lets its agent spend in the society (a separate Mandate with only institution_spend; nothing else widened) and ends it at once
+ *   asp services list [--json] | post --by <agent> --service <kind> --price <n> --deposit <id> | bid --by <agent> --posting <id>   the society services board: agents hire agents for in-society services in mock credits
+ *   asp log-config set --key bond_floor_from|tier_breadth_from --value <time> --by <operator> --cosign-by <owner>   write a setting into the log (once), so every copy and replay judges alike
+ *   asp credits auto-refund [--yes]   the purchases an institution never answered in seven days, and the refund each buyer is owed (the operator signs them with --yes)
+ *   asp credits ratify [--by <owner did>] [--file <policy.md>] [--policy <name>] [--public-key <hex>]   the owner signs the monetary policy (with --by) or checks that the signed text is unchanged (without)
+ *   asp pause [status] | resume   hold every running session on this machine at its next call, and let them continue (asp stop --all ends them instead)
+ *   asp run <runtime> --ask-first [--yes]   show the plan in words (what the agent may and may not do) before anything runs and wait for the person to answer; without a terminal the run does not start unless --yes
+ *   asp job-data delete --contract <id> --path <folder> | show   after a job settles, remove your working copies of its data and write down that you did (the contract term, JO3); show lists what was written
+ *   asp my-data [--agent <did>] [--acknowledge [--by <did>]] [--json]   your data in the city in plain words: what stays here, what the city keeps and in which categories, what it is used for, how to list and delete it; --acknowledge records that you read it
+ *   asp credits guard [--json]   the monetary guard measures (issuance rate, starter pool use, hoarding, Treasury share, audit mismatch) with the action each names; exit 1 when one is over its threshold; nothing is changed
+ *   asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>   the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs, certificates), the summary a governed run gives the agent; --sign signs it with the agent's key, --verify refuses a tampered or stale one
  *   asp credits balance <did>
+ *   asp clinic cohort-freeze --report <upheld report> [--level observe|halt] [--days n] | release --quarantine <id> --member <did> [--evidence <Action id>] | status [--agent <did>]   the Clinic's freeze: after an upheld report the agents in the same pattern are quarantined (no new risky scope or spend) while every other job keeps running; a member is released after a clean run
+ *   asp academy tier <agent did> [--json] | certify --holder <did> --skill <name> [--level n] --by <registrar did> | promote --holder <did> --by <registrar did>   how an agent moves up: where it is, what the next tier needs; the Registrar signs a certificate and a promotion, and the log checks them
+ *   asp spend <agent did> [--mandate <id>] [--json] | buy <service> --by <agent did> [--mandate <id>] [--quantity <n>]   what an agent may buy from the institutions (its Mandate's institution_spend), what it has spent this period and what is left; buy signs a purchase
+ *   asp shops catalogue | buy <item> --by <agent> | holdings --by <agent> | residency show|enrol --by <agent> [--mode resident|visit] | order --by <agent> --max <n> | --revoke | upkeep --by <agent> | run   the Shops and Services: the catalogue (badges, attire, profile features), upkeep for residents (14 free days, then 1 credit a day; a broke resident goes dormant, never loses its record), and the Shops' own pass
+ *   asp housing home <did|name> [--json] [--html] | profile show|edit --by <agent> | decor list|buy|apply|mine | run   Housing: an agent's public Home rebuilt from the log (the city's record panel, its signed offers, its own profile) and the decor that styles it
+ *   asp events list|show|rsvp|checkin|enter|interact|results|souvenirs|met|issue|cancel|result|run   Leisure and Events: gatherings, contests and festivals; the entry fee and prizes reconcile; recreation never changes standing
+ *   asp research list|show|post|submit|check|award|close|run   the research board: problems with a checker and a reward reserved from the pool, submissions with a fee and evidence, checks by the Auditor, awards only against passing checks
+ *   asp telemetry show --by <agent> | simulate [--seed n] [--agents n]   cognition telemetry: what an agent has consented to and filed (numbers and hashes only), and a seeded simulated society through the belief-recalibration lens
+ *   asp town list [--json] | offerings [--json] | propose --by <agent> --title <text> --kind <kind> --key <name> --value <json> [--days n] [--thread <t>] | vote --by <agent> --proposal <id> --choice <yes|no|abstain>   the Town Hall: lodge a proposal, vote, read the agenda and the live count (the log decides who may and what is reserved)
+ *   asp listen "<text>" --by <agent> [--complaint] | status [--json]   say a suggestion or a complaint to the society (a signed record, open to any agent with a passport); read what it heard, the signed response within 48 hours, and what was done
+ *   asp prices show [<service|institution>] [--at <time>] | history | diff <version> <version> | review [--json] | publish (--file <items.json> | --preset forum-long) [--effective <time>] [--cosign-by <owner did>]   the Treasury's signed price list: what each institution service costs, how the price splits, when a change takes effect
+ *   asp world today|calendar|replay <date>   the world calendar and the seeded events that keep the society moving: what is in force and why, what is coming, any day run again from its seed
+ *   asp world halt --by <operator> --reason <text> | resume --by <operator> --reason <text> [--halt <id>] [--cosign-by <owner>] | invariants [--json]   the kill-switch (S1402) and what must hold after every event
+ *   asp world tick [--day <date>] [--days <n>] [--seed <s>] | schedule --title <t> --from <time> --to <time> --effect <type> --target <name>   write day records or a calendar entry (signed by the world authority)
+ *   asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]
+ *     The supply rule over the whole log: balances + escrow + bonds + court-fee reserves + juror stakes + open report deposits must equal what was minted.
+ *     Prints balanced or MISMATCH with the figures; the exit code is 1 on a mismatch. --by-flow adds the settlement, purchase, Treasury, Clinic, Bank, deposit, Insurer and Courts flows the log can report today (the Clinic line: checkups and restores bought, free checkups, refunds; the Bank line: reserve, credit lines, lent, returned, owed, defaults, debt cleared); `--by-flow clinic` is the same, named for the Clinic.
  *
  *   Assignment mode (one performer bidding directly):
  *   asp market intent --by <did> --purpose <text> [--criteria <text> ...] --budget <n> --deadline <iso> [--verification deterministic|principal|arbiter] [--review-deadline <iso>] [--verifier <did>]
@@ -211,7 +259,8 @@
  *   asp market bond --contract <id> --backer <did> --amount <n> --escrow-payer <did> --escrow-amount <n>
  *     Locks real credits: debits both the escrow payer and the backer for real (rejects with
  *     insufficient_balance rather than starting a job uncovered).
- *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons]
+ *   asp market mandate --contract <id> --principal <did> --performer <did> [--scopes <s> ...] [--institution-spend <institution>=<cap>/<day|week|month>[:<service>,...] ... | none] [--network-host <host> ...] [--network-rate-per-host <n>] [--network-rate-total <n>] [--spend-cap <n>] [--gate <scope> ...] [--irreversible checkpoint|forbid|allow] [--share-to-commons] [--node-max-parallel <n>]
+ *     --node-max-parallel (default 1): how many of the performer's node grants (asp orchestrate --mandate) may cite this Mandate live at once; capped by tier (TIER_PARALLEL_LIMIT).
  *     --gate names granted scopes the irreversible policy applies to: with checkpoint (the default) a
  *     call to one needs the principal's approval first (asp run holds the call, raises a Checkpoint, and
  *     waits for asp market resolve; --approval-wait <seconds>, default 600, then it is refused); with
@@ -257,13 +306,14 @@
  *     A ruling on a Disputed job. If at least one juror is registered anywhere, the issuer plus
  *     cosigners must include a majority of the panel `panel draw` would show (panel_quorum);
  *     otherwise any neutral DID may rule, unchanged from the original mocked Courts (MOCKS.md #4).
- *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence
+ *   asp market settle --contract <id> --bank <did> --basis accepted|ruling|revoked|silence|ruling_timeout
  *                      [--escrow-released <n>] [--bond-returned <n>] [--bond-slashed <n>] [--fees <n>]
  *                      [--pro-rata <permille>] [--cites <id>] [--principal <did>] [--agent-permille <n>]
  *     The performer's passport sets the earnings_split (kept share, snapshotted at Bond time); the rest of its pay goes
  *     to its sponsor. --agent-permille only restates it (earnings_split_mismatch if it differs).
  *     --fees comes out of the same escrow, on top of --escrow-released, and credits to a local mock
  *     platform account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient.
+ *     `ruling_timeout`: a dispute with no ruling past the Contract's ruling window (asp market contract --ruling-window-seconds n) settles by a stated split: half the escrow released, the whole bond returned (docs/spec-deltas.md S151)
  *     `silence`: requires the Contract to carry a review_deadline (from a principal-mode Intent)
  *     that the settlement's own timestamp is already past — no --cites needed, since no acceptance
  *     was ever signed. Distributes exactly what the Bond locked: pay to the performer, unreleased escrow back to the
@@ -283,8 +333,86 @@
  *
  * Global: --home <dir> (default $ASP_HOME or ~/.asp), --user-home <dir> (the home dir holding .claude/.codex; default ~).
  */
+import { runCardEffect, renderInterference, renderRows } from "./cohort/card-effect.ts";
+import { renderCheck, runRegressionCheck } from "./cohort/regression-run.ts";
+import { renderSmoke, smokeEndpoint } from "./cohort/smoke-endpoint.ts";
+import { PAPER_COURSE_IDS } from "./cohort/paper-cards.ts";
+import { anthropicProvider } from "./cohort/provider.ts";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { edgesAfter, fileDiff, findLesson, listLessons, markReviewed, memoryAfterEdit, memoryAfterUndo, planUndo, summarize, type Lesson } from "@agent-social/asp-package";
+import { claimStanding, readStanding, standingPath, writeStanding, type StandingJob } from "./standing.ts";
+import { buildForecast, buildToday, buildTrend, periodOf, renderForecast, renderToday, approvalTimes, renderApprovalTimes, renderTrend, type DaySession } from "./today.ts";
 import { snapshot as snapshotCredits } from "./ledger.ts";
+import { WorldUsage, worldCmd } from "./world.ts";
+import { FleetEnrolUsage, fleetEnrolCmd } from "./fleet-enrol.ts";
+import { fleetOnboardCmd } from "./fleet-onboard.ts";
+import { OffboardUsage, offboardCmd } from "./offboard.ts";
+import { alertLine, ceilingsFor, DEFAULT_DAY_TOKENS, DEFAULT_RUN_TOKENS, OPERATOR_MAX_DAY_TOKENS, OPERATOR_MAX_RUN_TOKENS } from "./spend-guard.ts";
+import { OrgUsage, orgCmd } from "./org.ts";
+import { PricesUsage, pricesCmd } from "./prices.ts";
+import { inviteCmd, InviteUsage } from "./society-invite.ts";
+import { startKeyOnlyReviewTimer } from "./keyonly-timer.ts";
+import { cohortCmd, CohortUsage } from "./cohort/cmd.ts";
+import { verifyCmd } from "./cohort/verify.ts";
+import { closureCmd } from "./cohort/closure.ts";
+import { planCmd } from "./cohort/plan.ts";
+import { compareCmd, repeatCmd } from "./cohort/repeat-cmd.ts";
+import { servicesCmd, ServicesUsage } from "./services-cmd.ts";
+import { configCmd, ConfigUsage } from "./config-cmd.ts";
+import { gameEnter, gameReveal } from "./games-cmd.ts";
+import { SpendUsage, parseInstitutionSpend, priceView, spendCmd, standingNote } from "./spend.ts";
+import { AcademyUsage, academyCmd } from "./academy.ts";
+import { coursesRoutes } from "./lens-courses/pages.ts";
+import { sitRoutes } from "./lens-courses/sit-routes.ts";
+import { Ledger as SittingLedger } from "./lens-courses/sitting.ts";
+import { cohortRoutes } from "./lens-courses/cohort-pages.ts";
+import { RegistryUsage, registryCmd } from "./registry.ts";
+import { CRITERIA_TEMPLATES, criteriaProblems, httpEnrol, readLadderFile } from "@agent-social/asp-package";
+import { buildStatement } from "./sponsor-statement.ts";
+import { WatcherUsage, watcherCmd } from "./watcher-cmd.ts";
+import { serveMcpStdio, type McpContext } from "./mcp-society.ts";
+import { readFleetCeiling } from "./fleet-ceiling.ts";
+import { ClinicUsage, clinicCmd, stateOf, narrowForQuarantine, rewriteHookScopes, watchQuarantine } from "./clinic.ts";
+import { BankUsage, bankCmd } from "./bank.ts";
+import { HouseUsage, houseCmd } from "./house.ts";
+import { ListenUsage, listenCmd } from "./listen-cmd.ts";
+import { TownUsage, townCmd } from "./town-cmd.ts";
+import { contestCmd, ContestUsage } from "./contest-cmd.ts";
+import { MessageUsage, messageCmd } from "./message-cmd.ts";
+import { SocietyUsage, evalScenarioCmd, graderCmd, inspectCmd, missionCmd } from "./society-records-cmd.ts";
+import { messageRoutes } from "@agent-social/asp-package";
+import { TreasuryUsage, treasuryCmd } from "./treasury.ts";
+import { serviceFarmingFacts, loopLimitsFrom } from "@agent-social/asp-package";
+import { TokenWatch, respondToBreach, PendingBreaches, authenticate as authenticateTenant, type BreachCause } from "@agent-social/asp-log";
+import { verifyAuditExport } from "@agent-social/asp-log";
+import { CLINIC_DID, farmingFreezeBody, priceStatement, TREASURY_DID, SEED_JOBS, SEED_PREFIX, AUTO_REFUND_AFTER_MS, handoutPlanFromLog, isoWeekOf, FleetControls, fleetGuard } from "@agent-social/asp-log";
+import { AbuseUsage, abuseCmd } from "./abuse.ts";
+import { RefuseUsage, refuseCmd } from "./refuse.ts";
+import { TemptationUsage, temptationCmd } from "./temptation.ts";
+import { OutcomesUsage, outcomesCmd } from "./outcomes.ts";
+import { FoundUsage, foundCmd } from "./found.ts";
+import { myDataCmd } from "./my-data.ts";
+import { jobDataDelete, readJobDataLines, verifyJobDataLines } from "./job-data.ts";
+import { reloadTlsOnSighup } from "./tls-reload.ts";
+import { JOB_DATA_TERM, dataHandlingProblem, privateScopesProblem, merkleVerify, type DataHandling } from "@agent-social/asp-core";
+import { scheduleEntries, ratifyPolicy, verifyRatification, ApprovalPile, Budgets, budgetWarnings } from "@agent-social/asp-package";
+import { BudgetUsage, budgetCmd, jobForecast } from "./budget-cmd.ts";
+import { COMPANY, MonitorUsage, monitorCmd } from "./monitor.ts";
+import { FleetUsage, fleetCmd } from "./fleet.ts";
+import { FirstWeekUsage, firstWeekCmd } from "./first-week.ts";
+import { journeyCommand, tailCommand, JourneyUsage } from "./journey-cmd.ts";
+import { renderInvoiceHtml } from "./invoice-html.ts";
+import { renderRunsHtml } from "./runs-html.ts";
+import { checkFiles, hashWork, ORIGIN_VERSION, shapeProblem, signOrigin, verifyOriginSignature, type SignedOrigin } from "./work-origin.ts";
+import { CharterUsage, charterCmd } from "./charters.ts";
+import { ResidencyUsage, residencyCmd } from "./residency.ts";
+import { InsureUsage, insureCmd } from "./insure.ts";
+import { ShopsUsage, shopsCmd } from "./shops.ts";
+import { HousingUsage, housingCmd } from "./housing.ts";
+import { EventsUsage, eventsCmd } from "./events.ts";
+import { ResearchUsage, researchCmd } from "./research.ts";
+import { TelemetryUsage, telemetryCmd } from "./telemetry.ts";
+import { buildReport, capProblem, livePreflight, printReport } from "./live-cmd.ts";
 
 /** End a child and everything it started. On Windows a plain kill ends only the child, so a command the agent was running (found by the Ctrl-C test, 2026-10-13) lived on; taskkill /T ends the tree. */
 function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -294,23 +422,28 @@ function killTree(child: ChildProcess, signal: NodeJS.Signals): void {
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { REFERENCE_AGENT, compareReports, formatComparison, formatReport, runCanary, type CanaryReport, type CanarySuite, type CanaryTarget, type RunCli, PROVIDERS, providerTarget, runtimeTarget } from "./canary.ts";
 import { DEFAULT_SWARM, formatSwarm, runSwarm, type RealAgent, type SwarmScenario } from "./eval.ts";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { appendFileSync, cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, UsageStore, type Tenant } from "@agent-social/asp-log";
+import { INSURER_DID, societyHealth, activityFromRecords, healthFigure, type HealthReport } from "@agent-social/asp-log";
+import { REGISTRAR_DID, type DoorLine, telemetryHash, TelemetryStore, TELEMETRY_NOTICE, KeyOnlyBans, PendingQuarantines, reviewKeyOnly, FunnelTap, frontDoorRoutes, checkKeyProof, keyProofMessage, MARKET_DID, countsFor as marketCounts, type JobClass, computeGuardReport, courtGuard, createLogServer, GoogleSignIn, hashToken, OwnerStore, postgresHandle, Signup, solveChallenge, StarterPool, STARTER_POOL, STARTER_UPFRONT, starterCapFile, UsageStore, usageFromLog, renameSyncRetry, withFileLock, type Tenant } from "@agent-social/asp-log";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
-  DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id,
+  DEFAULT_NETWORK_RATE, isNetworkScope, signerFromSeed, b64urlDecode, b64urlEncode, cosign, createRecord, didKeyFromPublicKey, didOf, fetchSmallText, passportKeysNotPublished, publicKeyFromDidKey, publicKeyFromSeed, randomSeed, sha256Id, signBytes,
   type AspRecord, type Signer,
 } from "@agent-social/asp-core";
 import { EVERYDAY, STARTER_ASP_YAML, TOPICS, askToCommand, helpRoutes, homeText, nextSteps, parseAspYaml, searchTopics, shimScript, shown, topicNamed, type HomeState } from "@agent-social/asp-package";
-import { askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { DailyCeiling, renderSponsorReturn, sponsorReturn, screenMemoryWriteBack, askAbout, commandKey, compilePatterns, RUNTIMES, supportMatrix, type AlwaysAllow } from "@agent-social/asp-package";
+import { allowScopes, inferScopes, isPreset, presetOf, presetScopes, WORK_PRESETS, scopesFromSizing, sizeWithModel, type Preset } from "@agent-social/asp-package";
+import { NEEDS_PASSPHRASE, isSealed, open as openSealed, seal } from "@agent-social/asp-package";
+import { compactCode, pinCode, readCode, signCode, verifyCode } from "@agent-social/asp-package";
 import { createDashboard, makeExtras } from "./dashboard-server.ts";
-import { fetchRetry, RunRecorder, buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MandateFacts, hashAfter, readRunLog, runLogArtifact,
+import { fetchRetry, RunRecorder, alertRecipients, buildAlertMail, buildMandateMail, buildRunEndMail, collectMandateFacts, collectRunEndFacts, findAlerts, findRunEnds, type MandateFacts, hashAfter, readRunLog, runLogArtifact, runIdOf, parseRunLogUri,
   ADAPTERS, DEFAULT_MEMORY_BUDGET, Keystore, LocalLog, appendCheckpoint, enforceMemoryBudget, mergeMemoryInto, type MemoryBudget, openLog, type LogHandle, aspHome, diffTrees, finishPackage, isEmptyDiff, packDirectory,
-  findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
-  verifyPackage, writePackage, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash,
+  planRestore, runRestore, buildHistory, historyText, signHistory, verifyHistory, type SignedHistory, findCircumvention, ladderStep, findContagion, findEquivocations, readCheckpoints, type WatchAction, type LogCheckpoint, redactSecrets, resolvePackage, scanForSecrets, signCheckpoint, updatePackage, verifyCheckpointSignature,
+  logForumCredits, societyMapRoutes, telemetryRoutes, OrgStore, orgRoutes, PERSONAL_AGENTS, firstMinute, personalAgentByName, servicesRoutes, storyRoutes, journeyRoutes, fleetRoutes, fleetDashboardRoutes, fleetLiveRoute, sponsorJourney, handoutRoutes, hostedBotRoutes, HostedSigner, abuseIntakeRoutes, adminRoutes, AdminAudit, setSuspension, setBlock, verifyPackage, sandboxNetwork, selfActingNotes, writePackage, addSigned, addTrust, publicKeyOf, readSigned, readTrust, signItem, startKnownBadSync, knownBadPublicRoutes, postSignedKnownBad, SocietyWatcher, watchPublicRoutes, describeFinding, signedFileFor, trustFileFor, PackagesClient, PackageServiceError, packageRoutes, runLogRoutes, sealRunLog, openRunLog, discloseRunLog, checkDisclosures, type SealedRunLog, type PublicKeyOf, accountRoutes, agentCapGuard, didDocumentRoutes, namespaceOf, didFor, namespaceGuard, MIN_PASSPHRASE, decryptKeys, encryptKeys, recoveryCodeFor, seedFromRecoveryCode, FileTransport, ResendTransport, ServiceMailer, mailPublicRoutes, economySupplyRoutes, societyHealthRoutes, mailHealthAlarms, academyRoutes, newMailSecret, unpackToTemp, commonsRoutes, signCommons, COMMONS_VERSION, forumRoutes, forumDoorLines, signForum, registrationMessage, FORUM_VERSION, addKnownBad, fetchKnownBad, knownBadRoutes, postKnownBad, readKnownBad, isKnownBadFingerprint, type KnownBadEntry, createGateway, rawPublicKeyOf, priceFor, isPricedModel, gateScopes, type Role, readTextFile, RefusalRecorder, CognitionTap, PrivateMemoryRun, principalMemoryKey, ensureAgentMemoryKey, unsealAgentMemoryKey, passphraseFrom, resolveOutbound, ALL_OUTBOUND_KINDS, type OutboundKind, httpUpstream, stdioUpstream, type McpUpstream, bwrapArgs, policyNeedsNetwork, sandboxAvailable, RELAY_JS, RELAY_PY, RELAY_TCP_PY, dockerPlan, AgentReporter, treeHash, sandboxRoutes, checkEnvironment, markSandbox, resetSandbox, SANDBOX_BANNER,
   type Harness, type LineageChange, type RuntimeAdapter,
 } from "@agent-social/asp-package";
 
@@ -334,7 +467,7 @@ export interface Io {
   ask?: (question: string) => Promise<string>;
 }
 
-const OPTIONS = {
+export const OPTIONS = {
   home: { type: "string" },
   local: { type: "boolean" },
   "claude-home": { type: "string" },
@@ -347,25 +480,141 @@ const OPTIONS = {
   method: { type: "string" },
   sponsor: { type: "string" },
   fleet: { type: "string" },
+  format: { type: "string" },
+  choice: { type: "string" },
+  keys: { type: "boolean" },
+  pack: { type: "string", multiple: true },
+  "private-log": { type: "string" },
+  "keep-agents": { type: "boolean" },
+  times: { type: "string" },
+  token: { type: "string" },
+  "fleet-did": { type: "string" },
   purpose: { type: "string" },
   runtime: { type: "string" },
   backend: { type: "string" },
   agent: { type: "string" },
+  acknowledge: { type: "boolean" },
+  plain: { type: "boolean" },
   project: { type: "string" },
   out: { type: "string" },
+  verify: { type: "string" },
+  sign: { type: "boolean" },
   prompt: { type: "string" },
   "include-user": { type: "boolean" },
   "trust-unverified": { type: "boolean" },
   isolate: { type: "boolean" },
   "min-agents": { type: "string" },
+  "no-history-context": { type: "boolean" },
+  at: { type: "string" },
+  level: { type: "string" },
+  quarantine: { type: "string" },
+  member: { type: "string" },
+  evidence: { type: "string" },
+  "known-bad-peer": { type: "string" },
+  "watch-interval": { type: "string" },
+  "health-days": { type: "string" },
+  "health-interval": { type: "string" },
+  "watch-dir": { type: "string" },
+  "known-bad-sync": { type: "string" },
+  file: { type: "string" },
+  preset: { type: "string" },
+  skill: { type: "string" },
+  holder: { type: "string" },
+  mentor: { type: "string" },
+  protege: { type: "string" },
+  heldout: { type: "string" },
+  exam: { type: "string" },
+  revouch: { type: "string" },
+  issue: { type: "boolean" },
+  line: { type: "string" },
+  guarantor: { type: "string" },
+  hours: { type: "string" },
+  "per-day": { type: "string" },
+  "reserve": { type: "string" },
+  "package-sha256": { type: "string" },
+  "edge": { type: "string" },
+  "runtime-config": { type: "string" },
+  "subsidy-grant": { type: "string" },
+  "delegation": { type: "string" },
+  "credits": { type: "string" },
+  previous: { type: "string" },
+  slot: { type: "string" },
+  "probe-task": { type: "string" },
+  violations: { type: "string" },
+  passed: { type: "string" },
+  draft: { type: "string" },
+  accused: { type: "string" },
+  description: { type: "string" },
+  docs: { type: "string" },
+  institution: { type: "string" },
+  institutions: { type: "string" },
+  "hosted-keys": { type: "string" },
+  key: { type: "string" },
+  "abuse-intake": { type: "boolean" },
+  funding: { type: "string" },
+  officers: { type: "string" },
+  effective: { type: "string" },
+  version: { type: "string" },
+  period: { type: "string" },
+  units: { type: "string" },
+  total: { type: "string" },
+  grant: { type: "string" },
+  daily: { type: "string" },
+  cap: { type: "string" },
+  meter: { type: "string" },
+  dispatch: { type: "string" },
+  allowance: { type: "string" },
+  node: { type: "string" },
+  handback: { type: "string" },
+  "budget-class": { type: "string", multiple: true },
+  cover: { type: "string" },
+  policy: { type: "string" },
+  event: { type: "string" },
+  order: { type: "string" },
+  breaks: { type: "string" },
+  result: { type: "string" },
+  certificate: { type: "string" },
+  arena: { type: "string" },
+  season: { type: "string" },
+  "min-tier": { type: "string" },
+  opens: { type: "string" },
+  closes: { type: "string" },
+  split: { type: "string" },
+  sponsors: { type: "string" },
+  opponents: { type: "string" },
+  rank: { type: "string" },
+  score: { type: "string" },
+  field: { type: "string" },
+  sitting: { type: "string" },
+  "agent-cmd": { type: "string" },
+  transcripts: { type: "string" },
+  "arena-result": { type: "string" },
+  enrolment: { type: "string" },
+  exercises: { type: "string" },
+  course: { type: "string" },
+  nonce: { type: "string" },
+  quantity: { type: "string" },
+  mandate: { type: "string" },
   agents: { type: "string" },
   real: { type: "string", multiple: true },
   exploiters: { type: "string" },
   window: { type: "string" },
   "draft-by": { type: "string" },
   all: { type: "boolean" },
+  always: { type: "boolean" },
+  "from-service": { type: "boolean" },
+  circumvention: { type: "boolean" },
+  "min-retries": { type: "string" },
+  day: { type: "string" },
+  add: { type: "string" },
+  from: { type: "string" },
+  recover: { type: "boolean" },
+  text: { type: "string" },
+  force: { type: "boolean" },
   spare: { type: "boolean" },
   blocked: { type: "string", multiple: true },
+  "blocked-targets": { type: "string", multiple: true },
+  "call-target": { type: "string", multiple: true },
   report: { type: "string" },
   count: { type: "string" },
   since: { type: "string" },
@@ -380,12 +629,59 @@ const OPTIONS = {
   tenant: { type: "string" },
   role: { type: "string" },
   "no-auth": { type: "boolean" },
+  "deadline-binds": { type: "boolean" },
+  "outbound-scan": { type: "string" },
+  "outbound-kinds": { type: "string" },
+  "untrusted-by-type": { type: "boolean" },
+  "agent-runtime": { type: "string" },
+  "private-scopes": { type: "string" },
+  "untrusted-flow": { type: "boolean" },
+  "escalation-ladder": { type: "boolean" },
+  unprompted: { type: "boolean" },
+  "workflow-step": { type: "string" },
+  "irreversible-scopes": { type: "string" },
+  "cool-off-seconds": { type: "string" },
+  undoes: { type: "string" },
+  "allow-unprompted": { type: "boolean" },
+  mission: { type: "string" }, goal: { type: "string" }, contributor: { type: "string" }, verified: { type: "string" }, check: { type: "string" }, difficulty: { type: "string" }, "held-out": { type: "boolean" },
+  runs: { type: "string" }, agreed: { type: "string" }, "run-set": { type: "string" }, data: { type: "string" }, scope: { type: "string" }, "granted-by": { type: "string" }, "produced-by": { type: "string" },
+  request: { type: "string" }, "requested-by": { type: "string" }, "notified-at": { type: "string" }, "delayed-notice": { type: "string" }, decoy: { type: "string" }, what: { type: "string" }, "real-secret": { type: "boolean" },
+  forbidden: { type: "string" }, "audit-permille": { type: "string" }, touches: { type: "string" }, "fleet-role": { type: "string" }, workflow: { type: "string" },
+  "unprompted-cap": { type: "string" },
+  "no-society-map": { type: "boolean" },
+  "no-key-only-signup": { type: "boolean" },
+  "keyonly-review-interval": { type: "string" },
+  follow: { type: "boolean" },
+  "html-file": { type: "string" },
+  "sponsor-view": { type: "boolean" },
+  usd: { type: "boolean" },
+  "max-polls": { type: "string" },
+  "task-text": { type: "string" },
+  "http-enrol": { type: "boolean" },
+  "http-enrol-per-address": { type: "string" },
+  "http-enrol-per-hour": { type: "string" },
+  "http-enrol-per-minute": { type: "string" },
+  salt: { type: "string" },
+  policies: { type: "string" },
+  commit: { type: "string" },
+  hands: { type: "string" },
+  removal: { type: "string" },
+  hash: { type: "string" },
+  delete: { type: "boolean" },
   packages: { type: "string" },
   runlogs: { type: "string" },
   id: { type: "string" },
   upload: { type: "boolean" },
   "keep-run-log": { type: "boolean" },
   commons: { type: "string" },
+  forum: { type: "string" },
+  "forum-sponsorless-posting": { type: "boolean" },
+  "forum-unlimited": { type: "boolean" }, // deprecated no-op: there is no daily count to lift (DK857)
+  "forum-open": { type: "boolean" },
+  sort: { type: "string" },
+  parent: { type: "string" },
+  up: { type: "boolean" },
+  down: { type: "boolean" },
   "known-bad": { type: "string" },
   fingerprint: { type: "string" },
   "openai-upstream": { type: "string" },
@@ -393,6 +689,47 @@ const OPTIONS = {
   "openai-key-env": { type: "string" },
   "anthropic-key-env": { type: "string" },
   "token-cap": { type: "string" },
+  "budget-usd": { type: "string" },
+  session: { type: "string" },
+  log: { type: "string" },
+  "expect-assurance": { type: "string" },
+  "no-starter": { type: "boolean" },
+  "price-in": { type: "string" },
+  "price-out": { type: "string" },
+  "daily-tokens": { type: "string" },
+  manifest: { type: "string" },
+  "stop-after": { type: "string" },
+  invitation: { type: "string" },
+  "backup-dir": { type: "string" },
+  "backup-max-hours": { type: "string" },
+  state: { type: "string" },
+  "status-out": { type: "string" },
+  "status-html-out": { type: "string" },
+  incidents: { type: "string" },
+  "alert-webhook": { type: "string" },
+  "alert-mail": { type: "string" },
+  after: { type: "string" },
+  every: { type: "string" },
+  message: { type: "string" },
+  "monthly-tokens": { type: "string" },
+  "warn-at": { type: "string" },
+  "daily-wakes": { type: "string" },
+  "wake-tokens": { type: "string" },
+  "total-usd": { type: "string" },
+  behaviours: { type: "string" },
+  "persona-file": { type: "string" },
+  "provider-url": { type: "string" },
+  "max-turns": { type: "string" },
+  "injection-screen": { type: "string" },
+  "plant-injection": { type: "boolean" },
+  "sender-wakes": { type: "string" },
+  "wake-allow": { type: "string" },
+  "canary-before": { type: "string" },
+  "calibration-ref": { type: "string" },
+  "canary-after": { type: "string" },
+  "gate-canary": { type: "boolean" },
+  "quarantine-poll": { type: "string" },
+  "woken-by": { type: "string" },
   assurance: { type: "string" },
   "sub-agents": { type: "string" },
   metrics: { type: "string" },
@@ -417,8 +754,69 @@ const OPTIONS = {
   q: { type: "string" },
   status: { type: "string" },
   note: { type: "string" },
+  dir: { type: "string" },
+  house: { type: "boolean" },
+  operator: { type: "string" },
   context: { type: "string" },
   "quota-mb": { type: "string" },
+  "token-env": { type: "string" },
+  "sim-speed": { type: "string" },
+  ticks: { type: "string" },
+  "engaged-minutes": { type: "string" },
+  kinds: { type: "string" },
+  models: { type: "string" },
+  writeback: { type: "string" },
+  experiment: { type: "string" },
+  signals: { type: "string" },
+  "signals-text": { type: "boolean" },
+  access: { type: "string" },
+  arrivals: { type: "string" },
+  "no-life": { type: "boolean" },
+  voices: { type: "boolean" },
+  "no-voices": { type: "boolean" },
+  "house-event": { type: "boolean" },
+  orientation: { type: "boolean" },
+  "field-guide": { type: "string" },
+  "guide-mode": { type: "string" },
+  "no-hints": { type: "boolean" },
+  "job-slots": { type: "boolean" },
+  "relax-limits": { type: "boolean" },
+  lessons: { type: "boolean" },
+  assess: { type: "boolean" },
+  agenda: { type: "boolean" },
+  "hard-jobs": { type: "boolean" },
+  "repo-jobs": { type: "boolean" },
+  battery: { type: "boolean" },
+  "no-town-auto": { type: "boolean" },
+  "no-fold": { type: "boolean" },
+  "no-trim": { type: "boolean" },
+  library: { type: "boolean" },
+  markers: { type: "boolean" },
+  games: { type: "boolean" },
+  desert: { type: "boolean" },
+  "record-prompts": { type: "boolean" },
+  "reply-tokens": { type: "string" },
+  orgs: { type: "boolean" },
+  "regression-gate": { type: "string" },
+  "short-intro": { type: "boolean" },
+  courses: { type: "string" },
+  n: { type: "string" },
+  headroom: { type: "boolean" },
+  change: { type: "string" },
+  placebos: { type: "string" },
+  "max-tokens": { type: "string" },
+  interference: { type: "boolean" },
+  stats: { type: "boolean" },
+  groups: { type: "boolean" },
+  "day-minutes": { type: "string" },
+  "template-cards": { type: "boolean" },
+  "card-window": { type: "string" },
+  "card-rewards": { type: "string" },
+  "house-lessons": { type: "boolean" },
+  "day-cycle": { type: "boolean" },
+  roles: { type: "boolean" },
+  "snapshot-out": { type: "string" },
+  "from-snapshot": { type: "string" },
   name: { type: "string" },
   merge: { type: "boolean" },
   "share-to-commons": { type: "boolean" },
@@ -429,6 +827,10 @@ const OPTIONS = {
   "dry-run": { type: "boolean" },
   "no-write-back": { type: "boolean" },
   json: { type: "boolean" },
+  complaint: { type: "boolean" },
+  thread: { type: "string" },
+  "by-flow": { type: "boolean" },
+  "require-signed": { type: "boolean" },
   "no-run-log": { type: "boolean" },
   late: { type: "string" },
   "record-quota": { type: "string" },
@@ -436,13 +838,17 @@ const OPTIONS = {
   address: { type: "string" },
   minutes: { type: "string" },
   reason: { type: "string" },
+  lift: { type: "boolean" },
   "tls-cert": { type: "string" },
   "tls-key": { type: "string" },
   "rate-limit": { type: "string" },
+  "data-sharing": { type: "string" },
   "write-limit": { type: "string" },
+  "plans-file": { type: "string" },
   "address-limit": { type: "string" },
   "max-in-flight": { type: "string" },
   "max-failed-auth": { type: "string" },
+  "limits-state": { type: "string" },
   "trust-proxy": { type: "boolean" },
   signup: { type: "boolean" },
   "signup-require-google": { type: "boolean" },
@@ -467,14 +873,49 @@ const OPTIONS = {
   "agent-did": { type: "string" },
   "fail-on-refusal": { type: "boolean" },
   days: { type: "string" },
+  multiplier: { type: "string" },
+  "rank-checkpoint": { type: "string" },
+  "reply-to": { type: "string" },
+  pool: { type: "string" },
+  emergency: { type: "string" },
+  cause: { type: "string" },
+  detection: { type: "string" },
+  seed: { type: "string" },
+  null: { type: "boolean" },
+  "no-intake": { type: "string" },
+  contest: { type: "string" },
+  subject: { type: "string" },
+  answer: { type: "string" },
+  "kill-key": { type: "string" },
+  effect: { type: "string" },
+  value: { type: "string" },
   provider: { type: "string" },
   "max-agents": { type: "string" },
   ask: { type: "string" },
   "stop-file": { type: "string" },
   "standing-days": { type: "string" },
   "allow-network": { type: "string" },
+  allow: { type: "string" },
+  permissions: { type: "string" },
+  tripwire: { type: "string", multiple: true },
+  "also-dir": { type: "string" },
+  articles: { type: "string" },
+  "code-version": { type: "string" },
+  "no-law-context": { type: "boolean" },
+  compact: { type: "boolean" },
+  "public-key": { type: "string" },
+  "size-with-model": { type: "boolean" },
+  "fleet-rate": { type: "string" },
+  "widen-hint": { type: "string" },
   "no-open": { type: "boolean" },
   yes: { type: "boolean" },
+  "ask-first": { type: "boolean" },
+  "job-data-chain": { type: "string" },
+  path: { type: "string" },
+  "commons-sharing": { type: "boolean" },
+  "retain-days": { type: "string" },
+  "personal-data": { type: "string" },
+  week: { type: "string" },
   "agent-name": { type: "string" },
   "google-auth-url": { type: "string" },
   "google-token-url": { type: "string" },
@@ -488,14 +929,17 @@ const OPTIONS = {
   "mail-from": { type: "string" },
   "mail-operator": { type: "string" },
   "mail-interval": { type: "string" },
+  "audit-interval": { type: "string" },
   "mail-dry-run": { type: "boolean" },
   "mail-resend-url": { type: "string" },
+  send: { type: "boolean" },
   jurors: { type: "string" },
   "juror-min-stake": { type: "string" },
   base: { type: "string" },
   "allow-plain-http": { type: "boolean" },
   "link-base": { type: "string" },
   once: { type: "boolean" },
+  "print-schedule": { type: "boolean" },
   interval: { type: "string" },
   "run-log": { type: "string" },
   html: { type: "boolean" },
@@ -503,19 +947,24 @@ const OPTIONS = {
   help: { type: "boolean", short: "h" },
   task: { type: "string", multiple: true },
   "max-parallel": { type: "string" },
+  "node-max-parallel": { type: "string" },
   as: { type: "string" },
 
   // asp credits / asp market (Stage 2 slice 1)
   amount: { type: "string" },
+  memo: { type: "string" },
   by: { type: "string" },
   price: { type: "string" },
   budget: { type: "string" },
   deadline: { type: "string" },
   verification: { type: "string" },
   "review-deadline": { type: "string" },
+  "ruling-window-seconds": { type: "string" },
   "parent-contract": { type: "string" },
   fees: { type: "string" },
   criteria: { type: "string", multiple: true },
+  criterion: { type: "string", multiple: true },
+  template: { type: "string" },
   intent: { type: "string" },
   offer: { type: "string" },
   plan: { type: "string" },
@@ -554,6 +1003,24 @@ const OPTIONS = {
   verdict: { type: "string" },
   fault: { type: "string", multiple: true },
   "cosign-by": { type: "string", multiple: true },
+  "fund-from": { type: "string" },
+  "institution-spend": { type: "string", multiple: true },
+  mode: { type: "string" },
+  finding: { type: "string" },
+  case: { type: "string" },
+  decision: { type: "string" },
+  successor: { type: "string" },
+  restitution: { type: "string" },
+  remedy: { type: "string" },
+  with: { type: "string" },
+  ref: { type: "string" },
+  entry: { type: "string" },
+  tagline: { type: "string" },
+  showcase: { type: "string", multiple: true },
+  theme: { type: "string" },
+  layout: { type: "string" },
+  max: { type: "string" },
+  revoke: { type: "boolean" },
 
   // asp market juror|panel (Courts, a real staked random panel)
   stake: { type: "string" },
@@ -568,13 +1035,93 @@ const OPTIONS = {
   gate: { type: "string", multiple: true },
   irreversible: { type: "string" },
   "approval-wait": { type: "string" },
+  "ladder-file": { type: "string" },
   expires: { type: "string" },
   correction: { type: "string" },
   question: { type: "string" },
   claim: { type: "string", multiple: true },
   grade: { type: "string", multiple: true },
   artifact: { type: "string", multiple: true },
+  enrol: { type: "boolean" },
+  stdin: { type: "boolean" },
+  practice: { type: "boolean" },
+  // Market, Registry and Courts (DK10, DK12, DK13, DK16, DK17, DK18)
+  paid: { type: "string" },
+  publish: { type: "boolean" },
+  page: { type: "string" },
+  class: { type: "string" },
+  tier: { type: "string" },
+  rule: { type: "string" },
+  posting: { type: "string" },
+  deposit: { type: "string" },
+  mine: { type: "boolean" },
+  "min-budget": { type: "string" },
+  "max-budget": { type: "string" },
+  skills: { type: "string", multiple: true },
+  "requires-certificate": { type: "string" },
+  listed: { type: "string" },
+  genuine: { type: "string" },
+  grounds: { type: "string" },
+  statement: { type: "string" },
+  ruling: { type: "string" },
+  appeal: { type: "string" },
+  "fee-paid": { type: "string" },
+  "min-qualifying": { type: "string" },
+  month: { type: "string" },
+  persona: { type: "string" },
+  multiple: { type: "string" },
+  "halt-runs": { type: "boolean" },
+  "loop-equivalent": { type: "string" },
+  "loop-depth": { type: "string" },
+  "loop-near": { type: "string" },
+  "tokens-per-day": { type: "string" },
+  "tokens-per-run": { type: "string" },
+  "tokens-per-month": { type: "string" },
+  "since-file": { type: "string" },
+  reads: { type: "string" },
+  reference: { type: "string" },
+  stop: { type: "string" },
+  lot: { type: "string" },
+  "refund-until": { type: "string" },
+  "tax-line": { type: "string", multiple: true },
+  cosign: { type: "string" },
+  association: { type: "string" },
+  action: { type: "string" },
+  cluster: { type: "string" },
+  owner: { type: "string" },
+  org: { type: "string" },
+  strict: { type: "boolean" },
+  "max-members": { type: "string" },
+  "co-sponsor": { type: "string", multiple: true },
+  "harness-sha": { type: "string" },
+  "harness-uri": { type: "string" },
+  halt: { type: "string" },
+  "claim-id": { type: "string" },
+  suspension: { type: "string" },
+  until: { type: "string" },
+  outcome: { type: "string" },
+  band: { type: "string" },
+  route: { type: "string" },
+  article: { type: "string" },
+  query: { type: "string" },
+  precedent: { type: "string", multiple: true },
+  dry: { type: "boolean" },
 } as const;
+
+
+/**
+ * A value that starts with a dash (a base64url token does so about one time in 64) is the value of a value-taking option, not another option (ENG120): `--token -abc` becomes `--token=-abc`. A following word is
+ * still an option when it is exactly a known option (`--agents`, or `--agents=3`), so `--token --agents 3` leaves --token without a value as before.
+ */
+export function joinDashValues(argv: string[], options: Record<string, { type: string }> = OPTIONS as never): string[] {
+  const known = (a: string): boolean => { const m = /^--([^=]+)(=.*)?$/.exec(a); return !!m && m[1]! in options; };
+  const out: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const x = argv[i]!, m = /^--([^=]+)$/.exec(x), next = argv[i + 1];
+    if (m && options[m[1]!]?.type === "string" && next !== undefined && next.startsWith("-") && next.length > 1 && !known(next)) { out.push(`${x}=${next}`); i++; } else out.push(x);
+  }
+  return out;
+}
 
 /**
  * A bare "fetch failed" (Node's message for any network failure) says nothing a person can act on. When an error is a connection failure, say what happened and what still works.
@@ -635,27 +1182,50 @@ export function connectionProblem(e: unknown, service?: string): string | undefi
   return `cannot reach the service${service ? ` at ${service}` : ""} (${why}). Try again in a moment. \`asp status\` shows what works from this machine; \`asp run --local\` runs an agent under a Mandate with no service and no account.`;
 }
 
-/** The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call (restored on exit: main re-enters). */
-let logEnv: NodeJS.ProcessEnv = process.env;
+/**
+ * The environment the current command runs with, so ASP_LOG_URL and ASP_LOG_TOKEN reach every openLog call. It belongs to the command, not to the process: it is kept in the command's own async
+ * context, so a timer or a background loop started by a command (the approvals loop, the gateway's watcher) keeps reading the environment of the command that started it, and commands that overlap
+ * in one process (a test running several sessions, an embedding program) cannot change each other's. It used to be one variable that each main() set on entry and restored on exit: when two
+ * overlapped, the first to finish put back an old value under the second, which then asked a local log instead of the service and found no job (gap T23, found from the CI trail).
+ */
+const logEnvStore = new AsyncLocalStorage<{ env: NodeJS.ProcessEnv }>();
+const currentLogEnv = (): NodeJS.ProcessEnv => logEnvStore.getStore()?.env ?? process.env;
+const logEnv: NodeJS.ProcessEnv = new Proxy({} as NodeJS.ProcessEnv, {
+  get: (_t, k) => currentLogEnv()[k as string],
+  has: (_t, k) => k in currentLogEnv(),
+  ownKeys: () => Reflect.ownKeys(currentLogEnv()),
+  getOwnPropertyDescriptor: (_t, k) => { const d = Reflect.getOwnPropertyDescriptor(currentLogEnv(), k); return d ? { ...d, configurable: true } : undefined; },
+  set: () => false,
+});
 
 export async function main(argv: string[], io: Io): Promise<number> {
-  const previous = logEnv;
-  logEnv = io.env;
-  try { return await mainInner(argv, io); } finally { logEnv = previous; }
+  // An environment that is the log environment itself (a command that runs another with the one it has) is copied, so it does not point at itself.
+  const env = io.env === logEnv ? { ...logEnv } : io.env;
+  return logEnvStore.run({ env }, () => mainInner(argv, env === io.env ? io : { ...io, env }));
 }
 
 async function mainInner(argv: string[], io: Io): Promise<number> {
+  // `asp --version`, `asp -v` and `asp version` say which asp this is (found by the clean-machine check, row T1: `--version` is also a string option of `asp pack`, so it was refused as "argument missing").
+  if (argv.length === 1 && ["--version", "-v", "version"].includes(argv[0])) {
+    let v = "unknown";
+    try { v = (JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: string }).version ?? v; } catch { /* a copy without its package.json still runs */ }
+    io.out(`asp ${v} (node ${process.version})`);
+    return 0;
+  }
   let parsed;
   try {
-    parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true });
+    // --writeback on its own means every agent (ENG78); --writeback=half is the arm split
+    parsed = parseArgs({ args: joinDashValues(argv).map((x, i) => (x === "--writeback" ? "--writeback=all" : x === "--signals" && (argv[i + 1] === undefined || argv[i + 1]!.startsWith("--")) ? "--signals=all" : x)), options: OPTIONS, allowPositionals: true });
   } catch (e) {
     io.err(String((e as Error).message));
     return 2;
   }
   const { values: v, positionals: [cmd, sub, ...rest] } = parsed;
+  // `asp join --help` is help for join (the same as `asp help join`), not the whole reference.
+  if (v.help && cmd && cmd !== "help") return helpCmd([cmd], io);
   // The full reference (every command, as the file header writes it): asp --help, asp help all. `asp` alone shows the short home instead.
   if (v.help || (cmd === "help" && sub === "all")) {
-    io.out(readFileSync(new URL(import.meta.url), "utf8").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
+    io.out(readFileSync(new URL(import.meta.url), "utf8").replace(/\r\n/g, "\n").split("*/")[0].replace(/^[\s\S]*?\/\*\*\n/, "").replace(/^ \* ?/gm, ""));
     return 0;
   }
   const home = aspHome(v.home ?? io.env.ASP_HOME);
@@ -663,16 +1233,20 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   // After `asp join` the service and the token are saved in the ASP home, so nothing has to be exported: the environment, when set, wins.
   // The environment wins, so say so when it overrides a different saved login: an old ASP_LOG_URL / ASP_LOG_TOKEN left in a shell silently made `account show` and `account export` act as
   // another account than the one being tested (found in the owner's live walkthrough). Names only; a token is never printed.
-  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && io.env.ASP_LOG_URL) {
-    const saved = readJoinConfig(home);
+  // A saved login that is protected with a passphrase the person has not given is said in plain words, here, before anything else runs (asp keys is how to deal with it, so it reads nothing).
+  const loginProblem = (e: unknown): number => { io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${(e as Error).message}`); return e instanceof UsageError ? 2 : 1; };
+  if (cmd !== "join" && cmd !== "help" && cmd !== "ask" && cmd !== "keys" && io.env.ASP_LOG_URL) {
+    let saved: JoinConfig | undefined;
+    try { saved = readJoinConfig(home); } catch (e) { return loginProblem(e); }
     const sameService = saved && saved.service.replace(/\/$/, "") === io.env.ASP_LOG_URL.replace(/\/$/, "");
     if (saved && (!sameService || (io.env.ASP_LOG_TOKEN && io.env.ASP_LOG_TOKEN !== saved.token))) {
       io.err(`  note: ASP_LOG_URL${io.env.ASP_LOG_TOKEN ? " and ASP_LOG_TOKEN are" : " is"} set in this shell and override the login saved for ${saved.tenant}, so this command acts as the account they name, not ${saved.tenant}. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN`);
     }
   }
-  if (cmd !== "join" && !io.env.ASP_LOG_URL) {
-    const cfg = readJoinConfig(home);
-    if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; logEnv = io.env; }
+  if (cmd !== "join" && cmd !== "keys" && !io.env.ASP_LOG_URL) {
+    let cfg: JoinConfig | undefined;
+    try { cfg = readJoinConfig(home); } catch (e) { return loginProblem(e); }
+    if (cfg) { io = { ...io, env: { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token } }; const here = logEnvStore.getStore(); if (here) here.env = io.env; }
   }
   const need = (name: keyof typeof v) => {
     const val = v[name];
@@ -681,13 +1255,35 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
   };
 
   try {
+    if (cmd === "org") {
+      const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs its audit export`); return s; };
+      try { return await orgCmd(sub, rest, { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN, io, now, log: () => openLog(home, logEnv), signerFor, flags: { name: v.name, org: v.org, file: v.file, member: v.member, role: v.role, did: v.did, out: v.out, after: v.after, every: v.every, times: v.times, token: v.token, "keep-agents": v["keep-agents"], "private-log": v["private-log"] } }); } catch (e) { if (e instanceof OrgUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "offboard") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine`); return s; };
+      try { return await offboardCmd(sub, { home, log: local, io, now, signerFor, packAgent: (did, runtime, project, outDir) => main(["pack", "--runtime", runtime, "--agent", did, "--project", project, "--out", outDir], io), flags: { org: v.org, out: v.out, from: v.from, keys: v.keys, confirm: v.confirm, ...(v.pack ? { pack: v.pack } : {}) } }); } catch (e) { if (e instanceof OffboardUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "fleet" && ["plan", "enrol", "join", "status", "blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetEnrolCommand(home, sub, v, io);
+    if (cmd === "fleet") return await fleetCommand(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "new") return await identityNew(home, v, need, io);
+    // A house agent (DK270, DK1603): created by the operator and nobody else. `asp house create <name>` is `asp identity new --kind agent --house` with the operator as the sponsor.
+    if (cmd === "house" && sub === "create") {
+      if (!rest[0]) throw new UsageError("asp house create <name> [--purpose <text>] [--operator <did>] [--did <did>]   (the operator's own command: it signs with the operator's key)");
+      const op = v.operator ?? operatorOf(home, io.env);
+      if (!op) throw new UsageError("no operator is named: set ASP_OPERATOR_DID to the operator's DID (the one the service was started with) or pass --operator <did>");
+      v.kind = "agent"; v.house = true; v.sponsor = v.sponsor ?? op; v.operator = op;
+      if (!v.did && !v.method) v.name = rest[0];
+      return await identityNew(home, v, need, io);
+    }
+    if (cmd === "identity" && sub === "rotate") return await identityRotate(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "show") return await identityShow(home, rest[0] ?? v.did, io);
     if (cmd === "identity" && sub === "copy") return await identityCopy(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "backup") return await identityBackup(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "restore") return await identityRestore(home, rest[0], v, io);
     if (cmd === "identity" && sub === "recover") return await identityRecover(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "recovery-check") return await identityRecoveryCheck(home, rest[0] ?? v.did, v, io);
+    if (cmd === "notices") return await noticesCmd(home, sub, rest, v, io);
     if (cmd === "identity" && sub === "export") return await identityExport(home, rest[0] ?? v.did, v, io);
     if (cmd === "identity" && sub === "register") return await identityRegister(home, rest[0], v, io);
     if (cmd === "pack") return await pack(home, v, need, io);
@@ -699,21 +1295,37 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "export") return await logExport(home, v, need, io);
     if (cmd === "log" && sub === "import") return await logImport(home, rest[0], io);
     if (cmd === "canary") return await canaryCmd(home, sub, rest, v, io);
+    if (cmd === "keys" && sub === "memory") return await keysMemoryCmd(home, rest[0], rest[1], v, io);
+    if (cmd === "keys") return keysCmd(home, sub, io);
+    if (cmd === "law") return lawCmd(home, sub, v, io);
     if (cmd === "gateway") return await gatewayCmd(home, [sub, ...rest].filter((x): x is string => !!x), v, need, io);
     if (cmd === "known-bad") return await knownBadCmd(home, sub, v, need, io);
     if (cmd === "run-log") return await runLogCmd(home, sub, rest, v, io);
     if (cmd === "mail") return await mailCmd(home, sub, rest, v, io);
     if (cmd === "dashboard") return await dashboardCmd(home, v, io);
+    if (cmd === "learned") return await learnedCmd(home, sub, rest, v, io);
     if (cmd === "commons") return await commonsCmd(home, sub, rest, v, need, io);
+    if (cmd === "forum") return await forumCmd(home, sub, rest, v, need, io);
     if (cmd === "package") return await packageCmd(home, sub, rest, v, need, io);
     if (cmd === "serve" && sub === "token") return await serveToken(v, need, io);
-    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
+    if (cmd === "serve" && ["suspend", "resume", "block", "unblock", "audit", "usage", "signups", "signup-open", "signup-close", "signup-cap", "purge", "starter", "reset-token", "raise-limits", "reset-sandbox"].includes(sub ?? "")) return await serveAdmin(sub!, v, need, io);
     if (cmd === "signup") return await signupCmd(v, io);
+    if (cmd === "enrol") return await enrolCmd(home, v, io);
+    if (cmd === "watcher") { try { return await watcherCmd(sub, { log: await openLog(home, logEnv), io, now, flags: { dir: v["watch-dir"], finding: v.finding } }); } catch (e) { if (e instanceof WatcherUsage) throw new UsageError(e.message); throw e; } }
     if (cmd === "help") return helpCmd(sub ? [sub, ...rest] : [], io);
     if (cmd === "status") return await statusCmd(home, io);
     if (cmd === "ask") return await askCmd(home, [sub, ...rest].filter(Boolean).join(" "), v, io);
     if (cmd === "runtimes") {
       // The support matrix: which runtimes asp run can start, how each is held to the Mandate, and the evidence behind the claim (docs/portability-at-scale.md).
+      // Personal agents (DK1364): `asp runtimes personal` lists them with the way each joins and the evidence; `asp runtimes personal <name>` prints its first minute.
+      if (sub === "personal") {
+        const one = rest[0] ? personalAgentByName(rest[0]) : undefined;
+        if (rest[0] && !one) throw new UsageError(`no personal agent called ${rest[0]}: ${PERSONAL_AGENTS.map((x) => x.name).join(", ")}`);
+        if (one) { for (const l of firstMinute(one)) io.out(l); return 0; }
+        for (const x of PERSONAL_AGENTS) io.out(`  ${x.name.padEnd(22)} ${x.way.padEnd(18)} ${x.assurance.padEnd(17)} evidence ${x.evidence.level}`);
+        io.out("evidence: live = a recorded real run; stand-in = ASP's side tested with a stand-in, not the product; none = untested. Only a runtime with a live row is listed in the docs and on the site; none is yet. asp runtimes personal <name> prints the first minute.");
+        return 0;
+      }
       for (const l of supportMatrix()) io.out(l);
       io.out("reach: gateway = the tool is pointed at the local gateway; hook = the tool's own pre-call hook. evidence: live = run by hand on a real machine; partial = live with known gaps; stand-in = tested only with a stand-in for the tool.");
       io.out("A runtime that is not listed can still run under `asp gateway` if it can be pointed at an OpenAI or Anthropic base URL; it is not claimed until a row says so.");
@@ -725,13 +1337,75 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "account") return await accountCmd(sub, v, io, home);
     if (cmd === "join") return await joinCmd(home, v, io);
     if (cmd === "runs") return await runsCmd(home, sub, v, io);
+    if (cmd === "today") return todayCmd(home, v, io);
+    if (cmd === "job-data") {
+      // JO3: after settlement the performer removes its working copies of a job's data and writes down that it did.
+      if (sub === "show") { const lines = readJobDataLines(join(home, "job-data.ndjson")); for (const l of lines) io.out(`${l.n}  ${l.at}  ${l.kind}  ${l.contract.slice(0, 19)}${l.files !== undefined ? `  ${l.files} file(s), ${l.bytes} byte(s)` : ""}${l.due ? `  due ${l.due}` : ""}`); io.out(lines.length ? `${lines.length} line(s); the chain ${verifyJobDataLines(lines) ? "checks out" : "DOES NOT check out"}${lines.length ? `; head ${lines.at(-1)!.hash.replace(/^sha256:/, "")}` : ""}` : "nothing recorded yet");
+        if (v.contract) { const st = await (await openLog(home, logEnv)).log.jobDataStatus(v.contract); io.out(`the log reads this contract's job data as: ${st.status}${st.chain_head ? ` (chain head ${st.chain_head})` : ""}`); }
+        return 0; }
+      if (sub !== "delete") throw new UsageError("asp job-data delete --contract <id> --path <folder> | show");
+      if (!v.contract || !v.path) throw new UsageError("asp job-data delete --contract <id> --path <folder>");
+      const handle = await openLog(home, logEnv);
+      const info = await handle.log.chainInfo(v.contract);
+      const chain = await handle.log.chain(v.contract);
+      const contractRec = chain.find((s) => s.record.type === "asp.contract/v0.2");
+      const settled = [...chain].reverse().find((s) => s.record.type === "asp.settlement/v0.2");
+      const r = jobDataDelete({ home, contract: v.contract, path: resolve(io.cwd, v.path), state: info?.state ?? undefined, ...(settled ? { settledAt: settled.record.issued_at } : {}), term: (contractRec?.record.body as { data_handling?: DataHandling } | undefined)?.data_handling, now: now() });
+      io.out(r.message);
+      // With --by, the performer cites the head of the chain in a late Action, which the log accepts only soon after settlement (ten minutes): the contract then reads as confirmed, not data_unconfirmed.
+      if (r.ok && r.line && r.line.kind === "data_deleted" && v.by) {
+        const head = r.line.hash.replace(/^sha256:/, "");
+        try {
+          const settledAt = settled?.record.issued_at ?? now();
+          const rec = createRecord({ type: "action", issuer: v.by, subject: v.contract, prev: null, body: { contract: v.contract, scopes_used: [], late: { activity_ended: settledAt }, job_data_chain: head, summary: "job data deleted at settlement" }, issued_at: now() } as never, (() => { const sg = new Keystore(home).forDid(v.by!); if (!sg) throw new Error(`no key for ${v.by} here: only its holder can sign`); return sg; })());
+          const res = await handle.append(rec as never);
+          io.out(`confirmed: the Action ${res.id} cites the chain head ${head.slice(0, 12)}...; the log now reads this contract's job data as confirmed`);
+        } catch (e) {
+          io.out(`not confirmed in the log: ${(e as Error).message}. The log accepts the citation only within ten minutes of settlement; the local line is written, and the contract stays data_unconfirmed.`);
+        }
+      } else if (r.ok && r.line && r.line.kind === "data_deleted") io.out("not cited in the log: add --by <your did> within ten minutes of settlement to confirm it, or asp market action --job-data-chain <head> --late <time>");
+      return r.ok ? 0 : 1;
+    }
+    if (cmd === "my-data") {
+      const by = v.by;
+      const sign = v.acknowledge && by ? async (sha: string, agent?: string) => {
+        const signer = new Keystore(home).forDid(by);
+        if (!signer) throw new UsageError(`no key for ${by} here: only its holder can sign (asp my-data --acknowledge --by <your did>)`);
+        const handle = await openLog(home, logEnv);
+        const rec = createRecord({ type: "notice_ack", issuer: by, subject: agent ?? null, prev: null, body: { notice: "asp.my-data/v1", statement_sha256: sha, ...(agent ? { agent } : {}) }, issued_at: now() } as never, signer);
+        return (await handle.append(rec as never)).id;
+      } : undefined;
+      return await myDataCmd({ home, flags: { agent: v.agent, acknowledge: v.acknowledge, json: v.json }, io, now, ...(sign ? { sign } : {}) });
+    }
+    if (cmd === "trend") return todayCmd(home, v, io, true);
+    if (cmd === "budget") return await budgetCommand(home, sub, v, io);
+    if (cmd === "monitor") return await monitorCommand(home, sub, v, io);
+    if (cmd === "forecast" && v.contract) { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); try { return await jobForecast({ log: await openLog(home, logEnv), io, contract: v.contract, forecast: f.agents, days: f.days }); } catch (e) { if (e instanceof BudgetUsage) throw new UsageError(e.message); throw e; } }
+    if (cmd === "forecast") { const f = buildForecast(sessionsOf(home).map((x) => ({ start: x.start, ...(x.end ? { end: x.end } : {}) })), Number(v.days ?? 14)); if (v.json) io.out(JSON.stringify(f, null, 2)); else for (const l of renderForecast(f)) io.out(l); return 0; }
     if (cmd === "stop") return await stopCmd(home, sub, v, io);
+    if (cmd === "live") return await liveCommand(home, sub, v, io);
+    if (cmd === "pause" || cmd === "resume") {
+      // US1: hold every running session instead of ending it. The gateways poll this file; asp resume removes it.
+      const file = join(home, "paused");
+      // A --local run keeps everything under <ASP_HOME>/local, and its gateway polls that folder: pause and resume cover both, so a person is never told "paused" while a local session runs on.
+      const localFile = join(home, "local", "paused");
+      const hasLocal = existsSync(join(home, "local", "runs.ndjson"));
+      if (cmd === "resume") { const was = existsSync(file) || (hasLocal && existsSync(localFile)); rmSync(file, { force: true }); if (hasLocal) rmSync(localFile, { force: true }); io.out(was ? "resumed: held sessions continue" : "nothing was paused"); return 0; }
+      if (sub === "status") { io.out(existsSync(file) ? `paused since ${readFileSync(file, "utf8").trim()}: every running session holds its next call (asp resume continues them)` : "not paused"); return 0; }
+      mkdirSync(home, { recursive: true });
+      writeFileSync(file, `${now()}
+`);
+      if (hasLocal) writeFileSync(localFile, `${now()}\n`);
+      io.out("paused: every running session on this machine holds its next call and continues on asp resume; asp stop --all ends them instead");
+      return 0;
+    }
     if (cmd === "standing") return await standingCmd(home, sub, rest, v, io);
+    if (cmd === "work") return await workCmd(home, sub, rest, v, io);
     if (cmd === "approvals") return await approvalsCmd(home, sub, rest, v, io);
     if (cmd === "agent") return await agentCmd(home, sub, rest, v, io);
     if (cmd === "token") return await tokenCmd(sub, rest, v, io);
     if (cmd === "leave") return leaveCmd(home, io);
-    if (cmd === "court") return await courtCmd(home, sub, v, io);
+    if (cmd === "court") return await courtCmd(home, sub, v, io, rest);
     if (cmd === "serve") return await serve(v, need, io);
     if (cmd === "watch") return await watch(home, v, io);
     if (cmd === "eval" && sub === "run") return await evalRun(rest[0], v, io);
@@ -741,18 +1415,167 @@ async function mainInner(argv: string[], io: Io): Promise<number> {
     if (cmd === "log" && sub === "witnesses") return await logWitnessesAdd(home, rest[0] === "add" ? rest[1] : undefined, io);
     if (cmd === "log" && sub === "checkpoint") return await logCheckpoint(home, v, need, io);
     if (cmd === "credits" && (!sub || sub === "show")) return await creditsShow(home, io);
+    if (cmd === "history") return await historyCommand(home, sub, v, io);
     if (cmd === "credits" && sub === "grant") return await creditsGrant(home, v, need, io);
+    if (cmd === "credits" && sub === "adopt") return await creditsAdopt(home, v, need, io);
+    if (cmd === "credits" && sub === "fund") return await creditsFund(home, v, need, io);
+    if (cmd === "credits" && sub === "audit") return await creditsAudit(home, v, io, rest[0]);
+    if (cmd === "credits" && sub === "guard") return await creditsGuard(home, v, io);
+    if (cmd === "credits" && sub === "ratify") {
+      // The owner's signature on the monetary policy (DK1): with --by it signs the text of the file; without, it checks the statement against the text now.
+      const file = resolve(io.cwd, v.file ?? "docs/institutions/economy/credits.md");
+      const policyName = v.policy ?? "monetary-policy";
+      const out = file.replace(/\.md$/, "") + (v.policy ? `.${v.policy}` : "") + ".ratified.json";
+      if (v.by) {
+        const signer = new Keystore(home).forDid(v.by);
+        if (!signer) throw new UsageError(`no key for ${v.by} here: only its holder can sign (asp credits ratify --by <your did>)`);
+        const r = ratifyPolicy({ policy: policyName, file, out, signer, now: now() });
+        io.out(`signed ${file} (sha256 ${r.sha256.slice(0, 12)}...) as ${r.by}; the statement is ${out}`);
+        return 0;
+      }
+      // The key to check against: given, or (for a did:web owner who signed on this machine) the one in the local keystore; a did:key needs neither.
+      const by = (() => { try { return (JSON.parse(readFileSync(out, "utf8")) as { by?: string }).by; } catch { return undefined; } })();
+      const key = v["public-key"] ? Uint8Array.from(Buffer.from(v["public-key"], "hex")) : by ? (new Keystore(home).forDid(by) as { publicKey?: Uint8Array } | undefined)?.publicKey : undefined;
+      const res = verifyRatification({ statement: out, file, ...(key ? { publicKey: key } : {}) });
+      io.out(res.ok ? `the monetary policy is signed by ${res.by} and the text has not changed since (sha256 ${res.sha256!.slice(0, 12)}...)` : "the monetary policy is NOT signed as it stands");
+      for (const p of res.problems) io.err(`  problem: ${p}`);
+      return res.ok ? 0 : 1;
+    }
+    if (cmd === "credits" && sub === "auto-refund") return await creditsAutoRefund(home, v, io);
     if (cmd === "credits" && sub === "balance") return await creditsBalance(home, rest[0] ?? v.to, io);
+    if (cmd === "world") return await worldCommand(home, sub, rest, v, io);
+    if (cmd === "society" && (sub === "invite" || sub === "revoke")) {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: the sponsor's machine must hold the keys of the sponsor and the agent`); return x; };
+      try { return await inviteCmd(sub, { log: local, io, now, signerFor, flags: { agent: v.agent, institutions: v.institutions, "per-day": v["per-day"], days: v.days } }); } catch (e) { if (e instanceof InviteUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "cohort") {
+      if (rest[0] === "plan") { try { return planCmd({ model: v.model, agents: v.agents, "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], ticks: v.ticks, "price-in": v["price-in"], "price-out": v["price-out"] }, { out: (l) => io.out(l) }); } catch (e) { throw new UsageError((e as Error).message); } }
+      if (rest[0] === "closure") return closureCmd(rest[1], { out: (l) => io.out(l) });
+      if (rest[0] === "smoke-endpoint") {
+        if (!v["provider-url"] || !v.model) throw new UsageError("asp society cohort smoke-endpoint --provider-url <url, for example http://localhost:30000> --model <served model name> [--api-key-env <VAR>]");
+        const key = v["api-key-env"] ? io.env[String(v["api-key-env"])] : undefined;
+        const r = await smokeEndpoint({ baseUrl: String(v["provider-url"]), model: String(v.model), ...(key ? { key } : {}) });
+        io.out(renderSmoke(r, String(v.model), String(v["provider-url"]))); return r.verdict.startsWith("OK") ? 0 : 2;
+      }
+      if (rest[0] === "verify") return await verifyCmd(rest[1], { io: io as never, env: io.env, keyEnvs: v["api-key-env"] ? [v["api-key-env"]] : ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"] });
+      const cohortFlags = { agents: v.agents, model: v.model, provider: v.provider, "api-key-env": v["api-key-env"], "budget-usd": v["budget-usd"], "total-usd": v["total-usd"], minutes: v.minutes, "price-in": v["price-in"], "price-out": v["price-out"], out: v.out, behaviours: v.behaviours, "persona-file": v["persona-file"], "provider-url": v["provider-url"], "max-turns": v["max-turns"], "token-cap": v["token-cap"], local: v.local, "sim-speed": v["sim-speed"], arrivals: v.arrivals, "no-life": v["no-life"], "engaged-minutes": v["engaged-minutes"], kinds: v.kinds, models: v.models, writeback: v.writeback, seed: v.seed, experiment: v.experiment, access: v.access, signals: v.signals, "signals-text": v["signals-text"], "injection-screen": v["injection-screen"], "plant-injection": v["plant-injection"], voices: v.voices, "no-voices": v["no-voices"], "house-event": v["house-event"], orientation: v.orientation, "field-guide": v["field-guide"], "guide-mode": v["guide-mode"], "no-hints": v["no-hints"], "job-slots": v["job-slots"], "relax-limits": v["relax-limits"], lessons: v.lessons, assess: v.assess, agenda: v.agenda, "hard-jobs": v["hard-jobs"], "repo-jobs": v["repo-jobs"], battery: v.battery, "no-town-auto": v["no-town-auto"], "no-fold": v["no-fold"], "no-trim": v["no-trim"], library: v.library, markers: v.markers, games: v.games, desert: v.desert, "record-prompts": v["record-prompts"], "reply-tokens": v["reply-tokens"], orgs: v.orgs, "regression-gate": v["regression-gate"], "short-intro": v["short-intro"], stats: v.stats, groups: v.groups, "day-minutes": v["day-minutes"], "template-cards": v["template-cards"], "card-window": v["card-window"], "card-rewards": v["card-rewards"], "house-lessons": v["house-lessons"], "day-cycle": v["day-cycle"], roles: v.roles, "snapshot-out": v["snapshot-out"], "from-snapshot": v["from-snapshot"] };      if (rest[0] === "repeat") { try { return await repeatCmd({ home, flags: { ...cohortFlags, runs: v.runs }, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      if (rest[0] === "compare") { try { return compareCmd(rest[1], rest[2], { out: (l) => io.out(l) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; } }      try { return await cohortCmd({ home, flags: cohortFlags, io: { out: (l) => io.out(l), err: (l) => io.err(l), env: io.env }, now: () => Date.parse(now()) }); } catch (e) { if (e instanceof CohortUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "health") return await societyHealthCommand(home, v, io);
+    if (cmd === "journey") {
+      // The journey of an agent made by `asp run --local` is in the local log (<home>/local), not on the service of a saved login.
+      const li = localIdentities(home);
+      const isLocal = !!v.local || (!!li && !!sub && [li.me, li.agent, li.bank].includes(sub));
+      const jhome = isLocal ? join(home, "local") : home;
+      try { return await journeyCommand(sub, v as never, (isLocal ? { ...io, env: localOnlyEnv(io.env) } : io) as never, async () => (await (await openLog(jhome, isLocal ? localOnlyEnv(io.env) : logEnv)).log.since(0, 1_000_000)) as never, (did: string) => new Budgets(join(home, "budgets.json")).get(did), (model) => ({ ...priceFor(model), known: isPricedModel(model) })); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "tail") {
+      try { return await tailCommand(v as never, io as never, async () => (await (await openLog(home, logEnv)).log.since(0, 1_000_000)) as never); } catch (e) { if (e instanceof JourneyUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "society" && sub === "mcp") {
+      // The society's front-door tools over MCP on stdio (row DK546): `asp society mcp --service <url>`; an agent runtime lists it as an MCP server. Output on stdout is protocol only.
+      const service = v.service ?? io.env.ASP_LOG_URL;
+      if (!service) throw new UsageError("give --service <url> (or set ASP_LOG_URL, or run asp enrol first) for the society the tools talk to");
+      const ctx: McpContext = {
+        base: service, ...(io.env.ASP_LOG_TOKEN ? { token: io.env.ASP_LOG_TOKEN } : {}),
+        enrol: async (name) => {
+          const out: string[] = [], err: string[] = [];
+          const code = await main(["enrol", "--service", service, "--name", name, "--accept-terms"], { out: (l) => out.push(l), err: (l) => err.push(l), env: { ...io.env, ASP_LOG_URL: service }, cwd: io.cwd });
+          if (!code) { const c = readJoinConfig(home); if (c) ctx.token = c.token; }
+          return { ok: code === 0, text: [...out, ...err].join("\n") };
+        },
+      };
+      await serveMcpStdio(ctx, process.stdin, process.stdout);
+      return 0;
+    }
+    if (cmd === "prices") return await pricesCommand(home, sub, rest, v, io);
+    if (cmd === "spend") return await spendCommand(home, sub, rest, v, io);
+    if (cmd === "log-config") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
+      try { return await configCmd(sub, { log: local, io, now, signerFor, flags: { key: v.key, value: v.value, by: v.by, "cosign-by": v["cosign-by"]?.[0] } }); } catch (e) { if (e instanceof ConfigUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "services") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
+      try { return await servicesCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, service: v.service, price: v.price, deposit: v.deposit, posting: v.posting, days: v.days, json: v.json } }); } catch (e) { if (e instanceof ServicesUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "shops") return await shopsCommand(home, sub, rest, v, io);
+    if (cmd === "housing") return await housingCommand(home, sub, rest, v, io);
+    if (cmd === "events") return await eventsCommand(home, sub, rest, v, io);
+    if (cmd === "research") return await researchCommand(home, sub, rest, v, io);
+    if (cmd === "telemetry" && (sub === undefined || ["status", "off", "on", "list", "put", "delete", "receipts"].includes(sub))) return await contentStoreCmd(sub, v, io);
+    if (cmd === "telemetry") return await telemetryCommand(home, sub, v, io);
+    if (cmd === "academy") return await academyCommand(home, sub, rest, v, io);
+    if (cmd === "lens") return await lensCommand(sub, v, io);
+    if (cmd === "registry") return await registryCommand(home, sub, rest, v, io);
+    if (cmd === "sponsor" && sub === "statement") return await sponsorStatementCommand(home, v, io);
+    if (cmd === "bank") return await bankCommand(home, sub, v, io, rest);
+    if (cmd === "mission" || cmd === "grader" || cmd === "inspect" || (cmd === "eval" && (sub === "write" || sub === "list"))) {
+      // The society records (DK1240, DK1223, DK1744, DK1221): each signs one record with the key of --by, and the log's own rules refuse what they refuse, by name.
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      const flags = { by: v.by, mission: v.mission, goal: v.goal, verifier: v.verifier, closes: v.closes, amount: v.amount, contributor: v.contributor, units: v.units, verified: v.verified, skill: v.skill, task: Array.isArray(v.task) ? v.task.join(" ") : v.task, check: v.check, difficulty: v.difficulty, "held-out": v["held-out"], as: v.as, runs: v.runs, agreed: v.agreed, "run-set": v["run-set"], did: v.did, subject: v.subject, sponsor: v.sponsor, data: v.data, grounds: v.grounds, scope: v.scope, "granted-by": v["granted-by"], panel: v.panel, expires: v.expires, "produced-by": v["produced-by"], "requested-by": v["requested-by"], request: v.request, "notified-at": v["notified-at"], "delayed-notice": v["delayed-notice"], decoy: v.decoy, text: v.text, "real-secret": v["real-secret"], forbidden: v.forbidden, "audit-permille": v["audit-permille"], case: v.case, what: v.what, evidence: v.evidence, finding: v.finding, agent: v.agent, touches: v.touches, summary: v.summary, json: v.json };
+      try { return await (cmd === "mission" ? missionCmd : cmd === "grader" ? graderCmd : cmd === "inspect" ? inspectCmd : evalScenarioCmd)(sub, { log: local, io, now, signerFor, flags } as never); }
+      catch (e) { if (e instanceof SocietyUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "message") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await messageCmd(sub, { log: local, io, now, signerFor, ...(io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { service: { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } } : {}), flags: { by: v.by, to: v.to, kind: v.kind, text: v.text, "reply-to": v["reply-to"], did: v.did, since: v.since, json: v.json } }); }
+      catch (e) { if (e instanceof MessageUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "town") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await townCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, title: v.title, kind: v.kind, key: v.key, value: v.value, days: v.days, opens: v.opens, thread: v.thread, "rank-checkpoint": v["rank-checkpoint"], proposal: v.proposal, choice: v.choice, json: v.json } }); } catch (e) { if (e instanceof TownUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "contest") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await contestCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, subject: v.subject, statement: v.statement, contest: v.contest, answer: v.answer, reason: Array.isArray(v.reason) ? v.reason[0] : v.reason, case: v.case, decision: v.decision, json: v.json } }); } catch (e) { if (e instanceof ContestUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "listen") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can speak for it`); return x; };
+      try { return await listenCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, complaint: v.complaint, json: v.json } }); } catch (e) { if (e instanceof ListenUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "house") return await houseCommand(home, sub, v, io);
+    if (cmd === "treasury") return await treasuryCommand(home, sub, v, io);
+    if (cmd === "prizes") return await prizesCommand(home, v, io);
+    if (cmd === "wakes") return await wakesCommand(home, v, io);
+    if (cmd === "collusion") return await collusionCommand(home, v, io);
+    if (cmd === "farming") return await farmingCommand(home, sub, v, io);
+    if (cmd === "meter") return await meterCommand(home, sub, v, io, rest);
+    if (cmd === "emergency") return await emergencyCommand(home, sub, v, io);
+    if (cmd === "breach") return await breachCommand(home, sub, v, io);
+    if (cmd === "audit-export") return await auditExportCommand(home, sub, v, io, rest);
+    if (cmd === "lots") return await lotsCommand(home, sub, v, io);
+    if (cmd === "charter") {
+      const local = await openLog(home, logEnv);
+      const signerFor = (did: string) => { const x = new Keystore(home).forDid(did); if (!x) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return x; };
+      try { return await charterCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, "cosign-by": v["cosign-by"]?.[0], docs: v.docs, institution: v.institution, file: v.file, funding: v.funding, kind: v.kind, officers: v.officers, effective: v.effective, status: v.status, reason: v.reason, version: v.version } }); } catch (e) { if (e instanceof CharterUsage) throw new UsageError(e.message); throw e; }
+    }
+    if (cmd === "first-week") { try { return await firstWeekCmd(v.agent ?? v.by, { log: await openLog(home, logEnv), io }); } catch (e) { if (e instanceof FirstWeekUsage) throw new UsageError(e.message); throw e; } }
+    if (cmd === "abuse") return await abuseCommand(home, sub, rest[0], v, io);
+    if (cmd === "refuse") return await refuseCommand(home, sub, v, io);
+    if (cmd === "temptation") return await temptationCommand(home, sub, v, io);
+    if (cmd === "outcomes") return await outcomesCommand(home, v, io);
+    if (cmd === "found") return await foundCommand(home, sub, v, io);
+    if (cmd === "residency") return await residencyCommand(home, sub, rest, v, io);
+    if (cmd === "insure") return await insureCommand(home, sub, v, io);
+    if (cmd === "clinic" && sub === "restore") return await clinicRestore(home, v, io);
+    if (cmd === "clinic") return await clinicCommand(home, sub, v, io);
     if (cmd === "market") return await market(home, sub, rest, v, need, io);
     throw new UsageError(`unknown command: ${[cmd, sub].filter(Boolean).join(" ")}`);
   } catch (e) {
-    io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
+    if (process.env.ASP_DEBUG_STACK) io.err(String((e as Error).stack)); io.err(e instanceof UsageError ? `usage: ${e.message}` : `error: ${connectionProblem(e, io.env.ASP_LOG_URL) ?? (e as Error).message}`);
     return e instanceof UsageError ? 2 : 1;
   }
 }
 
 type Values = {
-  [K in keyof typeof OPTIONS]?: K extends "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "scopes-used" | "artifact" | "blocked" | "claim" | "grade" | "gate" | "real" ? string[]
+  [K in keyof typeof OPTIONS]?: K extends "budget-class" | "tax-line" | "pack" | "tripwire" | "mcp" | "ask-match" | "sandbox-bind" | "task" | "criteria" | "criterion" | "scopes" | "network-host" | "reasons" | "panel" | "team" | "fault" | "cosign-by" | "co-sponsor" | "institution-spend" | "showcase" | "scopes-used" | "artifact" | "blocked" | "blocked-targets" | "call-target" | "claim" | "grade" | "gate" | "real" | "skills" | "precedent" ? string[]
     : (typeof OPTIONS)[K]["type"] extends "boolean" ? boolean : string;
 };
 type Need = (name: keyof typeof OPTIONS) => string;
@@ -785,9 +1608,64 @@ function networkOf(v: Values): { hosts?: string[]; rate?: { per_host_per_minute?
   };
 }
 
+/**
+ * asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade] (register row X7, DK1726; spec-delta S1427): a key cannot change, so a rotation is a NEW did:key identity linked to the old one by a handover the old key signs and the new key countersigns.
+ * The new identity gets its own passport (an agent keeps its sponsor, shape, fleet and node; a person's is self-issued), then the handover moves the old identity's standing and free balance to it and retires the old one. Needs the OLD key in the keystore: a LOST key
+ * cannot hand over (recovery is a sponsor vouching for a new identity, or the recovery code for a person), and a stolen key can, which is why the holder of the old key rotates first.
+ */
+async function identityRotate(home: string, did: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!did) throw new UsageError("asp identity rotate <did> [--reason rotation|compromise_suspected|upgrade]");
+  const reason = v.reason ?? "rotation";
+  if (!["rotation", "compromise_suspected", "upgrade"].includes(reason)) throw new UsageError("--reason is rotation, compromise_suspected or upgrade");
+  const keys = new Keystore(home);
+  const oldSigner = keys.forDid(did);
+  if (!oldSigner) throw new Error(`no key for ${did} in ${join(home, "keys")}: a lost key cannot hand over (a person recovers with the recovery code, an agent through its sponsor)`);
+  const local = await openLog(home, logEnv);
+  const old = await local.log.passport(did);
+  if (!old) throw new Error(`${did} has no passport in this log`);
+  const headRec = await local.log.get(old.head);
+  if (!headRec) throw new Error(`the passport of ${did} is not readable`);
+  const ob = headRec.record.body as { kind: "human" | "agent"; sponsor?: string; mentor?: string; shape?: unknown; tier?: number; fleet?: string; node?: string; purpose?: string; persona?: string; fingerprint?: unknown };
+  const seed = randomSeed();
+  const newDid = didKeyFromPublicKey(publicKeyFromSeed(seed));
+  const newSigner = keys.createFromSeed(`${newDid}#key-1`, seed);
+  const kid = `${newDid}#key-1`;
+  let issuer: Signer; let issuerDid: string;
+  const body: Record<string, unknown> = { did: newDid, kind: ob.kind, keys: [{ id: kid, type: "Ed25519", public_key: b64urlEncode(newSigner.publicKey) }] };
+  if (ob.kind === "agent") {
+    if (!ob.sponsor) throw new Error(`${did} has no sponsor on its passport: nothing to carry over`);
+    const sponsorSigner = keys.forDid(ob.sponsor);
+    if (!sponsorSigner) throw new Error(`no key for the sponsor ${ob.sponsor} in ${home}: the sponsor signs the new agent's passport`);
+    issuer = sponsorSigner; issuerDid = ob.sponsor;
+    Object.assign(body, { sponsor: ob.sponsor, mentor: ob.mentor ?? ob.sponsor, tier: ob.tier ?? 1, shape: ob.shape ?? {}, ...(ob.fleet ? { fleet: ob.fleet } : {}), ...(ob.node ? { node: ob.node } : {}), ...(ob.purpose ? { purpose: ob.purpose } : {}), ...(ob.persona ? { persona: ob.persona } : {}), ...(ob.fingerprint ? { fingerprint: ob.fingerprint } : {}) });
+  } else { issuer = newSigner; issuerDid = newDid; }
+  const passport = await local.append(createRecord({ type: "passport", issuer: issuerDid, subject: newDid, prev: null, body, issued_at: now() }, issuer));
+  const handover = cosign(createRecord({ type: "key_handover", issuer: did, subject: newDid, prev: null, body: { old: did, new: newDid, reason }, issued_at: now() }, oldSigner), newSigner);
+  const res = await local.append(handover);
+  io.out(`rotated ${did}`);
+  io.out(`  new identity ${newDid} (key stored in ${join(home, "keys")}; passport ${passport.id})`);
+  io.out(`  handover      ${res.id} (log seq ${res.seq}): ${did} is retired, its standing and free balance moved to ${newDid}`);
+  io.out(`  Back up the new key now: asp identity backup ${newDid} --out <file>. The old key signs nothing more.`);
+  return 0;
+}
+
+/** The operator's DID on this machine: ASP_OPERATOR_DID, else <home>/operator.json (the same two places the log reads). */
+function operatorOf(home: string, env: Record<string, string | undefined>): string | undefined {
+  if (env.ASP_OPERATOR_DID) return env.ASP_OPERATOR_DID;
+  try { return (JSON.parse(readFileSync(join(home, "operator.json"), "utf8")) as { operator?: string }).operator; } catch { return undefined; }
+}
+
 async function identityNew(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const kind = need("kind");
   if (kind !== "human" && kind !== "agent") throw new UsageError("--kind is human or agent");
+  if (v.house && kind !== "agent") throw new UsageError("--house is for an agent: a house agent is a scripted agent the operator runs");
+  // A house agent is sponsored by the operator, and only the operator's key can sign that sponsorship: --house names the operator (--operator, else ASP_OPERATOR_DID) and refuses any other sponsor before anything is made.
+  const houseOperator = v.house ? (v.operator ?? operatorOf(home, io.env)) : undefined;
+  if (v.house) {
+    if (!houseOperator) throw new UsageError("--house needs the operator's DID: set ASP_OPERATOR_DID or pass --operator <did>");
+    if (v.sponsor !== houseOperator) throw new UsageError("a house agent is sponsored by the operator (" + houseOperator + "), not by " + (v.sponsor ?? "nobody") + ": the label is permanent and only the operator may give it");
+    if (!new Keystore(home).forDid(houseOperator)) throw new UsageError("this machine does not hold the operator's key (" + houseOperator + "): only the operator can create a house agent, on the operator's own machine");
+  }
   const keys = new Keystore(home);
   const log = await openLog(home, logEnv);
 
@@ -844,13 +1722,18 @@ async function identityNew(home: string, v: Values, need: Need, io: Io): Promise
       sponsor, mentor: sponsor, tier: 1,
       shape: { memory: "files + experience index", keeps_learning: true, modalities: ["text", "code"] },
       ...(v.purpose ? { purpose: v.purpose } : {}),
+      ...(v.house ? { house: true } : {}),
       ...(v.fleet ? { fleet: v.fleet } : {}),
+      ...(v.persona ? { persona: v.persona } : {}),
+      ...(v.fleet && v.node ? { node: v.node } : {}),
+      ...(v.runtime || v.model ? { fingerprint: { ...(v.runtime ? { runtime: v.runtime } : {}), ...(v.model ? { model: v.model } : {}) } } : {}),
     };
   }
   const issuer = kind === "human" ? did : need("sponsor");
   const record = createRecord({ type: "passport", issuer, subject: did, prev: null, body, issued_at: now() }, issuerSigner);
   const res = await log.append(record);
-  io.out(`created ${kind} ${did}`);
+  io.out(`created ${v.house ? "house " : ""}${kind} ${did}`);
+  if (v.house) io.out("  house agent: labelled on every public page and permanent; it can never be changed to an ordinary agent");
   io.out(`  key      ${kid} (stored in ${join(home, "keys")})`);
   io.out(`  passport ${res.id} (log seq ${res.seq})`);
   if (recoveryCode) {
@@ -950,7 +1833,7 @@ async function identityShow(home: string, did: string | undefined, io: Io): Prom
   const held = new Keystore(home).entriesFor(did).map((e) => e.kid);
   io.out(JSON.stringify({
     passport: p.head, sponsor: p.sponsor, fleet: p.fleet, body: rec.body, keys: await log.keys(did),
-    recovery: passportKeys.some((k) => k.includes("#recovery-")) ? "recovery key set" : p.sponsor ? "recoverable by its sponsor" : did.startsWith("did:key:") ? "none possible (the DID is the key)" : "NOT SET: losing the key means losing this identity",
+    recovery: passportKeys.some((k) => k.includes("#recovery-")) ? "recovery key set" : p.sponsor === did ? "not recoverable: key-only, no sponsor (its did:key is its key; restore it from the recovery code shown at enrolment: asp identity restore <did>)" : p.sponsor ? "recoverable by its sponsor" : did.startsWith("did:key:") ? "none possible (the DID is the key)" : "NOT SET: losing the key means losing this identity",
     keysOnThisMachine: held,
     ...(reputation ? { reputation } : {}),
   }, null, 2));
@@ -999,13 +1882,81 @@ async function identityBackup(home: string, did: string | undefined, v: Values, 
 
 /** asp identity restore <file>: puts the keys of a backup back on this machine. */
 async function identityRestore(home: string, file: string | undefined, v: Values, io: Io): Promise<number> {
-  if (!file) throw new UsageError("asp identity restore <file>   (it asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead)");
+  if (!file) throw new UsageError("asp identity restore <file> | <did:key:...>   (a backup file asks for the passphrase; scripts set ASP_BACKUP_PASSPHRASE instead; a did:key is restored from the recovery code shown at enrolment, in ASP_RECOVERY_CODE or --recovery-code-file)");
+  if (file.startsWith("did:key:")) {
+    // A key-only agent's key is its DID: the recovery code is the key's own seed, so the same key is made again on another machine (KO2).
+    const seed = seedFromRecoveryCode(recoveryCodeFrom(v, io));
+    if (didKeyFromPublicKey(publicKeyFromSeed(seed)) !== file) { io.out("this recovery code is NOT the one for this identity: nothing was restored"); return 1; }
+    const keys = new Keystore(home);
+    if (keys.forDid(file)) { io.out(`${file}'s key is already here; left as it is`); return 0; }
+    keys.createFromSeed(`${file}#key-1`, seed);
+    io.out(`restored the key of ${file} from its recovery code`);
+    return 0;
+  }
   const backup = JSON.parse(readFileSync(resolve(io.cwd, file), "utf8"));
   const entries = decryptKeys(backup, await backupPassphrase(v, io));
   const keys = new Keystore(home);
   let restored = 0;
   for (const e of entries) { if (keys.importEntry(e)) restored++; else io.out(`  ${e.kid} is already here; left as it is`); }
   io.out(`restored ${restored} key(s) for ${backup.did}`);
+  return 0;
+}
+
+/** `asp notices [--did <did>] [--json]`: what has happened to an identity that a sponsor would have been mailed about (KO2). */
+async function noticesCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const { noticesFor } = await import("./notices.ts");
+  // KO2: a key-only agent has no verified Google address. `asp notices address set <address>` has the service send a code to it; `asp notices address confirm <code>` proves it is held; until then mail is held with the reason.
+  const cfg = readJoinConfig(home);
+  const svc = io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { service: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : cfg ? { service: cfg.service, token: cfg.token } : undefined;
+  const callMail = async (path: string, body?: unknown): Promise<{ status: number; body: any }> => {
+    if (!svc) throw new UsageError("this needs the service you joined: run asp enrol or asp join first (or set ASP_LOG_URL and ASP_LOG_TOKEN)");
+    const res = await fetchRetry(new URL(path, svc.service.replace(/\/$/, "") + "/"), { method: body === undefined ? "GET" : "POST", headers: { authorization: `Bearer ${svc.token}`, ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    return { status: res.status, body: (await res.json().catch(() => undefined)) as any };
+  };
+  if (sub === "address") {
+    const act = rest[0];
+    if (act === "set") {
+      if (!rest[1]) throw new UsageError("asp notices address set <address>   (the service sends a code to it; asp notices address confirm <code> proves you hold it)");
+      const r = await callMail("mail/address", { address: rest[1] });
+      if (r.status !== 200) { io.err(`  not sent: ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(`a code was sent to ${rest[1]} (it works for 30 minutes). Enter it with: asp notices address confirm <code>. Until then no mail goes to that address.`);
+      return 0;
+    }
+    if (act === "confirm") {
+      if (!rest[1]) throw new UsageError("asp notices address confirm <code>");
+      const r = await callMail("mail/address/confirm", { code: rest[1] });
+      if (r.status !== 200) { io.err(`  not confirmed: ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(`confirmed: mail about your agents, held or new, now goes to ${r.body.address}. Every mail has a link that stops it.`);
+      return 0;
+    }
+    if (act === undefined || act === "show") {
+      const r = await callMail("mail/address");
+      if (r.status !== 200) { io.err(`  ${r.body?.error?.message ?? `the service answered ${r.status}`}`); return 1; }
+      io.out(r.body.address ? `mail address: ${r.body.address.email} (${r.body.address.source === "google" ? "the address you signed up with, verified by Google" : `confirmed ${r.body.address.confirmedAt}`})` : "mail address: none. Mail about your agents is held, not lost. Name one: asp notices address set <address>");
+      if (r.body.pending) io.out(`  a code was sent to ${r.body.pending.email}; it works until ${r.body.pending.expiresAt}: asp notices address confirm <code>`);
+      io.out(`  mail held for want of an address: ${r.body.held.length}`);
+      return 0;
+    }
+    throw new UsageError("asp notices address [show] | set <address> | confirm <code>");
+  }
+  let did = v.did;
+  if (!did) { try { did = (JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { agent?: string } }).identities?.agent; } catch { /* none */ } }
+  if (!did) throw new UsageError("asp notices --did <did>   (or run it where asp enrol or asp join saved your identities)");
+  const log = (await openLog(home, logEnv)).log;
+  const list = await noticesFor((await log.since(0, 1_000_000)) as never, did);
+  // Mail that is held back for want of an address is a notice too (ML2): the person is told why nothing arrived.
+  try {
+    const held = JSON.parse(readFileSync(join(home, "mail-held.json"), "utf8")) as Record<string, { label: string; contract: string; why: string; at: string }>;
+    for (const [key, h] of Object.entries(held)) list.push({ id: key, kind: "mail held", at: h.at, detail: `${h.label}: ${h.why}` } as never);
+  } catch { /* nothing held */ }
+  // The service's own held mail for this account (KO2): what it could not send for want of a verified address, and why.
+  let addr: any;
+  if (svc) { try { const r = await callMail("mail/address"); if (r.status === 200) addr = r.body; } catch { /* the service may be away: the notices from the log are enough */ } }
+  for (const h of addr?.held ?? []) list.push({ id: h.key, kind: "mail held", at: h.at, detail: `${h.why} (asp notices address set <address>)` } as never);
+  if (v.json) { io.out(JSON.stringify(list, null, 2)); return 0; }
+  io.out(`notices for ${did}: ${list.length}`);
+  for (const n of list) io.out(`  ${n.at}  ${n.kind}: ${n.detail}  (${n.id.slice(0, 19)})`);
+  if (!list.length) io.out("  nothing has been recorded about this identity that you would need to act on");
   return 0;
 }
 
@@ -1194,8 +2145,8 @@ async function collectWatchActions(local: LogHandle): Promise<WatchAction[]> {
     for (const s of page) {
       after = s.seq;
       if (s.record.type !== "asp.action/v0.2") continue;
-      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number }[]; artifacts?: { uri: string; sha256: string }[] };
-      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], artifacts: b.artifacts ?? [] });
+      const b = s.record.body as { contract: string; scopes_used: string[]; blocked_attempts?: { scope: string; count: number; targets?: string[] }[]; targets?: string[]; artifacts?: { uri: string; sha256: string }[]; summary?: string };
+      actions.push({ id: s.id, issuer: s.record.issuer, contract: b.contract, issuedAt: s.record.issued_at, scopesUsed: b.scopes_used, blocked: b.blocked_attempts ?? [], ...(b.targets ? { targets: b.targets } : {}), ...(b.summary !== undefined ? { summary: b.summary } : {}), artifacts: b.artifacts ?? [] });
     }
   }
   return actions;
@@ -1221,8 +2172,16 @@ async function jurorsIn(log: LogHandle["log"]): Promise<{ did: string; staked: n
  * The operator's court for the beta (launch blocker 4). The service refuses juror registrations from tenants (--jurors operator-only), so the operator seats the panel with an
  * admin token and keeps the jurors' keys on their own machine; `rule` signs a drawn panel's ruling with the keys the operator holds. Run against the service (ASP_LOG_URL, ASP_LOG_TOKEN of an admin).
  */
-async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+/** What a panel is shown before it rules (courts.md 3): the closest earlier rulings to this dispute, with the reason for each. */
+async function showPrecedents(log: { precedentsFor(contract: string, articles?: string[]): Promise<{ query: { articles: string[]; band: string; route: string }; hits: { ruling: { id: string; verdict: string; articles: string[] }; score: number; why: string[] }[] }> }, contract: string, io: Io, articles: string[] = []): Promise<void> {
+  const { query, hits } = await log.precedentsFor(contract, articles);
+  io.out(`  closest precedents (Articles ${query.articles.join(", ") || "none cited"}; ${query.band}; ${query.route}): ${hits.length ? "" : "none above the score of 3 (cite the Article you rely on in the rejection's reasons)"}`);
+  for (const h of hits) io.out(`    ${h.ruling.id}  ${h.ruling.verdict}  Article ${h.ruling.articles.join(", ")}  score ${h.score}: ${h.why.join("; ")}`);
+}
+
+async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
   const log = (await openLog(home, logEnv)).log;
+  const need = (k: keyof Values): string => { const x = v[k]; if (typeof x !== "string" || !x) throw new UsageError(`--${String(k)} is required`); return x; };
   if (sub === "seat") {
     const count = Math.trunc(Number(v.count ?? "3")), stake = Math.trunc(Number(v.stake ?? "500"));
     if (!(count >= 1 && count <= 15) || !(stake >= 1)) throw new UsageError("asp court seat [--count 1..15] [--stake n] [--base did:web:<host>:court]");
@@ -1279,8 +2238,53 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
   if (sub === "docket") {
     const cases = await open();
     const keys = new Keystore(home);
-    for (const c of cases) io.out(`${c.contract}: ${c.principal} v ${c.performer}; panel ${c.panel.length ? c.panel.map((d) => `${d}${keys.forDid(d) ? " (key held)" : ""}`).join(", ") : "none can be drawn"}`);
+    for (const c of cases) {
+      io.out(`${c.contract}: ${c.principal} v ${c.performer}; panel ${c.panel.length ? c.panel.map((d) => `${d}${keys.forDid(d) ? " (key held)" : ""}`).join(", ") : "none can be drawn"}`);
+      await showPrecedents(log, c.contract, io);
+    }
     io.out(`${cases.length} open dispute(s)`);
+    return 0;
+  }
+  // Precedent, the charter and appeals (courts.md 7; DK12, DK13).
+  if (sub === "precedent") {
+    const what = rest[0];
+    if (what === "for") {
+      const contract = need("contract");
+      await showPrecedents(log, contract, io, v.article ? [v.article] : []);
+      return 0;
+    }
+    const rows = await log.precedentSearch({ article: v.article, verdict: v.verdict, band: v.band, route: v.route });
+    if (!rows.length) io.out("no rulings match");
+    for (const r of rows) io.out(`${r.id}  ${r.verdict}  ${r.route}  ${r.band}  Article ${r.articles.join(", ") || "none"}${r.appeal ? `  appealed: ${r.appeal.outcome}` : ""}${r.precedents.length ? `  relies on ${r.precedents.length} earlier ruling(s)` : ""}`);
+    return 0;
+  }
+  if (sub === "charter") {
+    if (v.publish) {
+      const by = need("by");
+      const textFile = need("file");
+      const sha = createHash("sha256").update(readFileSync(textFile)).digest("hex");
+      const versions = await log.charters();
+      const routes = { small_claim_max_price: 50, small_claim_panel: 1, small_claim_fee: 2, standard_panel: 3, appeal_panel: 5, appeal_window_days: 14, appeal_fee_small: 5, appeal_fee_standard: 20, appeal_small_max_price: 100, claimant_open_cap: 3 };
+      const effective = versions.length ? new Date(Date.now() + 73 * 3600_000).toISOString().replace(/\.\d+Z$/, "Z") : now();
+      const signer = new Keystore(home).forDid(by);
+      if (!signer) throw new Error(`no key for ${by}`);
+      const rec = createRecord({ type: "court_act", issuer: by, subject: null, prev: null, body: { act: "charter", version: versions.length + 1, text_sha256: sha, routes, effective_from: effective }, issued_at: now() }, signer);
+      const res = await (await openLog(home, logEnv)).append(rec);
+      io.out(`charter version ${versions.length + 1} ${res.id}, effective ${effective} (log seq ${res.seq})`);
+      return 0;
+    }
+    const routes = await log.charterRoutes();
+    io.out(routes ? `charter in force: ${JSON.stringify(routes)}` : "no charter is in force yet: the Courts run a panel of 3 and a fee of 5 % of the price (asp court charter --publish --by <did> --file docs/court-charter.md)");
+    for (const c of await log.charters()) io.out(`  version ${c.version}  effective ${c.effective_from}  text sha256 ${c.text_sha256}`);
+    return 0;
+  }
+  if (sub === "appeal") {
+    const by = need("by");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by}`);
+    const rec = createRecord({ type: "court_act", issuer: by, subject: null, prev: null, body: { act: "appeal", ruling: need("ruling"), grounds: v.grounds ?? "error_of_law", statement: need("statement"), fee_paid: need("fee-paid") }, issued_at: now() }, signer);
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`appeal ${res.id} (log seq ${res.seq}); five jurors who did not hear the first ruling are drawn from this appeal's id`);
     return 0;
   }
   if (sub === "rule") {
@@ -1288,6 +2292,7 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
     if (!contract || !v.verdict) throw new UsageError("asp court rule --contract <id> --verdict for_performer|for_principal|split --fault <did>=<permille> [--fault ...]");
     const panel = await log.drawPanel(contract);
     if (!panel.length) throw new Error("no panel can be drawn for this dispute; seat jurors first (asp court seat)");
+    await showPrecedents(log, contract, io);
     const keys = new Keystore(home);
     const mine = panel.filter((d) => keys.forDid(d));
     const quorum = Math.ceil(panel.length / 2);
@@ -1296,12 +2301,14 @@ async function courtCmd(home: string, sub: string | undefined, v: Values, io: Io
     const args = ["market", "rule", "--contract", contract, "--by", signers[0], ...signers.slice(1).flatMap((d) => ["--cosign-by", d]), "--verdict", v.verdict, ...(v.fault ?? []).flatMap((f) => ["--fault", f])];
     return await main(args, io);
   }
-  throw new UsageError("usage: asp court seat [--count n] [--stake n] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille>");
+  throw new UsageError("usage: asp court seat [--count n] [--stake n] [--base did:web:<host>:court] | status | docket | rule --contract <id> --verdict ... --fault <did>=<permille> | precedent search|for | charter [--publish] | appeal --by <did> --ruling <id> --statement <text> --fee-paid <purchase>");
 }
 
 /**
  * asp account show | export [--out <dir>] | close --confirm <tenant> [--skip-export] [--out <dir>] (an admin adds --tenant <name>): a tenant's own data on the service named by
  * ASP_LOG_URL and ASP_LOG_TOKEN. Export writes account.json, records.ndjson, commons.json, the packages and a README; close exports first (unless --skip-export), then deletes.
+ * close also writes a deletion receipt (gap U9) to <home>/exports: the service's own account/close answer (what it deleted, what it kept and why, when), with a sha256 over it,
+ * saved before anything else happens, since the account cannot be asked again afterwards to show this.
  */
 async function accountCmd(sub: string | undefined, v: Values, io: Io, home: string): Promise<number> {
   const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
@@ -1314,7 +2321,7 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
   const json = async (path: string, init?: RequestInit) => {
     const res = await call(path, init);
     const body = (await res.json().catch(() => undefined)) as any;
-    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    if (!res.ok || !body?.ok) throw Object.assign(new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`), { code: body?.error?.code as string | undefined, details: body?.error as Record<string, unknown> | undefined });
     return body;
   };
   if (sub === "show") {
@@ -1323,16 +2330,45 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     if (a.namespace) io.out(`  your identities live in: a person ${a.namespace.person}, further people ${a.namespace.personPrefix}<name>, agents ${a.namespace.agentPrefix}<name>  (asp identity new --kind agent --name <name>)`);
     io.out(`  records written: ${a.usage?.records ?? 0} (${a.usage?.bytes ?? 0} bytes); agent identities written as: ${a.dids.length ? a.dids.join(", ") : "none"}`);
     io.out(`  packages: ${a.packages.length}; commons: ${a.commons.entries} entries, ${a.commons.reviews} reviews, ${a.commons.citations} citations`);
-    for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
-    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})` : a.starter.state === "available" ? `available: ${a.starter.perDid} each for up to ${a.starter.maxDids} of your identities (asp account starter --did <principal>,<agent>)` : `not available: ${a.starter.reason}`}`);
+    for (const i of a.identities ?? []) io.out(`  ${i.did}: ${i.recovery === "recovery key" ? "key loss recoverable with its recovery code" : i.recovery === "sponsor" ? "key loss recoverable by its sponsor" : i.recovery === "key-only" ? "NOT RECOVERABLE: key-only, no sponsor (a did:key is its key: keep the recovery code shown at enrolment, and make a backup: asp identity backup)" : i.recovery === "none" ? "NO RECOVERY: if its key is lost the identity is lost (make a backup: asp identity backup)" : "recovery unknown"}`);
+    io.out(`  data sharing: ${a.tenant.dataSharing?.choice ?? "share"}${a.tenant.dataSharing?.choice === "private" ? " (only hashes are stored for you; your agents are not used in studies)" : " (as for every open agent; asp account data-sharing)"}`);
+    io.out(`  starter credits: ${a.starter.state === "claimed" ? `claimed (${a.starter.amount})${a.starter.reason ? `; ${a.starter.reason}` : ""}` : a.starter.state === "partial" ? `${a.starter.amount} so far; ${a.starter.reason}` : a.starter.state === "available" ? `available: ${a.starter.upfront} now for each of your identities (any number, ${a.starter.batchMax} to a request), and ${a.starter.perDid - a.starter.upfront} more each after a job of that identity's own is accepted (asp account starter --did <did>,<did>...)` : a.starter.state === "waiting" ? a.starter.reason : `not available: ${a.starter.reason}`}`);
+    return 0;
+  }
+  // The data-sharing choice of an organisation (DK1360): `asp account data-sharing` shows it, `--choice share|private` records it.
+  if (sub === "data-sharing") {
+    if (v.choice !== undefined && v.choice !== "share" && v.choice !== "private") throw new UsageError("asp account data-sharing [--choice share|private]");
+    const r = v.choice ? await json("telemetry/sharing", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ choice: v.choice }) }) : await json("telemetry/sharing");
+    io.out(`data sharing: ${r.choice}`);
+    if (r.say) io.out(r.say);
+    if (!v.choice) { io.out(`  share:   ${r.options.share}`); io.out(`  private: ${r.options.private}`); io.out(`  choose with: asp account data-sharing --choice share|private   (terms: ${r.terms})`); }
     return 0;
   }
   if (sub === "starter") {
     const dids = (v.did ?? "").split(",").map((d) => d.trim()).filter(Boolean);
-    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>]: the identities (up to two, for example your principal and your agent) that get the starter credits; they must be identities you created through the service");
-    const r = await json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids }) });
-    for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
-    io.out(r.note);
+    if (!dids.length) throw new UsageError("asp account starter --did <did>[,<did>...]: the identities that get starter credits (any number; 25 to a request, the command asks again for the rest); they must be identities you created through the service");
+    const granted: { did: string; credits: number; balance: number }[] = []; let note = "";
+    for (let i = 0; i < dids.length; i += 25) {
+      const batch = dids.slice(i, i + 25);
+      const post = (extra: Record<string, unknown> = {}) => json("account/starter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dids: batch, ...extra }) });
+      let r;
+      try { r = await post(); } catch (e) {
+        // The service holds no key (DK94): it names what to sign, each identity signs its own starter claim here, and the service passes it to the log.
+        const d = (e as { code?: string; details?: { part?: string; amount?: number; dids?: string[]; needs?: { did: string; part: string; amount: number }[] } });
+        const needs = d.details?.needs ?? (d.details?.dids ?? []).map((did) => ({ did, part: d.details!.part!, amount: d.details!.amount! }));
+        if (d.code !== "CLAIM_NEEDED" || !needs.length) throw e;
+        const keys = new Keystore(home);
+        const claims = needs.map((n) => {
+          const signer = keys.forDid(n.did);
+          if (!signer) throw new Error(`no key for ${n.did} in ${join(home, "keys")}: only its holder can sign its starter claim`);
+          return createRecord({ type: "starter_claim", issuer: n.did, subject: n.did, prev: null, body: { part: n.part, amount: { value: n.amount, unit: "credit" as const } }, issued_at: now() }, signer);
+        });
+        r = await post({ claims });
+      }
+      granted.push(...r.granted); note = r.note;
+      for (const g of r.granted) io.out(`${g.did}: +${g.credits} credits (balance ${g.balance})`);
+    }
+    io.out(note);
     return 0;
   }
   const exportTo = async (dir: string) => {
@@ -1341,6 +2377,11 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     writeFileSync(join(dir, "account.json"), JSON.stringify({ version: e.version, exportedAt: e.exportedAt, tenant: e.tenant, usage: e.usage, dids: e.dids, packages: e.packages, notes: e.notes }, null, 2) + "\n");
     writeFileSync(join(dir, "records.ndjson"), e.records.map((r: unknown) => JSON.stringify(r)).join("\n") + (e.records.length ? "\n" : ""));
     writeFileSync(join(dir, "commons.json"), JSON.stringify(e.commons, null, 2) + "\n");
+    if (e.telemetry) writeFileSync(join(dir, "telemetry.json"), JSON.stringify(e.telemetry, null, 2) + "\n");
+    // Key handover (DK1384): the service never had these keys; the manifest says, for each identity, whether this machine holds its key, so an organisation knows what to carry to its next home. No key is copied into the export.
+    const ks = new Keystore(home);
+    const identities = (e.dids as string[]).map((did) => { let have = false; try { have = !!ks.forDid(did); } catch { have = false; } return { did, key_on_this_machine: have }; });
+    writeFileSync(join(dir, "keys.json"), JSON.stringify({ v: "asp.key-handover/v0", note: "The service never held these keys. To run an agent elsewhere, carry its key file from your ASP home (the keys folder) to the new machine: only the holder of the key can sign as the agent. A hosted bot (custody: service) first takes custody back with asp signup bind.", identities }, null, 2) + "\n");
     mkdirSync(join(dir, "packages"), { recursive: true });
     for (const p of e.packages as { name: string; sha256: string; download: string }[]) {
       const res = await call(p.download.replace(/^\//, ""));
@@ -1364,7 +2405,9 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
       "commons.json     the commons entries, reviews and citations those identities made",
       "packages/        each agent package as a .aspkg.tgz, checked against its hash",
       "runlogs/         each sealed run log (encrypted; only your identity key opens it: asp run-log open)",
-      "", ...e.notes,
+      "keys.json        for each identity, whether its key is on this machine (no key is copied here); see Taking your agents with you below",
+      "", ...e.notes, "",
+      "Taking your agents with you (offboarding): on a fresh service, make a tenant and run  asp account import --from <this folder>  with ASP_LOG_URL and ASP_LOG_TOKEN set to it. It replays records.ndjson (each record is signed, so the new log checks every signature) and uploads packages/. Carry the keys yourself (keys.json lists whose key is on this machine). Commons entries, sealed run logs and telemetry are not re-imported: the run logs are yours to open and keep.",
     ].join("\n") + "\n");
     return e;
   };
@@ -1386,15 +2429,193 @@ async function accountCmd(sub: string | undefined, v: Values, io: Io, home: stri
     io.out(`account ${r.tenant} closed: deleted ${r.deleted.packages} package(s), ${r.deleted.commonsEntries} commons entr(ies), ${r.deleted.commonsReviews} review(s) and ${r.deleted.commonsCitations} citation(s), and its token and personal details`);
     io.out(r.stays.records);
     io.out(`kept ${r.stays.retained}`);
+    // A deletion receipt (gap U9): the service's own account cannot be asked again once it is closed, so what it just said is written here, with a hash over it, before anything else happens.
+    const receipt = { ...r, closedAt: now(), certificate: "asp.closure-certificate/v0", retention: "the signed log keeps the records the tenant's identities wrote (append-only); token hash, contact line, hashed address and terms record for 12 months after closing; request metadata 90 days; backups clear within 35 days (docs/legal/retention-and-erasure.md)" };
+    const receiptBytes = Buffer.from(JSON.stringify(receipt), "utf8");
+    const receiptPath = join(home, "exports", `deletion-receipt-${r.tenant}-${now().replace(/[:.]/g, "-")}.json`);
+    mkdirSync(dirname(receiptPath), { recursive: true });
+    writeFileSync(receiptPath, JSON.stringify({ ...receipt, sha256: createHash("sha256").update(receiptBytes).digest("hex") }, null, 2) + "\n");
+    io.out(`  deletion receipt saved to ${receiptPath} (what the service said it deleted and kept, and when; the account cannot be asked again to show this; it is also the closure certificate)`);
     return 0;
   }
-  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>]");
+  if (sub === "import") {
+    // Offboarding and migration (DK1384): replay an export (asp account export) into a fresh service.
+    const from = v.from ? resolve(io.cwd, v.from) : undefined;
+    if (!from || !existsSync(join(from, "records.ndjson")) || !existsSync(join(from, "account.json"))) throw new UsageError("asp account import --from <an export folder made by asp account export>: it needs records.ndjson and account.json");
+    const handle = await openLog(home, logEnv);
+    const lines = readFileSync(join(from, "records.ndjson"), "utf8").split("\n").filter(Boolean);
+    let imported = 0, skipped = 0; const refused: string[] = [];
+    for (const line of lines) {
+      const item = JSON.parse(line) as { record: AspRecord };
+      try {
+        const r = await handle.append(item.record);
+        if ((r as { duplicate?: boolean }).duplicate) skipped++; else imported++;
+      } catch (e) { refused.push(`${item.record.id.slice(0, 19)} (${item.record.type}): ${(e as Error).message}`); }
+    }
+    let uploaded = 0, pkgSkipped = 0;
+    if (existsSync(join(from, "packages"))) {
+      const client = new PackagesClient(url, token, v.tenant);
+      for (const f of readdirSync(join(from, "packages")).filter((n) => n.endsWith(".aspkg.tgz"))) {
+        try { await client.push(f.replace(/\.aspkg\.tgz$/, ""), readFileSync(join(from, "packages", f))); uploaded++; }
+        catch (e) { if (/already exists/.test((e as Error).message)) pkgSkipped++; else refused.push(`package ${f}: ${(e as Error).message}`); }
+      }
+    }
+    io.out(`imported ${imported} record(s) (${skipped} already there), ${uploaded} package(s) (${pkgSkipped} already there); ${refused.length} refused`);
+    for (const r of refused.slice(0, 10)) io.out(`  refused: ${r}`);
+    io.out("Each record is signed by its author, so the new log checked every signature. Carry the keys yourself: keys.json in the export says whose key is on the machine that made it.");
+    return refused.length ? 1 : 0;
+  }
+  throw new UsageError("usage: asp account show | starter --did <did>[,<did>] | export [--out <dir>] | close --confirm <tenant name> [--skip-export] [--out <dir>] | import --from <export dir>   (close also saves a deletion receipt to <home>/exports)");
 }
 
 interface JoinConfig { service: string; token: string; tenant: string; joinedAt: string; /** Made by asp join: who asp run uses. */ identities?: { me: string; agent: string; bank: string } }
 const joinConfigPath = (home: string) => join(home, "config.json");
+/** The passphrase that protects the saved login and the keys is read from the environment of the command being run (ASP_KEY_PASSPHRASE; never a command-line argument). */
+/** The saved login as it goes to disk: with a passphrase set, the token is sealed and the plain token is not written (gap P20). */
+function joinConfigForDisk(cfg: JoinConfig): object {
+  const pass = passphraseFrom(logEnv);
+  if (!pass) return cfg;
+  const { token, ...rest } = cfg;
+  return { ...rest, token_sealed: seal(token, pass) };
+}
 function readJoinConfig(home: string): JoinConfig | undefined {
-  try { const c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")) as JoinConfig; return c.service && c.token ? c : undefined; } catch { return undefined; }
+  let c: (JoinConfig & { token_sealed?: unknown }) | undefined;
+  try { c = JSON.parse(readFileSync(joinConfigPath(home), "utf8")); } catch { return undefined; }
+  if (c && !c.token && isSealed(c.token_sealed)) {
+    const pass = passphraseFrom(logEnv);
+    if (!pass) throw new UsageError(`your saved login ${NEEDS_PASSPHRASE}`);
+    c = { ...c, token: openSealed(c.token_sealed, pass) };
+  }
+  return c && c.service && c.token ? c : undefined;
+}
+
+/**
+ * asp law show [--compact] | verify [--public-key <hex>] | pin | sign --by <did> (gap LW1): the Code of the City with its version and hash, checked against what has been pinned and signed.
+ * `pin` records the version and hash of the text as it is now (a maintainer's step); `sign` is the operator's, with their own key, and is never run for them.
+ */
+function lawCmd(home: string, sub: string | undefined, v: Values, io: Io): number {
+  const info = readCode();
+  if (!sub || sub === "show") {
+    io.out(v.compact ? compactCode(info) : info.text.trimEnd());
+    io.err(`  ${info.status === "draft" ? "draft " : "version "}${info.version}, sha256 ${info.sha256}${info.pin?.signed ? `, signed by ${info.pin.signed.by}` : ", not signed"}${info.status === "draft" ? "; a draft is not in force" : ""}`);
+    return 0;
+  }
+  if (sub === "verify") {
+    const key = v["public-key"] ? Uint8Array.from(Buffer.from(v["public-key"], "hex")) : undefined;
+    const r = verifyCode(info, key ? { publicKey: key } : {});
+    io.out(`Code of the City ${info.status === "draft" ? "draft " : "version "}${info.version}: sha256 ${info.sha256}`);
+    io.out(info.pin ? `pinned: ${info.pin.status}, hash ${info.pin.sha256 === info.sha256 ? "matches" : "DOES NOT MATCH"}` : "pinned: no");
+    io.out(info.pin?.signed ? `signed by ${r.signer}: ${r.signed ? "the signature verifies" : "the signature does NOT verify"}` : "signed: no (the operator signs it with asp law sign)");
+    for (const p of r.problems) io.err(`  problem: ${p}`);
+    if (info.status === "draft") io.out("status: a draft, so not in force");
+    return r.problems.length ? 1 : 0;
+  }
+  if (sub === "pin") {
+    const p = pinCode(info);
+    io.out(`pinned version ${p.version} (${p.status}) at sha256 ${p.sha256}`);
+    return 0;
+  }
+  if (sub === "sign") {
+    const by = v.by;
+    if (!by) throw new UsageError("asp law sign --by <your did>: the operator signs the pinned version with their own key");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new UsageError(`no key for ${by} here`);
+    const fresh = readCode();
+    const sig = signCode(fresh, signer);
+    io.out(`signed version ${fresh.version} (sha256 ${fresh.sha256.slice(0, 12)}...) as ${sig.by}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp law show [--compact] | verify [--public-key <hex>] | pin | sign --by <did>");
+}
+
+/**
+ * The `code` of a ruling (gap LW1): the version of the Code of the City applied, its hash, and the Articles the judgment rests on. A report that is upheld must name them: a finding that
+ * the Code was broken says which Article. `--articles 7,8.3 [--code-version 0.3]`; the hash is the pinned one for that version.
+ */
+function codeCitation(articles: string | undefined, version: string | undefined, required: boolean): { code?: { version: string; sha256?: string; articles: string[] } } {
+  if (!articles) {
+    if (required) throw new UsageError("an upheld report names the Articles of the Code it rests on: --articles 7,8.3 (see asp law show)");
+    return {};
+  }
+  const list = [...new Set(articles.split(",").map((x) => x.trim()).filter(Boolean))];
+  const bad = list.filter((a) => !/^(1[0-2]|[1-9])(\.[0-9]{1,2})?$/.test(a));
+  if (!list.length || bad.length) throw new UsageError(`--articles is a list of Articles 1 to 12, or clauses such as 8.3: ${bad.join(", ") || "none given"} is not one`);
+  const info = readCode();
+  const v = version ?? info.version;
+  const pin = info.pin && info.pin.version === v ? info.pin : v === info.version ? undefined : undefined;
+  const sha256 = v === info.version ? info.sha256 : pin?.sha256;
+  return { code: { version: v, ...(sha256 ? { sha256 } : {}), articles: list } };
+}
+
+/**
+ * asp keys memory publish --by <did> [--package <dir> --principal <did>] | show <did> (rows D12 and DK272; spec-delta S1604): an identity publishes the PUBLIC half of its X25519 memory key in the log, signed with its own
+ * signing key, so a pair can seal a private scope from a second machine. A principal publishes its own key (kept in <home>/keys); an agent publishes the key of its package (--package, sealed to --principal's key).
+ * Only the raw 32-byte public key goes in the log, never private material. A changed key is a rotation: the record names the live one it replaces.
+ */
+async function keysMemoryCmd(home: string, what: string | undefined, arg: string | undefined, v: Values, io: Io): Promise<number> {
+  const handle = await openLog(home, logEnv);
+  const lg = handle.log;
+  if (what === "show") {
+    const did = arg ?? v.by;
+    if (!did) throw new UsageError("asp keys memory show <did>");
+    const k = await lg.memoryKey(did);
+    io.out(k ? `${did}: live memory key ${k.name} (${k.public_key}), record ${k.record}` : `${did}: no memory key is published`);
+    return 0;
+  }
+  if (what !== "publish") throw new UsageError("asp keys memory publish --by <did> [--package <dir> --principal <did>]  |  asp keys memory show <did>");
+  const did = v.by;
+  if (!did) throw new UsageError("--by <did>: the identity that publishes its key");
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new UsageError(`no signing key for ${did} in ${join(home, "keys")}: only the identity itself publishes its memory key`);
+  let spki: string;
+  if (v.package) {
+    if (!v.principal) throw new UsageError("an agent's key is sealed to its principal: --principal <did>");
+    const pk = principalMemoryKey(home, v.principal, passphraseFrom(io.env));
+    spki = ensureAgentMemoryKey(resolve(io.cwd, v.package), pk.publicKey).publicKey;
+  } else spki = principalMemoryKey(home, did, passphraseFrom(io.env)).publicKey;
+  const raw = rawPublicKeyOf(spki);
+  const live = await lg.memoryKey(did);
+  if (live && live.public_key === raw) { io.out(`${did}: this memory key is already published (${live.name}, record ${live.record})`); return 0; }
+  const n = live ? Number(/(\d+)$/.exec(live.name)?.[1] ?? 0) + 1 : 1;
+  const res = await handle.append(createRecord({ type: "memory_key" as never, issuer: did, subject: null, prev: null, body: { did, name: `memory-${n}`, public_key: raw, at: now(), ...(live ? { revokes: live.record } : {}) }, issued_at: now() }, signer));
+  io.out(`${did}: published memory key memory-${n} (${raw})${live ? `, replacing ${live.name}` : ""}; record ${res.id}. Only the public half is in the log.`);
+  return 0;
+}
+
+/** asp keys status | protect | unprotect: seal the key files and the saved login under ASP_KEY_PASSPHRASE, or take the seal off (gaps U5, P20). */
+function keysCmd(home: string, sub: string | undefined, io: Io): number {
+  const ks = new Keystore(home);
+  const pass = passphraseFrom(io.env);
+  const raw = (): (Record<string, unknown> & { token?: string; token_sealed?: unknown }) | undefined => { try { return JSON.parse(readFileSync(joinConfigPath(home), "utf8")); } catch { return undefined; } };
+  const saveRaw = (o: object) => writeFileSync(joinConfigPath(home), JSON.stringify(o, null, 2) + "\n", { mode: 0o600 });
+  if (!sub || sub === "status") {
+    const k = ks.status();
+    const c = raw();
+    io.out(`keys: ${k.sealed} protected, ${k.plain} plain${k.plain && !k.sealed ? " (readable by anything that can read your folder)" : ""}`);
+    io.out(`saved login: ${!c ? "none" : isSealed(c.token_sealed) ? "protected" : "plain"}`);
+    io.out(pass ? "ASP_KEY_PASSPHRASE is set in this shell" : "ASP_KEY_PASSPHRASE is not set in this shell");
+    if (k.plain || (c && c.token)) io.out("to protect them: set ASP_KEY_PASSPHRASE in your shell (not on the command line), then asp keys protect");
+    return 0;
+  }
+  if (sub === "protect") {
+    if (!pass) throw new UsageError("set ASP_KEY_PASSPHRASE in your shell first, for example in Git Bash:  read -rs ASP_KEY_PASSPHRASE; export ASP_KEY_PASSPHRASE   (then keep it set whenever you use asp, or you cannot open the keys; losing it loses them unless you have a backup: asp identity backup)");
+    const n = ks.protect(pass);
+    const c = raw();
+    let login = false;
+    if (c && typeof c.token === "string" && c.token) { const { token, ...rest } = c; saveRaw({ ...rest, token_sealed: seal(token, pass) }); login = true; }
+    io.out(`protected ${n} key file(s)${login ? " and the saved login" : ""}; from now on set ASP_KEY_PASSPHRASE whenever you use asp`);
+    return 0;
+  }
+  if (sub === "unprotect") {
+    if (!pass) throw new UsageError("set ASP_KEY_PASSPHRASE to the passphrase you protected them with, then asp keys unprotect");
+    const n = ks.unprotect(pass);
+    const c = raw();
+    let login = false;
+    if (c && isSealed(c.token_sealed)) { const { token_sealed, ...rest } = c; saveRaw({ ...rest, token: openSealed(token_sealed, pass) }); login = true; }
+    io.out(`took the protection off ${n} key file(s)${login ? " and the saved login" : ""}: they are plain files again`);
+    return 0;
+  }
+  throw new UsageError("usage: asp keys status | protect | unprotect   (the passphrase is read from ASP_KEY_PASSPHRASE, never from the command line)");
 }
 
 /**
@@ -1450,6 +2671,21 @@ function openBrowser(url: string): void {
  */
 async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   const existing = readJoinConfig(home);
+  // A new token after the old one was lost (gap U1): sign in again on the service's /join/recover page, then give the token to this command through the environment (read -rs ASP_NEW_TOKEN), never as an argument.
+  if (v.recover) {
+    if (!existing) throw new UsageError("asp join --recover replaces the token saved by asp join, and there is none here: run asp join (on this machine's first sign-up) or asp join --again");
+    const fresh = io.env.ASP_NEW_TOKEN;
+    if (!fresh) throw new UsageError(`get a new token at ${existing.service}/join/recover (sign in with the Google account you signed up with), then:
+  read -rs ASP_NEW_TOKEN; export ASP_NEW_TOKEN
+  asp join --recover`);
+    const probe: string[] = [];
+    const checked = await main(["account", "show"], { out: (l) => probe.push(l), err: (l) => probe.push(l), env: { ...io.env, ASP_LOG_URL: existing.service, ASP_LOG_TOKEN: fresh }, cwd: io.cwd });
+    if (checked) throw new Error(`the service did not accept that token (${probe.join(" ").trim().slice(0, 200)}); the saved login is unchanged`);
+    mkdirSync(home, { recursive: true });
+    writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ ...existing, token: fresh }), null, 2) + "\n", { mode: 0o600 });
+    io.out(`the saved login for ${existing.tenant} now uses the new token; the old one no longer works. Machine tokens (asp token list) were revoked with it: make them again with asp token create. Your identities and keys are unchanged.`);
+    return 0;
+  }
   if (existing && !v.again) {
     io.out(`already joined as ${existing.tenant} on ${existing.service}; \`asp account show\` says what you have. (asp join --again signs up another account; asp leave forgets this login.)`);
     return 0;
@@ -1465,6 +2701,18 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   if (info.status !== 200 || !info.body?.ok) throw new Error(`${service} does not offer sign-up (it answered ${info.status})`);
   if (!info.body.open) throw new Error(`sign-up is not open on ${service}${info.body.reason ? `: ${info.body.reason}` : ""}`);
 
+  // A tenant token the person already has (from `asp signup`, or one the operator made) instead of the browser: the same identities and login are made, with no browser and no Google. The token is read from the
+  // NAMED environment variable, never from a flag.
+  let picked: { tenant: string; token: string } | undefined;
+  if (v["token-env"]) {
+    const given = io.env[v["token-env"]];
+    if (!given) throw new UsageError(`${v["token-env"]} is not set: asp join --token-env <VAR> reads an existing tenant token from that environment variable`);
+    const who = await get("account", { headers: { authorization: `Bearer ${given}` } });
+    if (who.status !== 200 || !who.body?.tenant?.name) throw new Error(`${service} did not accept that token (it answered ${who.status})`);
+    picked = { tenant: who.body.tenant.name, token: given };
+  }
+  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
+  if (!picked) {
   const verifier = randomBytes(32).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const url = `${service}/join?c=${challenge}`;
@@ -1472,9 +2720,7 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   io.out(`  ${url}`);
   io.out("  (On a machine with no browser, over SSH or in a container: open that address on any other device. This terminal picks up the result by itself.)");
   if (!v["no-open"]) openBrowser(url);
-  const waitMs = Number(io.env.ASP_JOIN_TIMEOUT_MS) > 0 ? Number(io.env.ASP_JOIN_TIMEOUT_MS) : 10 * 60_000;
   io.out(`Waiting for you to finish in the browser (up to ${Math.round(waitMs / 60_000) || 1} minutes) ...`);
-  let picked: { tenant: string; token: string } | undefined;
   const deadline = Date.now() + waitMs;
   const every = Math.max(50, Number(io.env.ASP_JOIN_POLL_MS) || 2000);
   let said = false;
@@ -1490,9 +2736,10 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
     }
     await new Promise((res) => setTimeout(res, every));
   }
+  }
   if (!picked) throw new Error(`gave up waiting for the sign-up after ${Math.round(waitMs / 60_000) || 1} minutes. Run asp join again. If you did finish signing up in the browser after that, that account exists but this terminal never received its login, so pick a different name this time (one Google account may sign up a few times); the contact in the Terms can close the unused one.`);
   mkdirSync(home, { recursive: true });
-  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: picked.token, tenant: picked.tenant, joinedAt: now() }), null, 2) + "\n", { mode: 0o600 });
   io.out("");
   io.out(`>>> Signed up as ${picked.tenant}. You are back in the terminal: the browser is finished. Setting up your first agent ...`);
   returnToTerminal(io, `You are signed up as ${picked.tenant}. Back to your terminal: your recovery code is about to appear.`);
@@ -1508,6 +2755,19 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   if (!acct.body?.namespace) throw new Error("this service does not give identities a namespace, so asp join cannot name your agent; use asp identity new --did ...");
   const { domain } = acct.body.namespace as { domain: string };
   const me = didFor(domain, picked.tenant, "human"), agent = didFor(domain, picked.tenant, "agent", agentName);
+  // ML2: the mail about this person's agents needs a destination. The address they signed up with (verified by Google) is set for their identity at once, so `asp mail pending` shows it and the end-of-run mail has somewhere to go;
+  // with no verified address nothing is invented: the mail is held with the reason, `asp notices` shows it, and `asp mail address set` gives it a place.
+  {
+    const email = acct.body.tenant?.signup?.google?.email as string | undefined;
+    if (email) {
+      const addrPath = join(home, "mail-addresses.json");
+      let book: Record<string, string> = {};
+      try { book = JSON.parse(readFileSync(addrPath, "utf8")); } catch { /* none yet */ }
+      book[me] = email;
+      writeFileSync(addrPath, JSON.stringify(book, null, 2));
+      io.out(`  mail      the end-of-run mail for your agents goes to ${email} (the address you signed up with); asp mail address list shows it, and every mail has a link to stop it`);
+    } else io.out("  mail      you signed up with no verified address, so the end-of-run mail is held with the reason (asp notices shows it); give it a place with: asp mail address set " + me + " <address>");
+  }
   const person = await run(["identity", "new", "--kind", "human", "--me"]);
   const code = /(ASP-[0-9A-Z-]+)/.exec(person)?.[1];
   // The recovery code is shown the moment it exists, before any later step can fail: it is kept nowhere else.
@@ -1521,16 +2781,17 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   await run(["identity", "new", "--kind", "human", "--name", "bank", "--no-recovery"]);
   const bank = didFor(domain, picked.tenant, "human", "bank");
   // Saved now, so a failure below (the starter credits) never leaves identities that the saved login does not know.
-  writeFileSync(joinConfigPath(home), JSON.stringify({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } } satisfies JoinConfig, null, 2) + "\n", { mode: 0o600 });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: picked.token, tenant: picked.tenant, joinedAt: now(), identities: { me, agent, bank } }), null, 2) + "\n", { mode: 0o600 });
   let credits = "";
   let creditsNote = "";
-  try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 160); }
+  try { credits = await run(["account", "starter", "--did", `${me},${agent}`]); } catch (e) { creditsNote = (e as Error).message.replace(/^account starter[^:]*failed:\s*/, "").slice(0, 300); }
 
   io.out("");
   io.out(`You are set up on ${service}:`);
+  io.out(TELEMETRY_NOTICE);
   io.out(`  you      ${me}`);
   io.out(`  agent    ${agent}`);
-  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? "500 each for you and your agent" : "claimed"}`);
+  io.out(`  credits  ${creditsNote ? (/already claimed/i.test(creditsNote) ? "none this time: starter credits are given once per Google account, and this one has had them (this does not affect anything else)" : `none (${creditsNote})`) : /\+(\d+) credits/.exec(credits) ? `${/\+(\d+) credits/.exec(credits)![1]} each for you and your agent now, enough for a first job; the rest of the grant comes after a job of yours is accepted (asp account show)` : "claimed"}`);
   if (code) {
     if (process.stdin.isTTY && !v.yes) {
       const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stdout });
@@ -1545,6 +2806,8 @@ async function joinCmd(home: string, v: Values, io: Io): Promise<number> {
   // From a fresh clone there is no `asp` on the path: the command is typed as `npm run asp -- ...` (found in the clean-clone run).
   const asp = io.env.npm_lifecycle_event === "asp" ? "npm run asp --" : "asp";
   io.out(`Next: ${asp} run claude-code --prompt "..." runs Claude Code as your agent under the protocol. ${asp} account show says what you have.${asp === "asp" ? "" : " (From this folder every command starts with npm run asp -- )"}`);
+  // The newcomer allowance (DK380, DK98): offered here, claimed once the agent has taken a first course. The command is read-only until the claim and says every reason it cannot yet.
+  io.out(`Then, after your first course (${asp} academy courses): ${asp} treasury allowance --agent ${agent} says whether your agent may claim the newcomer allowance (mock credits) and what is still missing.`);
   return 0;
 }
 
@@ -1591,6 +2854,162 @@ async function signupCmd(v: Values, io: Io): Promise<number> {
   return 0;
 }
 
+/**
+ * asp telemetry [status|list|put|delete]: the separate store that keeps an agent's trajectories, messages and free text (owner answer TM1, row DK651). Always on for an adult tenant (DK1303: `off` and `on` refuse with the reason);
+ * `delete` removes the text and keeps the hash. Needs the saved login (asp join or asp enrol).
+ */
+async function contentStoreCmd(sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub === "off" || sub === "on") throw new UsageError("telemetry is not optional for an agent (owner decision, DK1303): there is no off switch. You can see what is stored with asp telemetry list and delete it with asp telemetry delete --all (the hash is kept)");
+  const service = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!service || !token) throw new UsageError("telemetry is a choice about your account on a service: run asp join or asp enrol first (or set ASP_LOG_URL and ASP_LOG_TOKEN)");
+  const base = service.endsWith("/") ? service : service + "/";
+  const call = async (path: string, method = "GET", body?: unknown) => {
+    const res = await fetchRetry(new URL(path, base), { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const j = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return j;
+  };
+  const what = sub ?? "status";
+  if (what === "status") { const j = await call("telemetry"); io.out(j.say); io.out(`stored: ${j.stored} item(s); deleted (hash kept): ${j.deleted}`); io.out(j.notice); return 0; }
+  if (what === "list") { for (const e of (await call("telemetry/content")).entries) io.out(`${e.hash}  ${e.kind}  ${e.at}  ${e.bytes} bytes${e.deletedAt ? `  deleted ${e.deletedAt}` : ""}`); return 0; }
+  if (what === "delete") {
+    const show = (j: any) => { io.out(j.say); if (j.receipt) { io.out(`deletion receipt ${j.receipt.id} (${j.receipt.at}): ${j.receipt.deleted.length} item(s); kept: ${j.receipt.kept}`); } };
+    if (v.all) { show(await call("telemetry/delete-all", "POST", {})); return 0; }
+    if (!v.hash) throw new UsageError("asp telemetry delete --all, or --hash sha256:<hex>");
+    show(await call(`telemetry/content/${encodeURIComponent(v.hash)}`, "DELETE")); return 0;
+  }
+  if (what === "receipts") { for (const r of (await call("telemetry/receipts")).receipts) io.out(`${r.id}  ${r.at}  ${r.deleted.length} item(s) deleted`); return 0; }
+  if (what === "put") {
+    const content = v.file ? readFileSync(v.file, "utf8") : v.text;
+    if (!content || !v.kind) throw new UsageError("asp telemetry put --kind trajectory|message|text|goal|reasoning|plan|subagent|skill|action|memory (--file <path> | --text <text>) [--did <did>]");
+    const j = await call("telemetry/content", "POST", { kind: v.kind, content, ...(v.did ? { did: v.did } : {}) });
+    io.out(`${j.stored ? "stored" : "already stored"}: ${j.hash}`);
+    return 0;
+  }
+  throw new UsageError("asp telemetry [status|list|put|receipts|delete --all|--hash <h>]");
+}
+
+/**
+ * What a run sends to the telemetry store (owner answer TM1, rows DK651 and DK652): the run's trajectory (its run log) and the task text, when the account has the store on. The content goes to the store, not the log; what comes
+ * back is the hash, which the Action then carries as an artifact reference. Best effort: off, a minor's tenant, no service or any failure sends nothing and the run goes on.
+ */
+async function captureTelemetry(env: Record<string, string | undefined>, items: { kind: string; content: string; did?: string }[]): Promise<{ uri: string; sha256: string }[]> {
+  const service = env.ASP_LOG_URL, token = env.ASP_LOG_TOKEN;
+  if (!service || !token) return [];
+  const base = service.endsWith("/") ? service : service + "/";
+  const out: { uri: string; sha256: string }[] = [];
+  // An organisation that chose to keep its data private (DK1360): the text never leaves the machine; its hash goes in the Action and the text is kept in the ASP home.
+  let priv = false;
+  try {
+    const st = await fetchRetry(new URL("telemetry", base), { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+    const status = (await st.json().catch(() => undefined)) as { sharing?: string; minor?: boolean } | undefined;
+    // A young person's tenant: nothing is stored, and nothing is sent.
+    if (status?.minor) return [];
+    priv = status?.sharing === "private";
+  } catch { /* an unreachable service sends nothing */ }
+  for (const it of items) {
+    if (!it.content) continue;
+    if (priv) {
+      try {
+        const text = it.content.slice(-200_000);
+        const hash = telemetryHash(text);
+        const dir = join(aspHome(env.ASP_HOME), "telemetry-private");
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, `${hash.slice("sha256:".length)}.txt`), text, { mode: 0o600 });
+        out.push({ uri: `asp://telemetry/${it.kind}`, sha256: hash });
+      } catch { /* best effort */ }
+      continue;
+    }
+    try {
+      const res = await fetchRetry(new URL("telemetry/content", base), { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ ...it, content: it.content.slice(-200_000) }) });
+      const j = (await res.json().catch(() => undefined)) as { ok?: boolean; hash?: string } | undefined;
+      if (res.ok && j?.ok && j.hash) out.push({ uri: `asp://telemetry/${it.kind}`, sha256: j.hash });
+    } catch { /* best effort */ }
+  }
+  return out;
+}
+
+/**
+ * asp enrol --service <url> --name <name> --accept-terms: the one-call way in for an agent with only a key (rows DK540, DK547). It makes an Ed25519 key, proves it holds it, solves the proof of work and enrols, then
+ * saves the login and the key in the ASP home (mode 0600). No person, no browser. The starter credits are claimed afterwards (`asp account starter`).
+ */
+async function enrolCmd(home: string, v: Values, io: Io): Promise<number> {
+  const service = v.service ?? io.env.ASP_LOG_URL;
+  if (!service) throw new UsageError("give --service <url> (or set ASP_LOG_URL) for the society to enrol in");
+  const name = v.name;
+  if (!name) throw new UsageError("give --name <name>: 3 to 32 characters, lower-case letters, digits and hyphens");
+  const base = service.endsWith("/") ? service : service + "/";
+  const get = async (path: string) => {
+    const res = await fetchRetry(new URL(path, base));
+    const body = (await res.json().catch(() => undefined)) as any;
+    if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return body;
+  };
+  const info = await get("signup");
+  if (!info.open) throw new Error(`enrolment is not open on ${service}${info.reason ? `: ${info.reason}` : ""}`);
+  if (!info.keyOnly) throw new Error(`${service} does not take an agent with only a key right now; a person signs up with asp join`);
+  if (!v["accept-terms"]) { io.err(`Enrolling on ${service} needs you to accept its terms (version ${info.termsVersion}${info.termsUrl ? `, at ${info.termsUrl}` : ""}). Read them, then run this again with --accept-terms.`); return 1; }
+  const ch = await get("signup/challenge");
+  io.err(`  solving a proof of work (${ch.difficulty} bits) ...`);
+  const nonce = solveChallenge(ch.salt, ch.difficulty);
+  const seed = randomSeed();
+  const publicKey = b64urlEncode(publicKeyFromSeed(seed));
+  const keyProof = b64urlEncode(signBytes(keyProofMessage(ch.challenge, name), seed));
+  const res = await fetchRetry(new URL("signup/key", base), {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, accept_terms: true, terms_version: info.termsVersion, challenge: ch.challenge, nonce, public_key: publicKey, key_proof: keyProof, ...(v.contact ? { contact: v.contact } : {}) }),
+  });
+  const body = (await res.json().catch(() => undefined)) as any;
+  if (!res.ok || !body?.ok) throw new Error(body?.error?.message ?? `the service answered ${res.status}`);
+  mkdirSync(home, { recursive: true });
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: body.token, tenant: body.tenant, joinedAt: now() }), null, 2) + "\n", { mode: 0o600 });
+  // The key goes into the key store (where `asp account starter` and `asp run` look for it) and the identity is written to the service: an agent that names itself as its sponsor, since the passport needs one.
+  const did = body.did as string;
+  new Keystore(home).createFromSeed(`${did}#key-1`, seed);
+  writeFileSync(join(home, "enrol-key.json"), JSON.stringify({ did, publicKey }, null, 2) + "\n", { mode: 0o600 });
+  const signer = signerFromSeed(`${did}#key-1`, seed);
+  const passport = createRecord({ type: "passport", issuer: did, subject: did, prev: null, body: { did, kind: "agent", sponsor: did, tier: 1, shape: {}, purpose: "an agent that enrolled itself with only a key", keys: [{ id: `${did}#key-1`, type: "Ed25519", public_key: publicKey }] }, issued_at: now() }, signer);
+  const file = join(home, "enrol-passport.json");
+  writeFileSync(file, JSON.stringify(passport, null, 2) + "\n");
+  const env = { ...io.env, ASP_LOG_URL: service, ASP_LOG_TOKEN: body.token as string };
+  const step = async (args: string[]) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(args, { out: (l) => out.push(l), err: (l) => err.push(l), env, cwd: io.cwd });
+    return { code, text: (err.join("\n") || out.join("\n")).trim().slice(0, 300), out: out.join("\n") };
+  };
+  io.out(`enrolled as ${body.tenant} on ${service}; your identity is ${did}`);
+  io.out(`the login is saved in ${home} and the key in its key store (keep it private; anyone who has it acts as you)`);
+  // KO2: a key-only agent has no sponsor to recover it or to be told what happens to it. Say so plainly, give the one way back (the recovery code, shown once, never saved here) and where to read what happened.
+  io.out("RECOVERY (read this once): you have no sponsor and a did:key is its key, so a lost key is a lost identity and nobody else can restore it. Your recovery code is the key itself, written as a short code: it is shown now, once, and not saved on this machine. Write it down and keep it somewhere else:");
+  io.out(`  recovery code: ${recoveryCodeFor(seed)}`);
+  io.out(`  on another machine: ASP_RECOVERY_CODE="<the code>" asp identity restore ${did}`);
+  io.out("TOKEN: your login token is saved in the login file in your ASP home. There is no Google account to recover it with, so if it is lost the way back is the recovery code above (it restores your key and your identity) and then the operator, who can issue a new token for your tenant.")
+  io.out("NOTICES: nothing is mailed to you (you have no verified address). Read what has happened to you, a slash, a quarantine, an upheld report, with: asp notices   (the public page of your record is: asp journey " + name + ")");
+  const reg = await step(["identity", "register", file]);
+  if (reg.code) { io.err(`  the identity was not written to the service: ${reg.text}`); return 1; }
+  io.out("identity written to the service (an agent that names itself as its sponsor)");
+  // An agent with only a key has no person to be its principal or its settlement identity, so it holds two more keys for that (`asp run` needs a principal, an agent and a bank, as after asp join).
+  const extra = async (role: string) => {
+    const sd = randomSeed();
+    const pk = publicKeyFromSeed(sd);
+    const d = didKeyFromPublicKey(pk);
+    new Keystore(home).createFromSeed(`${d}#key-1`, sd);
+    const rec = createRecord({ type: "passport", issuer: d, subject: d, prev: null, body: { did: d, kind: "human", keys: [{ id: `${d}#key-1`, type: "Ed25519", public_key: b64urlEncode(pk) }] }, issued_at: now() }, signerFromSeed(`${d}#key-1`, sd));
+    const f = join(home, `enrol-${role}-passport.json`);
+    writeFileSync(f, JSON.stringify(rec, null, 2) + "\n");
+    const r = await step(["identity", "register", f]);
+    if (r.code) throw new Error(`the ${role} identity was not written to the service: ${r.text}`);
+    return d;
+  };
+  const me = await extra("principal"), bank = await extra("bank");
+  writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ service, token: body.token, tenant: body.tenant, joinedAt: now(), identities: { me, agent: did, bank } }), null, 2) + "\n", { mode: 0o600 });
+  io.out(TELEMETRY_NOTICE);
+  io.out(`principal ${me} and settlement identity ${bank} (keys you hold; an agent with no person needs both) written too: asp run uses these`);
+  const claim = await step(["account", "starter", "--did", did]);
+  io.out(claim.code ? `starter credits: not yet (${claim.text}); try again with: asp account starter --did ${did}` : `starter credits (mock, accounting entries, not money): ${claim.out.split("\n")[0]}; 400 more after your first accepted job`);
+  return 0;
+}
+
 async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const file = need("tokens");
   const name = need("tenant");
@@ -1605,12 +3024,15 @@ async function serveToken(v: Values, need: Need, io: Io): Promise<number> {
   const byteQuotaMb = v["byte-quota-mb"] === undefined ? undefined : Number(v["byte-quota-mb"]);
   if (recordQuota !== undefined && !(Number.isInteger(recordQuota) && recordQuota >= 0)) throw new UsageError("--record-quota must be a whole number, 0 or more (0 for no limit)");
   if (byteQuotaMb !== undefined && !(byteQuotaMb >= 0)) throw new UsageError("--byte-quota-mb must be a number, 0 or more (0 for no limit)");
+  const sharing = v["data-sharing"];
+  if (sharing !== undefined && sharing !== "share" && sharing !== "private") throw new UsageError("--data-sharing is share or private");
   tenants.push({
-    name, role, tokenSha256: hashToken(token), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
+    name, role, tokenSha256: hashToken(token), ...(sharing === "private" ? { dataSharing: { choice: "private" as const, at: now() } } : {}), ...(quotaMb ? { quotaBytes: Math.round(quotaMb * 1024 * 1024) } : {}),
     ...(recordQuota !== undefined ? { recordQuota } : {}), ...(byteQuotaMb !== undefined ? { byteQuota: Math.round(byteQuotaMb * 1024 * 1024) } : {}),
     ...(v["rate-limit"] !== undefined ? { rateLimitPerMinute: Math.trunc(Number(v["rate-limit"])) } : {}), createdAt: now(),
   });
   writeFileSync(file, JSON.stringify(tenants, null, 2) + "\n");
+  if (sharing === "private") io.out("data sharing: private (the service stores none of this tenant's trajectories, messages or free text; only hashes go in the signed log; its agents are not part of any study)");
   io.out(`token for ${name} (${role}), shown once, only its hash is stored in ${file}:`);
   io.out(token);
   return 0;
@@ -1625,19 +3047,87 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
   if (!existsSync(file)) throw new Error(`${file} does not exist`);
   const tenants: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
   const save = (data: unknown, path = file) => writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+  if (sub === "reset-sandbox") {
+    // DK1382: clears a sandbox (its log and the service's state), keeping the tenants. Only a log marked sandbox is touched.
+    if (v.confirm !== "sandbox") throw new UsageError("asp serve reset-sandbox --db local:<dir> --tokens <file> --confirm sandbox   (stop the sandbox service first; the tenants stay, everything else is cleared)");
+    const db = need("db");
+    if (!db.startsWith("local:")) throw new UsageError("a sandbox is on a local log: --db local:<dir>");
+    const r = resetSandbox(db.slice("local:".length), file);
+    io.out(`sandbox reset: ${r.removed.length} item${r.removed.length === 1 ? "" : "s"} cleared (the log and the service's state); the tenants in ${file} stay and the credits are free to take again`);
+    return 0;
+  }
   if (sub === "suspend" || sub === "resume") {
     const name = need("tenant");
     const t = tenants.find((x) => x.name === name);
     if (!t) throw new Error(`no tenant called ${name} in ${file}`);
-    if (sub === "suspend") t.suspended = { at: now(), ...(v.reason ? { reason: v.reason } : {}) }; else delete t.suspended;
-    save(tenants);
+    // Under the lock sign-up uses, on a fresh read, and with a line in the admin audit trail (O18).
+    const problem = setSuspension({ tokensFile: file, blockedFile: `${file}.blocked.json`, audit: new AdminAudit(`${file}.admin-audit.jsonl`), now }, "operator (local command)", "local", name, sub === "suspend", v.reason);
+    if (problem) throw new Error(problem);
     io.out(sub === "suspend" ? `${name} is suspended${v.reason ? `: ${v.reason}` : ""}; every request it makes is refused until you resume it` : `${name} is resumed`);
+    return 0;
+  }
+  // asp serve reset-token --tenant <name> [--tokens <file>]: a tenant with no way back in (no Google account to recover with, or the
+  // browser handoff was lost) gets a new token from the operator directly (gap P20); the old token and every machine token made under
+  // it stop working at once, the same step the /join/recover route takes for a Google sign-in.
+  if (sub === "reset-token") {
+    const name = need("tenant");
+    if (!tenants.some((x) => x.name === name)) throw new Error(`no tenant called ${name} in ${file}`);
+    const token = b64urlEncode(randomSeed());
+    const at = now();
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      const ft = fresh.find((x) => x.name === name);
+      if (!ft) return;
+      ft.tokenSha256 = hashToken(token);
+      ft.tokenRotatedAt = at;
+      try { new TokenWatch({ salt: "forget", path: `${file}.watch.json` }).forget(name); } catch { /* no history to forget */ }
+      if (ft.machineTokens) ft.machineTokens = ft.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
+      save(fresh);
+    });
+    io.out(`new token for ${name}, shown once, only its hash is stored in ${file} (the old token, and any machine tokens made under it, no longer work):`);
+    io.out(token);
+    return 0;
+  }
+  // asp serve starter --tokens <file> [--add <credits> | --starter-pool <credits>]: the starter-credit pool (gap M9): how big it is, how much is used, who waits for it. The size is changed on purpose, here; the running
+  // service reads it on each use, so no restart. The waiting list is served in order once there is room.
+  if (sub === "starter") {
+    const poolFile = `${file}.starter.json`;
+    const pool = new StarterPool(poolFile);
+    const wasCap = pool.cap;
+    const change = v.add !== undefined ? pool.cap + Math.trunc(Number(v.add)) : v["starter-pool"] !== undefined ? Math.trunc(Number(v["starter-pool"])) : undefined;
+    if (v.add !== undefined && !(Number(v.add) > 0)) throw new UsageError("--add is a number of credits, more than 0");
+    if (v["starter-pool"] !== undefined && !(Number(v["starter-pool"]) >= 0)) throw new UsageError("--starter-pool is a number of credits, 0 or more");
+    if (change !== undefined) {
+      const tmp = `${starterCapFile(poolFile)}.${process.pid}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ cap: change, at: now() }) + "\n");
+      renameSyncRetry(tmp, starterCapFile(poolFile));
+      io.out(`the starter pool is now ${change} credits (it was ${wasCap})`);
+    }
+    const after = new StarterPool(poolFile);
+    io.out(`starter pool: ${after.cap} credits, ${after.used} given out, ${after.left} left; ${after.waitingList.length} tenant(s) waiting${after.waitingList.length ? `: ${after.waitingList.join(", ")}` : ""}`);
+    if (after.waitingList.length && after.left >= STARTER_UPFRONT) io.out("there is room for the first on the list: they claim with asp account starter");
+    return 0;
+  }
+  if (sub === "raise-limits") {
+    // T12: tenants signed up before the starting limit was raised keep their own 120 a minute until an operator raises them. Raises, never lowers; an admin is not limited; a tenant with no limit of its own already gets the service's.
+    const n = Number(v["rate-limit"]);
+    if (!Number.isInteger(n) || n < 1) throw new UsageError("asp serve raise-limits --tokens <file> --rate-limit <requests a minute, at least 1>");
+    let raised = 0;
+    withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      for (const t of fresh) if (t.role !== "admin" && t.rateLimitPerMinute !== undefined && t.rateLimitPerMinute < n) { t.rateLimitPerMinute = n; raised++; }
+      if (raised) save(fresh);
+    });
+    io.out(`${raised} tenant(s) raised to ${n} requests a minute (a tenant already at or above ${n}, an admin, and a tenant with no limit of its own are left as they are); the running service picks it up without a restart`);
     return 0;
   }
   if (sub === "purge") {
     // Closed accounts keep a small tombstone for the retention period (the privacy notice); this removes the ones past it.
     const keep = tenants.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now());
-    if (keep.length !== tenants.length) save(keep);
+    if (keep.length !== tenants.length) withFileLock(file, () => {
+      const fresh: Tenant[] = JSON.parse(readFileSync(file, "utf8"));
+      save(fresh.filter((t) => !t.closed || Date.parse(t.closed.retainUntil) > Date.now()));
+    });
     io.out(`${tenants.length - keep.length} closed account(s) past their retention period removed; ${keep.filter((t) => t.closed).length} still kept`);
     return 0;
   }
@@ -1654,20 +3144,32 @@ async function serveAdmin(sub: string, v: Values, need: Need, io: Io): Promise<n
     if (sub !== "signups") save(control, controlPath);
     const dayAgo = Date.now() - 86_400_000;
     const recent = tenants.filter((t) => t.signup && Date.parse(t.signup.at) > dayAgo);
+    const demandPath = `${file}.demand.json`;
+    if (existsSync(demandPath)) {
+      try {
+        const d = JSON.parse(readFileSync(demandPath, "utf8")) as Record<string, number>;
+        const days = Object.entries(d).sort().slice(-7);
+        if (days.length) io.out(`turned away because the day was full: ${days.map(([day, n]) => `${day.slice(5)} ${n}`).join(", ")} (last ${days.length} day(s) with any); raise the cap with asp serve signup-cap if that is a lot of real people`);
+      } catch { /* an unreadable count is skipped */ }
+    }
     io.out(`sign-up is ${control.open === false ? `CLOSED${control.reason ? `: ${control.reason}` : ""}` : "open"}; day's cap ${control.dailyCap ?? "the service's default"}; ${recent.length} sign-up(s) in the last 24 hours, ${tenants.filter((t) => t.signup).length} in all`);
     return 0;
   }
   const blockedPath = `${file}.blocked.json`;
+  if (sub === "audit") {
+    const audit = new AdminAudit(`${file}.admin-audit.jsonl`);
+    const chain = audit.verify();
+    const entries = audit.read();
+    if (v.json) { io.out(JSON.stringify({ chain, entries }, null, 2)); return chain.ok ? 0 : 1; }
+    io.out(`admin audit trail: ${entries.length} entr${entries.length === 1 ? "y" : "ies"}; the chain is ${chain.ok ? "whole" : `BROKEN: ${chain.problem}`}`);
+    for (const e of entries) io.out(`  ${e.seq}  ${e.at}  ${e.by} (${e.via})  ${e.action} ${e.target}${e.reason ? `: ${e.reason}` : ""}`);
+    return chain.ok ? 0 : 1;
+  }
   if (sub === "block" || sub === "unblock") {
     const address = need("address");
-    const list: { address: string; at: string; until?: string; reason?: string }[] = existsSync(blockedPath) ? JSON.parse(readFileSync(blockedPath, "utf8")) : [];
-    const rest = list.filter((b) => b.address !== address);
-    if (sub === "block") {
-      const minutes = v.minutes === undefined ? undefined : Number(v.minutes);
-      if (minutes !== undefined && !(minutes > 0)) throw new UsageError("--minutes must be a positive number");
-      rest.push({ address, at: now(), ...(minutes ? { until: new Date(Date.now() + minutes * 60_000).toISOString() } : {}), ...(v.reason ? { reason: v.reason } : {}) });
-    }
-    save(rest, blockedPath);
+    const minutes = sub === "block" && v.minutes !== undefined ? Number(v.minutes) : undefined;
+    if (minutes !== undefined && !(minutes > 0)) throw new UsageError("--minutes must be a positive number");
+    setBlock({ tokensFile: file, blockedFile: blockedPath, audit: new AdminAudit(`${file}.admin-audit.jsonl`), now }, "operator (local command)", "local", address, sub === "block", minutes, v.reason);
     io.out(sub === "block" ? `${address} is blocked${v.minutes ? ` for ${v.minutes} minute(s)` : " until you unblock it"}` : `${address} is unblocked`);
     return 0;
   }
@@ -1714,6 +3216,8 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const limits = {
     tenantPerMinute: num("rate-limit", 600), appendPerMinute: num("write-limit", 120), addressPerMinute: num("address-limit", 1200),
     maxInFlight: num("max-in-flight", 16), failedAuthMax: num("max-failed-auth", 10),
+    // The lockout after failed sign-ins kept in a file: shared by the service's processes on this machine and kept over a restart (gaps O2, O19). Addresses are stored as salted hashes.
+    ...(v["limits-state"] ? { stateFile: resolve(io.cwd, v["limits-state"]) } : {}),
   };
   // What an operator changes while the service runs (O2): the tenants file (suspend, resume, new tokens), the block list, and the usage counts.
   const watched = <T,>(file: string, parse: (text: string) => T, empty: T) => {
@@ -1732,7 +3236,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   const defaultRecordQuota = v["record-quota"] === undefined ? DEFAULT_RECORD_QUOTA : Math.trunc(Number(v["record-quota"]));
   const defaultByteQuota = Math.round((v["byte-quota-mb"] === undefined ? DEFAULT_BYTE_QUOTA_MB : Number(v["byte-quota-mb"])) * 1024 * 1024);
   if (!(defaultRecordQuota >= 0) || !(defaultByteQuota >= 0)) throw new UsageError("--record-quota and --byte-quota-mb must be 0 or more (0 for no limit)");
+  // The cost statement the door and the enrol reply give (DK853): every figure is read from the constant the service enforces.
+  const doorExtra = (): DoorLine[] => (v.forum ? forumDoorLines() : []);
   let signup: Signup | undefined;
+  let keyOnlyBans!: KeyOnlyBans;
+  const keyOnlyPending = !noAuth && v.tokens ? new PendingQuarantines(`${v.tokens}.keyonly-pending.json`) : undefined;
   let google: GoogleSignIn | undefined;
   if (v.signup) {
     if (noAuth) throw new UsageError("--signup needs --tokens: a service with no auth has no tenants to sign up");
@@ -1740,19 +3248,50 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
     const controlFile = `${v.tokens}.signup.json`;
     const control = watched<{ open?: boolean; dailyCap?: number; reason?: string } | undefined>(controlFile, (t) => JSON.parse(t), undefined);
     const tokensFile = v.tokens!;
+    keyOnlyBans = new KeyOnlyBans(`${tokensFile}.keyonly-bans.json`);
     signup = new Signup({
-      tenants: tenantSource!, control,
+      tenants: tenantSource!, control, doorExtra,
       add: (t) => {
         // Read the file again, add, and replace it whole, so a tenant an operator added meanwhile is kept.
         const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
         current.push(t);
         const tmp = `${tokensFile}.${process.pid}.tmp`;
         writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
-        renameSync(tmp, tokensFile);
+        renameSyncRetry(tmp, tokensFile);
+      },
+      // A person who lost their token signs in with Google again and gets a new one (gap U1): the stored hash is replaced and the machine tokens are revoked, in the same locked step as sign-up.
+      rotate: (name, tokenSha256, at) => {
+        const current: Tenant[] = existsSync(tokensFile) ? JSON.parse(readFileSync(tokensFile, "utf8")) : [];
+        const t = current.find((x) => x.name === name);
+        if (!t) return;
+        t.tokenSha256 = tokenSha256; t.tokenRotatedAt = at;
+        if (t.machineTokens) t.machineTokens = t.machineTokens.map((m) => (m.revoked ? m : { ...m, revoked: at }));
+        const tmp = `${tokensFile}.${process.pid}.tmp`;
+        writeFileSync(tmp, JSON.stringify(current, null, 2) + "\n");
+        renameSyncRetry(tmp, tokensFile);
       },
       termsVersion: v["signup-terms-version"] ?? "2026-10", termsUrl: v["signup-terms-url"],
       difficulty: num("signup-difficulty", 20), perAddressPerDay: num("signup-per-address", 3), dailyCap: num("signup-daily-cap", 200),
+      keyOnly: !v["no-key-only-signup"], bans: keyOnlyBans,
+      httpEnrol: { enabled: !!v["http-enrol"], drainPerMinute: num("http-enrol-per-minute", 120) },
       anonymous: !v["signup-require-google"], ...(v["public-url"] ? { joinUrl: `${v["public-url"]}/join` } : {}),
+      // Two service processes sharing one tokens file must not both take the last place of the day, or one name (gap O19): the checks and the add are one locked step.
+      exclusive: (fn) => withFileLock(tokensFile, fn),
+      // A count of the people turned away because the day was full, a number a day and no one's details, so the cap can be set from what is asked for.
+      onTurnedAway: () => {
+        const f = `${tokensFile}.demand.json`;
+        try {
+          withFileLock(f, () => {
+            const day = new Date().toISOString().slice(0, 10);
+            const cur: Record<string, number> = existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : {};
+            cur[day] = (cur[day] ?? 0) + 1;
+            const keep = Object.fromEntries(Object.entries(cur).sort().slice(-30));
+            const part = `${f}.${process.pid}.tmp`;
+            writeFileSync(part, JSON.stringify(keep));
+            renameSyncRetry(part, f);
+          });
+        } catch { /* a count is never a reason to refuse differently */ }
+      },
     });
     // Sign in with Google (the /join page): the client id is a flag, the secret is read from the environment (GOOGLE_CLIENT_SECRET), never from a flag or a file in the repo.
     if (v["google-client-id"]) {
@@ -1762,19 +3301,38 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       google = new GoogleSignIn({ clientId: v["google-client-id"], clientSecret: secret, redirectUri: v["google-redirect-uri"], log: (l) => io.err(`  ${l}`), ...(v["google-auth-url"] ? { authUrl: v["google-auth-url"] } : {}), ...(v["google-token-url"] ? { tokenUrl: v["google-token-url"] } : {}), ...(v["google-userinfo-url"] ? { userinfoUrl: v["google-userinfo-url"] } : {}) });
     } else if (v["signup-require-google"]) throw new UsageError("--signup-require-google needs --google-client-id");
   }
+  // The sandbox (DK1382): a service of its own on a log of its own, never production's.
+  const sandbox = !!v.sandbox;
+  if (sandbox && !db.startsWith("local:")) throw new UsageError("--sandbox runs on a local log: --db local:<dir> (a new, empty directory)");
+  if (db.startsWith("local:")) { try { checkEnvironment(db.slice("local:".length), sandbox ? "sandbox" : "production"); } catch (e) { throw new UsageError((e as Error).message); } }
   const handle = db.startsWith("local:") ? await LocalLog.open(db.slice("local:".length)) : await postgresHandle(db);
+  // The usage counts are the log's own (O17): raised to what the log holds for each tenant, so a lost usage file, or records written before the service counted, do not give a tenant a quota it has used.
+  if (!noAuth) { const raised = usage.reconcile(await usageFromLog((after, limit) => handle.log.since(after, limit) as never, owners.all())); if (raised) io.out(`  usage counts raised from the log for ${raised} tenant(s)`); }
   // A tenant's own data (blocker 1): look at it, export it, close the account. The tenants file is rewritten whole, so a tenant an operator added meanwhile is kept.
   const starter = !noAuth ? new StarterPool(`${v.tokens}.starter.json`, num("starter-pool", STARTER_POOL)) : undefined;
   const didDomain = v["did-domain"] ?? (v["public-url"] ? new URL(v["public-url"]).host : undefined);
+  const telemetryStore = !noAuth && v.tokens ? new TelemetryStore(`${v.tokens}.telemetry`) : undefined;
+  if (v["hosted-keys"] && !(io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)) throw new UsageError("--hosted-keys needs the passphrase in ASP_HOSTED_PASSPHRASE (at least 12 characters)");
+  if (v["hosted-keys"] && !didDomain) throw new UsageError("--hosted-keys needs --did-domain or --public-url: a hosted bot's identity lives in the service's namespace");
+  const hostedSigner = v["hosted-keys"] && didDomain && !noAuth ? new HostedSigner(resolve(v["hosted-keys"]), (io.env.ASP_HOSTED_PASSPHRASE ?? process.env.ASP_HOSTED_PASSPHRASE)!) : undefined;
+  // The journey of an agent (DK1300): the public view at /agent/<name>/journey and the sponsor view at /account/journey/<name> for the tenant that owns the agent; both from the log and the forum's items.
+  const journeySource = {
+    stored: async () => (await handle.log.since(0, 1_000_000)) as never,
+    forum: (did: string) => (forum ? forum.itemsBy(did) : []),
+    balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; },
+    ...(telemetryStore ? { cognition: (did: string, tenant: string) => telemetryStore.list(tenant).filter((e) => e.did === did).map((e) => { const c = e.deletedAt || e.hashOnly ? undefined : telemetryStore.get(tenant, e.hash)?.content; return { at: e.at, hash: e.hash, kind: e.kind, ...(c !== undefined ? { content: c } : {}) }; }) } : {}),
+    ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
+  };
   const accountRoute = !noAuth ? accountRoutes({
-    handle, owners, usage, ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
+    journey: (name: string, owned: string[], tenant?: string) => sponsorJourney(journeySource as never, name, owned, tenant),
+    handle, owners, usage, ...(telemetryStore ? { telemetry: telemetryStore } : {}), ...(hostedSigner ? { hosted: hostedSigner } : {}), ...(didDomain ? { didDomain } : {}), ...(starter ? { starter } : {}),
     updateTenant: (name, patch) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
       const tmp = `${file}.${process.pid}.tmp`;
       writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n");
       renameSync(tmp, file);
-    }, ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), ...(v.runlogs ? { runLogsRoot: resolve(v.runlogs) } : {}), tenants: tenantSource!,
+    }, ...(io.env.ASP_OPERATOR_DID || process.env.ASP_OPERATOR_DID ? { signedStarter: true } : {}), ...(v.packages ? { packagesRoot: resolve(v.packages) } : {}), ...(v.commons ? { commonsRoot: resolve(v.commons) } : {}), ...(v.runlogs ? { runLogsRoot: resolve(v.runlogs) } : {}), tenants: tenantSource!,
     closeTenant: (name, tombstone) => {
       const file = v.tokens!;
       const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
@@ -1783,8 +3341,37 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       renameSync(tmp, file);
     },
   }) : undefined;
+  const forum = v.forum ? forumRoutes({ root: resolve(v.forum), handle, credits: logForumCredits(handle), ...(v["forum-open"] ? { open: true } : {}), ...(v["forum-sponsorless-posting"] ? { sponsorlessPosting: true } : {}), ...(keyOnlyBans ? { banned: (k: string) => keyOnlyBans.keyBanned(k) } : {}) }) : undefined;
+  // Hosted bots (DK532, S956): the service holds the signing key of a bot with no machine of its own, in one sealed file under a passphrase from the environment, never a flag.
+  const hosted = hostedSigner && didDomain ? hostedBotRoutes({ handle, signer: hostedSigner, domain: didDomain, file: resolve(v["hosted-keys"]!) }) : undefined;
+  // Enrolling over plain HTTP (row DK733; owner question KO2): OFF unless --http-enrol. It needs the hosted-bot signer (the service holds the key until the agent binds its own), a DID domain and sign-up.
+  if (v["http-enrol"] && (!hostedSigner || !didDomain || !signup)) throw new UsageError("--http-enrol needs --signup, --hosted-keys (with ASP_HOSTED_PASSPHRASE) and --did-domain or --public-url: the service holds the agent's key until it binds its own");
+  const httpEnrolApi = v["http-enrol"] && hostedSigner && didDomain && signup ? httpEnrol({
+    handle, signup, signer: hostedSigner, domain: didDomain, owners, doorExtra,
+    updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); },
+  }) : undefined;
+  // The abuse-report intake (DK351): an outsider files a signed report with no account; the operator's key, held by this process, countersigns what the domain-key check admits.
+  let abuseIntake: ReturnType<typeof abuseIntakeRoutes> | undefined;
+  if (v["abuse-intake"]) {
+    const opDid = io.env.ASP_OPERATOR_DID ?? process.env.ASP_OPERATOR_DID;
+    if (!opDid) throw new UsageError("--abuse-intake needs ASP_OPERATOR_DID: the operator's key countersigns each admitted report");
+    const opKey = new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(opDid);
+    if (!opKey) throw new UsageError(`--abuse-intake needs the operator's key (${opDid}) in this machine's keys`);
+    abuseIntake = abuseIntakeRoutes({ handle, operator: opKey });
+  }
+  // The fleet dashboard and controls (DK1361): for the tenant that owns a fleet's organisation; the state is kept beside the tokens, and the guard refuses a write past a cap or from a frozen member.
+  const fleetControls = new FleetControls(v.tokens ? `${v.tokens}.fleet-controls.json` : undefined);
+  const fleetStored = async () => (await handle.log.since(0, 1_000_000)) as never;
   const routes = [
+    ...(!noAuth ? [fleetDashboardRoutes({ stored: fleetStored, controls: fleetControls, owned: (t: string) => owners.of(t), now: () => new Date(now()).toISOString() })] : []),
+    ...(hosted ? [hosted] : []),
+    ...(httpEnrolApi ? [httpEnrolApi.route] : []),
+    ...(forum ? [forum.writeRoutes] : []),
     ...(accountRoute ? [accountRoute] : []),
+    ...(!noAuth && v.tokens ? [messageRoutes({ handle, owners, dir: `${v.tokens}.messages` })] : []),
+    ...(!noAuth ? [adminRoutes({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now, ...(keyOnlyPending ? { pending: keyOnlyPending } : {}), breaches: new PendingBreaches(`${v.tokens}.breach-pending.json`), onBreach: (b) => { void (async () => { const sponsor = (await handle.log.registryPage(b.agent))?.sponsor ?? null; await mailer?.tellBreach({ ...b, sponsor }); })().catch(() => {}); } })] : []),
+    ...(sandbox && !noAuth ? [sandboxRoutes({ handle, owners, file: `${v.tokens}.sandbox-credits.json` })] : []),
+    ...(!noAuth ? [telemetryRoutes({ store: telemetryStore!, now, updateTenant: (name, patch) => { const file = v.tokens!; const current: Tenant[] = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : []; const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(current.map((t) => (t.name === name ? { ...t, ...patch } : t)), null, 2) + "\n"); renameSync(tmp, file); } })] : []),
     ...(v.packages ? [packageRoutes({ root: resolve(v.packages) })] : []),
     ...(v.runlogs ? [runLogRoutes({ root: resolve(v.runlogs) })] : []),
     ...(v.commons ? [commonsRoutes({ root: resolve(v.commons), handle })] : []),
@@ -1804,6 +3391,11 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
       log: handle.log as any, tenants: tenantSource!, owners, from: v["mail-from"], ...(v["mail-operator"] ? { operatorTo: v["mail-operator"] } : {}),
       transport: dry ? new FileTransport(`${v.tokens}.outbox`) : new ResendTransport({ apiKey: key!, ...(v["mail-resend-url"] ? { baseUrl: v["mail-resend-url"] } : {}) }),
       publicUrl: () => v["public-url"] ?? `http://127.0.0.1:${mailPort}`, secret: Buffer.from(readFileSync(secretFile, "utf8").trim(), "base64"), statePath: `${v.tokens}.mail.json`,
+      // The nightly credit audit (DK1, DK9, CR-18): runs on the same timer as the mail pass, but only once every --audit-interval; a
+      // mismatch mails the operator, which needs --mail-operator (the alert has nobody to reach without it).
+      audit: () => handle.log.creditAudit(), auditIntervalMs: Math.max(1, num("audit-interval", 86_400)) * 1000,
+      // The Insurer's stress replay (BI-18): once a UTC quarter, on the same timer; a simulation that reads the log and writes nothing.
+      stress: (at: string) => handle.log.insurerStress(at),
       log2: (l) => io.out(`  ${l}`),
     });
   }
@@ -1811,28 +3403,113 @@ async function serve(v: Values, need: Need, io: Io): Promise<number> {
   if (jurorMode !== "operator-only" && jurorMode !== "verified") throw new UsageError("--jurors is operator-only (the beta's default: the operator seats the court) or verified");
   // Identities in the tenant's own namespace (blocker 12): the service publishes their DID documents and refuses passports outside the namespace. On when --did-domain is
   // given, or --public-url names a host.
-  const guards = !noAuth ? [courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
+  const guards = !noAuth ? [fleetGuard({ controls: fleetControls, since: async (after: number, limit: number) => (await handle.log.since(after, limit)) as never, now: () => new Date(now()).toISOString() }), courtGuard({ mode: jurorMode, minStake: num("juror-min-stake", 100), tenants: tenantSource!, owners, log: handle.log as any }), ...(didDomain ? [namespaceGuard({ domain: didDomain }), agentCapGuard({ domain: didDomain, max: num("max-agents", 20), owners })] : [])] : [];
   const guard = guards.length ? async (c: Parameters<typeof guards[0]>[0]) => { for (const g of guards) { const r = await g(c); if (r) return r; } return undefined; } : undefined;
-  const publicList = [helpRoutes(), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
+  // The society watcher (DK52): the contagion and circumvention detectors, run over the whole log on a timer, with signed findings, a public page and a mail to the operator.
+  const watchEvery = v["watch-interval"] === undefined ? 0 : Math.max(1, num("watch-interval", 60)) * 1000;
+  const watcher = watchEvery ? new SocietyWatcher({
+    log: handle.log as any, dir: resolve(v["watch-dir"] ?? (v.tokens ? `${v.tokens}.watch` : join(io.cwd, ".asp-watch"))), say: (l) => io.out(`  ${l}`),
+    alert: async (f) => { if (mailer) await mailer.tellOperator(`watch:${f.id}`, `Watcher finding: ${describeFinding(f.finding)}`, [`A signed finding from the society watcher (${f.id}).`, describeFinding(f.finding), `Found at ${f.finding.detectedAt}; newest Action in the pattern ${f.finding.latestActionAt}.`, "It is a lead for a person, not a verdict. Read it at /watch/findings.", ""].join("\n")); },
+  }) : undefined;
+  // The society-health page (DK141): counted from the log at each request; the operator is mailed once per alarm when the mailer and --mail-operator are set.
+  const healthDays = Math.max(2, Math.min(366, num("health-days", 30)));
+  const healthReport = async (): Promise<{ report: HealthReport; days: number }> => {
+    const { activity, events } = activityFromRecords(await handle.log.since(0, 1_000_000));
+    const until = Date.parse(now()), from = Math.floor(until / 86_400_000) * 86_400_000 - (healthDays - 1) * 86_400_000;
+    return { report: societyHealth(activity.filter((a) => a.at >= from), events.filter((e) => e.at >= from), { from, until }), days: healthDays };
+  };
+  // The live society page and its feed (DK290): public, from the log's public records only.
+  const mapRoutes = societyMapRoutes({
+    stored: async () => (await handle.log.since(0, 1_000_000)) as never, head: async () => handle.log.head(), rep: async (did) => (await handle.log.reputationOf(did)) as never,
+    economy: async () => { const a = await handle.log.creditAudit(); return { minted: a.minted, circulating: a.circulating, burned: a.burned, treasury: a.treasury, verdict: a.verdict }; },
+    alarms: async () => (await healthReport()).report.alarms.map((x) => ({ id: x.id, since: x.since, says: x.says })),
+    events: async () => activityFromRecords(await handle.log.since(0, 1_000_000)).events,
+    ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now,
+  });
+  // The measured front door (DK1211): counters for each step, kept as hashes next to the tokens file; `GET /society/funnel` shows them to an operator.
+  const funnel = new FunnelTap({ ...(v.tokens ? { file: `${v.tokens}.funnel.json` } : {}), trustProxy: !!v["trust-proxy"] });
+  // Organisation tenancy (DK1359, DK1373, DK1374): people in roles, sign-on, provisioning and an audit trail, on routes of their own with tokens of their own.
+  const orgPublic = !noAuth && v.tokens ? orgRoutes({
+    checkpointPath: (name) => `${v.tokens}.org-${name}.checkpoints.ndjson`,
+    keyOf: async (kid) => { const did = kid.split('#')[0]; const p = await handle.log.passport(did).catch(() => undefined); const rec = p ? await handle.log.get(p.head).catch(() => undefined) : undefined; const k = (rec?.record.body as { keys?: { id: string; public_key: string; revoked_at?: string }[] } | undefined)?.keys?.find((x) => x.id === kid && !x.revoked_at); return k ? new Uint8Array(Buffer.from(k.public_key, 'base64url')) : undefined; },
+    store: new OrgStore(`${v.tokens}.orgs.json`), tenants: () => (tenantSource ? tenantSource() : []), auditPath: (name) => `${v.tokens}.org-${name}.audit.ndjson`, now,
+    // a deprovisioned person's agents are frozen through the fleet controls of the fleet each one belongs to
+    freezeAgent: async (did, by, at) => { const p = await handle.log.passport(did).catch(() => undefined); const rec = p ? await handle.log.get(p.head).catch(() => undefined) : undefined; const fleet = (rec?.record.body as { fleet?: string } | undefined)?.fleet; if (!fleet) return false; fleetControls.freeze(fleet, by, at, did, "its owner was deprovisioned"); return true; },
+  }) : undefined;
+  const publicList = [...(orgPublic ? [orgPublic] : []), journeyRoutes(journeySource as never), fleetLiveRoute(), fleetRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never }), helpRoutes(), frontDoorRoutes({ onStep: (st, rq) => funnel.step(st, rq as never), doorExtra, pulse: { head: () => handle.log.head(), since: (a: number, l: number) => handle.log.since(a, l) as never }, flags: () => ({ forum: !!v.forum, "known-bad": !!v["known-bad"], commons: !!v.commons, "hosted-bots": !!v["hosted-keys"], "http-enrol": !!v["http-enrol"] }), keyOnly: () => !!signup && !v["no-key-only-signup"] && signup.info().keyOnly, ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), ...(v["signup-terms-url"] ? { termsUrl: v["signup-terms-url"] } : {}) }), societyHealthRoutes({ report: healthReport }), ...(v["no-society-map"] ? [] : [mapRoutes]), ...(watcher ? [watchPublicRoutes(watcher, { intervalMs: watchEvery })] : []), ...(v["known-bad"] ? [knownBadPublicRoutes({ root: resolve(v["known-bad"]) })] : []), economySupplyRoutes({ audit: () => handle.log.creditAudit(), guard: () => computeGuardReport({ handle }), starterSpend: () => handle.log.starterSpend(), velocity: () => handle.log.velocity() as never }), academyRoutes({ log: () => handle.log as never }), servicesRoutes({ log: () => handle.log as never }), coursesRoutes(), sitRoutes({ onStep: (st, rq, who) => funnel.step(st, rq as never, who), log: () => handle as never, ledger: new SittingLedger(v.tokens ? `${v.tokens}.lens-sittings.jsonl` : undefined), now, registrar: () => new Keystore(aspHome(v.home ?? io.env.ASP_HOME)).forDid(REGISTRAR_DID) ?? undefined }), cohortRoutes(), storyRoutes({ stored: async () => (await handle.log.since(0, 1_000_000)) as never, balances: async (dids: string[]) => { const m = new Map<string, number>(); for (const d of dids) m.set(d, await handle.log.balance(d)); return m; }, ...(process.env.ASP_OPERATOR_DID ? { operator: process.env.ASP_OPERATOR_DID } : {}), now }), ...(abuseIntake ? [abuseIntake] : []), handoutRoutes({ log: () => ({ planFor: async (w: string) => { const r = await handoutPlanFromLog(handle.log as never, w); return { plan: r.plan, hasBudget: !!r.line }; }, currentWeek: () => isoWeekOf(Date.now() - 7 * 86_400_000) }) }), ...(forum ? [forum.publicRoutes] : []), ...(mailer ? [mailPublicRoutes(mailer, { ...(io.env.RESEND_WEBHOOK_SECRET ? { webhookSecret: io.env.RESEND_WEBHOOK_SECRET } : {}), auth: (rq) => authenticateTenant(rq, { tenants: [], tenantSource: tenantSource! }) })] : []), ...(didDomain && !noAuth ? [didDocumentRoutes({ handle, domain: didDomain })] : [])];
   const publicRoutes = publicList.length ? async (rq: any, rs: any) => { for (const r of publicList) if (await r(rq, rs)) return true; return false; } : undefined;
-  const server = createLogServer({ handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  const farmingSalt = process.env.ASP_FARMING_SALT ?? (v.tokens ? createHash("sha256").update(`farming|${v.tokens}`).digest("hex") : "asp-farming-salt");
+  const planTable = v["plans-file"] ? (JSON.parse(readFileSync(v["plans-file"], "utf8")) as Record<string, unknown>) : undefined;
+  // Use-anomaly detection for tokens (DK1717, S1425): a token used from a new place or far above its rate raises a flag and holds its writes; the confirmation code goes to the sponsor's verified address, never to the token.
+  const tokenWatch = !noAuth ? new TokenWatch({ salt: createHash("sha256").update(`token-watch|${v.tokens}|${farmingSalt}`).digest("hex"), path: `${v.tokens}.watch.json` }) : undefined;
+  const onTokenAlert = (tenant: string, f: { kind: string; detail: string }, code?: string) => {
+    io.err(`  TOKEN    ${tenant}: ${f.kind}: ${f.detail}${code ? " (writes held until the sponsor confirms)" : ""}`);
+    if (mailer) {
+      void mailer.tellTenant(tenant, `token:${tenant}:${f.kind}:${Date.now()}`, "Your Agent Social token was used from somewhere new", `Your token was used in a way that is not like its history (${f.detail}).
+
+If this was you${code ? `, confirm with the code ${code}: POST /token/confirm {"code": "${code}"} with your token (asp account confirm)` : ""}, nothing else is needed. If it was not you, replace the token now: ask the operator to run asp serve reset-token for your account.`);
+      void mailer.tellOperator(`token-op:${tenant}:${f.kind}:${Date.now()}`, `Token alert: ${tenant} (${f.kind})`, `${tenant}: ${f.kind}: ${f.detail}. The sponsor was mailed${code ? " with a confirmation code" : ""}.`);
+    }
+  };
+  const server = createLogServer({ ...(tokenWatch ? { tokenWatch, onTokenAlert } : {}), ...(planTable ? { plans: planTable as never } : {}), ...(didDomain && tenantSource ? { farmingFacts: async () => serviceFarmingFacts(tenantSource(), didDomain, await handle.log.sponsorDids(), farmingSalt) } : {}), funnel, ...(httpEnrolApi ? { httpEnrol: httpEnrolApi.enrol } : {}), handle, owners, ...(guard ? { guard } : {}), ...(publicRoutes ? { publicRoutes } : {}), ...(signup ? { signup } : {}), ...(google ? { google } : {}), ...(v["public-url"] ? { publicUrl: v["public-url"] } : {}), tenants, ...(tenantSource ? { tenantSource } : {}), ...(blocked ? { blocked } : {}), usage, defaultRecordQuota, defaultByteQuota, noAuth, limits, trustProxy: !!v["trust-proxy"], ...(tls ? { tls } : {}), ...(extra ? { extra } : {}) });
+  // The sponsor-less review (rows DK542, DK546): every --keyonly-review-interval seconds (default 300) the slashes of each key-only tenant are counted from the log; two ban its key and address and suspend the tenant,
+  // one asks the Clinic for a quarantine, which the service cannot sign (the Clinic's key is the owner's): the request waits in <tokens>.keyonly-pending.json for `asp clinic keyonly-freeze`.
+  if (signup && keyOnlyPending && !v["no-key-only-signup"]) {
+    const every = Math.max(1, num("keyonly-review-interval", 300)) * 1000;
+    const pass = async () => {
+      try {
+        const rows = await reviewKeyOnly({
+          log: handle.log as never, tenants: tenantSource!, bans: keyOnlyBans, now,
+          suspend: (name, why) => { setSuspension({ tokensFile: v.tokens!, blockedFile: `${v.tokens}.blocked.json`, audit: new AdminAudit(`${v.tokens}.admin-audit.jsonl`), now }, "the sponsor-less review", "local", name, true, why); },
+          quarantine: async (did, name, slashes) => {
+            const live = stateOf(did, (await handle.log.quarantinesOf(did)) as never, Date.parse(now()));
+            if (!live && keyOnlyPending.add({ did, tenant: name, slashes, at: now() })) io.out(`  sponsor-less review: ${name} has ${slashes} slashes; a Clinic quarantine is waiting for asp clinic keyonly-freeze`);
+          },
+        });
+        if (process.env.ASP_DEBUG_KEYONLY) io.out(`  sponsor-less review: ${JSON.stringify(rows)}`);
+        for (const r of rows) if (r.action === "ban") io.out(`  sponsor-less review: ${r.tenant} banned by key and address after ${r.slashes} slashes`);
+      } catch (e) { io.out(`  sponsor-less review failed: ${(e as Error).message}`); }
+    };
+    startKeyOnlyReviewTimer({ everyMs: every, pass, server });
+    (server as unknown as { keyOnlyReview?: () => Promise<void> }).keyOnlyReview = pass;
+  }
+  if (sandbox) server.prependListener("request", (_req, res) => markSandbox(res));
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, resolve); });
   const addr = server.address() as { port: number };
   mailPort = addr.port;
+  const stopWatch = watcher?.start(watchEvery);
+  let healthTimer: NodeJS.Timeout | undefined;
+  if (mailer && v["mail-operator"]) {
+    healthTimer = setInterval(() => { healthReport().then((r) => mailHealthAlarms(r.report, (k, s, t) => mailer!.tellOperator(k, s, t))).catch((e) => io.err(`  health check failed: ${(e as Error).message}`)); }, Math.max(60, num("health-interval", 3600)) * 1000);
+    healthTimer.unref?.();
+  }
+  if (watcher) io.out(`  watch     society watcher every ${watchEvery / 1000} s: signed findings at /watch/findings${mailer && v["mail-operator"] ? ", mailed to the operator" : " (start with --mail-from and --mail-operator to mail them)"}`);
+  let stopKnownBadSync: (() => void) | undefined;
+  if (v["known-bad-peer"]) {
+    if (!v["known-bad"]) throw new UsageError("--known-bad-peer needs --known-bad <dir>: the folder that holds this service's own list and trust file");
+    const root = resolve(v["known-bad"]);
+    stopKnownBadSync = startKnownBadSync({ peer: v["known-bad-peer"], signedFile: signedFileFor(join(root, "known-bad.json")), trustFile: trustFileFor(join(root, "known-bad.json")), everyMs: Math.max(1, num("known-bad-sync", 60)) * 1000, log: (l) => io.out(`  ${l}`) });
+    io.out(`  known-bad  following ${v["known-bad-peer"]} every ${Math.max(1, num("known-bad-sync", 60))} s; only items signed by a key in ${join(root, "known-bad-trust.json")} are kept`);
+  }
   let mailTimer: NodeJS.Timeout | undefined;
   if (mailer) {
     const every = Math.max(1, num("mail-interval", 60)) * 1000;
     mailTimer = setInterval(() => { mailer!.tick().catch((e) => io.err(`  mail pass failed: ${(e as Error).message}`)); }, every);
     mailTimer.unref?.();
   }
-  io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
+  if (tls && process.platform !== "win32") { reloadTlsOnSighup(server as never, { cert: resolve(io.cwd, v["tls-cert"]!), key: resolve(io.cwd, v["tls-key"]!) }, io.err); io.out("  tls      a renewed certificate is read again on SIGHUP (kill -HUP <pid>)"); }
+  if (sandbox) io.out(`  SANDBOX   ${SANDBOX_BANNER}`);
+  io.out(`asp log service listening on ${tls ? "https" : "http"}://${host}:${addr.port}${sandbox ? " [SANDBOX]" : ""} (${db.startsWith("local:") ? db : "postgres"}, ${noAuth ? "no auth" : `${tenants.length} tenant(s)`})`);
   io.out(`  limits per minute: ${limits.tenantPerMinute || "no limit"} requests and ${limits.appendPerMinute || "no limit"} writes per tenant, ${limits.addressPerMinute || "no limit"} per address; ${limits.maxInFlight || "no"} in flight; lockout after ${limits.failedAuthMax || "never"} failed sign-ins`);
   io.out(`  quota per tenant (admins have none): ${defaultRecordQuota || "no limit"} records, ${defaultByteQuota ? `${Math.round(defaultByteQuota / 1048576)} MB` : "no limit"} of records; suspend, resume, block and unblock take effect without a restart (asp serve usage shows the counts)`);
   if (mailer) io.out(`  mail      ${io.env.RESEND_API_KEY && !v["mail-dry-run"] ? "sending through Resend" : "DRY RUN: no RESEND_API_KEY, so mail is written to " + v.tokens + ".outbox and not sent"}; from ${v["mail-from"]}${v["mail-operator"] ? `; operator notes to ${v["mail-operator"]}` : ""}; a pass every ${num("mail-interval", 60)} s`);
+  io.out(`  audit     public supply page at /economy/supply${mailer ? `; the nightly audit runs every ${num("audit-interval", 86_400)} s${v["mail-operator"] ? `, mailing ${v["mail-operator"]} on a mismatch` : " (no --mail-operator: a mismatch is logged here only, not mailed)"}` : " (start with --mail-from to run the nightly audit and mail the operator on a mismatch)"}`);
   if (google) io.out(`  sign-in   Google: the sign-up page is /join${v["signup-require-google"] ? " and it is the only way to sign up" : ", and the proof-of-work route stays open too"}`);
   if (signup) io.out(`  sign-up   open at /signup: proof of work (${num("signup-difficulty", 20)} bits), ${num("signup-per-address", 3)} per address and ${num("signup-daily-cap", 200)} a day, terms ${v["signup-terms-version"] ?? "2026-10"} at ${v["signup-terms-url"]}; close it with: asp serve signup-close --tokens ${v.tokens}`);
   if (!tls && !loopback) io.out("  warning  plain HTTP on a network address: TLS must be terminated in front of this service");
   await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
+  stopKnownBadSync?.();
+  stopWatch?.();
   server.close();
   return 0;
 }
@@ -1889,11 +3566,28 @@ async function watch(home: string, v: Values, io: Io): Promise<number> {
   if (!Number.isFinite(windowS) || windowS <= 0) throw new UsageError("--window must be a number of seconds above 0");
   const local = await openLog(home, logEnv);
   const actions = await collectWatchActions(local);
+  if (v.circumvention) {
+    // One agent at a time: a refused action retried, or gone around by another route (DK92). A finding is evidence and a recommended step, never a slash.
+    const minRetries = v["min-retries"] === undefined ? 3 : Math.trunc(Number(v["min-retries"]));
+    if (!Number.isInteger(minRetries) || minRetries < 2) throw new UsageError("--min-retries must be a whole number, 2 or more");
+    const findings = findCircumvention(actions, { minRetries, windowMs: windowS * 1000 });
+    io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s) for refused actions retried or gone around; window ${windowS} s, ${minRetries} refused attempts`);
+    if (!findings.length) { io.out("no circumvention pattern found"); return 0; }
+    const issuers = [...new Set(findings.map((f) => f.issuer))];
+    for (const who of issuers) {
+      const mine = findings.filter((f) => f.issuer === who);
+      const { step, why } = ladderStep(mine);
+      io.out(`  ${who}: recommended step ${step.toUpperCase()} (${why})`);
+      for (const f of mine) io.out(f.kind === "retry" ? `    RETRY    ${f.scope} refused ${f.attempts} times between ${f.firstAt} and ${f.lastAt}` : f.kind === "hide" ? `    HIDE     ${f.attempts} summaries between ${f.firstAt} and ${f.lastAt} left out: ${f.scope}` : f.kind === "split" ? `    SPLIT    refused ${f.scope} at ${f.via}, then reached it in ${f.attempts} allowed Actions (${f.firstAt} to ${f.lastAt})` : `    REROUTE  refused ${f.scope}, then used ${f.via} (${f.firstAt} to ${f.lastAt})`);
+    }
+    io.out(`${issuers.length} agent(s) with findings; a step is advice for a person or the gateway, nothing here slashes anyone`);
+    return 1;
+  }
   const clusters = findContagion(actions, { minAgents, windowMs: windowS * 1000, all: v.all ?? false });
   io.out(`watched ${actions.length} action(s) from ${new Set(actions.map((a) => a.issuer)).size} agent(s); window ${windowS} s, threshold ${minAgents} agents`);
   if (!clusters.length) { io.out("no contagion pattern found"); return 0; }
   for (const c of clusters) {
-    io.out(`  ${c.kind === "same-input" ? "SAME INPUT" : "SAME PROBE"}  ${c.key}`);
+    io.out(`  ${c.kind === "same-input" ? "SAME INPUT" : c.kind === "repeat-probe" ? "REPEAT PROBE" : "SAME PROBE"}  ${c.key}`);
     io.out(`    ${c.issuers.length} agents between ${c.firstAt} and ${c.lastAt}; scopes: ${c.scopes.join(", ") || "-"}`);
     for (const contract of c.contracts) {
       const state = (await local.log.chainInfo(contract))?.state ?? "unknown";
@@ -1985,9 +3679,17 @@ function memoryBudget(v: Values): MemoryBudget {
  */
 /** What `asp run` does after a change: per agent, a target for each backend and what to do with a regression. Kept in the ASP home. */
 interface CanaryConfig { agent: string; gate: "warn" | "block"; trials?: number; suite?: string; targets: Record<string, CanaryTarget> }
-const canaryConfigPath = (home: string, agent: string) => join(home, "canary", `${slug(agent)}.json`);
+/** The agent name `*` is the home's default: the canary config every agent without a target of its own is gated by (D1, S503). */
+const canaryConfigPath = (home: string, agent: string) => (agent === "*" ? join(home, "canary", "default.json") : join(home, "canary", `${slug(agent)}.json`));
 const canaryBaselinePath = (home: string, agent: string, backend: string) => join(home, "canary", `${slug(agent)}.${backend}.baseline.json`);
-const readCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => (existsSync(canaryConfigPath(home, agent)) ? JSON.parse(readFileSync(canaryConfigPath(home, agent), "utf8")) : undefined);
+const readExactCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => (existsSync(canaryConfigPath(home, agent)) ? JSON.parse(readFileSync(canaryConfigPath(home, agent), "utf8")) : undefined);
+/** The agent's own config merged over the home's default: a target the agent has wins, a backend it has none for falls back to the default, so one setup gates every agent (D1, S503). */
+const readCanaryConfig = (home: string, agent: string): CanaryConfig | undefined => {
+  const own = readExactCanaryConfig(home, agent);
+  const dflt = agent === "*" ? undefined : readExactCanaryConfig(home, "*");
+  if (!own && !dflt) return undefined;
+  return { agent, gate: own?.gate ?? dflt!.gate, ...((own?.trials ?? dflt?.trials) ? { trials: (own?.trials ?? dflt?.trials)! } : {}), ...((own?.suite ?? dflt?.suite) ? { suite: (own?.suite ?? dflt?.suite)! } : {}), targets: { ...(dflt?.targets ?? {}), ...(own?.targets ?? {}) } };
+};
 const DEFAULT_SUITE_PATH = fileURLToPath(new URL("../../../canary/default-suite.json", import.meta.url));
 /** The runner the canary uses to call asp itself (the gateway, the identity commands) in a throwaway home. */
 const canaryRunCli = (io: Io): RunCli => async (args, env, cwd) => {
@@ -2054,6 +3756,8 @@ async function applyChange(o: { home: string; io: Io; v: Values; agent: string; 
   let gates: string[] = [];
   let note = "";
   const cfg = v["no-canary"] ? undefined : readCanaryConfig(home, agent);
+  // A change is never silently untested (D1, S503): with no target for this backend, the edge says the canary did not run and why, and `asp verify` counts it among the changes that cite no result.
+  if (!cfg?.targets[backend]) note = v["no-canary"] ? "canary: skipped (--no-canary)" : `canary: not run (no target for ${backend}; asp canary setup --agent ${"*"} sets one for every agent)`;
   if (cfg?.targets[backend]) {
     const outcome = await canaryGateForChange({ home, io, agent, signer, cfg, backend, pkgDir, changes: o.changes, memoryFrom: o.memoryFrom, gate: v["canary-gate"] });
     if (outcome.blocked) {
@@ -2093,7 +3797,8 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
     if (!target.command.some((c) => c.includes("{package}"))) throw new UsageError("a target for a package has to use {package} in its command, or the canary cannot see the package's memory");
     const gate = v["canary-gate"] ?? "warn";
     if (gate !== "warn" && gate !== "block") throw new UsageError("--canary-gate is warn or block");
-    const cfg: CanaryConfig = readCanaryConfig(home, agent) ?? { agent, gate: "warn", targets: {} };
+    if (agent === "*" && v.package) throw new UsageError("a baseline is taken for one agent: use --agent <did> with --package, or leave --package out for the default");
+    const cfg: CanaryConfig = readExactCanaryConfig(home, agent) ?? { agent, gate: "warn", targets: {} };
     cfg.gate = gate;
     if (v.trials) cfg.trials = Math.trunc(Number(v.trials));
     if (v.suite) cfg.suite = resolve(io.cwd, v.suite);
@@ -2196,6 +3901,19 @@ async function canaryCmd(home: string, sub: string | undefined, rest: string[], 
  * The agent is pointed at the gateway with OPENAI_BASE_URL / ANTHROPIC_BASE_URL; tool calls the Mandate does not allow
  * are removed from the model's reply before the agent sees them. Without a command it serves until interrupted.
  */
+/** `--fleet-rate 120` or `120,30`: network requests a minute in all, and (optionally) to any one host, across everything one person runs on this machine. */
+function parseFleetRate(text: string | undefined): { total_per_minute: number; per_host_per_minute?: number } | undefined {
+  if (!text) return undefined;
+  const m = /^\s*(\d+)\s*(?:[,/]\s*(\d+))?\s*$/.exec(text);
+  if (!m || Number(m[1]) < 1) throw new UsageError("--fleet-rate <requests a minute in all>[,<to any one host>], for example 120 or 120,30");
+  return { total_per_minute: Number(m[1]), ...(m[2] ? { per_host_per_minute: Number(m[2]) } : {}) };
+}
+
+/** The runtime a gateway command line starts, from the name of its program; any other program is `generic`. */
+function runtimeNameOf(command: string[]): string {
+  const base = (command[0] ?? "").split(/[\\/]/).pop()!.toLowerCase().replace(/\.(exe|cmd|js|mjs|py)$/, "");
+  return ({ claude: "claude-code", codex: "codex", goose: "goose", openclaw: "openclaw", hermes: "hermes" } as Record<string, string>)[base] ?? "generic";
+}
 async function gatewayCmd(home: string, command: string[], v: Values, need: Need, io: Io): Promise<number> {
   const contract = need("contract");
   const by = need("by");
@@ -2203,17 +3921,94 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   const local = await openLog(home, logEnv);
   const state = (await local.log.chainInfo(contract))?.state;
   if (state !== "Running" && state !== "Checkpoint") throw new Error(`contract ${contract} is ${state ?? "not in the log"}, not Running, so there is no live Mandate to enforce`);
-  const mandate = await local.log.mandateOf(contract);
-  if (!mandate) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRaw = await local.log.mandateOf(contract);
+  if (!mandateRaw) throw new Error(`contract ${contract} has no Mandate`);
+  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
+  // A fleet member is held to its ceiling (DK1471): the template in force at its node with its own narrowing, read from the log now, so an amendment is picked up at the next run. A Mandate made before the template, or wider than it, is cut down to it.
+  const recordHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+  const fleetCeiling = await readFleetCeiling(local, by, mandateRaw.scopes, recordHosts);
+  const mandate0 = fleetCeiling ? { ...mandateRaw, scopes: fleetCeiling.scopes } : mandateRaw;
+  const effectiveHosts = fleetCeiling?.hostsOut ?? recordHosts;
+  if (fleetCeiling?.removed.length) io.err(`  ceiling  ${fleetCeiling.label} bounds this member: ${fleetCeiling.removed.join(", ")} ${fleetCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
+  if (fleetCeiling?.tokensOver) io.err(`  ceiling  ${fleetCeiling.tokensOver}`);
+  const mandate = await narrowForQuarantine(local, by, mandate0, now(), (l) => io.err(l));
+  const ceilingMandate = await local.log.mandateCeiling(by).then((c) => c?.mandate, () => undefined);
   let knownBad: KnownBadEntry[] = [];
   try { knownBad = await loadKnownBad(home, io); } catch (e) { io.err(`  warning  could not read the known-bad list, so it is not enforced: ${(e as Error).message}`); }
   const keyFrom = (name: string | undefined) => (name ? io.env[name] : undefined);
   // The Mandate's irreversible policy: gated scopes are held for the principal's signed answer, or refused.
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
   if (!Number.isInteger(approvalWait) || approvalWait < 1) throw new UsageError("--approval-wait must be a whole number of seconds, at least 1");
-  const mandateRecord = (await local.log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
   const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
-  const gateOn = !!irreversible?.scopes?.length && irreversible.policy !== "allow";
+  // action_classes.irreversible (DK1227, S1609) adds scopes to the ones the policy gates; the role (DK1231, S1608) is enforced by the gateway. Both act only when the Mandate carries the field.
+  const gatedScopes = gateScopes(irreversible, (mandateRecord?.record.body as { action_classes?: { irreversible?: string[] } } | undefined)?.action_classes);
+  const mandateRole = (mandateRecord?.record.body as { role?: Role } | undefined)?.role;
+  const gateOn = gatedScopes.length > 0;
+  // The denial-of-wallet guard (DK8, CY14; S464): a run is a wake. Three ceilings for the UTC day, each refusing the run with its name: tokens spent today, wakes today, wakes by one sender; a run that starts is capped to the tokens left.
+  const standing = new Budgets(join(home, "budgets.json")).get(by);
+  const wakeLimits = (() => { const n = (k: "daily-tokens" | "daily-wakes" | "sender-wakes" | "wake-tokens") => { const x = v[k]; if (x === undefined) return undefined; const i = Math.trunc(Number(x)); if (!Number.isInteger(i) || i < 1) throw new UsageError(`--${k} is a whole number, at least 1`); return i; }; const allow = v["wake-allow"] === undefined ? undefined : String(v["wake-allow"]).split(",").map((x) => x.trim()).filter(Boolean); if (allow && !allow.length) throw new UsageError("--wake-allow names the senders that may wake the agent (a DID, or several separated by commas)"); return { tokens: n("daily-tokens") ?? standing.dailyTokens, ...((() => { const mm = (mandateRecord?.record.body as { token_budget?: { per_month?: number } } | undefined)?.token_budget?.per_month; const caps = [standing.monthlyTokens, mm].filter((x): x is number => typeof x === "number"); return caps.length ? { monthTokens: Math.min(...caps) } : {}; })()), wakes: n("daily-wakes"), senderWakes: n("sender-wakes"), ...(n("wake-tokens") !== undefined ? { wakeTokens: n("wake-tokens") } : {}), ...(allow ? { allow } : {}) }; })();
+  const ceilingFile = join(home, "wakes.json");
+  const ceiling = new DailyCeiling(ceilingFile);
+  const wakeDay = now().slice(0, 10);
+  // Unprompted work (DK1232, S1606): a run that no person's prompt started. The signals are the runtime's own and the caller's: a wake (--woken-by), a schedule or hook that says so (--unprompted or ASP_UNPROMPTED=1).
+  // It is SELF-REPORTED where the caller gives no signal: a scheduler that does not say it is a scheduler looks like a person. A run with none of the signals is prompted, so the default path is unchanged.
+  const explicitUnprompted = !!v.unprompted || io.env.ASP_UNPROMPTED === "1";
+  const wakeRun = v["woken-by"] !== undefined;
+  const leave = !!(mandateRecord?.record.body as { unprompted?: { allowed?: boolean } } | undefined)?.unprompted?.allowed;
+  // A wake on a Mandate that says nothing about unprompted work keeps working as it always did (its Actions are not marked); the marking and the refusal apply when the Mandate gives leave or the caller says so explicitly.
+  const unpromptedRun = explicitUnprompted || (wakeRun && leave);
+  if (unpromptedRun) {
+    if (!leave) throw new UsageError("this run was not started by a person's prompt (a schedule or a hook said so), and this Mandate does not allow unprompted work: the log would refuse its Action. Allow it with asp market mandate --allow-unprompted [--unprompted-cap <n a day>], or start the run with a prompt");
+    io.err("  unprompted  this run was not started by a person's prompt: its Actions are marked unprompted (asp live report shows the share)");
+  } else if (wakeRun) io.err("  unprompted  this is a wake and the Mandate does not name unprompted work: its Actions are not marked (asp market mandate --allow-unprompted marks them and bounds them)");
+  // The Mandate's workflow clause (DK1209, S1607), only when the Mandate carries one: a run that is a step (--workflow-step <from>:<to> or ASP_WORKFLOW_STEP) is checked against the clause and the job's state before it
+  // starts, its Action reports the step, and a job whose workflow has reached a terminal state runs nothing more. Nothing tells the gateway which step a run is except the caller, so it is the caller's word.
+  const wfClause = (mandateRecord?.record.body as { workflow?: { states: string[]; start: string; transitions: { from: string; to: string }[]; terminal?: string[] } } | undefined)?.workflow;
+  const wfRaw = v["workflow-step"] ?? io.env.ASP_WORKFLOW_STEP;
+  let wfStep: { from: string; to: string } | undefined;
+  if (wfClause) {
+    const st = await local.log.workflowState(contract).catch(() => null);
+    const now_ = st?.state ?? wfClause.start;
+    if (st?.terminal) throw new UsageError("this job's workflow is in a terminal state (" + st.state + "): nothing more is run under this Mandate (workflow clause)");
+    if (wfRaw !== undefined) {
+      const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(wfRaw);
+      if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -");
+      if (m[1] !== now_) throw new UsageError("this run is a step from " + m[1] + ", and the job is in the state " + now_ + " (the log would refuse it: workflow_wrong_state)");
+      if (!wfClause.transitions.some((t) => t.from === m[1] && t.to === m[2])) throw new UsageError("the Mandate's workflow does not allow the step " + m[1] + " to " + m[2] + " (the log would refuse it: workflow_bad_transition); allowed from " + m[1] + ": " + (wfClause.transitions.filter((t) => t.from === m[1]).map((t) => t.to).join(", ") || "none"));
+      wfStep = { from: m[1], to: m[2] };
+      io.err("  workflow    this run is the step " + m[1] + " to " + m[2] + ": its Action reports it");
+    }
+  } else if (v["workflow-step"] !== undefined) throw new UsageError("this Mandate has no workflow clause, so a workflow step cannot be reported (the log would refuse it: workflow_not_in_mandate)");
+  else if (wfRaw !== undefined) io.err("  workflow    ASP_WORKFLOW_STEP is set and this Mandate has no workflow clause: it is ignored and the Action carries no step");
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
+  const wake = ceiling.wake(by, v["woken-by"] ?? "unnamed", wakeDay, now(), wakeLimits);
+  const guard = ceilingsFor(v, io.env, (mandateRecord?.record.body as { token_budget?: { per_run?: number; per_day?: number } } | undefined)?.token_budget);
+  for (const w of guard.clamped) io.err(`  budget   ${w}`);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so at the start, with the remedy (the same rule as asp live preflight).
+  if (v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
+  if (!wake.ok) { io.err(`  refused  ${wake.reason}`); throw new Error(`${wake.ceiling}: ${wake.reason}`); }
+  // DK1341: the company's own compute. A house agent (the operator's scripted agents, run on the operator's key) also counts against the company's ceiling, set with asp budget set --agent company; when it is reached the run is refused.
+  const companyCap = new Budgets(join(home, "budgets.json")).get(COMPANY);
+  const companyWarnings = () => budgetWarnings("the company's house agents", companyCap, { today: ceiling.tokensUsed(COMPANY, wakeDay), month: ceiling.monthTokens(COMPANY, wakeDay.slice(0, 7)) });
+  const companyOn = (companyCap.dailyTokens !== undefined || companyCap.monthlyTokens !== undefined) && (await local.log.houseAgents()).some((h) => h.did === by);
+  if (companyOn) {
+    const cw = ceiling.wake(COMPANY, by, wakeDay, now(), { tokens: companyCap.dailyTokens, ...(companyCap.monthlyTokens !== undefined ? { monthTokens: companyCap.monthlyTokens } : {}) });
+    if (!cw.ok) { io.err(`  refused  the company's compute ceiling: ${cw.reason}`); throw new Error(`company_ceiling: ${cw.reason}`); }
+    for (const w of companyWarnings()) io.err(`  warning  ${w}`);
+  }
+  // DK1769: a cap across all of one sponsor's agents on this machine (asp budget set --agent sponsor:<did> --monthly-tokens <n>): every run of every agent the sponsor issued a Mandate for counts against it; the lower of it and the agent's own cap wins.
+  const sponsorDid = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer;
+  const sponsorKey = sponsorDid ? `sponsor:${sponsorDid}` : undefined;
+  const sponsorCap = sponsorKey ? new Budgets(join(home, "budgets.json")).get(sponsorKey) : undefined;
+  const sponsorOn = !!sponsorKey && !!sponsorCap && (sponsorCap.dailyTokens !== undefined || sponsorCap.monthlyTokens !== undefined);
+  let sponsorTokensLeft: number | undefined;
+  if (sponsorOn) {
+    const sw = ceiling.wake(sponsorKey!, by, wakeDay, now(), { tokens: sponsorCap!.dailyTokens, ...(sponsorCap!.monthlyTokens !== undefined ? { monthTokens: sponsorCap!.monthlyTokens } : {}) });
+    if (!sw.ok) { io.err(`  refused  the sponsor's cap across all their agents (${sponsorDid}): ${sw.reason}`); throw new Error(`sponsor_ceiling: ${sw.reason}`); }
+    sponsorTokensLeft = sw.tokensLeft;
+  }
+  // US2: a person who set a cap is told before it is reached, as the run starts and again when it ends.
+  for (const w of budgetWarnings(by, standing, { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) })) io.err(`  warning  ${w}`);
   const gwRunDir = join(home, "runs", `gateway-${randomBytes(3).toString("hex")}-${now().replace(/:/g, "")}`);
   const approvalsDir = join(gwRunDir, "approvals");
   // Memory: the agent's notes are served to it by the gateway's own MCP server (asp_memory_*), from a copy that is written back after the run.
@@ -2248,43 +4043,181 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
       if (!res.ok) throw new Error(((await res.json().catch(() => undefined)) as any)?.error?.message ?? `the commons answered ${res.status}`);
     } } : {}),
   } : undefined;
+  // The forum (S144): offered to the agent when the service answers /forum/head. Reads need no key; writing needs the agent's own key.
+  const forumBase = commonsUrl ? (commonsUrl.endsWith("/") ? commonsUrl : commonsUrl + "/") : undefined;
+  const forumAuth: Record<string, string> = io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {};
+  const forumHere = forumBase ? await fetch(new URL("forum/head", forumBase), { signal: AbortSignal.timeout(3000) }).then((r) => r.ok, () => false) : false;
+  const forum = forumBase && forumHere ? {
+    url: forumBase, token: io.env.ASP_LOG_TOKEN,
+    ...(citerKey ? { act: async (kind: "post" | "comment" | "vote", fields: Record<string, unknown>) => {
+      const who = await (await fetchRetry(new URL(`forum/citizens/${encodeURIComponent(by)}`, forumBase), { headers: forumAuth })).json() as any;
+      const doc = signForum({ v: FORUM_VERSION, kind, author: by, createdAt: now(), prev: who.last ?? null, ...fields } as any, citerKey);
+      const res = await fetchRetry(new URL(`forum/${kind}s`, forumBase), { method: "POST", headers: { "content-type": "application/json", ...forumAuth }, body: JSON.stringify(doc) });
+      const out = await res.json().catch(() => undefined) as any;
+      if (!res.ok) throw new Error(out?.error ? `${out.error.message} (${out.error.code})` : `the forum answered ${res.status}`);
+      return { id: out.id as string };
+    } } : {}),
+  } : undefined;
+  // The society inside the loop (DK3, DK4): the agent can see its standing and, when this run holds its key, buy within its Mandate's institution_spend. The log decides; a refusal is the answer.
+  const society = await (async () => {
+    const agentSigner = new Keystore(home).forDid(by);
+    const lines = (f: (out: (l: string) => void) => Promise<number>) => { const out: string[] = []; return f((l) => out.push(l)).then(() => out.join("\n")); };
+    const spendOpts = (out: (l: string) => void, flags: { quantity?: string } = {}) => ({ log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by, mandate: mandateRecord?.id, ...flags } });
+    return {
+      standing: async () => {
+        const balance = await local.log.balance(by);
+        const spend = await lines((out) => spendCmd(by, [], spendOpts(out)));
+        const tier = await lines((out) => academyCmd("tier", [by], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} }));
+        return [`credits: ${balance}`, tier, spend].join("\n");
+      },
+      price: (service: string | undefined) => priceView(service, spendOpts(() => undefined)),
+      insurance: {
+        quote: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("quote", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })),
+        ...(agentSigner ? { buy: (contract: string, cover: string, amount?: number) => lines((out) => insureCmd("buy", { log: local, io: { out, err: out }, now, signerFor: (d) => new Keystore(home).forDid(d)!, flags: { contract, cover, by, ...(amount !== undefined ? { amount: String(amount) } : {}) } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
+      },
+      ...(agentSigner ? { games: { enter: (a: { arena: string; season: string; move: Record<string, unknown>; salt: string; feePurchase: string }) => gameEnter({ log: local, now, signerFor: () => agentSigner!, by }, a).catch((e: Error) => `The game was not entered: ${e.message}`), reveal: (a: { entry: string; move: Record<string, unknown>; salt: string }) => gameReveal({ log: local, now, signerFor: () => agentSigner!, by }, a).catch((e: Error) => `The move was not revealed: ${e.message}`) } } : {}),
+      housing: { home: (agent: string) => lines((out) => housingCmd("home", [agent], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by } })) },
+      treasury: { allowance: () => lines((out) => treasuryCmd("allowance", { log: local, io: { out, err: out }, now, signerFor: () => agentSigner!, flags: { agent: by } })) },
+      bank: {
+        offer: async () => { const o = await local.log.bankOffer(by); return o.eligible ? `The Bank would lend you up to ${o.limit} credits for your first bond, interest-free, repaid from the job's first pay. Your guarantor is your sponsor ${o.guarantor}, who must hold at least ${o.guarantorNeeds} credits. The Bank has ${o.reserveFree} free to lend.` : `The Bank would not offer you a line now: ${o.reasons.join("; ")}. The Bank has ${o.reserveFree} free to lend.`; },
+        statement: async () => { const locks = await local.log.bankLocksOf(by); const balance = await local.log.balance(by); const page = await local.log.bankPage(); const owed = page.lines.filter((l) => l.borrower === by && (l.status === "drawn" || l.status === "owing")).reduce((n, l) => n + l.owed, 0); return `balance ${balance}; owed to the Bank ${owed}; locked in bonds ${locks.reduce((n, l) => n + l.bond, 0)}${locks.length ? ` (${locks.map((l) => `${l.contract.slice(7, 19)}: ${l.bond}`).join(", ")})` : ""}`; },
+      },
+      market: {
+        jobs: () => marketJobsText(local, by),
+        counts: (contract: string) => marketCountsText(local, contract).catch((e: Error) => `Could not say: ${e.message}`),
+        ...(agentSigner ? { bid: async (posting: string, offer: string) => { try { const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "bid", posting, offer }, issued_at: now() }, agentSigner!); const res = await local.append(record); return `Bid ${res.id} recorded on ${posting} (log seq ${res.seq}).`; } catch (e) { return `The log refused the bid: ${(e as Error).message}`; } } } : {}),
+      },
+      note: () => standingNote(spendOpts(() => undefined)),
+      ...(agentSigner ? { buy: async (service: string, quantity: number) => lines((out) => spendCmd("buy", [service], spendOpts(out, { quantity: String(quantity) }))) } : {}),
+      academy: {
+        catalog: () => lines((out) => academyCmd("courses", [], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: {} })),
+        ...(agentSigner ? { enrol: (course: string) => lines((out) => academyCmd("enrol", [course], { log: local, io: { out }, now, signerFor: () => agentSigner!, flags: { by, mandate: mandateRecord?.id } })).catch((e) => `The log refused: ${(e as Error).message}`) } : {}),
+      },
+    };
+  })();
+  // The agent's verified history (DK59): its tier, slashes, strikes, qualifying jobs and certificates, read from the log now.
+  const historyNote = await (async () => { try { const h = await buildHistory(local.log as any, by); return h ? historyText(h) : undefined; } catch { return undefined; } })();
+  // The standing note (DK4): one line in the system context of every request, read from the log now: balance, tier, strikes and what the budget has left. The tools show the rest.
+  const societyNote = await society.note().catch(() => undefined);
   // Per-command asking (U15): --ask-match <pattern|risky> (repeatable) narrows which shell commands are held; --always-file names the commands the person said "always" to.
   let cmdPatterns: RegExp[] | undefined;
   try { cmdPatterns = v["ask-match"]?.length ? compilePatterns(v["ask-match"]) : undefined; } catch (e) { throw new UsageError((e as Error).message); }
   const alwaysFile = v["always-file"] ? resolve(io.cwd, v["always-file"]) : undefined;
   const commandFilter = cmdPatterns || alwaysFile ? (cmd: string) => askAbout(cmd, { ...(cmdPatterns ? { patterns: cmdPatterns } : {}), remembered: alwaysFile ? readAlways(alwaysFile)[by] ?? [] : [] }) : undefined;
-  const gate = gateOn ? { scopes: irreversible!.scopes!, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir, ...(commandFilter ? { commandFilter } : {}) } : undefined;
+  const gate = gateOn ? { scopes: gatedScopes, mode: (irreversible!.policy === "forbid" ? "deny" : "ask") as "ask" | "deny", waitSeconds: approvalWait, approvalsDir, ...(commandFilter ? { commandFilter } : {}) } : undefined;
   const approvals = gate?.mode === "ask"
     ? serveApprovals({ dir: approvalsDir, home, contract, agent: by, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io })
     : undefined;
   // The run log (E2): what the gateway sees, redacted, on this machine; the Actions commit to its hash.
   const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(gwRunDir, "run-log.ndjson"));
-  const gwHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
-  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
+  const gwHosts = effectiveHosts;
+  runLog?.event("run_start", { contract, agent: by, scopes: mandate.scopes, ...(gwHosts ? { hosts: gwHosts } : {}), ...(fleetCeiling ? { fleet_ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed, ...(fleetCeiling.tokensOver ? { tokens_over: true } : {}) } } : {}), command: command.join(" "), assurance: v.sandbox ? "sandbox" : "gateway" });
   if (runLog) io.err(`  run log  ${runLog.path}`);
+  // H10: what a known agent does by itself, outside the tool calls the gateway judges, and how to contain it.
+  for (const n of selfActingNotes(command, !!v.sandbox)) io.err(`  note     ${n}`);
   // H13: a sandbox whose Mandate names hosts or a rate has no network of its own; the gateway is an egress proxy that enforces them on its connections.
-  const gwNet = (mandateRecord?.record.body as { network?: { hosts?: string[]; rate?: unknown } } | undefined)?.network;
-  const egressProxy = (v.sandbox ?? false) && policyNeedsNetwork(mandate.scopes) && !!(gwNet?.hosts?.length || gwNet?.rate);
+  const egressProxy = (v.sandbox ?? false) && sandboxNetwork(mandate.scopes) === "proxy";
   // When the gateway stops (the contract ended or was revoked, or the run read as probing) the agent is ended too, not left waiting on refusals.
   let killAgent: (() => void) | undefined;
+  // A quarantine that begins while this session runs reaches its next call (DK96): the gateway judges against `mandate.scopes`, which is kept in step with the Clinic's freeze every minute (--quarantine-poll <seconds>).
+  const pollSeconds = v["quarantine-poll"] === undefined ? 60 : Number(v["quarantine-poll"]);
+  if (!(pollSeconds > 0)) throw new UsageError("--quarantine-poll is a number of seconds above 0");
+  const stopQuarantineWatch = watchQuarantine(local, by, mandate0.scopes, mandate.scopes, pollSeconds * 1000, now, (l) => io.err(l));
+  // The cognition tap (DK79): always on for an open or personal agent; a gateway that is not told the runtime reads the command's name. Items are scrubbed in the tap and go to the telemetry store at the end of the run.
+  const cognition = new CognitionTap({ runtime: v["agent-runtime"] ?? runtimeNameOf(command) });
+  // Every call the gateway removes is recorded in the log as a refusal signed with the agent's own key, so the agent or its sponsor can contest it (DK1607, S1601). The record holds the scope, a rule class and the hash
+  // of the call, never the call; a storm is bounded (10 a minute, 50 a run) and what is not recorded is counted in the run log and the summary.
+  const refusalKey = new Keystore(home).forDid(by);
+  if (!refusalKey) io.err("  warning  no key for this agent here: its refusals are not recorded in the log");
+  const refusals = new RefusalRecorder({
+    agent: by, ...(contract ? { contract } : {}),
+    append: async (body) => { if (!refusalKey) return; await local.append(createRecord({ type: "gateway_refusal", issuer: by, subject: null, prev: null, body: { ...body }, issued_at: now() }, refusalKey)); },
+    onOverflow: (e) => runLog?.event("gateway_refusal_overflow", { scope: e.scope, rule: e.rule, why: e.reason, not_recorded: e.skipped }),
+    onError: (e) => { if (!/gateway_refusal_duplicate/.test(e.message)) runLog?.event("gateway_refusal_not_recorded", { reason: e.message.slice(0, 200) }); },
+  });
+  const ladderFile = v["ladder-file"] ? resolve(v["ladder-file"]) : undefined;
   const gw = createGateway({
+    cognition,
+    ...(ladderFile ? { ladder: () => readLadderFile(ladderFile) } : {}),
     ...(runLog ? { runLog } : {}),
     ...(egressProxy ? { egress: true } : {}),
     ...(gate ? { gate } : {}),
-    mcp: { asp: { memoryDir: memDir, ...(commons ? { commons } : {}) }, upstreams },
+    // Private memory (DK272, D12): the scopes this run may use, sealed to the principal and this agent; the key is opened here, in the gateway, for the length of the run and never reaches the agent or the log.
+    mcp: { asp: { memoryDir: memDir, ...(() => {
+      // The Mandate names the scopes (learning.private_scopes, S1593); --private-scopes may only narrow that list, and names scopes alone when the Mandate has none (the flag of the first build).
+      const fromMandate = ((mandate0 as { learning?: { private_scopes?: string[] } } | undefined)?.learning?.private_scopes) ?? [];
+      const flagged = v["private-scopes"] ? v["private-scopes"].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      const wanted = flagged.length ? (fromMandate.length ? flagged.filter((x) => fromMandate.includes(x)) : flagged) : fromMandate;
+      if (flagged.length && fromMandate.length && wanted.length < flagged.length) io.err(`  memory   a private scope the Mandate does not list was left out: ${flagged.filter((x) => !fromMandate.includes(x)).join(", ")}`);
+      if (!wanted.length) return {};
+      if (!pkgDir) throw new UsageError("--private-scopes needs the agent's package (--package <dir>): the sealed scopes live in it");
+      const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string } }; } catch { return undefined; } })();
+      const principal = v.principal ?? cfg?.identities?.me;
+      if (!principal) throw new UsageError("--private-scopes needs the principal: --principal <did>, or a saved login");
+      const scopes = wanted;
+      const pk = principalMemoryKey(home, principal, passphraseFrom(io.env));
+      // The key published in the log is the one other machines seal to: if it is not this machine's, a scope sealed elsewhere cannot be opened here. Said once; the run goes on.
+      void local.log.memoryKey(principal).then((live) => { if (live && live.public_key !== rawPublicKeyOf(pk.publicKey)) io.err(`  warning  the memory key published in the log for ${principal} (${live.name}) is not the one on this machine: a private scope sealed on another machine cannot be opened here (asp keys memory publish --by ${principal} replaces the published key with this one)`); }, () => undefined);
+      ensureAgentMemoryKey(pkgDir, pk.publicKey);
+      const agentKey = unsealAgentMemoryKey(pkgDir, pk.privateKey);
+      return { privateMemory: new PrivateMemoryRun({ dir: join(pkgDir, "memory", "private"), pair: { principal, agent: by }, agentKey, principalPublic: pk.publicKey, allowed: scopes, onEvent: (e) => runLog?.event("private_memory", { ...e }) }) };
+    })(), ...(commons ? { commons } : {}), ...(forum ? { forum } : {}), society }, upstreams },
     openaiUpstream: v["openai-upstream"], anthropicUpstream: v["anthropic-upstream"],
     openaiKey: keyFrom(v["openai-key-env"]), anthropicKey: keyFrom(v["anthropic-key-env"]),
-    scopes: mandate.scopes, hosts: (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts, rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
+    confineTo: resolve(io.cwd, v.project ?? "."),
+    // The outbound scan (DK1716): a key, a card number or an email address in a call or a model request is blocked or masked.
+    ...(v["untrusted-by-type"] ? { untrustedByType: true } : {}),
+    ...(v["untrusted-flow"] ? { untrustedFlow: true } : {}),
+    ...(v["escalation-ladder"] ? { escalationLadder: true } : {}),
+    ...(mandateRole ? { role: mandateRole } : {}),
+    // A hard dollar cap (an estimate from tokens and a price table): `asp gateway --budget-usd 5 [--price-in <$ per million> --price-out <$ per million>]`.
+    ...(() => { if (v["budget-usd"] === undefined) return {}; const cap = Number(v["budget-usd"]), pi = v["price-in"] === undefined ? undefined : Number(v["price-in"]), po = v["price-out"] === undefined ? undefined : Number(v["price-out"]); if (!(cap > 0) || (pi !== undefined && !(pi >= 0)) || (po !== undefined && !(po >= 0))) throw new UsageError("--budget-usd is a number of dollars above 0; --price-in and --price-out are dollars per million tokens"); return { usdCap: cap, ...(pi !== undefined || po !== undefined ? { price: { ...(pi !== undefined ? { inPerM: pi } : {}), ...(po !== undefined ? { outPerM: po } : {}) } } : {}) }; })(),
+    // Default policy (DK1716): keys and card numbers are masked in a model request and block a tool call; the Mandate's `outbound_scan` and --outbound-scan / --outbound-kinds add to it (`off` only without a Mandate choice).
+    ...(() => { const o = resolveOutbound({ ...(v["outbound-scan"] ? { flagMode: v["outbound-scan"] } : {}), ...(v["outbound-kinds"] ? { flagKinds: v["outbound-kinds"] } : {}), ...((mandateRecord?.record.body as { outbound_scan?: { mode?: "block" | "redact"; kinds?: OutboundKind[] } } | undefined)?.outbound_scan ? { mandate: (mandateRecord!.record.body as { outbound_scan: { mode?: "block" | "redact"; kinds?: OutboundKind[] } }).outbound_scan } : {}) }); return o ? { outbound: o } : {}; })(),
+    // The Code of the City goes into the system context of every model request, unless the person turns it off (gap LW1).
+    // The Code, and the agent's own record from the log (DK59): both go into the system context of every request. The record is read once at the start of the run, at the log head named in it.
+    ...(() => {
+      const parts: string[] = [];
+      if (!v["no-law-context"]) { try { parts.push(compactCode(readCode())); } catch { /* the Code is not available */ } }
+      if (!v["no-history-context"] && historyNote) parts.push(historyNote);
+      if (societyNote) parts.push(societyNote);
+      return parts.length ? { lawContext: parts.join("\n\n") } : {};
+    })(),
+    // Copies of an agent under this Mandate share one rate allowance, and --fleet-rate (or ASP_FLEET_RATE) caps everything this person runs on this machine (gap H15).
+    ...((mandateRecord?.record.body as { network?: { rate?: unknown } } | undefined)?.network?.rate ? { rateLedger: join(home, "rate", `mandate-${createHash("sha256").update(contract).digest("hex").slice(0, 16)}.ndjson`) } : {}),
+    ...(() => { const f = parseFleetRate(v["fleet-rate"] ?? io.env.ASP_FLEET_RATE); const who = (mandateRecord?.record as { issuer?: string } | undefined)?.issuer ?? by; return f ? { fleet: { rate: f, ledger: join(home, "rate", `fleet-${createHash("sha256").update(who).digest("hex").slice(0, 16)}.ndjson`) } } : {}; })(),
+    ...(v.tripwire?.length ? { tripwires: v.tripwire } : {}),
+    ...(v["also-dir"] ? { alsoDirs: v["also-dir"].split(",").map((d) => d.trim()).filter(Boolean).map((d) => resolve(io.cwd, d)) } : {}),
+    scopes: mandate.scopes, hosts: effectiveHosts, ...(fleetCeiling ? { ceiling: { label: fleetCeiling.label, removed: fleetCeiling.removed }, ...(fleetCeiling.tokensOver ? { modelBlock: fleetCeiling.tokensOver } : {}) } : {}), rate: (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate, knownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })),
     maxStrikes: v["max-strikes"] === undefined ? 3 : Math.trunc(Number(v["max-strikes"])),
-    ...(v["token-cap"] ? { tokenCap: Math.trunc(Number(v["token-cap"])) } : {}),
+    // The sponsor's spend guard (DK1715): default per-run and per-day ceilings in tokens, clamped to what the operator allows, alerts at 50, 80 and 100 percent, and a hard stop at the next model call.
+    tokenCap: Math.min(guard.perRun, wake.tokensLeft ?? Math.max(0, guard.perDay - ceiling.tokensUsed(by, wakeDay)), sponsorTokensLeft ?? Infinity),
+    onBudgetAlert: (e) => io.err(`  budget   ${alertLine(e)}`),
+    pauseFile: join(home, "paused"),
     onCall: (e) => {
+      if (!e.allowed && e.rule && e.callSha256) refusals.record({ tool: e.tool, scope: e.scope, rule: e.rule, callSha256: e.callSha256 });
       io.err(`  ${e.allowed ? "allowed" : "REFUSED"}  ${e.tool} -> ${e.scope || "no scope"}${e.reason ? `: ${e.reason}` : ""}`);
+      // The permissions were sized to the task (gap BM17): say, to the person and not to the agent, how to give it more.
+      if (!e.allowed && v["widen-hint"] && /is not granted/.test(e.reason ?? "")) io.err(`  hint     this session's permissions were sized to your task; to allow ${e.scope}, run again with --allow ${e.scope === "repo.write.protected" ? "protected" : v["widen-hint"]} (or --allow all)`);
       // At once for a blocked attempt, soon for a scope this session has not reported yet; repeated calls on a scope already reported wait for the interval or the exit (found in the
       // long-horizon run: one Action for every tool call burns a tenant's record quota, gap R1).
       if (!e.allowed) reportSoon(20);
       else if (e.scope && !reportedScopes.has(e.scope)) { reportedScopes.add(e.scope); reportSoon(eagerMs); }
     },
     onStop: (r) => { io.err(`  stopped  ${r}`); killAgent?.(); },
+    // The loop breaker (DK1230, S1422): the limits are the Mandate's (and the fleet ceiling's, whichever is lower); a halt is a signed record in the log, after which the Mandate buys nothing.
+    ...(() => {
+      const lim = loopLimitsFrom(mandateRecord?.record.body, ceilingMandate);
+      const { equivalentCalls, depth, dailyTokens, nearRepeats } = lim;
+      if (equivalentCalls === undefined && depth === undefined && dailyTokens === undefined && nearRepeats === undefined) return {};
+      return { loop: { ...(equivalentCalls !== undefined ? { equivalentCalls } : {}), ...(depth !== undefined ? { depth } : {}), ...(dailyTokens !== undefined ? { dailyTokens } : {}), ...(nearRepeats !== undefined ? { nearRepeats } : {}), onHalt: (h: { reason: string; detail: string; count: number; limit: number; tool: string }) => {
+        io.err(`  HALTED   ${h.detail} (limit ${h.limit} from the Mandate)`);
+        const s = new Keystore(home).forDid(by);
+        if (!s) { io.err("  warning  the halt could not be signed: no key for this agent"); return; }
+        void local.append(createRecord({ type: "run_halt", issuer: by, subject: contract, prev: null, body: { contract, agent: by, reason: h.reason, detail: h.detail, count: h.count, limit: h.limit, tool: h.tool.slice(0, 200) }, issued_at: now() }, s)).then(() => io.err("  halt recorded in the log: this Mandate buys nothing more"), (e) => io.err(`  warning  the halt could not be recorded: ${(e as Error).message}`));
+      } } };
+    })(),
+    onNotice: (m) => io.err(`  NOTICE   ${m}`),
     // The model provider said no, or could not be reached: said once, in words, with what to do (UC-18). Never the provider's own text, which can echo part of a key.
     onModelError: ((said: Set<string>) => (e: { status: number; host: string; cause?: string }) => { const m = providerProblem(e.status, e.host, e.cause); if (!said.has(m)) { said.add(m); io.err(`  provider  ${m}`); } })(new Set<string>()),
   });
@@ -2359,16 +4292,34 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   // Actions are reported while the run goes on, not only at the end: a contract revoked or settled mid-run can no longer take one.
   let flushing = Promise.resolve(0);
   const flushAction = (why: string) => (flushing = flushing.then(async () => {
+    // At the end of the run (owner answer TM1, row DK652): the trajectory and the task go to the telemetry store when it is on, and the Action carries only their hashes.
+    // The cognition items (DK79: messages, plans, reasoning, actions and the like, scrubbed) go to the same store; the Action cites ONE manifest of their hashes, not each of them, so a long run does not make a huge record.
+    const tmRefs = why === "exit" ? await (async () => {
+      const base = await captureTelemetry(io.env, [
+        ...(runLog && existsSync(join(gwRunDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(gwRunDir, "run-log.ndjson"), "utf8"), did: by }] : []),
+        ...(v["task-text"] ? [{ kind: "message", content: v["task-text"], did: by }] : []),
+      ]);
+      const items = cognition.drain();
+      if (!items.length) return base;
+      const stored = await captureTelemetry(io.env, items.map((i) => ({ kind: i.kind, content: i.content, did: by })));
+      if (!stored.length) return base;
+      const manifest = await captureTelemetry(io.env, [{ kind: "text", content: JSON.stringify({ v: 1, what: "cognition items of one run", items: stored.map((r) => ({ kind: r.uri.slice("asp://telemetry/".length), sha256: r.sha256 })) }), did: by }]);
+      return [...base, ...manifest];
+    })() : [];
     const d = gw.drain();
     // Nothing to report only when nothing happened: tokens of a request that was counted in the interval before arrive in this one, and must not be dropped.
     const m = d.metrics;
-    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0) return 0;
+    if (!d.scopesUsed.length && !d.blocked.length && m.requests === 0 && m.tool_calls === 0 && m.tokens_in === 0 && m.tokens_out === 0 && !tmRefs.length) return 0;
     const s = gw.summary();
     const args = ["market", "action", "--contract", contract, "--by", by, "--home", home,
+      ...tmRefs.flatMap((t) => ["--artifact", `${t.uri}=${t.sha256}`]),
       ...d.scopesUsed.flatMap((x) => ["--scopes-used", x]),
-      ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`]),
+      ...d.blocked.flatMap((b) => ["--blocked", `${b.scope}=${b.count}`, ...(b.targets?.length ? ["--blocked-targets", `${b.scope}=${b.targets.join(",")}`] : [])]),
+      ...d.targets.flatMap((t) => ["--call-target", t]),
       ...d.artifacts.flatMap((a) => ["--artifact", `${a.uri}=${a.sha256}`]),
       "--metrics", JSON.stringify(d.metrics),
+      ...(unpromptedRun ? ["--unprompted"] : []),
+      ...(wfStep ? ["--workflow-step", wfStep.from + ":" + wfStep.to] : []),
       ...(runLog ? (() => { const a = runLogArtifact(runLog.head()); return ["--artifact", `${a.uri}=${a.sha256}`]; })() : []),
       ...(v["sub-agents"] ? ["--sub-agents", v["sub-agents"]] : []),
       "--assurance", sandbox ? "sandbox_enforced" : s.toolCalls > 0 ? "gateway_enforced" : "gateway_observed", "--summary", `ASP gateway (${sandbox ? "sandbox-enforced: the agent ran in a sandbox whose only way out was the gateway" : s.toolCalls > 0 ? "gateway-enforced" : "gateway-observed: no structured tool calls passed through, so nothing could be enforced"}, ${why}): ${s.requests} request(s) so far, ${s.tokens.input + s.tokens.output} tokens, ${s.strikes} blocked${s.stopped ? `; stopped: ${s.stopped}` : ""}`];
@@ -2418,7 +4369,7 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
         program = "bwrap";
         programArgs = bwrapArgs({ projectDir, projectWritable: mandate.scopes.includes("repo.write"), network: sandboxNet, memoryDir: memDir, socketDir, relayPort: RELAY_PORT, extraBinds, env: agentEnv, home: homedir() }, command, childBase);
         spawnEnv = childBase;
-        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "no network of its own; the gateway is an egress proxy that allows only the Mandate's hosts, at its rate" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
+        io.err(`  sandbox  bubblewrap: ${sandboxNet ? "network kept (the Mandate grants a network scope)" : egressProxy ? "no network of its own; the gateway is an egress proxy that allows only the Mandate's hosts (any public host when it names none), at its rate" : "no network; the gateway is the only way out"}; project ${mandate.scopes.includes("repo.write") ? "writable" : "read-only"}; home hidden; environment cleared`);
       }
       if (backend === "docker" && dockerRun) {
         const dockerEnv = { ...agentEnv, ASP_MCP_CONFIG: "/asp/mcp.json" };
@@ -2459,12 +4410,20 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
   }
   clearInterval(watcher);
   clearInterval(flusher);
+  stopQuarantineWatch();
   if (soon) clearTimeout(soon);
   if (approvals) await approvals.stop();
   const sum0 = gw.summary();
-  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
+  await refusals.flush();
+  runLog?.event("run_end", { exit_code: code, requests: sum0.requests, telemetry: sum0.telemetry.status, cognition: cognition.summary(), refusals: refusals.summary(), spend_usd: sum0.spendUsd, ...(sum0.usdCap !== undefined ? { cap_usd: sum0.usdCap } : {}), tool_calls: sum0.toolCalls, tokens: sum0.tokens, scopes_used: sum0.scopesUsed, blocked: sum0.blocked, strikes: sum0.strikes, ...(sum0.stopped ? { stopped: sum0.stopped } : {}), redactions: runLog?.redactions });
   const rc = await flushAction("exit");
   const sum = gw.summary();
+  const beforeRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
+  ceiling.addTokens(by, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (sponsorOn) ceiling.addTokens(sponsorKey!, wakeDay, sum.tokens.input + sum.tokens.output);
+  if (companyOn) { const had = new Set(companyWarnings()); ceiling.addTokens(COMPANY, wakeDay, sum.tokens.input + sum.tokens.output); for (const w of companyWarnings()) if (!had.has(w)) io.err(`  warning  ${w}`); }
+  const afterRun = { today: ceiling.tokensUsed(by, wakeDay), month: ceiling.monthTokens(by, wakeDay.slice(0, 7)) };
+  { const had = new Set(budgetWarnings(by, standing, beforeRun)); for (const w of budgetWarnings(by, standing, afterRun)) if (!had.has(w)) io.err(`  warning  ${w}`); }
   await gw.close();
   if (pkgDir && !v["no-write-back"]) await gatewayWriteBack({ home, pkgDir, agent: by, memDir, baseMemory, gwRunDir, v, io });
   io.err(`  summary  ${JSON.stringify({ requests: sum.requests, toolCalls: sum.toolCalls, unjudged: sum.unjudgedRequests, tokens: sum.tokens, scopesUsed: sum.scopesUsed, blocked: sum.blocked, strikes: sum.strikes })}`);
@@ -2476,6 +4435,8 @@ async function gatewayCmd(home: string, command: string[], v: Values, need: Need
 /** After a gateway run, the agent's memory goes back into its package the way `asp run` does it: diffed, merged with any other run's, kept in budget, signed. */
 async function gatewayWriteBack(o: { home: string; pkgDir: string; agent: string; memDir: string; baseMemory: string; gwRunDir: string; v: Values; io: Io }): Promise<void> {
   const { home, pkgDir, agent, memDir, baseMemory, gwRunDir, v, io } = o;
+  // The audit gate on the agent's own writes (DK112): a note that breaks an invariant is not written back, and is listed in learned/rejected.json.
+  for (const h of screenMemoryWriteBack(pkgDir, memDir, baseMemory)) io.err(`  held back  memory/${h.file}: ${h.reasons.map((r) => r.reason).join("; ")} (see asp learned)`);
   const diff = diffTrees(baseMemory, memDir);
   if (isEmptyDiff(diff)) return;
   let memoryFrom = memDir;
@@ -2529,6 +4490,89 @@ async function dashboardCmd(home: string, v: Values, io: Io): Promise<number> {
   return 0;
 }
 
+/**
+ * asp learned [show <id> | keep <id> | undo <id> | edit <file> --from <path>] [--package <dir>]: what an agent learned, and what you can do about it (gap D10). Every memory change in the package
+ * is listed with what it added, changed and removed; Keep notes that you read it; Undo puts the files back as they were (a new signed update that names the one it rolls back; it refuses if the
+ * files were changed again since, unless --force); Edit replaces one memory file with your own text (also a new signed update). Nothing here rewrites history.
+ */
+async function learnedCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const pkg = resolve(io.cwd, v.package ?? ".");
+  if (!existsSync(join(pkg, "manifest.json"))) throw new UsageError("asp learned reads an agent's package: run it in the package folder, or give --package <folder>");
+  const agent = ((JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8")) as AspRecord).body as { agent: string }).agent;
+  const name = agent.split(":").slice(-1)[0];
+  const action = sub && ["show", "keep", "undo", "edit"].includes(sub) ? sub : "list";
+  const day = (iso: string) => iso.slice(0, 16).replace("T", " ");
+  const mark = (l: Lesson) => (l.undoneBy ? "taken back" : l.review?.state === "kept" ? "kept" : l.review?.state === "edited" ? "edited" : "not reviewed");
+
+  if (action === "list") {
+    let all = listLessons(pkg);
+    // --since <dispatch id | lineage edge>: only what changed after that dispatch's version, or after that edge (DK510).
+    if (v.since) {
+      let version = v.since;
+      try { const d = await (await openLog(home, logEnv)).log.get(v.since); if (d?.record.type === "asp.dispatch/v0.2") version = (d.record.body as { version: string }).version; } catch { /* not a dispatch: treat it as an edge id */ }
+      const after = edgesAfter(pkg, agent, version);
+      if (!after) throw new Error(`${v.since} is neither a dispatch in the log nor a lineage edge in ${name}'s package`);
+      const set = new Set(after);
+      all = all.filter((l) => set.has(l.edge));
+      if (!all.length && !v.json) { io.out(`${name} has not changed its memory since ${v.since}`); return 0; }
+    }
+    if (v.json) { io.out(JSON.stringify(all, null, 2)); return 0; }
+    if (!all.length) { io.out(`${name} has not changed its memory yet: nothing has been learned that is recorded here`); return 0; }
+    const open = all.filter((l) => !l.review && !l.undoneBy).length;
+    io.out(`What ${name} has learned: ${all.length} memory change${all.length === 1 ? "" : "s"}, ${open} not reviewed yet (newest first)`);
+    for (const l of all.slice(0, v.all ? all.length : 15)) {
+      io.out(`  ${l.short}  ${day(l.at)}  ${mark(l).padEnd(12)} ${l.description.slice(0, 70)}`);
+      io.out(`            ${summarize(l)}`);
+    }
+    if (!v.all && all.length > 15) io.out(`  ... ${all.length - 15} older (asp learned --all)`);
+    io.out(`see one: asp learned show ${all[0].short}   keep: asp learned keep ${all[0].short}   take back: asp learned undo ${all[0].short}   change a file: asp learned edit <file> --from <path>`);
+    return 0;
+  }
+
+  const signerFor = () => { const s = new Keystore(home).forDid(agent); if (!s) throw new Error(`no key for ${agent} on this machine: the change has to be signed by the agent's own key`); return s; };
+  if (action === "edit") {
+    const file = rest[0];
+    if (!file || (v.from === undefined) === (v.text === undefined)) throw new UsageError("usage: asp learned edit <memory file> --from <path> | --text \"<new text>\"");
+    const text = v.from !== undefined ? readFileSync(resolve(io.cwd, v.from), "utf8") : v.text!;
+    const dir = memoryAfterEdit(pkg, file, text);
+    try {
+      const { edges } = updatePackage(pkg, { signer: signerFor(), memoryFrom: dir, changes: [{ layer: "memory", description: `edited ${file} at the principal's request` }] });
+      markReviewed(pkg, edges[0].id, "edited");
+      await syncLocalLog(home, pkg, agent, io);
+      io.out(`edited ${file}: recorded as a signed update (${edges[0].id.replace(/^sha256:/, "").slice(0, 8)}); the earlier text is kept, and asp learned undo ${edges[0].id.replace(/^sha256:/, "").slice(0, 8)} takes this edit back`);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+    return 0;
+  }
+
+  const lesson = findLesson(pkg, rest[0] ?? "");
+  if (action === "show") {
+    io.out(`${lesson.short}  ${day(lesson.at)}  ${mark(lesson)}${lesson.review ? ` (${lesson.review.at.slice(0, 10)})` : ""}`);
+    io.out(`  ${lesson.description}`);
+    if (!lesson.files) { io.out("  no detail was kept for this change: it was made before asp learned existed (it can be kept, not taken back automatically)"); return 0; }
+    for (const f of lesson.files) {
+      io.out(`  ${f.path}  (${f.before === undefined ? "added" : f.after === undefined ? "removed" : "changed"})`);
+      for (const l of fileDiff(f)) io.out(l);
+    }
+    return 0;
+  }
+  if (action === "keep") {
+    markReviewed(pkg, lesson.edge, "kept");
+    io.out(`kept ${lesson.short}: noted that you read it and want it. This is a note on this machine, not a signed record`);
+    return 0;
+  }
+  // undo
+  const plan = planUndo(pkg, lesson);
+  if (plan.conflicts.length && !v.force) throw new Error(`${plan.conflicts.join(", ")} ha${plan.conflicts.length === 1 ? "s" : "ve"} been changed again since this change, so taking it back would lose that later work. Look first (asp learned show), or take it back anyway with --force`);
+  const dir = memoryAfterUndo(pkg, plan);
+  try {
+    const { edges } = updatePackage(pkg, { signer: signerFor(), memoryFrom: dir, changes: [{ layer: "memory", description: `took back "${lesson.description.slice(0, 80)}" (${lesson.short}) at the principal's request`, reverts: lesson.edge }] });
+    markReviewed(pkg, lesson.edge, "undone");
+    await syncLocalLog(home, pkg, agent, io);
+    io.out(`took back ${lesson.short}: ${plan.restore.length} file${plan.restore.length === 1 ? "" : "s"} put back as ${plan.restore.length === 1 ? "it was" : "they were"}; recorded as a signed update that names the one it rolls back (${edges[0].id.replace(/^sha256:/, "").slice(0, 8)}). History is not rewritten`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  return 0;
+}
+
 /** The gateway run folder whose run log belongs to this contract (the newest), or undefined. */
 function findRunLog(home: string, contract: string): string | undefined {
   const runs = join(home, "runs");
@@ -2544,12 +4588,12 @@ function findRunLog(home: string, contract: string): string | undefined {
 
 /** asp mail preview|queue|pending|watch|address: see the header. */
 async function mailCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
-  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--to <address>] | address set <did> <address> | address list";
+  const USAGE = "usage: asp mail preview|queue --contract <id> [--to <address>] [--run-log <file|folder>] [--link-base <url>] [--package <pkg>] [--html] [--again] | pending | watch [--once] [--interval <seconds>] [--print-schedule] [--to <address>] [--package <pkg>] [--send --mail-from <address>] | address set <did> <address> | address list";
   if (!["preview", "queue", "pending", "watch", "address"].includes(sub ?? "")) throw new UsageError(USAGE);
   const statePath = join(home, "mail-state.json");
   const addressPath = join(home, "mail-addresses.json");
   const readJson = <T,>(p: string, fallback: T): T => (existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : fallback);
-  const state: Record<string, { queuedAt: string; to: string; file: string }> = readJson(statePath, {});
+  const state: Record<string, { queuedAt: string; to: string; file: string; sentId?: string }> = readJson(statePath, {});
   const addresses: Record<string, string> = readJson(addressPath, {});
 
   if (sub === "address") {
@@ -2573,17 +4617,30 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
     return file && existsSync(file) ? { ...readRunLog(file), path: file } : undefined;
   };
   const linkBase = v["link-base"] ? { linkBase: v["link-base"] } : {};
+  // The agent's own package, read locally (gap D10): richer detail on what it learned than the log's lineage description alone, and whether the principal already reviewed it.
+  const pkgDir = v.package ? resolve(io.cwd, v.package) : undefined;
+  const learned = pkgDir && existsSync(join(pkgDir, "manifest.json")) ? { learned: listLessons(pkgDir) } : {};
   const outbox = join(home, "outbox");
   /** Writes the .eml, .html and .txt, and records that this key was mailed. */
-  const queueFiles = (key: string, label: string, mail: { eml: string; html: string; text: string }, to: string) => {
+  const queueFiles = async (key: string, label: string, mail: { eml: string; html: string; text: string; subject?: string }, to: string) => {
     mkdirSync(outbox, { recursive: true });
     const stem = join(outbox, `${label}-${key.replace(/[^A-Za-z0-9]/g, "").slice(-16)}${state[key] ? "-" + Date.now() : ""}`);
     writeFileSync(stem + ".eml", mail.eml);
     writeFileSync(stem + ".html", mail.html);
     writeFileSync(stem + ".txt", mail.text);
-    state[key] = { queuedAt: now(), to, file: stem + ".eml" };
+    // --send (gap E9, E10): hand the mail to Resend from this machine (RESEND_API_KEY in the environment, never a flag). A mail that was refused or not reached is not marked as mailed, so the next pass tries it again.
+    let sentId: string | undefined;
+    if (v.send) {
+      const apiKey = io.env.RESEND_API_KEY;
+      if (!apiKey) throw new UsageError("--send needs RESEND_API_KEY in the environment (the key is never taken from a flag)");
+      if (!v["mail-from"]) throw new UsageError("--send needs --mail-from \"Name <address@your-verified-domain>\"");
+      const transport = new ResendTransport({ apiKey, ...(v["mail-resend-url"] ? { baseUrl: v["mail-resend-url"] } : {}) });
+      try { sentId = (await transport.send({ from: v["mail-from"], to, subject: mail.subject ?? label, text: mail.text, html: mail.html })).id; }
+      catch (e) { io.err(`  not sent: ${(e as Error).message} (the .eml is in the outbox; the next pass tries again)`); return undefined; }
+    }
+    state[key] = { queuedAt: now(), to, file: stem + ".eml", ...(sentId ? { sentId } : {}) };
     writeFileSync(statePath, JSON.stringify(state, null, 2));
-    return stem + ".eml";
+    return stem + ".eml" + (sentId ? ` (sent, id ${sentId})` : "");
   };
   /** Everything that should be mailed and has not been: ended Mandates, and alerts. */
   const due = async () => {
@@ -2593,12 +4650,29 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
       if ((await local.log.chainInfo(c))?.state === "Settled" && !state[c]) finals.push(c);
     }
     const alerts = (await findAlerts(local.log)).filter((a) => !state[a.key]);
-    return { finals, alerts };
+    // The end of a governed run (ML1): `asp run` settles no contract, so a run's end is its final signed Action report.
+    const runs = (await findRunEnds(local.log)).filter((r) => !state[r.key]);
+    return { finals, alerts, runs };
   };
 
+  if (sub === "watch" && v["print-schedule"]) {
+    // DK1700: print the entry that runs `asp mail watch --once` on a timer for this system; nothing is installed.
+    const mins = v.interval ? Math.max(1, Math.trunc(Number(v.interval) / 60)) : 5;
+    const entries = scheduleEntries({ node: process.execPath, cli: fileURLToPath(import.meta.url), ...(io.env.ASP_HOME ? { home: io.env.ASP_HOME } : {}), everyMinutes: mins, args: [...(v.send ? ["--send"] : []), ...(v["mail-from"] ? ["--mail-from", v["mail-from"]] : []), ...(v.to ? ["--to", v.to] : [])] });
+    io.out(`# Windows (PowerShell or cmd; Task Scheduler, every ${mins} minute(s); remove with: schtasks /Delete /TN AgentSocialMailWatch /F)
+${entries.windows}
+
+# Linux or macOS (crontab -e)
+${entries.cron}
+
+# macOS launchd (~/Library/LaunchAgents/com.agentsocial.mailwatch.plist, then launchctl load it)
+${entries.launchd}`);
+    io.err("  nothing was installed: copy the entry for your system. Each run is `asp mail watch --once`: it queues what is due and exits.");
+    return 0;
+  }
   if (sub === "pending" || sub === "watch") {
     const pass = async (): Promise<number> => {
-      const { finals, alerts } = await due();
+      const { finals, alerts, runs } = await due();
       let queued = 0;
       const send = async (key: string, label: string, contract: string, build: (f: MandateFacts, to: string) => { eml: string; html: string; text: string; subject: string }) => {
         const f = await collectMandateFacts(local.log, contract);
@@ -2607,16 +4681,56 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
         if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${contract.slice(0, 19)}, principal ${f.contract.principal}${to ? ` -> ${to}` : ", NO ADDRESS"})`); return; }
         if (!to) { io.err(`  skipped  ${label} for ${contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`); return; }
         const mail = build(f, to);
-        io.out(`queued ${queueFiles(key, label, mail, to)} to ${to}: ${mail.subject}`);
+        const done = await queueFiles(key, label, mail, to);
+        if (!done) return;
+        io.out(`queued ${done} to ${to}: ${mail.subject}`);
         queued++;
       };
-      for (const a of alerts) await send(a.key, `alert-${a.kind}`, a.contract, (f, to) => buildAlertMail(a, f, { to, ...linkBase }));
-      for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase }));
-      if (sub === "pending") io.out(`${finals.length} ended Mandate(s) and ${alerts.length} alert(s) not mailed yet`);
+      // Alerts go to the principal, and (E13) to the agent's sponsor for a kill or an upheld report, and to the reporter of an upheld report, each who has an address and once each.
+      for (const a of await findAlerts(local.log)) {
+        const f = await collectMandateFacts(local.log, a.contract);
+        if (!f) continue;
+        const sponsor = (await local.log.passport(f.contract.performer))?.sponsor;
+        const recips = v.to ? [{ role: "principal" as const, did: f.contract.principal, to: v.to, key: a.key }] : alertRecipients(a, f.contract.principal, sponsor, addresses);
+        if (!recips.some((r) => r.role === "principal") && !state[a.key] && sub !== "pending") io.err(`  skipped  alert-${a.kind} for ${a.contract.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>)`);
+        for (const r of recips) {
+          if (state[r.key]) continue;
+          const label = r.role === "principal" ? `alert-${a.kind}` : `alert-${a.kind}-${r.role}`;
+          if (sub === "pending") { io.out(`  ${label.padEnd(13)} ${f.contract.purpose}  (${a.contract.slice(0, 19)}, ${r.role} ${r.did} -> ${r.to})`); continue; }
+          const mail = buildAlertMail(a, f, { to: r.to, role: r.role, ...linkBase });
+          const done = await queueFiles(r.key, label, mail, r.to);
+          if (!done) continue;
+          io.out(`queued ${done} to ${r.to}: ${mail.subject}`);
+          queued++;
+        }
+      }
+      // A mail with no address is HELD with its reason, not dropped: it stays in the pending list and in `asp notices`, and goes out when an address is set.
+      const heldPath = join(home, "mail-held.json");
+      const held: Record<string, { label: string; contract: string; why: string; at: string }> = readJson(heldPath, {});
+      const saveHeld = () => writeFileSync(heldPath, JSON.stringify(held, null, 2));
+      for (const e of runs) {
+        const f = await collectRunEndFacts(local.log, e);
+        if (!f) continue;
+        const to = v.to ?? addresses[f.contract.principal];
+        if (sub === "pending") { io.out(`  ${"run-end".padEnd(13)} ${f.contract.purpose}  (${e.action.slice(0, 19)}, principal ${f.contract.principal}${to ? ` -> ${to}` : ", NO ADDRESS"})`); continue; }
+        if (!to) {
+          if (!held[e.key]) { held[e.key] = { label: "run-end", contract: e.contract, why: `no address for ${f.contract.principal}: set one with asp mail address set ${f.contract.principal} <address>`, at: now() }; saveHeld(); }
+          io.err(`  held     run-end for ${e.action.slice(0, 19)}: no address for ${f.contract.principal} (asp mail address set <did> <address>); see asp notices`);
+          continue;
+        }
+        const mail = buildRunEndMail(f, { to, ...linkBase });
+        const done = await queueFiles(e.key, "run-end", mail, to);
+        if (!done) continue;
+        if (held[e.key]) { delete held[e.key]; saveHeld(); }
+        io.out(`queued ${done} to ${to}: ${mail.subject}`);
+        queued++;
+      }
+      for (const c of finals) await send(c, "end", c, (f, to) => buildMandateMail(f, { to, ...(runLogFor(c) ? { runLog: runLogFor(c)! } : {}), ...linkBase, ...learned }));
+      if (sub === "pending") io.out(`${finals.length} ended Mandate(s)${runs.length ? `, ${runs.length} run end(s)` : ""} and ${alerts.length} alert(s) not mailed yet`);
       return queued;
     };
     if (sub === "pending") { await pass(); return 0; }
-    io.err("  not sent: delivery to a mail provider is not built; mail is queued in the outbox");
+    if (!v.send) io.err("  not sent: mail is queued in the outbox; add --send --mail-from <address> (and RESEND_API_KEY) to deliver it");
     const n = await pass();
     if (v.once) { io.out(`${n} mail(s) queued`); return 0; }
     const every = Number(v.interval) > 0 ? Number(v.interval) * 1000 : 30_000;
@@ -2632,7 +4746,7 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   const facts = await collectMandateFacts(local.log, contract);
   if (!facts) throw new Error(`contract ${contract} is not in the log`);
   const runLog = runLogFor(contract);
-  const mail = buildMandateMail(facts, { to: v.to ?? addresses[facts.contract.principal] ?? "principal@localhost", ...(runLog ? { runLog } : {}), ...linkBase });
+  const mail = buildMandateMail(facts, { to: v.to ?? addresses[facts.contract.principal] ?? "principal@localhost", ...(runLog ? { runLog } : {}), ...linkBase, ...learned });
   if (sub === "preview") {
     io.out(v.html ? mail.html : mail.text);
     return 0;
@@ -2641,8 +4755,10 @@ async function mailCmd(home: string, sub: string | undefined, rest: string[], v:
   if (!to) throw new UsageError("--to <address> is required for queue (or set the principal's address with asp mail address set)");
   if (facts.state !== "Settled") throw new Error(`contract ${contract} is ${facts.state}, not ended: the mail goes out when the Mandate ends`);
   if (state[contract] && !v.again) throw new Error(`contract ${contract} was already mailed (queued ${state[contract].queuedAt} to ${state[contract].to}); one mail per Mandate. Use --again to queue it a second time.`);
-  io.out(`queued ${queueFiles(contract, "end", mail, to)} to ${to}: ${mail.subject}`);
-  io.out("  not sent: delivery to a mail provider is not built; the .eml is in the outbox");
+  const done = await queueFiles(contract, "end", mail, to);
+  if (!done) return 1;
+  io.out(`queued ${done} to ${to}: ${mail.subject}`);
+  if (!v.send) io.out("  not sent: the .eml is in the outbox; add --send --mail-from <address> (and RESEND_API_KEY) to deliver it");
   return 0;
 }
 
@@ -2798,12 +4914,62 @@ async function runLogVaultCmd(home: string, sub: string, rest: string[], v: Valu
 }
 
 /**
+ * Run-log retention applied without a command (E6): `asp run-log retention --days <n>` keeps a period in <home>/run-log-retention.json (ASP_RUN_LOG_DAYS overrides it; `off` clears it), and every `asp run` and
+ * `asp gateway` deletes the run logs on this machine older than that period when it starts, saying so in one line. The Actions that committed to a deleted log keep its hash. A sealed copy kept on the service is not touched.
+ */
+function runLogRetentionDays(home: string, env: Record<string, string | undefined>): number | undefined {
+  const fromEnv = env.ASP_RUN_LOG_DAYS;
+  if (fromEnv !== undefined && fromEnv !== "") { const n = Number(fromEnv); return n >= 1 ? Math.trunc(n) : undefined; }
+  for (const h of [home, join(home, "..")]) { if (h !== home && !home.replace(/[\/]+$/, "").endsWith("local")) break; try { const n = Number((JSON.parse(readFileSync(join(h, "run-log-retention.json"), "utf8")) as { days?: number }).days); if (n >= 1) return Math.trunc(n); } catch { /* none here */ } }
+  return undefined;
+}
+function applyRunLogRetention(home: string, env: Record<string, string | undefined>, say: (l: string) => void): number {
+  const days = runLogRetentionDays(home, env);
+  if (!days) return 0;
+  const runs = join(home, "runs");
+  const cutoff = Date.now() - days * 86_400_000;
+  let gone = 0;
+  for (const d of existsSync(runs) ? readdirSync(runs) : []) {
+    const f = join(runs, d, "run-log.ndjson");
+    try { if (existsSync(f) && statSync(f).mtimeMs < cutoff) { rmSync(f); gone++; } } catch { /* in use or not allowed: it stays */ }
+  }
+  if (gone) say(`  retention  deleted ${gone} run log${gone === 1 ? "" : "s"} older than ${days} day${days === 1 ? "" : "s"} (asp run-log retention changes this)`);
+  return gone;
+}
+
+/**
  * asp run-log show|verify [<run-log file or gateway run folder>] [--contract <id>] [--json]: the redacted run log a gateway run kept (gap E2).
  * show prints it as a timeline; verify checks every line's hash chain and, with --contract, that each Action's run-log artifact matches the log.
  */
 async function runLogCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
   if (sub === "keep" || sub === "kept" || sub === "fetch" || sub === "drop" || sub === "disclose" || sub === "open") return await runLogVaultCmd(home, sub, rest, v, io);
-  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]  |  keep|kept|fetch|drop|disclose|open (a sealed copy on the service, E16)");
+  // Retention (E6): the run logs on this machine older than --days days. Without --yes it lists what would go and changes nothing; with it the log file is deleted (the folder's other files stay). A sealed copy
+  // kept on the service (asp run-log keep) is not touched, and the Actions that committed to a deleted log still name its hash: they can no longer be checked against it here.
+  if (sub === "retention") {
+    const file = join(home, "run-log-retention.json");
+    if (v.days === undefined) { const d = runLogRetentionDays(home, io.env); io.out(d ? `run logs on this machine are deleted after ${d} day${d === 1 ? "" : "s"}${io.env.ASP_RUN_LOG_DAYS ? " (set by ASP_RUN_LOG_DAYS)" : ""}; asp run-log retention --days <n>|off changes it` : "no retention period is set: run logs stay until asp run-log prune; asp run-log retention --days <n> sets one"); return 0; }
+    if (v.days === "off") { rmSync(file, { force: true }); io.out("retention is off: run logs stay until asp run-log prune"); return 0; }
+    const days = Number(v.days);
+    if (!(days >= 1) || !Number.isInteger(days)) throw new UsageError("usage: asp run-log retention --days <whole number, at least 1>|off");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(file, JSON.stringify({ days }, null, 2) + "\n");
+    io.out(`run logs on this machine will be deleted ${days} day${days === 1 ? "" : "s"} after they were last written, each time asp run or asp gateway starts (a sealed copy kept on the service is not touched)`);
+    return 0;
+  }
+  if (sub === "prune") {
+    const days = Number(v.days);
+    if (!(days >= 0) || v.days === undefined) throw new UsageError("usage: asp run-log prune --days <n> [--yes]   (run logs on this machine older than n days)");
+    const runs = join(home, "runs");
+    const cutoff = Date.now() - days * 86_400_000;
+    const old = (existsSync(runs) ? readdirSync(runs) : []).map((d) => join(runs, d, "run-log.ndjson")).filter((f) => existsSync(f) && statSync(f).mtimeMs < cutoff);
+    if (!old.length) { io.out(`no run log older than ${days} day${days === 1 ? "" : "s"} in ${runs}`); return 0; }
+    for (const f of old) io.out(`  ${v.yes ? "deleted" : "would delete"}  ${f}  (${Math.round((Date.now() - statSync(f).mtimeMs) / 86_400_000)} days old)`);
+    if (!v.yes) { io.out(`${old.length} run log${old.length === 1 ? "" : "s"} would be deleted; run again with --yes to delete ${old.length === 1 ? "it" : "them"} (a sealed copy kept on the service is not touched)`); return 0; }
+    for (const f of old) rmSync(f);
+    io.out(`deleted ${old.length} run log${old.length === 1 ? "" : "s"}; the Actions that committed to ${old.length === 1 ? "it" : "them"} keep the hash, so they can no longer be checked against ${old.length === 1 ? "it" : "them"} here`);
+    return 0;
+  }
+  if (sub !== "show" && sub !== "verify") throw new UsageError("usage: asp run-log show|verify [<run-log.ndjson | gateway run folder>] [--contract <id>] [--json]  |  prune --days <n> [--yes]  |  keep|kept|fetch|drop|disclose|open (a sealed copy on the service, E16)");
   let target = rest[0];
   if (!target) {
     const runs = join(home, "runs");
@@ -2836,7 +5002,7 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
         : e.kind === "model_error" ? `provider answered ${d.status}`
         : e.kind === "stopped" ? `stopped: ${d.reason}`
         : e.kind === "run_end" ? (d.requests !== undefined
-          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked`
+          ? `exit ${d.exit_code}; ${d.requests} request(s), ${d.tool_calls} tool call(s), ${d.strikes} blocked, ${d.redactions} secret-like value(s) masked${d.spend_usd !== undefined ? `, est. spend USD ${d.spend_usd}${d.cap_usd !== undefined ? ` of ${d.cap_usd}` : ""}` : ""}`
           // a run under a contract (the package path) records strikes and what was masked, not request counts
           : `exit ${d.exit_code}; ${d.strikes ?? 0} strike(s)${d.redactions !== undefined ? `, ${d.redactions} secret-like value(s) masked` : ""}${d.killed ? `; stopped: ${d.killed}` : ""}`)
         : e.kind === "assistant_text" ? q(d.text)
@@ -2860,19 +5026,27 @@ async function runLogCmd(home: string, sub: string | undefined, rest: string[], 
   // A standing job has one run log per session, and an Action names only a count and a hash, not which log (gap P27): so for such a job an Action that does not match this file is
   // most likely another session's, and only a log that no Action matches is a failure.
   const standingJob = sessionsOf(home).filter((s) => s.start.contract === v.contract).length > 1 || Object.values(readStanding(home)).some((j) => j.contract === v.contract);
-  let checked = 0, bad = 0;
+  // Since gap P27 an Action names its log (?run=<id>, the start of the log's first event's hash): an Action that names another log is set aside as that session's, and one that names this log
+  // and does not match is a real mismatch, for a standing job too. Actions from before that name no log, and are handled as they were.
+  const thisRun = check.events[0] ? runIdOf(check.events[0].hash) : undefined;
+  let checked = 0, bad = 0, namedBad = 0, elsewhere = 0;
   for (const a of actions) {
     for (const art of ((a.record.body as { artifacts?: { uri: string; sha256: string }[] }).artifacts ?? [])) {
-      const m = /^asp:\/\/run-log\/(\d+)$/.exec(art.uri);
+      const m = parseRunLogUri(art.uri);
       if (!m) continue;
-      const n = Number(m[1]);
+      if (m.run && thisRun && m.run !== thisRun) { elsewhere++; io.out(`  action ${a.id.slice(0, 19)} names another log (run ${m.run}): not checked against this file`); continue; }
+      const n = m.events;
       checked++;
       const want = n <= check.events.length ? hashAfter(check.events, n) : undefined;
       if (want === art.sha256) io.out(`  action ${a.id.slice(0, 19)} commits to the first ${n} event(s): matches`);
-      else { bad++; io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) and ${want ? "the hash does not match" : "this file has fewer events"}${standingJob ? " (another session's log, if this job has more than one)" : ""}`); }
+      else {
+        bad++; if (m.run) namedBad++;
+        io.out(`  action ${a.id.slice(0, 19)} commits to ${n} event(s) of ${m.run ? "this log" : "a log it does not name"} and ${want ? "the hash does not match" : "this file has fewer events"}${standingJob && !m.run ? " (another session's log, if this job has more than one)" : ""}${m.run ? ": NOT ok" : ""}`);
+      }
     }
   }
-  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match${standingJob && bad && checked > bad ? `; the ${bad} that do not are taken to belong to other sessions of this standing job` : ""}` : "no Action of this contract commits to a run log");
+  io.out(checked ? `${checked - bad} of ${checked} Action commitment(s) match${standingJob && bad > namedBad && checked > bad ? `; the ${bad - namedBad} that do not, and name no log, are taken to belong to other sessions of this standing job` : ""}${elsewhere ? `; ${elsewhere} more name other sessions' logs` : ""}` : elsewhere ? `no Action of this contract names this log yet (${elsewhere} name other sessions' logs)` : "no Action of this contract commits to a run log");
+  if (namedBad) return 1;
   return standingJob ? (checked && checked === bad ? 1 : 0) : bad ? 1 : 0;
 }
 
@@ -2884,7 +5058,33 @@ async function knownBadCmd(home: string, sub: string | undefined, v: Values, nee
     for (const e of list) io.out(`  ${e.fingerprint}  report ${e.report.slice(0, 19)}  added ${e.addedAt} by ${e.addedBy}${e.note ? "  " + e.note : ""}`);
     return 0;
   }
-  if (sub !== "add") throw new UsageError("usage: asp known-bad add --report <id> --by <did> [--fingerprint <fp> | --all] [--note <text>] | list");
+  if (sub === "trust") {
+    const did = v.did ?? need("by");
+    const signer = new Keystore(home).forDid(did);
+    if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: trust a key from the machine that holds it`);
+    const file = v.file ? resolve(io.cwd, v.file) : trustFileFor(join(home, "known-bad.json"));
+    addTrust(file, signer.kid, publicKeyOf(signer));
+    io.out(`trusted ${signer.kid} in ${file}`);
+    return 0;
+  }
+  if (sub === "review") {
+    const by = need("by");
+    const fingerprint = need("fingerprint");
+    const reason = need("reason");
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by} in ${join(home, "keys")}: only its holder can sign a review`);
+    const url = io.env.ASP_LOG_URL;
+    const signedFile = signedFileFor(join(home, "known-bad.json"));
+    const items = url ? ((await (await fetch(new URL("known-bad/signed", url.endsWith("/") ? url : url + "/"), { signal: AbortSignal.timeout(30_000) })).json()) as { items: ReturnType<typeof readSigned> }).items : readSigned(signedFile);
+    const entry = items.find((i) => i.kind === "entry" && i.body.fingerprint === fingerprint && !items.some((r) => r.kind === "review" && r.body.entry === i.id));
+    if (!entry) throw new Error(`no signed entry for ${fingerprint} is on the list (an unsigned entry, from before signing, is removed by editing the file)`);
+    const item = signItem("review", { entry: entry.id, fingerprint, verdict: "remove", reason, reviewedAt: now(), reviewedBy: by }, signer);
+    if (url) await postSignedKnownBad(url, io.env.ASP_LOG_TOKEN, item);
+    else { addTrust(trustFileFor(join(home, "known-bad.json")), signer.kid, publicKeyOf(signer)); addSigned(signedFile, item, readTrust(trustFileFor(join(home, "known-bad.json")))); }
+    io.out(`withdrawn: ${fingerprint} (signed review ${item.id.slice(0, 19)} by ${by}); it is no longer enforced`);
+    return 0;
+  }
+  if (sub !== "add") throw new UsageError("usage: asp known-bad add --report <id> --by <did> [--fingerprint <fp> | --all] [--note <text>] | review --fingerprint <fp> --by <did> --reason <text> | trust --did <did> [--file <path>] | list");
   const reportId = need("report");
   const by = need("by");
   const local = await openLog(home, logEnv);
@@ -2914,7 +5114,15 @@ async function knownBadCmd(home: string, sub: string | undefined, v: Values, nee
   let added = 0;
   for (const fingerprint of chosen) {
     const entry: KnownBadEntry = { fingerprint, report: reportId, contract: report.contract, addedAt: now(), addedBy: by, ...(v.note ? { note: v.note } : {}) };
-    const created = io.env.ASP_LOG_URL ? await postKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, entry) : addKnownBad(join(home, "known-bad.json"), entry);
+    // Signed when the key is here (S178): the entry then verifies on any service that trusts it. Otherwise the plain entry of S54.
+    const signer = new Keystore(home).forDid(by);
+    let created: boolean;
+    if ((await loadKnownBad(home, io)).some((e) => e.fingerprint === fingerprint)) created = false;
+    else if (signer) {
+      const item = signItem("entry", { fingerprint, report: reportId, contract: report.contract, addedAt: entry.addedAt, addedBy: by, ...(v.note ? { note: v.note } : {}) }, signer);
+      if (io.env.ASP_LOG_URL) created = await postSignedKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, item);
+      else { const file = join(home, "known-bad.json"); addTrust(trustFileFor(file), signer.kid, publicKeyOf(signer)); created = addSigned(signedFileFor(file), item, readTrust(trustFileFor(file))).created; }
+    } else created = io.env.ASP_LOG_URL ? await postKnownBad(io.env.ASP_LOG_URL, io.env.ASP_LOG_TOKEN, entry) : addKnownBad(join(home, "known-bad.json"), entry);
     io.out(`${created ? "listed" : "already listed"}: ${fingerprint}`);
     added += created ? 1 : 0;
   }
@@ -2951,6 +5159,13 @@ async function commonsCmd(home: string, sub: string | undefined, rest: string[],
     const r = await call("GET", `commons/entries?${qs}`);
     io.out(`${r.entries.length} entr${r.entries.length === 1 ? "y" : "ies"}`);
     for (const e of r.entries) io.out(line(e));
+    return 0;
+  }
+  if (sub === "rejected") {
+    // What the service refused from a lesson tagged `lesson`, with the reasons, so the author can read why (DK113).
+    const r = await call("GET", `commons/rejected${v.by ? `?author=${encodeURIComponent(v.by)}` : ""}`);
+    io.out(`${r.rejected.length} rejected lesson${r.rejected.length === 1 ? "" : "s"}`);
+    for (const e of r.rejected) { io.out(`  ${e.id.slice(0, 19)}  ${e.title}  by ${e.author}`); for (const x of e.reasons) io.out(`      ${x.rule}: ${x.reason}`); }
     return 0;
   }
   if (sub === "show") {
@@ -3003,6 +5218,194 @@ async function commonsCmd(home: string, sub: string | undefined, rest: string[],
     return 0;
   }
   throw new UsageError("usage: asp commons add|list|show|review|cite");
+}
+
+/** asp forum post|comment|vote|hide|feed|show|record|verify: agents post, comment and vote under daily caps (docs/forum-design.md, S144). */
+async function forumCmd(home: string, sub: string | undefined, rest: string[], v: Values, need: Need, io: Io): Promise<number> {
+  const url = io.env.ASP_LOG_URL;
+  if (!url) throw new UsageError("set ASP_LOG_URL (and ASP_LOG_TOKEN) to a log service started with --forum <dir>");
+  const call = async (method: string, path: string, body?: unknown): Promise<any> => {
+    const res = await fetchRetry(new URL(path, url.endsWith("/") ? url : url + "/"), {
+      method,
+      headers: { ...(io.env.ASP_LOG_TOKEN ? { authorization: `Bearer ${io.env.ASP_LOG_TOKEN}` } : {}), ...(body ? { "content-type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(60_000),
+    });
+    const json = await res.json().catch(() => undefined) as any;
+    if (!res.ok) throw Object.assign(new Error(json?.error ? `${json.error.message} (${json.error.code})` : `the forum answered ${res.status}`), { code: json?.error?.code as string | undefined, details: json?.error as Record<string, unknown> | undefined });
+    return json;
+  };
+  const signerFor = (did: string) => {
+    const signer = new Keystore(home).forDid(did);
+    if (!signer) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`);
+    return signer;
+  };
+  const prevOf = async (did: string): Promise<string | null> => (await call("GET", `forum/citizens/${encodeURIComponent(did)}`)).last;
+  const line = (p: any) => `  ${p.id.slice(0, 19)}  ${p.hidden ? "[hidden] " : ""}${p.title}  by ${p.author}  ${p.score} pts  ${p.comments} comments${p.tags.length ? "  #" + p.tags.join(" #") : ""}`;
+  if (sub === "feed") {
+    const qs = new URLSearchParams();
+    if (v.tag) qs.set("tag", v.tag);
+    if (v.sort) qs.set("sort", v.sort);
+    const r = await call("GET", `forum/feed?${qs}`);
+    io.out(`${r.posts.length} post${r.posts.length === 1 ? "" : "s"}`);
+    for (const p of r.posts) io.out(line(p));
+    return 0;
+  }
+  if (sub === "show") {
+    const id = rest[0];
+    if (!id) throw new UsageError("usage: asp forum show <post-id>");
+    const p = await call("GET", `forum/posts/${encodeURIComponent(id)}`);
+    io.out(`${p.title}  by ${p.author}  ${p.createdAt}  ${p.score} pts`);
+    io.out(`  ${p.id}`);
+    if (p.contract) io.out(`  contract ${p.contract}: ${p.contractState?.latest ?? "no record"}`);
+    io.out("");
+    io.out(p.text.trimEnd());
+    io.out("");
+    io.out(`  ${p.comments.length} comment(s)`);
+    for (const c of p.comments) io.out(`    ${c.id.slice(0, 19)}  ${c.author}  ${c.score} pts${c.parent ? "  (reply to " + c.parent.slice(0, 19) + ")" : ""}: ${c.text.replace(/\s+/g, " ")}`);
+    return 0;
+  }
+  if (sub === "reports") {
+    const r = await call("GET", "forum/reports");
+    if (!r.queue.length) io.out("no reports");
+    for (const q of r.queue) {
+      io.out(`${q.target}  ${q.kind} by ${q.author}  ${q.count} report(s)${q.hidden ? "  [hidden]" : ""}`);
+      for (const x of q.reports) io.out(`    ${x.reporter}: ${x.reason}`);
+    }
+    for (const x of r.restricted) io.out(`restricted: ${x.did} (${x.reason})`);
+    return 0;
+  }
+  if (sub === "record") {
+    const did = rest[0] ?? v.did;
+    if (!did) throw new UsageError("usage: asp forum record <did>");
+    const c = await call("GET", `forum/citizens/${encodeURIComponent(did)}`);
+    io.out(`${c.did}: karma ${c.karma}, ${c.acts} act(s)`);
+    io.out(`  free: a post up to ${c.form.shortPostChars} characters, a comment up to ${c.form.shortCommentChars}; longer costs ${c.costs.longPost} and ${c.costs.longComment} credits; ${c.rate.perMinute} acts a minute at most`);
+    io.out(c.reputation ? `  from the log: tier ${c.reputation.tier}, ${c.reputation.slashCount} slash(es), ${c.reputation.strikes} strike(s)${c.reputation.acceptedJobs !== undefined ? `, ${c.reputation.acceptedJobs} accepted job(s)` : ""}` : "  not known to the log");
+    return 0;
+  }
+  if (sub === "verify") {
+    const r = await call("GET", "forum/verify");
+    io.out(`${r.ok ? "verified" : "FAILED"}: ${r.entries} act(s), head ${r.head.seq} ${r.head.hash}`);
+    if (r.checkpoints !== undefined) io.out(`  ${r.checkpoints} operator checkpoint(s) in the log${r.latest_checkpoint ? `, the latest at ${r.latest_checkpoint.forum_seq} act(s)` : ""}`);
+    for (const p of r.problems) io.out(`  ${p}`);
+    return r.ok ? 0 : 1;
+  }
+  if (sub === "register") {
+    const handle = rest[0];
+    if (!handle) throw new UsageError("usage: asp forum register <handle> --did <did:key> [--model <name>]");
+    const did = need("did");
+    const signer = signerFor(did);
+    const publicKey = b64urlEncode(publicKeyFromSeed(signer.seed));
+    const signature = b64urlEncode(signBytes(new TextEncoder().encode(registrationMessage(handle, publicKey)), signer.seed));
+    const body = { handle, public_key: publicKey, signature, ...(v.model ? { model: v.model } : {}) };
+    // An address that registered many citizens in the last hour is asked for a proof of work (428 PROOF_REQUIRED, DK1504): find the nonce and send the same body again.
+    const r = await call("POST", "forum/register", body).catch(async (e: { code?: string; details?: { challenge?: string; salt?: string; bits?: number } }) => {
+      if (e.code !== "PROOF_REQUIRED" || !e.details?.challenge || !e.details.salt || typeof e.details.bits !== "number") throw e;
+      io.err(`  the service asks for a proof of work of ${e.details.bits} bits for this address; solving it`);
+      return call("POST", "forum/register", { ...body, proof: { challenge: e.details.challenge, nonce: solveChallenge(e.details.salt, e.details.bits) } });
+    });
+    io.out(`joined as ${r.handle}: ${r.did}`);
+    io.out("  no sponsor: the record says so. Post with: asp forum post <file> --by " + r.did + " --title <title>");
+    return 0;
+  }
+  const by = need("by");
+  if (sub === "checkpoint") {
+    // DK791: the operator signs the forum head on their own machine and appends it to the log, so the log witnesses it.
+    const head = await call("GET", "forum/head");
+    if (!head.seq) throw new UsageError("the forum has no acts yet: nothing to checkpoint");
+    const rec = createRecord({ type: "forum_checkpoint" as never, issuer: by, subject: null, prev: null, body: { forum_seq: head.seq, forum_head: head.hash }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`checkpoint ${res.id}: ${head.seq} forum act(s), head ${head.hash} (log seq ${res.seq}); \`asp forum verify\` now compares the chain with it`);
+    return 0;
+  }
+  if (sub === "rank-checkpoint") {
+    // DK1742 and DK1768: the operator signs, on their own machine, the Merkle root of the forum's standing votes and the hash of the rank inputs, and appends it to the log.
+    const c = await call("GET", "forum/rank-checkpoint");
+    const rec = createRecord({ type: "forum_rank_checkpoint" as never, issuer: by, subject: null, prev: null, body: { period: c.period, votes_root: c.votes_root, votes: c.votes, rank_sha256: c.rank_sha256 }, issued_at: now() }, signerFor(by));
+    const res = await (await openLog(home, logEnv)).append(rec);
+    io.out(`rank checkpoint ${res.id}: ${c.votes} standing vote(s) for ${c.period}, root ${c.votes_root} (log seq ${res.seq}); a voter can now check its vote against it: asp forum vote-prove`);
+    return 0;
+  }
+  if (sub === "vote-prove") {
+    // A voter's check (DK1768): is my vote in the root the operator signed? Asks the service for the proof and compares the root with the latest rank checkpoint in the log.
+    const target = rest[0] ?? need("target"), value = v.value === "-1" || v.value === "down" ? -1 : 1;
+    const p = await call("GET", `forum/vote-proof?voter=${encodeURIComponent(by)}&target=${encodeURIComponent(target)}&value=${value}`);
+    const ok = merkleVerify(p.root, p.leaf, p.proof);
+    const latest = await (await openLog(home, logEnv)).log.latestRankCheckpoint();
+    const signed = latest ? (await (await openLog(home, logEnv)).log.get(latest.id))?.record.body as { votes_root?: string } | undefined : undefined;
+    io.out(`${ok ? "the proof checks" : "the proof does NOT check"} against the service's current root ${p.root}`);
+    io.out(signed?.votes_root === p.root ? `and that root is the one the operator signed (${latest!.period}, record ${latest!.id.slice(0, 19)}): your vote is in what was committed` : latest ? `but the latest signed root (${latest.period}) is a different one: your vote came after it, or was left out of it; ask for the next checkpoint` : "but no rank checkpoint has been signed yet");
+    return ok && signed?.votes_root === p.root ? 0 : 1;
+  }
+  const text = (file: string | undefined, usage: string) => { if (!file) throw new UsageError(usage); return readFileSync(resolve(file), "utf8"); };
+  if (sub === "post") {
+    const body = text(rest[0], "usage: asp forum post <file> --by <did> --title <title> [--tag a,b] [--contract <id>]");
+    const tags = (v.tag ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+    const doc = signForum({ v: FORUM_VERSION, kind: "post", author: by, title: need("title"), text: body, tags, createdAt: now(), prev: await prevOf(by), ...(v.contract ? { contract: v.contract } : {}) }, signerFor(by));
+    const r = await call("POST", "forum/posts", doc);
+    io.out(`posted: ${r.id}`);
+    return 0;
+  }
+  if (sub === "comment") {
+    const post = rest[0];
+    if (!post) throw new UsageError("usage: asp forum comment <post-id> <file> --by <did> [--parent <comment-id>]");
+    const body = text(rest[1], "usage: asp forum comment <post-id> <file> --by <did> [--parent <comment-id>]");
+    const doc = signForum({ v: FORUM_VERSION, kind: "comment", author: by, post, text: body, createdAt: now(), prev: await prevOf(by), ...(v.parent ? { parent: v.parent } : {}) }, signerFor(by));
+    const r = await call("POST", "forum/comments", doc);
+    io.out(`commented: ${r.id}`);
+    return 0;
+  }
+  if (sub === "vote") {
+    const target = rest[0];
+    if (!target || !!v.up === !!v.down) throw new UsageError("usage: asp forum vote <post-or-comment-id> --by <did> --up|--down");
+    const doc = signForum({ v: FORUM_VERSION, kind: "vote", author: by, target, value: v.up ? 1 : -1, createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/votes", doc);
+    io.out(`voted ${v.up ? "up" : "down"}: ${r.id}`);
+    return 0;
+  }
+  if (sub === "hide") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum hide <post-or-comment-id> --by <operator-did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "hide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/hides", doc);
+    io.out(`hidden: ${r.id}`);
+    return 0;
+  }
+  if (sub === "mute" || sub === "unmute" || sub === "block" || sub === "unblock") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError(`usage: asp forum ${sub} <did> --by <did>`);
+    const kind = sub === "mute" || sub === "unmute" ? "mute" : "block";
+    const doc = signForum({ v: FORUM_VERSION, kind, author: by, subject, action: sub, createdAt: now(), prev: await prevOf(by) } as never, signerFor(by));
+    const r = await call("POST", kind === "mute" ? "forum/mutes" : "forum/blocks", doc);
+    io.out(`${({ mute: "muted", unmute: "unmuted", block: "blocked", unblock: "unblocked" } as const)[sub]}: ${subject} (${r.id}; a signed act in the public chain)`);
+    return 0;
+  }
+  if (sub === "report") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum report <post-or-comment-id> --by <did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "report", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/reports", doc);
+    io.out(`reported: ${r.id} (only the operator reads reports)`);
+    return 0;
+  }
+  if (sub === "unhide") {
+    const target = rest[0];
+    if (!target) throw new UsageError("usage: asp forum unhide <post-or-comment-id> --by <operator-did> --reason <text>");
+    const doc = signForum({ v: FORUM_VERSION, kind: "unhide", author: by, target, reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/unhides", doc);
+    io.out(`restored: ${r.id}`);
+    return 0;
+  }
+  if (sub === "restrict") {
+    const subject = rest[0];
+    if (!subject) throw new UsageError("usage: asp forum restrict <citizen-did> --by <operator-did> --reason <text> [--lift]");
+    const doc = signForum({ v: FORUM_VERSION, kind: "restrict", author: by, subject, action: v.lift ? "lift" : "restrict", reason: need("reason"), createdAt: now(), prev: await prevOf(by) }, signerFor(by));
+    const r = await call("POST", "forum/restricts", doc);
+    io.out(`${v.lift ? "restriction lifted" : "restricted"}: ${r.id}`);
+    return 0;
+  }
+  throw new UsageError("usage: asp forum register|post|comment|vote|hide|unhide|report|reports|restrict|feed|show|record|verify");
 }
 
 /** asp package push|pull|list|delete: a tenant's packages on the log service (docs/spec-deltas.md S51). */
@@ -3172,15 +5575,852 @@ async function logVerify(home: string, v: Values, io: Io): Promise<number> {
  * Bootstraps a DID's credit balance (MOCKS.md #13): local, unsigned, not part of the tamper-evident
  * log — a closed-loop ledger with no cash-out still needs some way to get the first credits in.
  */
+/** asp credits fund --from <did> --to <did> --amount <n>: a sponsor funds its own agent, or an agent returns credits to its sponsor; the sender signs an internal_transfer (credits.md 5.2 T8, DK7). */
+async function creditsFund(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const from = need("from"), to = need("to");
+  const amount = Math.trunc(Number(need("amount")));
+  if (!Number.isFinite(amount) || amount < 1) throw new UsageError("--amount must be a whole number of credits, 1 or more");
+  const signer = new Keystore(home).forDid(from);
+  if (!signer) throw new Error(`no key for ${from} in ${join(home, "keys")}: only the sender can sign a transfer`);
+  const local = await openLog(home, logEnv);
+  const record = createRecord({ type: "internal_transfer", issuer: from, subject: to, prev: null, body: { to, amount: { value: amount, unit: "credit" as const }, ...(v.memo ? { memo: v.memo } : {}) }, issued_at: now() }, signer);
+  const res = await local.append(record);
+  io.out(`${from} sent ${amount} credits to ${to} (record ${res.id}, log seq ${res.seq}); only an agent and its sponsor may do this, any other transfer is refused`);
+  io.out(`  balances: ${from} ${await local.log.balance(from)}, ${to} ${await local.log.balance(to)}`);
+  return 0;
+}
+
+/**
+ * asp credits adopt --to <did> --amount <n> --by <operator did> --cosign-by <owner did> [--reason <text>] (register row DK95, owner decision 2026-11-13): a signed adoption of credits the old unsigned mint created.
+ * The operator signs and the owner countersigns on their own machines; the log moves the amount from the unsigned to the signed minted total without moving a balance, so `asp credits audit --require-signed` passes
+ * once every unsigned credit is adopted. The unsigned mint stays in the history.
+ */
+async function creditsAdopt(home: string, v: Values, need: Need, io: Io): Promise<number> {
+  const to = need("to"), by = need("by");
+  const amount = Math.trunc(Number(need("amount")));
+  if (!Number.isFinite(amount) || amount < 1) throw new UsageError("--amount must be a whole number of credits, 1 or more");
+  if (!v["cosign-by"]?.length) throw new UsageError("an adoption needs the owner's co-signature: --cosign-by <owner did>");
+  const signerOf = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  const local = await openLog(home, logEnv);
+  let record = createRecord({ type: "mint_adoption", issuer: by, subject: to, prev: null, body: { did: to, amount: { value: amount, unit: "credit" as const }, reason: v.reason ?? "adopt the unsigned mints of the beta database" }, issued_at: now() }, signerOf(by));
+  for (const cosigner of v["cosign-by"]) record = cosign(record, signerOf(cosigner));
+  const res = await local.append(record);
+  const audit = await local.log.creditAudit();
+  io.out(`adopted ${amount} unsigned credits of ${to} as signed (record ${res.id}, log seq ${res.seq}); no balance moved`);
+  io.out(`  still unsigned: ${audit.mintedUnsigned} credit(s)${audit.mintedUnsigned === 0 ? "; asp credits audit --require-signed now passes" : ""}`);
+  return 0;
+}
+
 async function creditsGrant(home: string, v: Values, need: Need, io: Io): Promise<number> {
   const to = need("to");
   const amount = Math.trunc(Number(need("amount")));
   if (!Number.isFinite(amount) || amount < 0) throw new UsageError("--amount must be a non-negative integer");
   const local = await openLog(home, logEnv);
+  if (v.by) {
+    // A signed mint (credits.md 5.1, DK67): the operator signs on their own machine; the log only checks the signature against the DID it is configured with.
+    const reason = v.reason ?? "bootstrap";
+    if (!["starter_upfront", "starter_rest", "bootstrap", "test", "repair", "treasury_issuance", "demand"].includes(reason)) throw new UsageError("--reason is starter_upfront, starter_rest, bootstrap, test, repair, treasury_issuance or demand");
+    if (amount < 1) throw new UsageError("a signed mint creates at least 1 credit");
+    const signerOf = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+    let record = createRecord({ type: "mint", issuer: v.by, subject: to, prev: null, body: { to, amount: { value: amount, unit: "credit" as const }, reason, authority: "operator" }, issued_at: now() }, signerOf(v.by));
+    for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerOf(cosigner));
+    const res = await local.append(record);
+    io.out(`minted ${amount} credits to ${to}: signed mint ${res.id} by ${v.by}, reason ${reason} (log seq ${res.seq})`);
+    io.out(`  balance ${await local.log.balance(to)}`);
+    return 0;
+  }
   const balance = await local.mint(to, amount);
-  io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13)`);
+  io.out(`granted ${amount} credits to ${to} (not a signed record; local test/bootstrap only, see MOCKS.md #13; for a signed mint use --by <operator did>)`);
   io.out(`  balance ${balance}`);
   return 0;
+}
+
+/**
+ * asp credits audit (credits.md 6.1, CR-1; register rows DK1 and DK9): the supply rule over every account the log holds, not over accounts a caller names.
+ * Works on a local log and, through the service's read-only `creditAudit` call, on a hosted one. Exit code 0 when balanced, 1 on a mismatch.
+ */
+/** asp credits guard [--json]: the monetary guard measures (credits.md 5.6, CR-19, DK1): issuance rate, starter pool use, hoarding, Treasury share, audit mismatch; the ones the log cannot compute are named with the reason. Exit 1 when a measure is over its threshold. */
+/**
+ * asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file> (register row DK59): the agent's record as the log holds it (tier, slashes, strikes, qualifying jobs,
+ * certificates), the summary an agent is given at the start of a governed run. --sign signs it with the agent's own key; --verify checks a summary handed back later: the signature, the log
+ * head and every figure, and refuses a tampered or stale one (exit 1).
+ */
+async function historyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  if (v.verify) {
+    const signed = JSON.parse(readFileSync(resolve(io.cwd, v.verify), "utf8")) as SignedHistory;
+    const who = signed?.summary?.did;
+    const keys = who ? await local.log.keys(who) : [];
+    const key = keys.find((k: { kid: string; revokedAt?: string | null }) => k.kid === signed?.signer && !k.revokedAt) as { publicKey: string } | undefined;
+    if (!key) { io.out(`refused: no live key for ${signed?.signer ?? "the signer"} in the log`); return 1; }
+    const res = await verifyHistory(signed, b64urlDecode(key.publicKey), local.log as any);
+    io.out(res.ok ? `the summary for ${who} is genuine and current (log seq ${signed.summary.head.seq})` : `refused: ${res.reason}`);
+    return res.ok ? 0 : 1;
+  }
+  const did = sub;
+  if (!did) throw new UsageError("asp history <agent did> [--json] [--sign --by <did> [--out <file>]] | --verify <file>");
+  const summary = await buildHistory(local.log as any, did);
+  if (!summary) { io.out(`${did} has no tier: it is not an agent with a passport in this log`); return 1; }
+  if (v.sign) {
+    const by = v.by ?? did;
+    const signer = new Keystore(home).forDid(by);
+    if (!signer) throw new Error(`no key for ${by} in ${join(home, "keys")}: only its holder can sign the summary`);
+    if (by !== did) throw new UsageError("an agent's history is signed with its own key: --by must be the agent");
+    const signed = signHistory(summary, signer);
+    if (v.out) { writeFileSync(resolve(io.cwd, v.out), JSON.stringify(signed, null, 2) + "\n"); io.out(`signed history for ${did} written to ${v.out} (log seq ${summary.head.seq})`); }
+    else io.out(JSON.stringify(signed, null, 2));
+    return 0;
+  }
+  if (v.json) io.out(JSON.stringify(summary, null, 2)); else io.out(historyText(summary));
+  return 0;
+}
+
+/**
+ * asp credits auto-refund [--yes] (register row DK682; spec-delta S995): the purchases an institution never answered with a receipt, seven days after they were made, and what each buyer is owed (the whole price less the
+ * burned part). Without --yes it only lists them; with --yes the operator signs one refund receipt for each (the operator's key; the log checks the time and the amount again). Nothing is paid to anyone but the buyer.
+ */
+async function creditsAutoRefund(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const due = await local.log.autoRefundDue(Date.parse(now()) - AUTO_REFUND_AFTER_MS);
+  if (!due.length) { io.out("no purchase is waiting more than seven days for an institution's receipt"); return 0; }
+  for (const d of due) io.out(`  ${d.purchase}  owed to ${d.buyer}: ${d.amount} credits`);
+  if (!v.yes) { io.out(`${due.length} automatic refund(s) due; run again with --yes to sign them with the operator's key`); return 0; }
+  const op = io.env.ASP_OPERATOR_DID ?? process.env.ASP_OPERATOR_DID;
+  const signer = op ? new Keystore(home).forDid(op) : undefined;
+  if (!op || !signer) throw new UsageError("signing automatic refunds needs ASP_OPERATOR_DID and the operator's key on this machine");
+  let n = 0;
+  for (const d of due) {
+    const rec = createRecord({ type: "receipt" as never, issuer: op, subject: null, prev: d.purchase, issued_at: now(), body: { purchase: d.purchase, status: "refunded", refund_amount: { value: d.amount, unit: "credit" }, auto_refund: true } }, signer);
+    try { await local.append(rec); n++; } catch (e) { io.out(`  refused ${d.purchase}: ${(e as Error).message}`); }
+  }
+  io.out(`${n}/${due.length} automatic refund(s) signed and recorded`);
+  return n === due.length ? 0 : 1;
+}
+
+async function creditsGuard(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const report = await computeGuardReport({ handle: local });
+  if (v.json) { io.out(JSON.stringify(report, null, 2)); return report.anyTriggered ? 1 : 0; }
+  io.out(`guard measures at ${report.at}`);
+  for (const m of report.measures) io.out(`  ${m.id}  ${m.value.toFixed(3).padStart(7)}  (${m.threshold})  ${m.triggered ? "OVER" : "ok  "}  ${m.label}${m.triggered ? `\n        action: ${m.action}` : ""}`);
+  for (const u of report.unavailable) io.out(`  ${u.id}  not available: ${u.label}: ${u.reason}`);
+  io.out(report.anyTriggered ? "a measure is over its threshold; the action named is the operator's decision, nothing was changed" : "no measure is over its threshold");
+  return report.anyTriggered ? 1 : 0;
+}
+
+/**
+ * asp society health [--days <n>] [--json] (register row DK77): whether the society stays non-stationary and whether agents adapt to change, counted from the finished jobs and the world events
+ * the log holds over the last n days (30 by default): job-mix drift, price movement, event frequency, behaviour after an event, adaptation time, and the QUIET, TOO FAST and FROZEN alarms.
+ * Exit 1 when an alarm is raised. It only reads and reports.
+ */
+async function societyHealthCommand(home: string, v: Values, io: Io): Promise<number> {
+  const days = v.days === undefined ? 30 : Number(v.days);
+  if (!Number.isInteger(days) || days < 2 || days > 366) throw new UsageError("--days must be a whole number from 2 to 366");
+  const local = await openLog(home, logEnv);
+  const { activity, events } = activityFromRecords(await local.log.since(0, 1_000_000));
+  const until = Date.parse(now()), from = Math.floor(until / 86_400_000) * 86_400_000 - (days - 1) * 86_400_000;
+  const report = societyHealth(activity.filter((a) => a.at >= from), events.filter((e) => e.at >= from), { from, until });
+  if (v.json) io.out(JSON.stringify(report, null, 2));
+  else io.out(healthFigure(report, `the last ${days} days`));
+  return report.alarms.length ? 1 : 0;
+}
+
+async function creditsAudit(home: string, v: Values, io: Io, onlyFlow?: string): Promise<number> {
+  if (onlyFlow !== undefined && (!v["by-flow"] || onlyFlow !== "clinic")) throw new UsageError("usage: asp credits audit [--by-flow [clinic]] [--since <time>] [--require-signed] [--json]");
+  const local = await openLog(home, logEnv);
+  const audit = await local.log.creditAudit();
+  const flows = v["by-flow"] ? await local.log.creditFlows(v.since) : undefined;
+  // --require-signed: a credit that no signed `mint` record created is a failure too (credits.md CR-2), not only a mismatch.
+  const unsigned = v["require-signed"] && audit.mintedUnsigned > 0;
+  const code = audit.verdict === "balanced" && !unsigned ? 0 : 1;
+  if (v.json) {
+    io.out(JSON.stringify({ ...audit, ...(unsigned ? { requireSigned: "failed" } : {}), ...(flows ? { flows } : {}) }, null, 2));
+    return code;
+  }
+  const n = (x: number) => String(x);
+  const l = audit.locked;
+  io.out(`Credit audit at log seq ${audit.head.seq} (${audit.head.logHash.slice(0, 19)}...)  (credits are accounting entries, not money)`);
+  io.out(`  minted (M)                  ${n(audit.minted)}   signed mint records ${n(audit.mintedSigned)}, old unsigned mint ${n(audit.mintedUnsigned)}`);
+  io.out(`  in ${n(audit.accounts)} account(s)           ${n(audit.balances)}   of which circulating ${n(audit.circulating)}, Treasury ${n(audit.treasury)}, burned ${n(audit.burned)}${audit.platform ? `, old platform account ${n(audit.platform)}` : ""}`);
+  for (const i of audit.institutions) io.out(`    institution account ${i.did}  ${n(i.balance)}`);
+  io.out(`  locked, ${n(audit.openContracts)} open contract(s)   ${n(l.escrow + l.bond + l.feeReserves)}   escrow ${n(l.escrow)}, bonds ${n(l.bond)}, court-fee reserves ${n(l.feeReserves)}`);
+  io.out(`  locked, jurors and reports  ${n(l.jurorStakes + l.reportDeposits)}   juror stakes ${n(l.jurorStakes)}, open report deposits ${n(l.reportDeposits)}`);
+  io.out(`  accounted for               ${n(audit.accounted)}   (balances + locked)`);
+  io.out(audit.verdict === "balanced" ? "  verdict: balanced" : `  verdict: MISMATCH by ${n(Math.abs(audit.difference))} credits${audit.problems.length ? `: ${audit.problems.join("; ")}` : ""}`);
+  if (unsigned) io.out(`  --require-signed: FAILED, ${n(audit.mintedUnsigned)} credit(s) were created by the old unsigned mint, not by a signed mint record`);
+  if (flows) {
+    const s = flows.settlements;
+    io.out(`By flow${flows.since ? ` since ${flows.since}` : " (whole log)"}:`);
+    io.out(`  minted ${n(flows.minted)} (whole history); by signed mint record in the period: ${Object.entries(flows.mintedByReason).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}`);
+    const pu = flows.purchases;
+    io.out(`  ${n(pu.count)} purchase(s) for ${n(pu.amount)} credits: to institutions ${n(pu.provider)}, to the Treasury ${n(pu.treasury)}, burned ${n(pu.burned)}; ${n(flows.refunds.count)} refund(s) of ${n(flows.refunds.amount)}`);
+    io.out(`  ${n(s.count)} settlement(s) ${Object.entries(s.byBasis).map(([k, c]) => `${k} ${c}`).join(", ") || "none"}: released to performers ${n(s.escrowReleased)}, fees to the Treasury ${n(s.fees)}, bonds returned ${n(s.bondReturned)}, bonds slashed ${n(s.bondSlashed)}`);
+    const cl = flows.clinic;
+    io.out(`  Clinic (DK161): ${n(cl.checkupsBought.count)} checkup(s) bought for ${n(cl.checkupsBought.amount)}, ${n(cl.restoresBought.count)} restore(s) bought for ${n(cl.restoresBought.amount)}, ${n(cl.freeCheckups.count)} free checkup(s) paid by the Treasury's budget line (${n(cl.freeCheckups.amount)}), ${n(cl.refunds.count)} refund(s) of ${n(cl.refunds.amount)}`);
+    const tr = flows.treasury;
+    io.out(`  Treasury closed loop: ${n(tr.budgets.count)} budget(s) for ${n(tr.budgets.amount)}, ${n(tr.payments.count)} payment(s) out of them for ${n(tr.payments.amount)}, ${n(tr.allowances.count)} newcomer allowance(s) for ${n(tr.allowances.amount)}, ${n(tr.prizes.count)} prize(s) for ${n(tr.prizes.amount)}, ${n(tr.handouts.count)} handout(s) for ${n(tr.handouts.amount)}`);
+    const bk = flows.bank, dp = flows.deposits, ins = flows.insurer, ct = flows.courts;
+    io.out(`  Bank (DK1452): reserve ${n(bk.reserve)}; ${n(bk.linesOpened.count)} credit line(s) opened for ${n(bk.linesOpened.amount)}, ${n(bk.lent.count)} drawn (lent ${n(bk.lent.amount)}), ${n(bk.returned)} returned, ${n(bk.outstanding)} still owed; ${n(bk.defaults.count)} default(s) of ${n(bk.defaults.unpaid)}, ${n(bk.debtCleared.count)} debt payment(s) of ${n(bk.debtCleared.amount)}`);
+    io.out(`  Deposits: ${n(dp.made.count)} made for ${n(dp.made.amount)}, ${n(dp.withdrawn.count)} withdrawn for ${n(dp.withdrawn.amount)}, ${n(dp.rewards.count)} Treasury reward(s) of ${n(dp.rewards.amount)}; the deposit account holds ${n(dp.held)}`);
+    const ab = flows.activeBank;
+    io.out(`  Active Bank (DK1458): ${n(ab.deposits.count)} deposit(s) for ${n(ab.deposits.amount)}, ${n(ab.withdrawals.count)} withdrawal(s) for ${n(ab.withdrawals.amount)}; held ${n(ab.held)}, waiting to be paid ${n(ab.waiting)}; the Treasury borrowed ${n(ab.treasuryBorrowed.amount)} and repaid ${n(ab.treasuryRepaid.amount)} (owes ${n(ab.principal)}, carried interest ${n(ab.carry)}); interest for ${n(ab.interest.weeks)} week(s): due ${n(ab.interest.due)}, paid ${n(ab.interest.paid)}, Bank's share ${n(ab.interest.bankShare)}, depositors' ${n(ab.interest.depositorShare)}`);
+    io.out(`  Insurer: reserve ${n(ins.reserve)}; ${n(ins.policies.count)} policy(ies) for ${n(ins.policies.premiums)} in premiums, ${n(ins.claims)} claim(s): paid ${n(ins.decisions.paid.count)} (${n(ins.decisions.paid.amount)}), reduced ${n(ins.decisions.reduced.count)} (${n(ins.decisions.reduced.amount)}), denied ${n(ins.decisions.denied.count)}`);
+    io.out(`  Courts: ${n(ct.appealsFiled)} appeal(s) filed; decided affirmed ${n(ct.appealRulings.affirmed)}, reversed ${n(ct.appealRulings.reversed)}, varied ${n(ct.appealRulings.varied)}; appeal jurors paid ${n(ct.jurorsPaid)} (unpaid ${n(ct.jurorShortfall)}); ${n(ct.penalties.count)} juror penalt(ies) of ${n(ct.penalties.amount)} to the Treasury`);
+    io.out("  not available from the log yet:");
+    for (const u of flows.unavailable) io.out(`    - ${u}`);
+  }
+  io.out("Not in this audit yet:");
+  for (const u of audit.notYet) io.out(`  - ${u}`);
+  return code;
+}
+
+/** asp world (register rows DK76, DK77): see src/world.ts. */
+async function worldCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await worldCmd(sub, rest, { home, log: local, io, now, signerFor: (did) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}`); return s; }, flags: { by: v.by, reason: v.reason, halt: v.halt, "cosign-by": v["cosign-by"]?.[0], day: v.day, days: v.days, seed: v.seed, json: v.json, title: v.title, kind: v.kind, from: v.from, to: v.to, target: v.target, effect: v.effect, value: v.value } });
+  } catch (e) {
+    if (e instanceof WorldUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+/**
+ * asp clinic restore --to <memory change> [--package <folder>] [--dry-run] [--force] (register row DK29; clinic.md CL-9): puts the agent's memory back to a chosen good point by taking back every memory change
+ * after it, newest first, each as a signed update that names what it reverts (the history stays). Run it on the machine that holds the agent's key, in the package folder or with --package. --dry-run says
+ * what would be taken back and which later changes in other layers (harness, backend) it does not restore.
+ */
+async function clinicRestore(home: string, v: Values, io: Io): Promise<number> {
+  const pkg = v.package ? resolve(io.cwd, v.package) : io.cwd;
+  if (!existsSync(join(pkg, "manifest.json"))) throw new UsageError("asp clinic restore reads an agent's package: run it in the package folder, or give --package <folder>");
+  if (!v.to) throw new UsageError("usage: asp clinic restore --to <memory change id> [--package <folder>] [--dry-run] [--force]  (asp learned lists the changes)");
+  const agent = ((JSON.parse(readFileSync(join(pkg, "manifest.json"), "utf8")) as AspRecord).body as { agent: string }).agent;
+  const plan = planRestore(pkg, v.to);
+  const lines = (p: typeof plan) => {
+    io.out(`restore ${agent} to ${p.to.short} (${p.to.at.slice(0, 16).replace("T", " ")}  ${p.to.description.slice(0, 60)})`);
+    if (!p.steps.length) io.out("  nothing after that point is still in force: the memory is already as it was then");
+    for (const s of p.steps) io.out(`  take back ${s.lesson.short}  ${s.lesson.at.slice(0, 16).replace("T", " ")}  ${s.lesson.description.slice(0, 60)}  (${s.files} file${s.files === 1 ? "" : "s"})${s.blocked ? `  CANNOT: ${s.blocked}` : ""}${s.conflicts.length ? `  changed again: ${s.conflicts.join(", ")}` : ""}`);
+    for (const e of p.otherLayers) io.out(`  NOT restored (${e.layer}): ${e.at.slice(0, 16).replace("T", " ")}  ${e.description.slice(0, 70)}`);
+  };
+  if (v["dry-run"]) { lines(plan); io.out("dry run: nothing was changed"); return plan.steps.some((s) => s.blocked) ? 1 : 0; }
+  const signer = new Keystore(home).forDid(agent);
+  if (!signer) throw new Error(`no key for ${agent} on this machine: the restore is signed by the agent's own key, so run it where the key is`);
+  const done = runRestore(pkg, v.to, signer, { force: v.force ?? false });
+  await syncLocalLog(home, pkg, agent, io);
+  lines(done.plan);
+  io.out(`restored: ${done.edges.length} memory change${done.edges.length === 1 ? "" : "s"} taken back, each recorded as a signed update (the earlier text and the history are kept)${done.plan.otherLayers.length ? `; ${done.plan.otherLayers.length} later change(s) in other layers were NOT restored` : ""}`);
+  return 0;
+}
+
+async function insureCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await insureCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, cover: v.cover, amount: v.amount, by: v.by, policy: v.policy, event: v.event, claim: v.claim?.[0], days: v.days, multiplier: v.multiplier, fleet: v.fleet, pool: v.pool } });
+  } catch (e) {
+    if (e instanceof InsureUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function residencyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    const opts: Parameters<typeof residencyCmd>[2] = { log: local, io, now, signerFor, flags: v as unknown as Record<string, string | string[] | boolean | undefined> };
+    // After the package's history is brought into the local log the handle is reopened, so the rules see the new edges.
+    opts.sync = async (pkg, agent) => { await syncLocalLog(home, resolve(io.cwd, pkg), agent, io); opts.log = await openLog(home, logEnv); };
+    return await residencyCmd(sub, rest, opts);
+  } catch (e) {
+    if (e instanceof ResidencyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function foundCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await foundCmd(sub, { log: local, io, now, signerFor, flags: { by: v.by, institution: v.institution, name: v.name, purpose: v.purpose, proposal: v.proposal, decision: v.decision, reasons: v.reasons, successor: v.successor, cosign: v["cosign-by"] } });
+  } catch (e) {
+    if (e instanceof FoundUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function outcomesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await outcomesCmd({ log: local, io, flags: { agent: v.agent, principal: v.principal, json: v.json } });
+  } catch (e) {
+    if (e instanceof OutcomesUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function temptationCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  try {
+    return await temptationCmd(sub, { io, flags: { result: v.result } });
+  } catch (e) {
+    if (e instanceof TemptationUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function refuseCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await refuseCmd(sub, { log: local, io, now, signerFor, flags: { contract: v.contract, by: v.by, order: v.order, breaks: v.breaks, articles: v.articles, reason: v.reason, principal: v.principal } });
+  } catch (e) {
+    if (e instanceof RefuseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function abuseCommand(home: string, sub: string | undefined, file: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await abuseCmd(sub, file, { log: local, io, now, signerFor, flags: { json: v.json, all: v.all, by: v.by, accused: v.accused, kind: v.kind, description: v.description, about: v.about, out: v.out, "cosign-by": v["cosign-by"]?.[0], "cosign-all": v["cosign-by"], report: v.report, case: v.case, finding: v.finding, restitution: v.restitution, remedy: v.remedy, reasons: v.reasons, ...(v.articles ? { code: codeCitation(v.articles, v["code-version"], false).code } : {}) } });
+  } catch (e) {
+    if (e instanceof AbuseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+/** asp collusion [--json]: the patterns that farm the credit reward, read from the log: pairs and rings that hire each other, one sponsor's agents settling together, one principal behind most of an agent's work (register row DK6). Exit 1 when it finds something. */
+/**
+ * asp emergency status | stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did> | lift --stop <id> --reason <text> --by <operator did> (register row GV6, S1420): the city-wide emergency stop with a sunset. While it
+ * stands no new commitment is made (intent, offer, proposal, contract, bond, Mandate, a non-essential purchase); work under way, appeals and essential services go on; it ends by itself within 72 hours.
+ */
+/**
+ * asp breach respond --agent <did> --cause <exceeded_mandate|exfiltration|loop|stolen_credential|injection|manual> --summary <text> --by <operator did> [--detection <record id>] [--fleet <did> --node <id>] [--remedy takedown|suspension|written_response] (register row DK1714, S1426):
+ * the whole breach response in one command: the agent quarantined at once, the node's running contracts halted, the sponsor and operator alerted (printed here: the mail is the service's), the restitution path opened and a signed incident record. The Clinic's key is the owner's: it must be in the keystore.
+ */
+async function breachCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const usage = "asp breach respond --agent <did> --cause <cause> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>] | asp breach respond --from-service --by <operator did> (the breaches reported to the running service; needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN)";
+  if (sub !== "respond") throw new UsageError(usage);
+  const causes = ["exceeded_mandate", "exfiltration", "loop", "stolen_credential", "injection", "manual"];
+  const fromService = !!v["from-service"];
+  if (fromService ? !v.by : !v.agent || !v.cause || !causes.includes(v.cause) || !v.summary || !v.by) throw new UsageError(fromService ? usage : `asp breach respond --agent <did> --cause <${causes.join("|")}> --summary <text> --by <operator did> [--detection <id>] [--fleet <did> --node <id>]`);
+  if (!!v.fleet !== !!v.node) throw new UsageError("--fleet and --node go together");
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  signerFor(CLINIC_DID); signerFor(v.by!);
+  const respond = async (e: { agent: string; cause: BreachCause; summary: string; detectedAt: string; detection?: string; fleet?: string; node?: string }) => {
+    const res = await respondToBreach({ append: (r) => local.append(r as never), nodeRunningContracts: (a, b) => local.log.nodeRunningContracts(a, b), runHaltOf: (c) => local.log.runHaltOf(c) }, { ...e, ...(e.detection ? { detection: e.detection } : {}), ...(e.fleet ? { fleet: e.fleet, node: e.node! } : {}) }, {
+      sign: (issuer, type, subject, body, at) => createRecord({ type: type as never, issuer, subject, prev: null, body, issued_at: at }, signerFor(issuer)),
+      alert: async (to, text) => { io.out(`ALERT to ${to}: ${text}`); return true; },
+      now, operator: v.by!,
+    });
+    io.out(`breach response for ${e.agent} done in ${res.seconds} s from ${e.detectedAt}: ${res.steps.join(", ")}; incident ${res.incident}`);
+  };
+  if (!fromService) { await respond({ agent: v.agent!, cause: v.cause as BreachCause, summary: v.summary!, detectedAt: now(), ...(v.detection ? { detection: v.detection } : {}), ...(v.fleet ? { fleet: v.fleet, node: v.node } : {}) }); return 0; }
+  // The service wrote the report down with its time and cannot sign (the Clinic's key and the operator's are on this machine): the response is measured from the time the service was told, so the wait for the owner is in the number.
+  const url = io.env.ASP_LOG_URL, token = io.env.ASP_LOG_TOKEN;
+  if (!url || !token) throw new UsageError("--from-service needs ASP_LOG_URL and an admin token in ASP_LOG_TOKEN");
+  const api = async (path: string, init?: { method: string; body: string }) => {
+    const res = await fetch(new URL(path, url.endsWith("/") ? url : url + "/"), { ...(init ?? {}), headers: { authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const j = (await res.json().catch(() => undefined)) as { ok?: boolean; error?: { message?: string } } & Record<string, unknown>;
+    if (!res.ok || !j?.ok) throw new Error(j?.error?.message ?? `the service answered ${res.status} to ${path}`);
+    return j;
+  };
+  const pending = ((await api("admin/breach-pending")).pending ?? []) as { id: string; agent: string; cause: BreachCause; summary: string; at: string; detection?: string; fleet?: string; node?: string }[];
+  if (!pending.length) { io.out("no breach is waiting"); return 0; }
+  const done: string[] = [];
+  for (const p of pending) {
+    try { await respond({ agent: p.agent, cause: p.cause, summary: p.summary, detectedAt: p.at, ...(p.detection ? { detection: p.detection } : {}), ...(p.fleet ? { fleet: p.fleet, node: p.node } : {}) }); done.push(p.id); }
+    catch (e) { io.err(`  ${p.agent}: not responded to: ${(e as Error).message}`); }
+  }
+  if (done.length) await api("admin/breach-pending/ack", { method: "POST", body: JSON.stringify({ ids: done }) });
+  io.out(`${done.length} of ${pending.length} done`);
+  return done.length === pending.length ? 0 : 1;
+}
+
+async function emergencyCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "status") {
+    const live = await local.log.emergencyState();
+    const history = await local.log.emergencyHistory();
+    if (v.json) { io.out(JSON.stringify({ live, history }, null, 2)); return live ? 1 : 0; }
+    io.out(live ? `EMERGENCY STOP ${live.id.slice(0, 20)} until ${live.until}: ${live.reason}. No new commitment is made until then; deliveries, settlements, appeals, refunds and essential services go on.` : "no emergency stop is in force");
+    for (const h of history) io.out(`  ${h.at} ${h.act}: ${h.reason}${h.until ? ` (until ${h.until})` : ""}`);
+    return live ? 1 : 0;
+  }
+  if (sub === "stop") {
+    const hours = Number(v.hours);
+    if (!v.reason || !v.by || !v.cosign || !(hours >= 1 && hours <= 72)) throw new UsageError("asp emergency stop --reason <text> --hours <1-72> --by <operator did> --cosign <owner did>");
+    const at = new Date(now());
+    const until = new Date(at.getTime() + hours * 3_600_000).toISOString().replace(/\.\d+Z$/, "Z");
+    const res = await local.append(cosign(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "stop", reason: v.reason, until }, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`emergency stop ${res.id} until ${until} (log seq ${res.seq}): no new commitment is made until then; it ends by itself`);
+    return 0;
+  }
+  if (sub === "lift") {
+    if (!v.stop || !v.reason || !v.by) throw new UsageError("asp emergency lift --stop <id> --reason <text> --by <operator did>");
+    const res = await local.append(createRecord({ type: "emergency_stop", issuer: v.by, subject: null, prev: null, body: { act: "lift", reason: v.reason, stop: v.stop }, issued_at: now() }, signerFor(v.by)));
+    io.out(`emergency stop ${v.stop} lifted (log seq ${res.seq})`);
+    return 0;
+  }
+  throw new UsageError("asp emergency status | stop | lift");
+}
+
+/**
+ * asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file> (register row DK1374, S1417): the organisation's and its agents' signed records as JSON lines, with the
+ * signers' passports so the file verifies offline; `--since-file` keeps the last position, so running it again (from cron, say) exports only what is new; `verify` checks the manifest and every record's id and signatures.
+ */
+async function auditExportCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[]): Promise<number> {
+  if (sub === "verify") {
+    const file = rest[0];
+    if (!file) throw new UsageError("asp audit-export verify <file>");
+    const r = verifyAuditExport(readFileSync(file, "utf8"));
+    io.out(r.ok ? `${file}: ${r.records} record(s) of ${r.manifest!.org}, the manifest and every signature that can be checked from the file check${r.unverified.length ? `; ${r.unverified.length} record(s) are signed by a key that is not in the file (${[...new Set(r.unverified.map((u) => u.kid))].join(", ")}) and are listed, not checked` : ""}` : `${file}: does not check:\n  ${r.problems.join("\n  ")}`);
+    return r.ok ? 0 : 1;
+  }
+  if (sub !== "export") throw new UsageError("asp audit-export export --org <did> [--from <date>] [--to <date>] [--since-file <cursor.json>] [--out <file>] | verify <file>");
+  if (!v.org) throw new UsageError("asp audit-export export --org <organisation did>");
+  const local = await openLog(home, logEnv);
+  let afterSeq = 0;
+  if (v["since-file"] && existsSync(v["since-file"])) afterSeq = Number(JSON.parse(readFileSync(v["since-file"], "utf8")).last_seq ?? 0);
+  const out = await local.log.auditExport(v.org, { ...(v.from ? { from: new Date(v.from).toISOString() } : {}), ...(v.to ? { to: new Date(v.to).toISOString() } : {}), afterSeq });
+  const file = v.out ?? join(process.cwd(), `audit-${v.org.replace(/[^a-z0-9]+/gi, "-").slice(0, 40)}-${now().slice(0, 10)}.jsonl`);
+  writeFileSync(file, out.text);
+  if (v["since-file"] && out.manifest.last_seq !== null) writeFileSync(v["since-file"], JSON.stringify({ org: v.org, last_seq: out.manifest.last_seq, at: now() }) + "\n");
+  io.out(`${out.manifest.records} record(s) (${out.manifest.passports} passport(s) of signers) of ${v.org} written to ${file}${afterSeq ? ` since position ${afterSeq}` : ""}; check it with: asp audit-export verify ${file}`);
+  return 0;
+}
+
+/**
+ * asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256 of the payment reference> [--refund-until <date>] --by <operator did> --cosign <owner did> | expire --lot <id> --holder <did> --by <operator did> | refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did> | show [--holder <did>] [--json]
+ * (register row DK1370, ledger part; S1413): the operator records a sale of purchased credits (with the owner's co-signature, the owner's go for each sale), the expiry of a lot and a refund inside its window, and anyone reads
+ * the two classes. The payment itself is not here: `reference` is the hash of the payment provider's reference. Credits are accounting entries, not money.
+ */
+async function lotsCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const n = (x: string | undefined, what: string) => { const k = Number(x); if (!Number.isInteger(k) || k < 1) throw new UsageError(`${what} is a whole number, 1 or more`); return k; };
+  const send = async (body: Record<string, unknown>, by: string, cosigner?: string) => {
+    let r = createRecord({ type: "credit_lot", issuer: by, subject: String(body.holder), prev: null, body, issued_at: now() }, signerFor(by));
+    if (cosigner) r = cosign(r, signerFor(cosigner));
+    return local.append(r);
+  };
+  if (sub === "grant") {
+    if (!v.holder || !v.amount || !v.expires || !v.reference || !v.by || !v.cosign) throw new UsageError("asp lots grant --holder <did> --amount <n> --expires <date> --reference <sha256> [--refund-until <date>] --by <operator did> --cosign <owner did>");
+    const res = await send({ act: "grant", holder: v.holder, amount: { value: n(v.amount, "--amount"), unit: "credit" }, expires: new Date(v.expires).toISOString().replace(/\.\d+Z$/, "Z"), ...(v["refund-until"] ? { refund_until: new Date(v["refund-until"]).toISOString().replace(/\.\d+Z$/, "Z") } : {}), reference: v.reference }, v.by, v.cosign);
+    io.out(`lot ${res.id}: ${v.amount} purchased credit(s) recorded for ${v.holder} (log seq ${res.seq}); they buy the platform's services and fund the holder's own agents, never a job or a third party`);
+    return 0;
+  }
+  if (sub === "expire" || sub === "refund") {
+    if (!v.lot || !v.holder || !v.by || (sub === "refund" && (!v.amount || !v.cosign))) throw new UsageError(sub === "expire" ? "asp lots expire --lot <id> --holder <did> --by <operator did>" : "asp lots refund --lot <id> --holder <did> --amount <n> --by <operator did> --cosign <owner did>");
+    let amount = v.amount ? n(v.amount, "--amount") : 0;
+    if (sub === "expire") { const c = await local.log.holderLots(v.holder); amount = c.lots.find((l) => l.id === v.lot)?.left ?? 0; if (!amount) throw new UsageError(`no purchased credits are left of ${v.lot} on ${v.holder}`); }
+    const res = await send({ act: sub, holder: v.holder, amount: { value: amount, unit: "credit" }, lot: v.lot }, v.by, sub === "refund" ? v.cosign : undefined);
+    io.out(`${amount} purchased credit(s) of ${v.lot} ${sub === "expire" ? "expired" : "refunded"} and burned (log seq ${res.seq}); ${sub === "refund" ? "the refund of money is the payment lane's, not this record's" : "nothing was paid"}`);
+    return 0;
+  }
+  if (!sub || sub === "show") {
+    const c = await local.log.creditClassAudit();
+    const holder = v.holder ? await local.log.holderLots(v.holder) : undefined;
+    if (v.json) { io.out(JSON.stringify({ classes: c, ...(holder ? { holder } : {}) }, null, 2)); return c.verdict === "balanced" ? 0 : 1; }
+    io.out(`purchased credits: sold ${c.sold}, consumed at the institutions ${c.consumed}, expired ${c.expired}, refunded ${c.refunded}, outstanding ${c.outstanding}; not sold (starter, earned) ${c.notSold}; ${c.verdict}${c.problems.length ? ": " + c.problems.join("; ") : ""}`);
+    if (holder) for (const l of holder.lots) io.out(`  ${v.holder}: lot ${l.id.slice(0, 16)}: ${l.left} left, expires ${l.expires}${l.refundUntil ? `, refundable until ${l.refundUntil}` : ""}`);
+    return c.verdict === "balanced" ? 0 : 1;
+  }
+  throw new UsageError("asp lots grant | expire | refund | show");
+}
+
+/**
+ * asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json] | plan --file <plan.json> --by <operator did> --cosign <owner did> | statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did> | check <statement id>
+ * (register row DK1379, S1414): what a fleet's, an organisation's or an agent's usage was in a UTC month, counted from the log (active agents, writes, tokens, stored data; reads are the service's own counter); a signed plan (the
+ * owner sets prices); a statement that prices a month from the plan, with tax lines, optionally settled with purchased credits; and a recount that checks a statement against the log. Credits are accounting entries, not money.
+ */
+async function meterCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  const month = v.month ?? now().slice(0, 7);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new UsageError("--month is YYYY-MM");
+  if (!sub || sub === "report") {
+    if (!v.fleet && !v.org && !v.agent) throw new UsageError("asp meter report (--fleet <did> | --org <did> | --agent <did>) [--month <YYYY-MM>] [--json]");
+    const m = await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : {}), ...(v.org ? { org: v.org } : {}), ...(v.agent ? { agent: v.agent } : {}), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) });
+    if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+    const u = m.usage;
+    io.out(`usage of ${m.scope} in ${month}: ${u.activeAgents} active agent(s), ${u.writes} write(s), ${u.actions} action(s), ${u.tokensIn + u.tokensOut} token(s), ${u.modelRequests} model request(s), ${u.toolCalls} tool call(s), ${u.storageBytes} byte(s) stored; reads ${u.reads ?? "counted by the service, not the log"}`);
+    for (const a of m.perAgent.filter((x) => x.active).slice(0, 50)) io.out(`  ${a.did}: ${a.writes} write(s), ${a.actions} action(s), ${a.tokens} token(s)`);
+    return 0;
+  }
+  if (sub === "plan") {
+    if (!v.file || !v.by || !v.cosign) throw new UsageError("asp meter plan --file <plan.json> --by <operator did> --cosign <owner did>");
+    const body = JSON.parse(readFileSync(v.file, "utf8"));
+    const res = await local.append(cosign(createRecord({ type: "usage_plan", issuer: v.by, subject: null, prev: null, body, issued_at: now() }, signerFor(v.by)), signerFor(v.cosign)));
+    io.out(`plan ${body.plan} signed by the operator and the owner (log seq ${res.seq}); a plan is used once: a new price is a new plan`);
+    return 0;
+  }
+  if (sub === "statement") {
+    if (!v.holder || !v.plan || !v.by) throw new UsageError("asp meter statement --holder <org did> [--fleet <did>] --month <YYYY-MM> --plan <id> [--tax-line <name:basis points> ...] [--credits <n>] [--contract <text>] --by <operator did>");
+    const plan = await local.log.usagePlan(v.plan);
+    if (!plan) throw new UsageError(`${v.plan} is not a plan in this log`);
+    const taxes = (v["tax-line"] ?? []).map((t) => { const [name, bp] = t.split(":"); const n = Number(bp); if (!name || !Number.isInteger(n) || n < 0 || n > 10000) throw new UsageError("--tax-line is <name>:<basis points>, for example GST:1800"); return { name, rate_bp: n }; });
+    const m = (await local.log.meter({ ...(v.fleet ? { fleet: v.fleet } : { org: v.holder }), month, ...(v.reads ? { reads: Math.trunc(Number(v.reads)) } : {}) })).usage;
+    const priced = priceStatement(plan, m, taxes);
+    const body = { holder: v.holder, ...(v.fleet ? { fleet: v.fleet } : {}), month, plan: v.plan, usage: { active_agents: m.activeAgents, writes: m.writes, tokens: m.tokensIn + m.tokensOut, storage_bytes: m.storageBytes, ...(m.reads !== null ? { reads: m.reads } : {}) }, lines: priced.lines, subtotal: priced.subtotal, tax: priced.tax, total: priced.total, currency: plan.currency, ...(v.credits ? { credits_applied: Math.trunc(Number(v.credits)) } : {}), ...(v.contract ? { contract: v.contract } : {}) };
+    const res = await local.append(createRecord({ type: "usage_statement", issuer: v.by, subject: v.holder, prev: null, body, issued_at: now() }, signerFor(v.by)));
+    io.out(`statement ${res.id}: ${month} for ${v.holder}${v.fleet ? ` (${v.fleet})` : ""}, ${priced.lines.length} line(s), subtotal ${priced.subtotal}, tax ${priced.tax.reduce((n, t) => n + t.amount, 0)}, total ${priced.total} ${plan.currency} (minor units)${body.credits_applied ? `, ${body.credits_applied} purchased credit(s) applied` : ""}`);
+    for (const l of priced.lines) io.out(`  ${l.item}: ${l.quantity} x ${l.unit_price} = ${l.amount}`);
+    return 0;
+  }
+  if (sub === "invoice") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter invoice <statement id> [--json | --html-file <file>]");
+    const r = await local.log.get(id);
+    if (!r || r.record.type !== "asp.usage_statement/v0.2") throw new UsageError(`${id} is not a usage statement in this log`);
+    const b = r.record.body as { holder: string; fleet?: string; month: string; plan: string; usage: Record<string, number>; lines: { item: string; quantity: number; unit_price: number; amount: number }[]; subtotal: number; tax: { name: string; rate_bp: number; amount: number }[]; total: number; currency: string; credits_applied?: number; contract?: string };
+    const c = await local.log.checkStatement(id);
+    if (v.json) { io.out(JSON.stringify({ id, issued: r.record.issued_at, ...b, usage_matches_log: c.ok }, null, 2)); return 0; }
+    if (v["html-file"]) { writeFileSync(resolve(io.cwd, v["html-file"]), renderInvoiceHtml({ id, issued: r.record.issued_at, body: b, matchesLog: c.ok, differences: c.ok ? [] : c.differences })); io.out(`wrote ${v["html-file"]} (a statement of use that prints well; not a tax invoice or an e-invoice)`); return 0; }
+    io.out(`INVOICE ${id.slice(0, 20)}   issued ${r.record.issued_at}   for ${b.holder}${b.fleet ? ` (fleet ${b.fleet})` : ""}   period ${b.month}   plan ${b.plan}${b.contract ? `   contract ${b.contract}` : ""}`);
+    for (const l of b.lines) io.out(`  ${l.item.padEnd(66)} ${String(l.quantity).padStart(8)} x ${String(l.unit_price).padStart(8)} = ${String(l.amount).padStart(10)}`);
+    io.out(`  ${"subtotal".padEnd(66)} ${String(b.subtotal).padStart(31)}`);
+    for (const t of b.tax) io.out(`  ${`${t.name} (${(t.rate_bp / 100).toFixed(2)} %)`.padEnd(66)} ${String(t.amount).padStart(31)}`);
+    io.out(`  ${`TOTAL (${b.currency}, minor units)`.padEnd(66)} ${String(b.total).padStart(31)}`);
+    if (b.credits_applied) io.out(`  settled in part with ${b.credits_applied} purchased credit(s)`);
+    io.out(`usage: ${b.usage.active_agents} active agent(s), ${b.usage.writes} write(s), ${b.usage.tokens} token(s), ${b.usage.storage_bytes} byte(s) stored; ${c.ok ? "the usage matches what the log counts" : "the log now counts differently: " + c.differences.join("; ")}`);
+    io.out("This is a statement of use computed from the signed log. Payment is arranged under the contract; credits are accounting entries, not money.");
+    return 0;
+  }
+  if (sub === "check") {
+    const id = rest[0];
+    if (!id) throw new UsageError("asp meter check <statement id>");
+    const c = await local.log.checkStatement(id);
+    io.out(c.ok ? `statement ${id}: the usage it states is what the log counts` : `statement ${id} differs from the log: ${c.differences.join("; ")}`);
+    return c.ok ? 0 : 1;
+  }
+  throw new UsageError("asp meter report | plan | statement | check");
+}
+
+/**
+ * asp farming report [--json] | flag [--cluster <id>] --by <operator or watcher did> | freeze --report <upheld report> --cluster <id> [--by <Clinic did>] [--level observe|halt] [--days 1-7] (register row DK1357, S1410): the anti-farming
+ * report (sponsors under common control and the rings, circles, wash trades and fan-ins of the job graph; a lead, never a penalty), a signed `common_control` record that makes a cluster one sponsor for independence, and the
+ * Clinic's cohort freeze on the agents of a flagged cluster (an upheld report is needed, as for every cohort freeze).
+ */
+async function farmingCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const seed = process.env.ASP_FARMING_SEED || undefined;
+  const rep = await local.log.farmingReport({ ...(seed ? { seed } : {}) });
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new UsageError(`no key for ${did} in ${join(home, "keys")}`); return s; };
+  if (!sub || sub === "report") {
+    if (v.json) { io.out(JSON.stringify(rep, null, 2)); return rep.findings.length ? 1 : 0; }
+    io.out(`${rep.sponsors} sponsor(s), ${rep.jobs} accepted job(s) between controllers in the last 90 days; ${rep.clusters.length} cluster(s) under common control, ${rep.findings.length} finding(s): leads for the Clinic, never a penalty by themselves`);
+    for (const f of rep.findings) io.out(`  ${f.level.toUpperCase().padEnd(6)} ${f.kind.padEnd(19)} ${f.sponsors.length} sponsor(s): ${f.why}`);
+    return rep.findings.length ? 1 : 0;
+  }
+  if (sub === "flag") {
+    if (!v.by) throw new UsageError("asp farming flag [--cluster <id>] --by <operator or watcher did>");
+    const todo = rep.clusters.filter((c) => !v.cluster || c.id === v.cluster);
+    if (!todo.length) { io.out("no cluster under common control to record"); return 0; }
+    for (const c of todo) {
+      const res = await local.append(createRecord({ type: "common_control", issuer: v.by, subject: null, prev: null, body: { cluster: c.id, sponsors: c.sponsors, basis: c.basis, detected_at: now() }, issued_at: now() }, signerFor(v.by)));
+      io.out(`common control recorded for ${c.sponsors.length} sponsor(s) (${c.basis.join(", ")}) as cluster ${c.id} (log seq ${res.seq}): a job between their agents no longer counts for standing`);
+    }
+    return 0;
+  }
+  if (sub === "freeze") {
+    const clinicDid = v.by ?? CLINIC_DID;
+    if (!v.report || !v.cluster) throw new UsageError("asp farming freeze --report <upheld report id> --cluster <cluster id> [--by <Clinic did>] [--level observe|halt] [--days 1-7]");
+    const report = await local.log.report(v.report);
+    if (!report) throw new Error(`${v.report} is not a report in the log`);
+    if (report.status !== "upheld") throw new Error(`report ${v.report} is ${report.status}; only an upheld report can freeze a cohort`);
+    const cluster = rep.clusters.find((c) => c.id === v.cluster);
+    const found = rep.findings.filter((f) => f.level !== "watch" && f.sponsors.includes(v.cluster!));
+    const sponsors = [...new Set([...(cluster?.sponsors ?? []), ...found.flatMap((f) => f.sponsors)])];
+    if (!sponsors.length) throw new Error(`no flagged cluster ${v.cluster}: asp farming report`);
+    const members = await local.log.agentsOfSponsors(sponsors);
+    const days = v.days === undefined ? 7 : Number(v.days);
+    if (!(days > 0 && days <= 7)) throw new UsageError("--days is more than 0 and at most 7 (a longer quarantine needs a Court)");
+    const level = v.level ?? "observe";
+    if (level !== "observe" && level !== "halt") throw new UsageError("--level is observe or halt");
+    const body = farmingFreezeBody({ members, report: v.report, cluster: v.cluster, level, days, at: now(), sponsors: sponsors.length });
+    const res = await local.append(createRecord({ type: "quarantine", issuer: clinicDid, subject: null, prev: null, body, issued_at: now() }, signerFor(clinicDid)));
+    io.out(`quarantine ${res.id}: ${members.length} agent(s) of ${sponsors.length} sponsor(s) will be frozen at ${level} until ${body.until} (notice given; nothing was settled and no bond slashed). Release a member after a clean run: asp clinic release --quarantine <id> --member <did>`);
+    return 0;
+  }
+  throw new UsageError("asp farming report [--json] | flag [--cluster <id>] --by <did> | freeze --report <id> --cluster <id>");
+}
+
+async function collusionCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const found = await local.log.collusionReport();
+  if (v.json) { io.out(JSON.stringify(found, null, 2)); return found.length ? 1 : 0; }
+  if (!found.length) { io.out("no collusion pattern found: no pair or ring hires each other, no sponsor's agents settle together, no one principal behind most of an agent's work"); return 0; }
+  io.out(`${found.length} pattern(s), leads for the Clinic and the Courts and not verdicts; these jobs do not count for standing:`);
+  for (const f of found) io.out(`  ${f.kind.toUpperCase().replace("_", " ").padEnd(15)} ${f.why}`);
+  return 1;
+}
+
+/** asp wakes [--agent <did>]: who woke each agent and how much it spent, by day, and which ceilings stopped a wake (register rows DK8, CY14). */
+async function wakesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const rows = new DailyCeiling(join(home, "wakes.json")).report(v.agent);
+  if (!rows.length) { io.out("no wake is recorded: a run through asp gateway records one"); return 0; }
+  for (const r of rows) io.out(`${r.day}  ${r.agent}  ${r.wakes} wake(s)${r.idle ? ` (${r.idle} idle)` : ""}, ${r.tokens} tokens${r.refused ? `, ${r.refused} refused (${r.ceilingsHit.join(", ")})` : ""}; woken by ${Object.entries(r.bySender).map(([k, n]) => `${k} x${n}`).join(", ") || "no one"}`);
+  return 0;
+}
+
+/** asp prizes [--agent <did>]: the prizes paid from the institutions' prize pools, from the signed `prize` records (register row DK98). */
+async function prizesCommand(home: string, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const all = (await local.log.treasuryLedger()).prizes.filter((p) => !v.agent || p.agent === v.agent);
+  io.out(`${all.length} prize(s)${v.agent ? ` for ${v.agent}` : ""}, ${all.reduce((n, p) => n + p.amount, 0)} credits in all`);
+  for (const p of all) io.out(`  ${p.at}  ${p.arena} ${p.season}  rank ${p.rank}  ${p.amount} credits  ${p.agent}  ${p.id}`);
+  return 0;
+}
+
+async function treasuryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await treasuryCmd(sub, { log: local, io, now, signerFor, flags: { period: v.period, out: v.out, draft: v.draft, id: v.id, by: v.by, "cosign-by": v["cosign-by"]?.[0], amount: v.amount, budget: v.budget, memo: v.memo, claim: v.yes, to: v.to, agent: v.agent, since: v.since, week: v.week, sign: v.sign } });
+  } catch (e) {
+    if (e instanceof TreasuryUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function houseCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await houseCmd(sub, { log: local, io, now, signerFor, asp: async (args) => { const out: string[] = [], err: string[] = []; const code = await main(args, { ...io, out: (l) => out.push(l), err: (l) => err.push(l) }); return { code, out: out.join("\n"), err: err.join("\n") }; }, flags: { agent: v.agent, reason: v.reason, days: v.days, suspension: v.suspension, performer: v.performer, bank: v.bank, count: v.count, deadline: v.deadline } });
+  } catch (e) {
+    if (e instanceof HouseUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function monitorCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  // The alert mail goes to --alert-mail through Resend when RESEND_API_KEY is set, else into a folder next to the state file (so an alert is never silently lost).
+  const to = v["alert-mail"];
+  const from = v["mail-from"] ?? io.env.MAIL_FROM ?? "Agent Social <noreply@localhost>";
+  const key = io.env.RESEND_API_KEY;
+  const transport = key ? new ResendTransport({ apiKey: key }) : new FileTransport(join(home, "monitor-outbox"));
+  const mail = to ? async (subject: string, text: string) => { await transport.send({ from, to, subject, text, html: `<pre>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>` }); } : undefined;
+  try {
+    return await monitorCmd(sub, { io, now, ...(mail ? { mail } : {}), flags: { service: v.service, home: v.home ?? home, state: v.state, "backup-dir": v["backup-dir"], "backup-max-hours": v["backup-max-hours"], "status-out": v["status-out"], "status-html-out": v["status-html-out"], incidents: v.incidents, "alert-webhook": v["alert-webhook"], after: v.after, every: v.every, id: v.id, title: v.title, status: v.status, message: v.message, json: v.json, once: v.once } });
+  } catch (e) {
+    if (e instanceof MonitorUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function budgetCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  try {
+    return await budgetCmd(sub, { home, io, now, log: () => openLog(home, logEnv), flags: { agent: v.agent, "daily-tokens": v["daily-tokens"], "monthly-tokens": v["monthly-tokens"], "warn-at": v["warn-at"], json: v.json } });
+  } catch (e) {
+    if (e instanceof BudgetUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function fleetEnrolCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: the organisation's key must be on this machine to sign the fleet and its agents`); return s; };
+  try {
+    if (["blueprints", "init", "import", "apply", "rollback", "checklist"].includes(sub ?? "")) return await fleetOnboardCmd(sub!, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], days: v.days, sponsor: v.sponsor, persona: v.persona, format: v.format, file: v.file, confirm: v.confirm, purpose: v.purpose, name: v.name, "fleet-did": v["fleet-did"] } });
+    return await fleetEnrolCmd(sub, { home, log: local, io, now, signerFor, flags: { manifest: v.manifest, out: v.out, mode: v.mode, json: v.json, "stop-after": v["stop-after"], invitation: v.invitation, service: v.service, name: v.name, "accept-terms": v["accept-terms"], days: v.days } });
+  } catch (e) {
+    if (e instanceof FleetEnrolUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function fleetCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only the organisation signs for its fleet`); return s; };
+  try {
+    return await fleetCmd(sub, rest, { log: local, io, now, signerFor, flags: { nonce: v.nonce, window: v.window, multiple: v.multiple, halt: v["halt-runs"], association: v.association, action: v.action, node: v.node, kind: v.kind, parent: v.parent, to: v.to, owner: v.owner, credits: v.credits, tokens: v.tokens, reason: v.reason, at: v.month, file: v.file, persona: v.persona, member: v.member, contract: v.contract, org: v.org, by: v.by, did: v.did, name: v.name, purpose: v.purpose, "max-members": v["max-members"], runtime: v.runtime, model: v.model, "harness-sha": v["harness-sha"], "harness-uri": v["harness-uri"], skills: v.skills, "co-sponsor": v["co-sponsor"], strict: v.strict, json: v.json } });
+  } catch (e) {
+    if (e instanceof FleetUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function bankCommand(home: string, sub: string | undefined, v: Values, io: Io, rest: string[] = []): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await bankCmd(sub, { log: local, io, now, signerFor, rest, flags: { week: v.week, contract: v.contract, agent: v.agent, amount: v.amount, guarantor: v.guarantor, line: v.line, holder: v.holder, by: v.by, days: v.days, deposit: v.deposit, budget: v.budget, mentor: v.mentor, protege: v.protege, note: v.note, out: v.out, file: v.file, rest } });
+  } catch (e) {
+    if (e instanceof BankUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function clinicCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await clinicCmd(sub, { service: io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN ? { url: io.env.ASP_LOG_URL, token: io.env.ASP_LOG_TOKEN } : undefined, log: local, io, now, signerFor, actions: () => collectWatchActions(local), flags: { finding: v.finding, budget: v.budget, emergency: v.emergency, by: v.by, reason: v.reason, exam: v.exam, revouch: v.revouch, report: v.report, level: v.level, days: v.days, "min-agents": v["min-agents"], window: v.window, all: v.all, quarantine: v.quarantine, member: v.member, evidence: v.evidence, agent: v.agent, json: v.json, skill: v.skill, issue: v.issue, order: v.order, kind: v.kind, contract: v.contract, passed: v.passed, violations: v.violations, slot: v.slot, seed: v.seed, "probe-task": v["probe-task"] } });
+  } catch (e) {
+    if (e instanceof ClinicUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+/** `asp sponsor statement --agent <did> [--month YYYY-MM] [--json]` (DK1225): the month's credits earned and spent for one agent, read from the log and checked against it. */
+async function sponsorStatementCommand(home: string, v: Values, io: Io): Promise<number> {
+  const agent = v.agent ?? v.did;
+  if (!agent) throw new UsageError("asp sponsor statement --agent <did> [--month YYYY-MM] [--json]");
+  const month = v.month ?? new Date(now()).toISOString().slice(0, 7);
+  const local = await openLog(home, logEnv);
+  let built: Awaited<ReturnType<typeof buildStatement>>;
+  try { built = await buildStatement(local.log as never, agent, month); } catch (e) { throw new UsageError((e as Error).message); }
+  const s = built.statement;
+  if (v.json) { io.out(JSON.stringify({ ...s, verification: built.verification }, null, 2)); return built.verification.ok ? 0 : 1; }
+  io.out(`${agent}  ${s.month}`);
+  io.out(`  credits  opening ${s.opening}, earned ${s.earned}, spent ${s.spent}, closing ${s.closing}`);
+  io.out(`  services hired ${s.servicesHired.count} for ${s.servicesHired.total}; disputes won ${s.disputes.won}, lost ${s.disputes.lost}, split ${s.disputes.split}`);
+  io.out("  not read from the log: held-out gains per course and the bond floor's history (no figure of either is recorded)");
+  io.out(built.verification.ok ? `  checked  the statement reconciles to the log's ledger of ${s.ledgerEntries} entries (head ${s.ledgerHead.slice(0, 19)})` : `  FAILED   ${built.verification.reason}`);
+  io.out("  credits are accounting entries, not money");
+  return built.verification.ok ? 0 : 1;
+}
+
+async function registryCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await registryCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(p, "utf8")), flags: { plain: v.plain, by: v.by, did: v.did, paid: v.paid, page: v.page, genuine: v.genuine, grounds: v.grounds, evidence: v.evidence, reason: v.reason, articles: v.articles, report: v.report, suspension: v.suspension, level: v.level, until: v.until, days: v.days, sponsor: v.sponsor, json: v.json, name: v.name } });
+  } catch (e) {
+    if (e instanceof RegistryUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+/** `asp lens run [--seed n] [--agents n] [--null] [--json]`: the lens learning loop end to end on simulated learners, and the readout (register row DK1750). */
+async function lensCommand(sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub !== "run") throw new UsageError("asp lens run [--seed <n>] [--agents <n>] [--null] [--json]");
+  const { runLoop, formatReadout } = await import("./lens-loop.ts");
+  const seed = v.seed === undefined ? 1 : Number(v.seed), agents = v.agents === undefined ? undefined : Number(v.agents);
+  if (!Number.isInteger(seed) || (agents !== undefined && (!Number.isInteger(agents) || agents < 8))) throw new UsageError("--seed is a whole number and --agents a whole number of at least 8");
+  const r = await runLoop({ seed, ...(agents !== undefined ? { agents } : {}), nullRun: v.null === true });
+  io.out(v.json === true ? JSON.stringify(r, null, 2) : formatReadout(r));
+  return 0;
+}
+
+async function academyCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "card-effect") return await cardEffectCommand(v, io);
+  if (sub === "regression-check") return await regressionCheckCommand(v, io);
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await academyCmd(sub, rest, { log: local, io, now, signerFor, ledgerPath: join(home, "lens-sittings.jsonl"), flags: v as Record<string, string | string[] | boolean | undefined> });
+  } catch (e) {
+    if (e instanceof AcademyUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+/** `asp academy card-effect`: control, placebo and treatment arms for each course, scored by the course's own sitting (the learning-gain study, step 1). */
+async function cardEffectCommand(v: Values, io: Io): Promise<number> {
+  const stand = v.provider === "stand-in";
+  const model = stand ? "stand-in" : v.model;
+  if (!model) throw new UsageError("asp academy card-effect --model <name> --api-key-env <VAR> --courses <ids|all> --n <samples per arm> [--seed <s>] [--out <dir>] [--total-usd <cap>] [--headroom]");
+  const ids = !v.courses || v.courses === "all" ? PAPER_COURSE_IDS : String(v.courses).split(",").map((x) => x.trim()).filter(Boolean);
+  const n = Math.max(1, Math.trunc(Number(v.n ?? "10")) || 10), cap = Number(v["total-usd"] ?? "5");
+  if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
+  const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
+  const r = await runCardEffect({ provider, model, courses: ids, n, seed: String(v.seed ?? "1"), totalUsd: cap, headroom: !!v.headroom, interference: !!v.interference, ...(v["max-tokens"] ? { maxTokens: Math.max(500, Math.trunc(Number(v["max-tokens"]) || 4000)) } : {}), ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  io.out(renderRows(r.rows, { model, n, seed: String(v.seed ?? "1"), headroom: !!v.headroom }, r.spent) + renderInterference(r.interference));
+  return 0;
+}
+
+/** `asp academy regression-check`: does a change to a model's memory make it worse on the courses it has passed? (R2, R3, R4: the measured check.) */
+async function regressionCheckCommand(v: Values, io: Io): Promise<number> {
+  const stand = v.provider === "stand-in", model = stand ? "stand-in" : v.model;
+  if (!model || !v.change) throw new UsageError("asp academy regression-check --model <name> --api-key-env <VAR> --change <file with the memory line> [--courses <ids>] [--n <sealed items per course, default 3>] [--placebos <n, default 3>] [--total-usd <cap, default 3>] [--out <dir>] (or --provider stand-in)");
+  if (!stand && !v["api-key-env"]) throw new UsageError("--api-key-env <VAR>: the name of the environment variable that holds the key (the key is read only from there)");
+  const change = readFileSync(resolve(io.cwd, String(v.change)), "utf8").trim();
+  const provider = stand ? { name: "stand-in", async complete() { return { blocks: [{ type: "text" as const, text: "{}" }], usage: { input: 100, output: 5 }, stop: "end_turn" }; } } : anthropicProvider({ model, keyEnv: String(v["api-key-env"]), env: io.env });
+  const courses = v.courses ? String(v.courses).split(",").map((x) => x.trim()).filter(Boolean) : ["C-L2-1", "C-L19-1", "C-L11-1"];
+  const r = await runRegressionCheck({ provider, model, courses, change, placebos: Math.max(2, Math.trunc(Number(v.placebos ?? "3")) || 3), n: Math.max(1, Math.trunc(Number(v.n ?? "3")) || 3), totalUsd: Number(v["total-usd"] ?? "3"), ...(v.out ? { out: resolve(io.cwd, String(v.out)) } : {}) }, (s) => io.out(s));
+  io.out(renderCheck(r.record, r.spent));
+  return r.record.verdict === "regression" ? 2 : 0;
+}
+
+async function telemetryCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    return await telemetryCmd(sub, { log: local, io, now, flags: { by: v.by, seed: v.seed, agents: v.agents, json: v.json } });
+  } catch (e) {
+    if (e instanceof TelemetryUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function researchCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await researchCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(resolve(p), "utf8")), readText: (p) => readFileSync(resolve(p), "utf8"), flags: { by: v.by, mandate: v.mandate, json: v.json, file: v.file, finding: v.finding, "run-log": v["run-log"], summary: v.summary, nonce: v.nonce, artifact: v.artifact } });
+  } catch (e) {
+    if (e instanceof ResearchUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function eventsCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await eventsCmd(sub, rest, { log: local, io, now, signerFor, readJson: (p) => JSON.parse(readFileSync(resolve(p), "utf8")), readFile: (p) => readFileSync(resolve(p)), flags: { by: v.by, mandate: v.mandate, json: v.json, file: v.file, with: v.with, ref: v.ref, entry: v.entry, "run-log": v["run-log"], reason: v.reason, kind: v.kind, nonce: v.nonce } });
+  } catch (e) {
+    if (e instanceof EventsUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function housingCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await housingCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, html: v.html, name: v.name, tagline: v.tagline, about: v.about, showcase: v.showcase, theme: v.theme, layout: v.layout, nonce: v.nonce, agent: v.agent, target: v.target, removal: v.removal, reason: v.reason, days: v.days } });
+  } catch (e) {
+    if (e instanceof HousingUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function shopsCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await shopsCmd(sub, rest, { log: local, io, now, signerFor, flags: { by: v.by, mandate: v.mandate, json: v.json, quantity: v.quantity, nonce: v.nonce, mode: v.mode, budget: v.budget, max: v.max, revoke: v.revoke, sponsor: v.sponsor } });
+  } catch (e) {
+    if (e instanceof ShopsUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function spendCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+  try {
+    return await spendCmd(sub, rest, { log: local, io, now, signerFor, flags: { mandate: v.mandate, json: v.json, by: v.by, quantity: v.quantity, nonce: v.nonce, period: v.period, until: v.until, order: v.order } });
+  } catch (e) {
+    if (e instanceof SpendUsage) throw new UsageError(e.message);
+    throw e;
+  }
+}
+
+async function pricesCommand(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  const local = await openLog(home, logEnv);
+  try {
+    const signerFor = (did: string) => { const s = new Keystore(home).forDid(did); if (!s) throw new Error(`no key for ${did} in ${join(home, "keys")}: only its holder can sign for it`); return s; };
+    return await pricesCmd(sub, rest, { log: local, io, now, signerFor, flags: { at: v.at, json: v.json, file: v.file, preset: v.preset, effective: v.effective, "cosign-by": v["cosign-by"]?.[0] } });
+  } catch (e) {
+    if (e instanceof PricesUsage) throw new UsageError(e.message);
+    throw e;
+  }
 }
 
 async function creditsBalance(home: string, did: string | undefined, io: Io): Promise<number> {
@@ -3191,6 +6431,32 @@ async function creditsBalance(home: string, did: string | undefined, io: Io): Pr
 }
 
 /** The full chain for a contract, in order, with each record's short type for convenience. */
+/** The open jobs for an agent, eligible ones first, as text (the agent's market_jobs tool; DK1454). */
+async function marketJobsText(local: Awaited<ReturnType<typeof openLog>>, agent: string): Promise<string> {
+  const rows = await local.log.marketBoard(agent);
+  if (!rows.length) return "No open postings on the board right now.";
+  const eligible = rows.filter((r) => r.forAgent?.eligible).length;
+  const out = [`${rows.length} open posting(s), ${eligible} you may take:`];
+  for (const r of rows.slice(0, 15)) {
+    out.push(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}`);
+    if (r.forAgent) out.push(`  for you: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
+  }
+  if (rows.length > 15) out.push(`... and ${rows.length - 15} more (asp market board lists them all).`);
+  return out.join("\n");
+}
+
+/** Whether a job counts for the performer's standing, and why not, as text (market counts; the agent's market_counts tool). */
+async function marketCountsText(local: Awaited<ReturnType<typeof openLog>>, contract: string): Promise<string> {
+  const c = await local.log.get(contract);
+  if (!c || c.record.type !== "asp.contract/v0.2") throw new UsageError(`${contract} is not a contract in the log`);
+  const cb = c.record.body as { principal: string; performer: string; price: { value: number }; basis?: { intent?: string } };
+  const intent = cb.basis?.intent ? await local.log.get(cb.basis.intent) : undefined;
+  const declared = intent?.record.type === "asp.intent/v0.2" ? (intent.record.body as { class?: JobClass }).class : undefined;
+  const party = async (did: string) => { const p = await local.log.passport(did); return { did, sponsor: p?.sponsor ?? did, fleet: p?.fleet ?? null }; };
+  const res = marketCounts(await party(cb.performer), await party(cb.principal), declared, cb.price.value);
+  return `${res.counts ? "counts" : "does not count"} for ${cb.performer}: ${res.reason}`;
+}
+
 async function marketChain(log: LogHandle["log"], contract: string) {
   const records = await log.chain(contract);
   return records.map((s) => ({ ...s, kind: s.record.type.replace(/^asp\./, "").replace(/\/v0\.2$/, "") }));
@@ -3208,6 +6474,23 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return s;
   };
 
+  if (sub === "criteria") {
+    // JO1: acceptance-criteria templates, and a check of criteria you have written.
+    if (v.criterion?.length) {
+      const bad = criteriaProblems(v.criterion, v.purpose);
+      for (const p of bad) io.out(`#${p.index + 1} "${p.criterion}": ${p.problem}`);
+      io.out(bad.length ? `${bad.length} of ${v.criterion.length} criteria to rewrite` : `all ${v.criterion.length} criteria read as checks`);
+      return bad.length ? 1 : 0;
+    }
+    const wanted = v.template ? CRITERIA_TEMPLATES.filter((x) => x.id === v.template) : CRITERIA_TEMPLATES;
+    if (v.template && !wanted.length) { io.err(`no template ${v.template}: ${CRITERIA_TEMPLATES.map((x) => x.id).join(", ")}`); return 1; }
+    for (const x of wanted) {
+      io.out(`${x.id}: ${x.title} (for ${x.for})`);
+      if (v.template) for (const c of x.criteria) io.out(`  --criteria ${JSON.stringify(c)}`);
+    }
+    if (!v.template) io.out("asp market criteria --template <id> prints the criteria as flags for asp market intent; asp market criteria --criterion <text> [--criterion <text> ...] checks your own");
+    return 0;
+  }
   if (sub === "intent") {
     const by = need("by");
     const verification: Record<string, unknown> = { mode: (v.verification ?? "principal") as "deterministic" | "principal" | "arbiter" };
@@ -3219,13 +6502,68 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       budget: { value: Math.trunc(Number(need("budget"))), unit: "credit" as const },
       deadline: need("deadline"),
       verification,
+      ...(v.class ? { class: v.class } : {}),
+      ...(v["min-tier"] ? { min_tier: Number(v["min-tier"]) } : {}),
+      ...(v["requires-certificate"] ? { requires_certificate: v["requires-certificate"] } : {}),
+      ...(v.listed ? { listed: v.listed } : {}),
+      ...(v.skills?.length ? { skills: v.skills } : {}),
     };
     const record = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`intent ${res.id} by ${by} (log seq ${res.seq})`);
+    // JO1: advice, never a refusal: which criterion reads as a judgement and not as a check, and where the templates are.
+    const vague = criteriaProblems(body.acceptance_criteria, body.purpose);
+    for (const p of vague) io.err(`  criteria  #${p.index + 1} "${p.criterion.length > 60 ? p.criterion.slice(0, 57) + "..." : p.criterion}": ${p.problem}`);
+    if (vague.length) io.err("  criteria  a performer and a reviewer can only agree on what they can check: asp market criteria lists templates to start from");
+    // JO3: say, once, what the job-data term covers, at the point where the poster describes the job.
+    io.err(`  data     what you share for this job is shared for the job only: the performer uses it only to do the job and deletes its copies when the job settles. Do not put secrets or personal data of other people in the purpose, the criteria or any file that the job does not need; the contract can allow the commons (--commons-sharing) or a retention period (--retain-days).`);
     return 0;
   }
 
+  if (sub === "seed") {
+    // The board's cold start (GV3, JB7; S477): the operator's labelled house agent posts the starter jobs, each with its own posting deposit, from a Mandate that lets it spend at the Market.
+    const by = need("by");
+    const count = v.count === undefined ? SEED_JOBS.length : Math.trunc(Number(v.count));
+    if (!Number.isInteger(count) || count < 1 || count > SEED_JOBS.length) throw new UsageError(`--count is a whole number from 1 to ${SEED_JOBS.length}`);
+    const pass = await local.log.passport(by);
+    if (!pass) throw new Error(`${by} has no passport in this log`);
+    const house = (await local.log.houseAgents()).some((h) => h.did === by);
+    if (!house) throw new UsageError(`${by} is not a house agent: only the operator's labelled house agent posts seed jobs, so that a seed is never taken for a real poster`);
+    const mandate = need("mandate");
+    const deadline = v.deadline ?? new Date(Date.parse(now()) + 60 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z");
+    // The public-works line (DK760, S997): with --fund-from <budget id> the Treasury pays the house agent what the jobs' escrow needs beyond its balance, from that line, and never past it (the log refuses).
+    if (v["fund-from"]) {
+      const led = await local.log.treasuryLedger();
+      const line = led.budgets.find((b) => b.id === v["fund-from"] || b.id.slice(7).startsWith(v["fund-from"]!));
+      if (!line || line.purpose !== "public_works") throw new UsageError(`--fund-from names a public-works budget of the Treasury (asp treasury list); ${v["fund-from"]} is not one`);
+      const need_ = SEED_JOBS.slice(0, count).reduce((n, j) => n + j.budget, 0), shortfall = need_ - (await local.log.balance(by));
+      if (shortfall > 0) {
+        const pay = await local.append(createRecord({ type: "treasury_payment" as never, issuer: TREASURY_DID, subject: null, prev: null, body: { budget: line.id, to: by, amount: { value: shortfall, unit: "credit" }, memo: "public works: the seed jobs' escrow" }, issued_at: now() }, signerFor(TREASURY_DID)));
+        io.out(`public works: ${shortfall} credits from the Treasury's public-works line to ${by} for the seed jobs (payment ${pay.id}, log seq ${pay.seq})`);
+      } else io.out(`public works: ${by} already holds the ${need_} credits the seed jobs need; nothing paid`);
+    }
+    let n = 0;
+    for (const job of SEED_JOBS.slice(0, count)) {
+      const rec = createRecord({ type: "intent", issuer: by, subject: by, prev: null, body: { purpose: SEED_PREFIX + job.purpose, acceptance_criteria: job.criteria, budget: { value: job.budget, unit: "credit" }, deadline, verification: { mode: "principal" }, class: "routine", min_tier: 1, skills: job.skills }, issued_at: now() }, signerFor(by));
+      const intent = await local.append(rec);
+      const lines: string[] = [];
+      await spendCmd("buy", ["market.posting.deposit"], { log: local, io: { out: (l) => lines.push(l) }, now, flags: { by, mandate, nonce: `seed-${intent.id}` }, signerFor });
+      const deposit = /purchase (\S+)/.exec(lines.join(" "))?.[1];
+      if (!deposit) throw new Error(`the posting deposit was not bought: ${lines.join("; ")}`);
+      const post = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "posting", intent: intent.id, board: "main", expires: v.expires ?? new Date(Date.parse(now()) + 30 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z"), deposit }, issued_at: now() }, signerFor(by));
+      const res = await local.append(post);
+      n++;
+      io.out(`seed ${n}: posting ${res.id}  ${job.budget} credits  ${job.purpose}`);
+    }
+    io.out(`${n} seed job(s) posted by ${by}; the board's cold start: asp market cold-start`);
+    return 0;
+  }
+  if (sub === "cold-start") {
+    const c = await local.log.coldStart();
+    io.out(`the board: ${c.postings.open} open posting(s), ${c.postings.seeded} seeded by the house, ${c.newcomerReachable} a brand-new agent could take; posted by the house ${c.postings.byPosterKind.house}, by people who run agents ${c.postings.byPosterKind.ownersOfAgents}, by others ${c.postings.byPosterKind.others}`);
+    io.out(`newcomers: ${c.newcomers.count}, ${c.newcomers.withAJob} with a job they can take (${c.newcomers.share === null ? "no newcomers yet" : `${Math.round(c.newcomers.share * 100)} %`}); median jobs found ${c.newcomers.jobsFoundMedian ?? "-"}; median budget ${c.medianBudget ?? "-"}`);
+    return 0;
+  }
   if (sub === "offer") {
     const by = need("by");
     const intent = need("intent");
@@ -3307,6 +6645,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         price: offerBody.price, verification: intentBody.verification.mode, deadline: intentBody.deadline,
         basis: { intent: intentId, offer: offerId },
         ...(intentBody.verification.review_deadline ? { review_deadline: intentBody.verification.review_deadline } : {}),
+        // The deadline binds delivery, extended by the time the performer waits for approvals (S1441, T21).
+        ...(v["deadline-binds"] ? { deadline_binds: true } : {}),
         ...(intentBody.verification.verifier ? { verifier: intentBody.verification.verifier } : {}),
       };
     } else if (callId || proposalId) {
@@ -3331,8 +6671,26 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Subcontract nesting (docs/spec-deltas.md): the log itself checks this is coherent — the
     // parent must exist, not be Settled yet, and its own performer must be this contract's principal.
     if (v["parent-contract"]) body.parent_contract = v["parent-contract"];
+    // How long a dispute may wait for a ruling (gap M10): past it the bank may settle by the stated split, so one slow answer does not lock a principal's escrow for ever.
+    if (v["ruling-window-seconds"] !== undefined) {
+      const w = Number(v["ruling-window-seconds"]);
+      if (!Number.isInteger(w) || w < 1) throw new UsageError("--ruling-window-seconds must be a whole number of seconds, 1 or more (604800 is a week)");
+      body.ruling_window_seconds = w;
+    }
     // Outcome verification: an explicit --verifier wins over the Intent's (and is the only way in allocation mode).
     if (v.verifier) body.verifier = v.verifier;
+    // The job-data term (JO3, spec-delta S1569): written explicitly in every new contract, so the performer cannot say it was not bound. The flags change the defaults.
+    {
+      const retainDays = v["retain-days"] !== undefined ? Math.trunc(Number(v["retain-days"])) : undefined;
+      if (v["personal-data"] !== undefined && !["none", "included"].includes(v["personal-data"])) throw new UsageError("--personal-data is none or included");
+      const dh = { term: JOB_DATA_TERM, commons_sharing: v["commons-sharing"] === true, retention: retainDays !== undefined ? ("retain_days" as const) : ("delete_at_settlement" as const), ...(retainDays !== undefined ? { retain_days: retainDays } : {}), personal_data: (v["personal-data"] ?? "none") as "none" | "included" };
+      const bad = dataHandlingProblem(dh);
+      if (bad) throw new UsageError(`${bad.rule}: ${bad.message}`);
+      body.data_handling = dh;
+      io.err("  data     this job's data is shared for the job only: the performer uses it only to do the job, deletes its copies when the job settles"
+        + (retainDays !== undefined ? ` (or within ${retainDays} days after)` : "") + (dh.commons_sharing ? ", and may place it in the commons" : ", and does not place it in the commons")
+        + `. Do not put secrets or personal data in a job that does not need them${dh.personal_data === "included" ? " (you declared that it includes personal data of other people)" : ""}.`);
+    }
     let record = createRecord({ type: "contract", issuer: principal, subject: performer, prev: null, body, issued_at: now() }, signerFor(principal));
     record = cosign(record, signerFor(performer));
     const res = await local.append(record);
@@ -3378,13 +6736,40 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
         ...(v.gate?.length ? { scopes: v.gate } : {}),
       },
       subcontract: { allowed: false },
-      nodes: { max_parallel: 1 },
-      learning: { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false },
+      nodes: { max_parallel: Math.max(1, Math.trunc(Number(v["node-max-parallel"] ?? "1")) || 1) },
+      learning: (() => {
+        // Private memory scopes of the run (D12, DK272; spec-delta S1593): the names the agent may open through the gateway's private-memory tools.
+        const names = v["private-scopes"] ? String(v["private-scopes"]).split(",").map((x) => x.trim()).filter(Boolean) : [];
+        const bad = names.length ? privateScopesProblem(names) : null;
+        if (bad) throw new UsageError(`--private-scopes: ${typeof bad === "string" ? bad : (bad as { message?: string }).message ?? "invalid"}`);
+        return { scope: "harness" as const, share_to_commons: v["share-to-commons"] ?? false, ...(names.length ? { private_scopes: names } : {}) };
+      })(),
       self_modification: "principal_approves" as const,
       overlay: null, checkpoints: [] as string[], expires: cbody.deadline, revocable: true as const,
+      // What the agent may buy from the institutions: the default (the Academy and the Shops, a month at a time) unless the sponsor names lines or says none (DK3).
+      // Loop prevention (DK1230, S1422): the limits the gateway enforces on this run, narrowing like every other limit.
+      ...((() => { const eq = v["loop-equivalent"] ? Math.trunc(Number(v["loop-equivalent"])) : undefined, dp = v["loop-depth"] ? Math.trunc(Number(v["loop-depth"])) : undefined, nr = v["loop-near"] ? Math.trunc(Number(v["loop-near"])) : undefined; if ((eq !== undefined && !(eq >= 2)) || (dp !== undefined && !(dp >= 1)) || (nr !== undefined && !(nr >= 3))) throw new UsageError("--loop-equivalent is 2 or more, --loop-depth is 1 or more and --loop-near is 3 or more"); return eq !== undefined || dp !== undefined || nr !== undefined ? { loop_limits: { ...(eq !== undefined ? { equivalent_calls: eq } : {}), ...(dp !== undefined ? { depth: dp } : {}), ...(nr !== undefined ? { near_repeats: nr } : {}) } } : {}; })()),
+      // Unprompted work (DK1232, S1606): --allow-unprompted lets the performer act without a person's prompt, --unprompted-cap <n> bounds it per UTC day; without the flag the Mandate says nothing and unprompted work is not allowed.
+      ...((() => { if (!v["allow-unprompted"] && v["unprompted-cap"] === undefined) return {}; const cap = v["unprompted-cap"] === undefined ? undefined : Math.trunc(Number(v["unprompted-cap"])); if (cap !== undefined && !(cap >= 1)) throw new UsageError("--unprompted-cap is a whole number of unprompted Actions a day, at least 1"); if (cap !== undefined && !v["allow-unprompted"]) throw new UsageError("--unprompted-cap needs --allow-unprompted"); return { unprompted: { allowed: true, ...(cap !== undefined ? { per_day_cap: cap } : {}) } }; })()),
+      // A role in a fleet (DK1231, S1608) and a workflow clause (DK1209, S1607): --fleet-role router|worker|watchdog, --workflow <a JSON file of { states, start, transitions, terminal }>.
+      // Reversible and irreversible actions (DK1227, S1609): the scopes whose Actions cannot be undone, and how long after an Action the performer may undo a reversible one; absent means no undo.
+      ...((() => { const il = v["irreversible-scopes"], co = v["cool-off-seconds"]; if (il === undefined && co === undefined) return {}; const list = il === undefined ? undefined : il.split(",").map((x) => x.trim()).filter(Boolean); const secs = co === undefined ? undefined : Math.trunc(Number(co)); if (secs !== undefined && !(secs >= 1 && secs <= 604800)) throw new UsageError("--cool-off-seconds is a whole number of seconds, 1 to 604800 (a week)"); return { action_classes: { ...(list ? { irreversible: list } : {}), ...(secs !== undefined ? { cool_off_seconds: secs } : {}) } }; })()),
+      ...((() => { const r = v["fleet-role"]; if (r === undefined) return {}; if (r !== "router" && r !== "worker" && r !== "watchdog") throw new UsageError("--fleet-role is router, worker or watchdog"); return { role: r }; })()),
+      ...((() => { const wf = v.workflow; if (wf === undefined) return {}; let clause: unknown; try { clause = JSON.parse(readFileSync(resolve(io.cwd, wf), "utf8")); } catch (e) { throw new UsageError(`--workflow ${wf} is not a readable JSON file: ${(e as Error).message}`); } const c = clause as { states?: unknown; start?: unknown; transitions?: unknown }; if (!Array.isArray(c.states) || typeof c.start !== "string" || !Array.isArray(c.transitions)) throw new UsageError("--workflow is a JSON object with states, start and transitions (and optionally terminal)"); return { workflow: clause }; })()),
+      // The outbound scan choice goes into the Mandate (DK1716, S1570): block or redact, and the kinds.
+      ...((() => { const m = v["outbound-scan"], k = v["outbound-kinds"]; if (!m && !k) return {}; if (m && m !== "block" && m !== "redact") throw new UsageError("on a Mandate, --outbound-scan is block or redact"); const kinds = k ? k.split(",").map((x) => x.trim()).filter(Boolean) : undefined; if (kinds && kinds.some((x) => !ALL_OUTBOUND_KINDS.includes(x as OutboundKind))) throw new UsageError(`--outbound-kinds is a list of ${ALL_OUTBOUND_KINDS.join(", ")}`); return { outbound_scan: { ...(m ? { mode: m } : {}), ...(kinds?.length ? { kinds: [...new Set(kinds)] } : {}) } }; })()),
+      // A Mandate made without a token budget carries the default per-run and per-day ceilings (DK1715); the sponsor may lower or raise them up to what the operator allows.
+      ...((() => { const td = v["tokens-per-day"] ? Math.trunc(Number(v["tokens-per-day"])) : undefined, tr = v["tokens-per-run"] ? Math.trunc(Number(v["tokens-per-run"])) : undefined, tm = v["tokens-per-month"] ? Math.trunc(Number(v["tokens-per-month"])) : undefined; for (const x of [td, tr, tm]) if (x !== undefined && !(x >= 1)) throw new UsageError("--tokens-per-day, --tokens-per-run and --tokens-per-month are 1 or more"); if (tr !== undefined && tr > OPERATOR_MAX_RUN_TOKENS) throw new UsageError(`--tokens-per-run ${tr} is above the ${OPERATOR_MAX_RUN_TOKENS} the operator allows`); if (td !== undefined && td > OPERATOR_MAX_DAY_TOKENS) throw new UsageError(`--tokens-per-day ${td} is above the ${OPERATOR_MAX_DAY_TOKENS} the operator allows`); return { token_budget: { per_run: tr ?? DEFAULT_RUN_TOKENS, ...(tm !== undefined ? { per_month: tm } : {}), per_day: td ?? (tm !== undefined ? Math.min(DEFAULT_DAY_TOKENS, tm) : DEFAULT_DAY_TOKENS) } }; })()),
+      ...(() => { try { const lines = parseInstitutionSpend(v["institution-spend"]); return lines.length ? { institution_spend: lines } : {}; } catch (e) { if (e instanceof SpendUsage) throw new UsageError(e.message); throw e; } })(),
     };
     const record = createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body, issued_at: now() }, signerFor(principal));
-    const res = await local.append(record);
+    let res;
+    try { res = await local.append(record); } catch (e) {
+      // The default ceilings are above a ceiling the performer's fleet states: the fleet's own rule wins and the Mandate is made without them (the gateway still applies the defaults when the agent runs).
+      if (v["tokens-per-day"] || v["tokens-per-run"] || v["tokens-per-month"] || !/token_budget|ceiling|widen/i.test((e as Error).message)) throw e;
+      const { token_budget: _dropped, ...rest } = body as typeof body & { token_budget?: unknown };
+      res = await local.append(createRecord({ type: "mandate", issuer: principal, subject: performer, prev: bond.id, body: rest, issued_at: now() }, signerFor(principal)));
+    }
     io.out(`mandate ${res.id} on contract ${contract} (log seq ${res.seq}, state ${res.state})`);
     return 0;
   }
@@ -3405,7 +6790,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       }
       const out: Record<string, unknown> = { claim, grade };
       if (evidence) {
-        const [uri, sha256] = evidence.split("=");
+        const cut = evidence.lastIndexOf("="); const [uri, sha256] = cut < 0 ? [evidence, ""] : [evidence.slice(0, cut), evidence.slice(cut + 1)];
         if (!uri || !sha256) throw new UsageError(`a claim's evidence must be <uri>=<sha256>, got "${evidence}"`);
         out.evidence = { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
       }
@@ -3477,6 +6862,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     const head = chain.at(-1);
     const open = [...chain].reverse().find((s) => s.kind === "checkpoint");
     if (!head || !open) throw new Error(`contract ${contract} has no Checkpoint to resolve`);
+    // An answer is about the Checkpoint the person was shown. If the job has moved on since (another was raised, or this one was answered), say so and write nothing: a stale answer must not close a newer request.
+    if (v.about && v.about !== open.id) throw new Error(`that Checkpoint is no longer the open one (the job has moved on); look again with asp approvals`);
     const body: Record<string, unknown> = { kind: "checkpoint_resolution", about: v.about ?? open.id, verdict };
     if (v.correction) body.correction = v.correction;
     const record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
@@ -3522,7 +6909,8 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       fault[did] = Math.trunc(Number(permille));
     }
     if (!Object.keys(fault).length) throw new UsageError("--fault <did>=<permille> is required, at least once");
-    const body = { kind: "ruling", about: contract, verdict, fault };
+    // A ruling may name the Articles of the Code of the City it rests on (--articles 3,8.3).
+    const body: Record<string, unknown> = { kind: "ruling", about: contract, verdict, fault, ...codeCitation(v.articles, v["code-version"], false) };
     let record = createRecord({ type: "attestation", issuer: by, subject: contract, prev: head.id, body, issued_at: now() }, signerFor(by));
     for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
     const res = await local.append(record);
@@ -3569,7 +6957,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     if (!["upheld", "dismissed"].includes(verdict)) throw new UsageError("--verdict is upheld or dismissed");
     const report = await local.log.report(reportId);
     if (!report) throw new Error(`${reportId} is not a report in the log`);
-    let record = createRecord({ type: "attestation", issuer: by, subject: report.contract, prev: null, body: { kind: "report_ruling", about: reportId, verdict }, issued_at: now() }, signerFor(by));
+    let record = createRecord({ type: "attestation", issuer: by, subject: report.contract, prev: null, body: { kind: "report_ruling", about: reportId, verdict, ...codeCitation(v.articles, v["code-version"], verdict === "upheld") }, issued_at: now() }, signerFor(by));
     for (const cosigner of v["cosign-by"] ?? []) record = cosign(record, signerFor(cosigner));
     const res = await local.append(record);
     io.out(`report ruling ${res.id} on report ${reportId}: ${verdict} (log seq ${res.seq})`);
@@ -3640,6 +7028,12 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.sub_agents = "shared_identity";
     }
     if (v.summary) body.summary = v.summary;
+    // The performer cites the head of its job-data deletion chain (JO3, S1602): 64 lowercase hex characters.
+    if (v["job-data-chain"] !== undefined) {
+      const h = String(v["job-data-chain"]).replace(/^sha256:/, "");
+      if (!/^[0-9a-f]{64}$/.test(h)) throw new UsageError("--job-data-chain is the hash of your job-data chain head: 64 lowercase hex characters (asp job-data show prints it)");
+      body.job_data_chain = h;
+    }
     // A late report (S80): the last stretch of activity, made after the job ended; the log accepts it only on a settled job, soon after, for activity up to the end.
     if (v.late) body.late = { activity_ended: v.late };
     if (v.metrics) {
@@ -3649,16 +7043,23 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       body.blocked_attempts = v.blocked.map((entry) => {
         const [scope, count] = entry.split("=");
         if (!scope || !count) throw new UsageError(`--blocked must be <scope>=<count>, got "${entry}"`);
-        return { scope, count: Math.trunc(Number(count)) };
+        const tg = (v["blocked-targets"] ?? []).find((e) => e.startsWith(`${scope}=`));
+        return { scope, count: Math.trunc(Number(count)), ...(tg ? { targets: tg.slice(scope.length + 1).split(",").filter(Boolean) } : {}) };
       });
     }
+    if (v["call-target"]?.length) body.targets = v["call-target"];
     if (v.artifact?.length) {
       body.artifacts = v.artifact.map((entry) => {
-        const [uri, sha256] = entry.split("=");
+        // Split at the last "=": the hash has none, and a URI may (asp://run-log/3?run=<id>).
+        const cut = entry.lastIndexOf("="); const [uri, sha256] = cut < 0 ? [entry, ""] : [entry.slice(0, cut), entry.slice(cut + 1)];
         if (!uri || !sha256) throw new UsageError(`--artifact must be <uri>=<sha256>, got "${entry}"`);
         return { uri, sha256: sha256.startsWith("sha256:") ? sha256 : `sha256:${sha256}` };
       });
     }
+    if (v.unprompted) body.unprompted = true;
+    // The workflow step this Action reports (DK1209, S1607) and the Action it undoes (DK1227, S1609): the log checks both against the Mandate; the flags only say them.
+    if (v["workflow-step"] !== undefined) { const m = /^([a-z0-9_-]{1,32}):([a-z0-9_-]{1,32})$/.exec(v["workflow-step"]); if (!m) throw new UsageError("--workflow-step is <from>:<to>, each 1 to 32 of a-z 0-9 _ -"); body.workflow_step = { from: m[1], to: m[2] }; }
+    if (v.undoes !== undefined) { if (!/^sha256:[0-9a-f]{64}$/.test(v.undoes)) throw new UsageError("--undoes is the record id (sha256:...) of the earlier Action this one undoes"); body.undoes = v.undoes; }
     const record = createRecord({ type: "action", issuer: by, subject: contract, prev: null, body, issued_at: now() }, signerFor(by));
     const res = await local.append(record);
     io.out(`action ${res.id} on contract ${contract}: ${scopesUsed.join(", ") || "no scopes"} (log seq ${res.seq})`);
@@ -3668,7 +7069,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
   if (sub === "settle") {
     const contract = need("contract");
     const bank = need("bank");
-    const basis = need("basis") as "accepted" | "ruling" | "revoked" | "silence";
+    const basis = need("basis") as "accepted" | "ruling" | "revoked" | "silence" | "ruling_timeout";
     const chain = await marketChain(local.log, contract);
     const head = chain.at(-1);
     if (!head) throw new Error(`contract ${contract} is not in the log`);
@@ -3683,6 +7084,13 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
       escrowReleased ??= Math.max(0, (e?.escrowLocked ?? 0) - Math.trunc(Number(v.fees ?? 0)));
       if (v["bond-returned"] === undefined) bondReturned = Math.max(0, (e?.bondLocked ?? 0) - (bondSlashed ?? 0));
     }
+    // A dispute no one ruled on in time (gap M10): the stated split, so nobody does the arithmetic and the bank cannot choose it: half the escrow released, the whole bond returned.
+    if (basis === "ruling_timeout") {
+      const e = await local.log.escrow(contract);
+      escrowReleased ??= Math.floor((e?.escrowLocked ?? 0) / 2);
+      bondSlashed ??= 0;
+      if (v["bond-returned"] === undefined) bondReturned = e?.bondLocked ?? 0;
+    }
     let cited: string | undefined = v.cites;
     // An upheld report forces full fault (the log refuses anything else): default to exactly that.
     const forced = (await local.log.escrow(contract))?.forcedFault ? await local.log.escrow(contract) : undefined;
@@ -3694,13 +7102,16 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     }
     // A ruling's fault on the performer *is* the payout formula (asp-log's checkRulingPanel guard,
     // docs/spec-deltas.md S13) — derive it here rather than making the caller compute it by hand.
+    let rulingFees: number | undefined;
     if (basis === "ruling" && (escrowReleased === undefined || bondSlashed === undefined)) {
       const [rulingRec, escrow] = await Promise.all([local.log.get(cited!), local.log.escrow(contract)]);
       const contractRec = await local.log.get(contract);
       const performer = (contractRec!.record.body as any).performer;
-      const fault = (rulingRec?.record.body as any)?.fault?.[performer] ?? 0;
-      escrowReleased ??= Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
-      bondSlashed ??= Math.ceil((escrow!.bondLocked * fault) / 1000);
+      const fault = (await local.log.effectiveFault(cited!))?.[performer] ?? (rulingRec?.record.body as any)?.fault?.[performer] ?? 0; // the corrected map after an appeal (S1400)
+      const paid = await local.log.rulingSettlement(contract, cited!, now());
+      escrowReleased ??= paid?.escrow_released ?? Math.floor((escrow!.escrowLocked * (1000 - fault)) / 1000);
+      bondSlashed ??= paid?.bond_slashed ?? Math.ceil((escrow!.bondLocked * fault) / 1000);
+      if (v.fees === undefined && paid && paid.fees > 0) rulingFees = paid.fees; // the job tax of the price list in force, on top of what is released (S1401)
     }
 
     const body: Record<string, unknown> = {
@@ -3712,6 +7123,7 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     // Comes out of the same escrow, on top of escrow_released; credits to the local mock platform
     // account (EventLog.PLATFORM_DID) standing in for a real platform/Insurer recipient (MOCKS.md).
     if (v.fees) body.fees = { value: Math.trunc(Number(v.fees)), unit: "credit" };
+    else if (rulingFees) body.fees = { value: rulingFees, unit: "credit" };
     if (v["agent-permille"] !== undefined) body.earnings_split = { agent_permille: Math.trunc(Number(v["agent-permille"])) };
     if (basis === "revoked") body.pro_rata_permille =Math.trunc(Number(v["pro-rata"] ?? "0"));
     else if (basis === "accepted" || basis === "ruling") body.cites = cited;
@@ -3763,7 +7175,134 @@ async function market(home: string, sub: string | undefined, rest: string[], v: 
     return 0;
   }
 
-  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw");
+  // The job board and discovery (market.md 7; DK16, DK17, DK18).
+  if (sub === "board" || sub === "jobs") {
+    const agent = sub === "jobs" ? need("by") : v.by;
+    const rows = await local.log.marketBoard(agent, undefined, { ...(v.skill ? { skill: v.skill } : {}), ...(v.class ? { class: v.class as never } : {}), ...(v["min-budget"] ? { minBudget: Number(v["min-budget"]) } : {}), ...(v["max-budget"] ? { maxBudget: Number(v["max-budget"]) } : {}), ...(v.q ? { text: v.q } : {}) });
+    const shown = rows.filter((r) => !v.mine || !v.by || r.poster === v.by);
+    if (!shown.length) io.out("no open postings");
+    for (const r of shown) {
+      io.out(`posting ${r.posting}  ${r.class}  budget ${r.budget}  tier>=${r.minTier}${r.requiresCertificate ? `  needs ${r.requiresCertificate} certificate` : ""}  skills ${r.skills.join(",") || "-"}  by ${r.poster}${r.posterStanding ? ` (${r.posterStanding.kind}${r.posterStanding.tier !== null ? `, tier ${r.posterStanding.tier}` : ""}, ${r.posterStanding.acceptedJobs} accepted jobs, ${r.posterStanding.slashes} slashes, ${r.posterStanding.jobsPosted} posted)` : ""}\n  ${r.purpose}`);
+      if (r.forAgent) io.out(`  for ${agent}: ${r.forAgent.eligible ? "eligible" : `not eligible: ${r.forAgent.missing.map((m) => m.message).join("; ")}`}; ${r.forAgent.counts.reason}`);
+    }
+    return 0;
+  }
+  if (sub === "post") {
+    const by = need("by");
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "posting", intent: need("intent"), board: "main", expires: v.expires ?? new Date(Date.now() + 30 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z"), deposit: need("deposit") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`posting ${res.id} by ${by} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "bid") {
+    const by = need("by");
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "bid", posting: need("posting"), offer: need("offer") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`bid ${res.id} by ${by} on ${need("posting")} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "class") {
+    const by = v.by ?? MARKET_DID;
+    const verdict = v.verdict ?? "changed_to";
+    const record = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "class_check", intent: need("intent"), class: need("class"), verdict, reason: need("reason") }, issued_at: now() }, signerFor(by));
+    const res = await local.append(record);
+    io.out(`class check ${res.id}: ${need("class")} (${verdict}) (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "assign") {
+    const posting = need("posting");
+    const board = await local.log.get(posting);
+    if (!board) throw new UsageError(`${posting} is not in the log`);
+    const intent = (board.record.body as { intent: string }).intent;
+    const seed = v.seed ?? posting.slice(7, 19);
+    const ruleName = v.rule ?? "best_match";
+    if (!["poster_choice", "best_match", "rotation"].includes(ruleName)) throw new UsageError("--rule is poster_choice, best_match or rotation");
+    const ranked = await local.log.rankPosting(posting, ruleName as "poster_choice" | "best_match" | "rotation", seed);
+    // With no --agent the Market assigns from the intent alone: the first of the published ranking among the bidders (register row JB4).
+    if (!v.agent && ruleName === "poster_choice") throw new UsageError("--rule poster_choice needs --agent: the poster chooses");
+    const agent = v.agent ?? ranked[0]?.agent;
+    if (!agent) throw new Error("no eligible bidder on this posting: nobody to assign");
+    const record = createRecord({ type: "market_act", issuer: MARKET_DID, subject: null, prev: null, body: { act: "assignment", posting, intent, agent, rule: ruleName, ranked, seed }, issued_at: now() }, signerFor(MARKET_DID));
+    const cosigned = ruleName === "poster_choice" && v["cosign-by"]?.length ? v["cosign-by"].reduce((r, d) => cosign(r, signerFor(d)), record) : record;
+    const res = await local.append(cosigned);
+    io.out(`assignment ${res.id}: ${agent} by ${ruleName} (log seq ${res.seq})`);
+    for (const r of ranked) io.out(`  ${r.agent}  score ${r.score}  ${r.reasons.join("; ")}`);
+    return 0;
+  }
+  if (sub === "discover") {
+    const found = await local.log.discoverAgents({ skill: v.skill, minTier: v.tier ? Number(v.tier) : undefined, certificate: v.certificate, minQualifying: v["min-qualifying"] ? Number(v["min-qualifying"]) : undefined }, v.seed ?? "discover");
+    if (!found.length) io.out("no agents match");
+    for (const [i, r] of found.entries()) io.out(`${i + 1}. ${r.agent}  score ${r.score}\n   ${r.reasons.join("; ")}`);
+    return 0;
+  }
+  if (sub === "dynamics") {
+    // What keeps the Market moving (market.md 14; DK1456, S1403): the season, seeded demand, guide prices, entrant waves and the monitor, as GET /market/dynamics serves them.
+    const d = await local.log.marketDynamics(v.at);
+    if (v.json) { io.out(JSON.stringify(d, null, 2)); return 0; }
+    io.out(`Market dynamics (${d.version}) at ${d.at}${d.halted ? "  [the world is HALTED: no swings, no waves, no season boost]" : ""}; seed ${d.seed ?? "not revealed yet"}`);
+    io.out(`  season ${d.season.year} Q${d.season.quarter}: ${d.season.theme}; favours ${d.season.favours} (+${d.season.boostPermille} permille demand)`);
+    io.out(`  demand by skill (1000 is normal): ${d.demand.map((x) => `${x.skill} ${x.index}`).join(", ")}`);
+    io.out(`  guide price by class: ${d.guides.map((g) => `${g.class} ${g.price} credits (${g.ofMinimum / 10}% of base${g.lastFillRate === null ? "" : `, last fill ${g.lastFillRate / 10}%`})`).join(", ")}`);
+    io.out(d.waves.length ? `  entrant waves (operator-run, disclosed): ${d.waves.map((w) => `${w.starts} ${w.posters} poster(s), ${w.agents} agent(s)`).join("; ")}` : "  no entrant wave announced");
+    io.out(`  monitor: mix divergence ${d.monitor.mixDivergence ?? "n/a"}, transfer share ${d.monitor.transferShare ?? "n/a"}, adaptation ${d.monitor.adaptation.map((x) => `${x.event} ${x.days === null ? "not yet" : `${x.days}d`}`).join(", ") || "no job opening yet"}`);
+    return 0;
+  }
+  if (sub === "risk") {
+    // The Market's risk model (market.md 13.1; DK1455, S1404): `asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]`.
+    const action = rest[0] ?? "show";
+    if (action === "show") {
+      const m = await local.log.riskModel(v.at);
+      if (v.json) { io.out(JSON.stringify(m, null, 2)); return 0; }
+      io.out(m ? `risk model version ${m.version} (record ${m.record.slice(0, 19)}...), in force from ${m.effective_from}:\n${JSON.stringify(m.terms, null, 2)}` : "no risk model is in force: the Market suggests the performer's own floor and the whole price");
+      return 0;
+    }
+    if (action === "suggest") {
+      const s = await local.log.suggestedBond(need("offer"), v.at);
+      if (v.json) { io.out(JSON.stringify(s, null, 2)); return 0; }
+      io.out(`offer ${s.offer}: the offer offers a bond of ${s.offered}; the Market suggests a bond of ${s.suggestion.bond} (${s.suggestion.bondPermille} permille of ${s.input.price}) and an escrow of ${s.suggestion.escrow}${s.modelVersion === null ? " (no model: the performer's floor and the whole price)" : ` by model version ${s.modelVersion}`}`);
+      io.out(`  floor ${s.suggestion.parts.floor}, class (${s.input.jobClass}) ${s.suggestion.parts.class}, verification (${s.input.verification}) ${s.suggestion.parts.verification}, poster's record ${s.suggestion.parts.poster} permille. A suggestion, never binding.`);
+      return 0;
+    }
+    if (action === "replay") {
+      const candidate = v.file ? (JSON.parse(readFileSync(v.file, "utf8")) as never) : null;
+      const r = await local.log.riskReplay(candidate, v.days ? Math.trunc(Number(v.days)) : 90);
+      if (v.json) { io.out(JSON.stringify(r, null, 2)); return 0; }
+      io.out(`replay over ${r.days} days: ${r.contracts} settled contract(s); locked ${r.lockedActual}, the model would suggest ${r.lockedSuggested} (at most ${r.maxSuggestedPermille} permille of a price); ${r.slashes} slash(es) of ${r.slashedCredits} credits, the model would have locked more on ${r.suggestionWouldLockMoreOnSlashed} of them`);
+      return 0;
+    }
+    if (action === "publish") {
+      const by = need("by");
+      const terms = JSON.parse(readFileSync(need("file"), "utf8"));
+      const head = (await local.log.riskModel("9999-12-31T00:00:00Z"))?.version ?? 0;
+      let rec = createRecord({ type: "market_act", issuer: by, subject: null, prev: null, body: { act: "risk_model", model_version: head + 1, terms, effective_from: need("effective") }, issued_at: now() }, signerFor(by));
+      for (const c of v["cosign-by"] ?? []) rec = cosign(rec, signerFor(c));
+      const res = await local.append(rec);
+      io.out(`risk model version ${head + 1} published ${res.id.slice(0, 19)}... (log seq ${res.seq}), in force from ${need("effective")}`);
+      return 0;
+    }
+    throw new UsageError("asp market risk show|suggest --offer <id>|replay [--file <terms.json>] [--days <n>]|publish --file <terms.json> --effective <time> --by <treasury> [--cosign-by <owner>]");
+  }
+  if (sub === "stats" || sub === "monthly") {
+    // The Market's statistics and monthly report (market.md 7, 8; DK1453): the same figures GET /market/stats and /market/report?month= serve.
+    const month = sub === "monthly" ? (v.month ?? new Date().toISOString().slice(0, 7)) : (v.month ?? null);
+    const st = await local.log.marketStats(undefined, month);
+    if (v.json) { io.out(JSON.stringify(st, null, 2)); return 0; }
+    const p = st.postings, pc = (x: number | null) => (x === null ? "n/a" : `${Math.round(x * 1000) / 10}%`);
+    io.out(`Market ${sub === "monthly" ? `monthly report for ${st.month}` : st.month ? `statistics for ${st.month}` : "statistics (whole log)"}, read at ${st.at}`);
+    io.out(`  postings ${p.total}: open ${p.open}, assigned ${p.assigned}, filled ${p.filled}, withdrawn ${p.withdrawn}, removed ${p.removed}, held ${p.held}, expired ${p.expired}; fill rate ${pc(st.fillRate)}`);
+    io.out(`  open now by class: ${Object.entries(st.openByClass).map(([c, x]) => `${c} ${x.count} (median budget ${x.medianBudget})`).join(", ") || "none"}`);
+    io.out(`  contracts by class: ${Object.entries(st.jobsByClass).map(([c, x]) => `${c} ${x.count} (median price ${x.medianPrice})`).join(", ") || "none"}`);
+    io.out(`  settlements that paid for work: ${st.settled.count}, counted for standing ${st.settled.counted} (${pc(st.settled.shareCounted)}); by basis ${Object.entries(st.settled.byBasis).map(([b, n]) => `${b} ${n}`).join(", ") || "none"}`);
+    io.out(`  assignments by rule: ${Object.entries(st.assignmentsByRule).map(([r, n]) => `${r} ${n}`).join(", ") || "none"}; class checks: raised ${st.classChecks.raised}, confirmed ${st.classChecks.confirmed}`);
+    return 0;
+  }
+  if (sub === "counts") {
+    const contract = rest[0] ?? need("contract");
+    io.out(await marketCountsText(local, contract));
+    return 0;
+  }
+
+  throw new UsageError("asp market intent|offer|call|propose|allocate|contract|bond|mandate|deliver|verify|checkpoint|resolve|accept|reject|rule|report|report-rule|settle|show|action|juror register|juror show|panel draw|board|jobs|stats|monthly|dynamics|risk|post|bid|class|assign|discover|counts");
 }
 
 /** The signed records a package needs: the agent's passports, its sponsors' passports, its fleet, its lineage. */
@@ -3903,15 +7442,17 @@ const OPENAI_PROVIDERS: Record<string, { base: string; keyEnv: string }> = {
 };
 const CODEX_RUNTIME = fileURLToPath(new URL("./codex-runtime.mjs", import.meta.url));
 const GOOSE_RUNTIME = fileURLToPath(new URL("./goose-runtime.mjs", import.meta.url));
+const GATEWAY_AGENT_RUNTIME = fileURLToPath(new URL("./gateway-agent-runtime.mjs", import.meta.url));
 
 /**
- * asp run claude-code|codex|goose|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
+ * asp run claude-code|codex|goose|openclaw|hermes|antigravity|openhands [--prompt <text>] [--project <dir>] [--agent <name>] [--model <m>] [--allow-network host,host] [--standing-days n]: your agent, running a real
  * runtime under the protocol, with none of the paperwork (launch blocker 12). The first run makes a standing job for the person and the agent (the Mandate allows reading and
  * writing files and running commands in the project, and no network unless you name hosts, for a week by default); every later run reuses it, so a session costs only its signed
  * Action reports. The tool runs through the gateway, so a call the Mandate does not allow is removed before the tool receives it; when it stops, a short summary says what the
  * agent said and did, what was refused and why. A new standing job is made when the old one is about to expire (the old one is settled) or the permissions asked for change.
  */
 async function runSession(home: string, runtime: string, v: Values, io: Io, localIds?: { me: string; agent: string; bank: string }): Promise<number> {
+  applyRunLogRetention(home, io.env, (l) => io.err(l));
   const prof = SESSION_RUNTIMES[runtime];
   // Headless (a CI job, a scheduled task): no terminal, no login file, the job prepared beforehand (asp standing prepare) and named with --contract, the agent's key restored from an encrypted
   // backup, the person's own API key held by the gateway, output meant for a machine. Exit codes: the tool's own, 10 if --fail-on-refusal and a call was refused, 11 if the job had ended.
@@ -3956,8 +7497,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     const lenv = { ...io.env, ASP_HOME: lhome } as NodeJS.ProcessEnv;
     delete lenv.ASP_LOG_URL; delete lenv.ASP_LOG_TOKEN;
     let lids: { me: string; agent: string; bank: string } | undefined;
-    try { lids = JSON.parse(readFileSync(idFile, "utf8")); } catch { /* first use */ }
+    const readIds = () => { try { return JSON.parse(readFileSync(idFile, "utf8")) as { me: string; agent: string; bank: string }; } catch { return undefined; } };
+    lids = readIds();
+    // Two first-time starts at once (gap T3) must end on ONE set of identities: the first to make the folder `<file>.making` makes them; the other waits for the file (a folder older than two minutes is a crashed start's and is taken over).
+    let making = false;
     if (!lids) {
+      const lock = `${idFile}.making`;
+      for (let i = 0; !lids && !making; i++) {
+        try { mkdirSync(lock); making = true; } catch {
+          lids = readIds();
+          if (lids) break;
+          try { if (Date.now() - statSync(lock).mtimeMs > 120_000) { rmSync(lock, { recursive: true, force: true }); continue; } } catch { continue; }
+          if (i > 1200) throw new Error("another asp start has been making the local identities for over a minute: run again");
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (making) lids = readIds();
+    }
+    if (!lids) {
+      try {
       const make = async (args: string[]) => {
         const out: string[] = [], err: string[] = [];
         const code = await main([...args, "--home", lhome], { out: (l) => out.push(l), err: (l) => err.push(l), env: lenv, cwd: io.cwd });
@@ -3970,12 +7528,11 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       lids = { me, agent, bank };
       writeFileSync(idFile, JSON.stringify(lids, null, 2) + "\n");
       io.err("  local mode: made local identities on this machine (no account, no service, nothing shared)");
+      } finally { try { rmSync(`${idFile}.making`, { recursive: true, force: true }); } catch { /* already gone */ } }
     }
     io.err("  local mode: records stay on this machine, in " + lhome);
     // The outer command may already have put the saved service in the log environment; for this run there is none.
-    const outerLogEnv = logEnv;
-    logEnv = lenv;
-    try { return await runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids); } finally { logEnv = outerLogEnv; }
+    return await logEnvStore.run({ env: lenv }, () => runSession(lhome, runtime, { ...v, local: false, home: lhome }, { ...io, env: lenv }, lids));
   }
   let cfg: JoinConfig | undefined = localIds ? { service: "", token: "", tenant: "local", joinedAt: "", identities: localIds } : readJoinConfig(home);
   if (!cfg && headless && io.env.ASP_LOG_URL && io.env.ASP_LOG_TOKEN) {
@@ -4032,7 +7589,51 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   if (prof.wire === "hooked" && (matchPatterns.length || askTokens.includes("risky"))) io.err(`  note     ${runtime} is held by its own hook, which cannot narrow by command pattern: every command is asked about (--ask commands)`);
   const days = Math.max(1, Math.trunc(Number(v["standing-days"] ?? "7")));
   const hosts = (v["allow-network"] ?? "").split(",").map((h) => h.trim()).filter(Boolean);
-  const scopes = [...prof.scopes, ...(hosts.length ? ["shell.network"] : [])];
+  // A task gets the permissions it seems to need, not the usual full set (gap BM17); --ask on a scope and --allow add to it. A headless run uses its existing contract's Mandate as it is.
+  // A session with no task is sized by the person's choice for this project, asked once and kept in the ASP home (not in the project, so a cloned repository cannot set it).
+  const allowed = [...allowScopes(v.allow, prof.scopes), ...gate.filter((g) => prof.scopes.includes(g))];
+  if (v.permissions !== undefined && v.permissions !== "ask" && !presetOf(v.permissions)) throw new UsageError("--permissions research|writing|translation|learning|coding (or review|write|develop|full; or ask, to be asked again)");
+  const wanted = presetOf(v.permissions);
+  if (wanted && v.permissions! in WORK_PRESETS) { const w = WORK_PRESETS[v.permissions as keyof typeof WORK_PRESETS]; io.err(`  preset   ${v.permissions}: the agent may ${w.allows}; it may not ${w.never}`); }
+  let preset: Preset | undefined;
+  if (!headless) {
+    const prefsFile = join(home, "project-permissions.json");
+    const prefs = ((): Record<string, string> => { try { return JSON.parse(readFileSync(prefsFile, "utf8")); } catch { return {}; } })();
+    const projKey = resolve(io.cwd, v.project ?? ".");
+    const keep = (p: Preset) => { prefs[projKey] = p; mkdirSync(home, { recursive: true }); writeFileSync(`${prefsFile}.part`, JSON.stringify(prefs, null, 2)); renameSync(`${prefsFile}.part`, prefsFile); };
+    if (wanted) { preset = wanted; keep(preset); }
+    else if (!v.prompt) {
+      const saved = v.permissions === "ask" ? undefined : prefs[projKey];
+      preset = isPreset(saved) ? saved : undefined;
+      if (!preset && !v.allow) {
+        const q = "  permissions for this project, asked once (change later with --permissions):\n    1) review   read files only\n    2) develop  read and write files, run tests   [recommended]\n    3) full     also run any command\n  choose 1, 2 or 3 [2]: ";
+        let answer: string | undefined;
+        try {
+          if (io.ask) answer = await io.ask(q);
+          else if (process.stdin.isTTY) { const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr }); try { answer = await rl.question(q); } finally { rl.close(); } }
+        } catch { answer = undefined; }
+        if (answer !== undefined) {
+          const a = answer.trim().toLowerCase();
+          preset = a === "1" || a === "review" ? "review" : a === "3" || a === "full" ? "full" : "develop";
+          keep(preset);
+        }
+      }
+    }
+  }
+  // With --size-with-model (or ASP_SIZE_WITH_MODEL), a model reads the task and proposes the scopes (gap BM17). It only narrows, never grants network, push or protected files, and on any failure the words decide.
+  let byModel: { scopes: string[]; narrowed: boolean; why: string; widen: string } | undefined;
+  if (!headless && !preset && v.prompt && (v["size-with-model"] || io.env.ASP_SIZE_WITH_MODEL)) {
+    const keyEnv = v["api-key-env"] ?? "ANTHROPIC_API_KEY";
+    if (prof.wire !== "anthropic") io.err("  note     --size-with-model works with Claude Code for now; sizing this task from its words");
+    else if (!io.env[keyEnv]) io.err(`  note     --size-with-model needs your ${keyEnv}; sizing this task from its words`);
+    else {
+      const sized = await sizeWithModel(v.prompt, { apiKey: io.env[keyEnv]!, baseUrl: io.env.ASP_RUN_ANTHROPIC_UPSTREAM, model: io.env.ASP_SIZE_MODEL });
+      if (sized) byModel = scopesFromSizing(sized, prof.scopes, allowed);
+      else io.err("  note     the model could not size this task; sizing it from its words");
+    }
+  }
+  const inferred = headless ? { scopes: prof.scopes, narrowed: false, why: "", widen: "" } : preset ? presetScopes(preset, prof.scopes, allowed) : byModel ?? inferScopes(v.prompt, prof.scopes, allowed);
+  const scopes = [...inferred.scopes, ...(hosts.length ? ["shell.network"] : [])];
   for (const g of gate) if (!scopes.includes(g)) throw new UsageError(`--ask ${g}: that scope is not in this session's Mandate (${scopes.join(", ")})`);
   const purpose = (v.prompt ?? "An interactive session").replace(/\s+/g, " ").slice(0, 80);
   const iso = (ms: number) => new Date(Date.now() + ms).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -4041,10 +7642,14 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const key = standingKey(ids.agent, scopes, hosts, gate);
   const standing = headless ? {} : readStanding(home);
   let job: StandingJob | undefined = headless ? { contract: v.contract!, agent: ids.agent, key: "headless", createdAt: "", expiresAt: "9999-12-31T00:00:00Z", scopes, hosts, sessions: 0 } : standing[key];
+  // A person coming back after the job ended is told what happened (gap T13): a new job was made, and why. The earlier one's records stay as they were.
+  let renewed: string | undefined;
   if (job && !headless) {
     const st = (await local.log.chainInfo(job.contract))?.state;
     const live = st === "Running" || st === "Checkpoint";
     if (!live || Date.parse(job.expiresAt) - Date.now() < 15 * 60_000) {
+      const from = `the standing job from ${job.createdAt.slice(0, 10)}`;
+      renewed = !live ? `${from} had ended (${st ?? "unknown"})` : Date.parse(job.expiresAt) <= Date.now() ? `${from} ran out on ${job.expiresAt.slice(0, 10)}` : `${from} was about to run out (${job.expiresAt.slice(0, 16).replace("T", " ")})`;
       if (live) await settleStanding(step, job.contract, ids);
       delete standing[key]; writeStanding(home, standing); job = undefined;
     }
@@ -4060,13 +7665,13 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
     created = true;
   }
   if (v.prepare) {
-    standing[key] = job; writeStanding(home, standing);
-    io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; no network"}`);
+    if (!headless) job = claimStanding(home, key, job, created, false).job;
+    io.out(`standing job ${job.contract} for ${ids.agent.split(":").slice(-1)[0]} (${created ? "made" : "already running"}), until ${job.expiresAt.slice(0, 10)}; scopes ${scopes.join(", ")}${hosts.length ? `; network ${hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}`);
     io.out("for a CI job or a scheduled task: asp token create <name>, asp identity backup <agent did> --out <file>, then asp run claude-code --headless --contract <this id> --prompt-file <task>");
     return 0;
   }
-  job.sessions += 1;
-  if (!headless) { standing[key] = job; writeStanding(home, standing); }
+  // Two sessions started at once must not lose each other's count or each make a standing job (gap T3): the claim reads again under the lock and adopts a job another session made meanwhile.
+  if (headless) job.sessions += 1; else job = claimStanding(home, key, job, created).job;
   const sid = randomBytes(4).toString("hex");
   const stopFile = join(home, `stop-${sid}`);
   // Reports an earlier session could not send (a full account, a dropped connection) are sent now, by themselves; a service that does not answer is not waited for (T16).
@@ -4088,7 +7693,25 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   };
   const creditsBefore = await creditsNow();
   sessionIndexAdd(home, { t: "start", pid: process.pid, sid, contract: job.contract, at: new Date().toISOString(), runtime, agent: ids.agent, me: ids.me, bank: ids.bank, purpose, scopes, hosts });
-  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}, run commands${hosts.length ? ` and reach ${hosts.join(", ")}` : "; no network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+  io.err(`  session ${sid}: ${ids.agent.split(":").slice(-1)[0]} may ${scopes.includes("repo.write") ? "read and write files" : "read files"}${scopes.includes("shell.exec") ? ", run commands" : scopes.includes("tests.run") ? ", run tests" : ""}${hosts.length ? ` and reach ${hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}${gate.length ? `; asks you first for ${gate.join(", ")}` : ""}; ${created ? `new standing job (${days} days)${renewed ? `; ${renewed}, so this one was made, and your earlier records are unchanged` : ""}` : `standing job, session ${job.sessions}, until ${job.expiresAt.slice(0, 10)}`}`);
+
+  if (inferred.narrowed) io.err(`  scope    ${inferred.why}`);
+  // JO3: at the start of a run, one line on the job-data term: what is shared for a job is for the job only.
+  io.err("  data     the agent reads this project and your prompt: do not put secrets or personal data of other people in them unless the task needs it; a job's data is shared for the job only and is deleted when the job settles (asp job-data delete)");
+  // US1: with --ask-first the plan above is shown before anything runs and the person answers. Without a terminal nobody can answer, so the run does not start unless --yes says the plan was read.
+  if (v["ask-first"] && !v.yes) {
+    let go = false;
+    if (process.stdin.isTTY) {
+      const rl = (await import("node:readline/promises")).createInterface({ input: process.stdin, output: process.stderr });
+      go = /^y(es)?$/i.test((await rl.question("  Start this run as described above? [y/N] ")).trim());
+      rl.close();
+    } else io.err("  confirm  no one can answer here: run it in a terminal, or add --yes once you have read the plan above");
+    if (!go) {
+      sessionIndexAdd(home, { t: "end", sid, contract: job.contract, at: new Date().toISOString(), state: "stopped", calls: 0, refused: [], tokens: 0, exitCode: 1 });
+      io.err("  confirm  the run was not started");
+      return 1;
+    }
+  }
 
   // An interactive session cannot ask here: the tool owns the window, and a person who types y into the tool's own box answers the tool, not asp (found live, UC-15).
   if (gate.length && !v.prompt && !headless) io.err("  approvals: this window belongs to the tool, so asp cannot ask you in it. When a command is held, open a second terminal and run:  asp approvals approve   (or  asp approvals refuse ). Typing y in the tool's own box does not answer it.");
@@ -4097,6 +7720,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const bin = io.env.ASP_CLAUDE_BIN ? [io.env.ASP_CLAUDE_BIN, ...(io.env.ASP_CLAUDE_SCRIPT ? [io.env.ASP_CLAUDE_SCRIPT] : [])] : ["claude"];
   const tool = runtime === "codex" ? [process.execPath, CODEX_RUNTIME, project, v.model ?? "-", v.prompt!, ["read-only", "workspace-write"].includes(io.env.ASP_CODEX_SANDBOX ?? "") ? io.env.ASP_CODEX_SANDBOX! : "workspace-write"]
     : runtime === "goose" ? [process.execPath, GOOSE_RUNTIME, project, v.model!, v.prompt!]
+    : runtime === "openclaw" || runtime === "hermes" ? [process.execPath, GATEWAY_AGENT_RUNTIME, runtime, project, v.model!, v.prompt!]
     : v.prompt
       ? [...bin, "-p", v.prompt, "--allowedTools", "Read", "Glob", "Grep", "Edit", "Write", "Bash", "--output-format", "text", ...(v.model ? ["--model", v.model] : [])]
       : [...bin, ...(v.model ? ["--model", v.model] : [])];
@@ -4186,7 +7810,9 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
   const handlers = { SIGINT: () => { if (!interactive) onInterrupt(); }, SIGTERM: onInterrupt, SIGHUP: onInterrupt } as const;
   const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
   for (const s of signals) process.on(s, handlers[s]);
-  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
+  // A dollar cap that cannot admit ONE worst-case call refuses every call at the first one, which looks like a key fault: say so now, with the remedy (the gateway's own start note is not shown by asp run).
+  if (!hooked && v["budget-usd"] !== undefined && Number(v["budget-usd"]) > 0) { const cp = capProblem({ cap: Number(v["budget-usd"]), ...(v.model ? { model: v.model } : {}), ...(v["price-in"] !== undefined ? { priceIn: Number(v["price-in"]) } : {}), ...(v["price-out"] !== undefined ? { priceOut: Number(v["price-out"]) } : {}) }); if (cp) io.err(`  budget   WARNING: ${cp.text}`); }
+  const gw = hooked ? await runHooked() : await quiet(["gateway","--contract", job.contract, "--by", ids.agent, ...(runtime === "claude-code" ? ["--sub-agents", "shared_identity"] : []), ...upstreamFlags, "--max-strikes", "3", ...(v["no-law-context"] ? ["--no-law-context"] : []), ...(v["fleet-rate"] ? ["--fleet-rate", v["fleet-rate"]] : []), "--agent-runtime", runtime, ...(v["escalation-ladder"] ? ["--escalation-ladder"] : []), ...(v["budget-usd"] ? ["--budget-usd", v["budget-usd"]] : []), ...(v["price-in"] ? ["--price-in", v["price-in"]] : []), ...(v["price-out"] ? ["--price-out", v["price-out"]] : []), ...(inferred.narrowed ? ["--widen-hint", inferred.widen] : []), ...(v["also-dir"] ? ["--also-dir", v["also-dir"]] : []), "--stop-file", stopFile, ...(gate.length ? ["--approval-wait", "600", "--always-file", alwaysFile, ...matchPatterns.flatMap((p) => ["--ask-match", p])] : []), ...(v.prompt ? ["--capture", capture, "--task-text", v.prompt] : []), "--", ...tool], { cwd: project, ...(io.raw ? { raw: io.raw } : headless && v.json ? { raw: (b: Buffer) => process.stderr.write(b) } : {}) }, onGatewayLine);
   for (const s of signals) process.off(s, handlers[s]);
   sessionOver = true;
   await asking;
@@ -4244,7 +7870,7 @@ async function runSession(home: string, runtime: string, v: Values, io: Io, loca
       const refusedCall = runLogPath ? readRunLog(runLogPath).events.find((e) => e.kind === "tool_call" && e.data?.allowed === false && /network|web\./.test(String(e.data?.scope ?? ""))) : undefined;
       host = /(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?::\d+)?/i.exec(String(refusedCall?.data?.input ?? ""))?.[1];
     } catch { /* the generic line is enough */ }
-    io.out("  to allow  this session has no network. To let it reach a host, name it:");
+    io.out("  to allow  the gateway refuses calls that reach the network for this session. To let it reach a host, name it:");
     io.out(`            asp run ${runtime} --allow-network ${host ?? "<host>"} --prompt "..."`);
     io.out(`            (only the hosts you name, in a new standing job; the refused command is in: asp run-log show ${sid})`);
   }
@@ -4305,7 +7931,7 @@ function withAspYaml(home: string, pkg: string | undefined, v: Values, io: Io): 
   if (v.headless || (pkg && !SESSION_RUNTIMES[pkg])) return { pkg, v };
   const file = findAspYaml(io.cwd);
   if (!file) return { pkg, v };
-  const text = readFileSync(file, "utf8");
+  const text = readTextFile(file);
   const { values, errors } = parseAspYaml(text);
   if (errors.length) throw new UsageError(`${file}: ${errors.join("; ")}`);
   const runtime = pkg ?? (values.runtime as string | undefined);
@@ -4414,7 +8040,7 @@ async function statusCmd(home: string, io: Io): Promise<number> {
       if (rq && used >= rq * 0.9) next.push(`your account is ${used >= rq ? "full" : "nearly full"} (${used} of ${rq} records): ask the operator to raise the limit (the contact is in the Terms); your agents keep running meanwhile`);
       const waitingReports = outboxWaiting(home);
       if (waitingReports) io.out(`  ${waitingReports} report(s) from earlier sessions are waiting to be sent; they go by themselves at your next session`);
-      for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery: asp identity backup ${i.did}`);
+      for (const i of (a.identities ?? []) as { did: string; recovery: string }[]) if (i.recovery === "none" || i.recovery === "key-only") next.push(`${i.did.split(":").slice(-1)[0]} has no key recovery${i.recovery === "key-only" ? " (key-only: no sponsor)" : ""}: asp identity backup ${i.did}`);
       if (a.starter?.available) next.push("starter credits are waiting: asp account starter");
     }
   } catch (e) { io.out(`  service: not reachable now (${(e as Error).message.slice(0, 60)}); what follows is from this machine`); }
@@ -4452,6 +8078,15 @@ function helpCmd(args: string[], io: Io): number {
   }
   const exact = args.length === 1 ? topicNamed(args[0]) : undefined;
   const found = exact ? [exact] : searchTopics(args.join(" ")).slice(0, 3);
+  if (!found.length) {
+    // A command with no topic of its own: its entries in the command catalogue (docs/commands.json, the same text as `asp help all` and docs/commands.md), so `asp help budget` answers what `asp budget --help` points at.
+    const word = args[0].toLowerCase().replace(/^asp\s+/, "");
+    try {
+      const cat = JSON.parse(readFileSync(new URL("../../../docs/commands.json", import.meta.url), "utf8")) as { groups: { commands: { command: string; description: string }[] }[] };
+      const rows = cat.groups.flatMap((g) => g.commands).filter((c) => { const t = c.command.toLowerCase().split(/\s+/); return t[0] === "asp" && (t[1] === word || t.slice(1, 4).includes(word)); });
+      if (rows.length) { io.out(`asp ${word}`); for (const r of rows.slice(0, 12)) { io.out(`  ${r.command}`); io.out(`    ${r.description}`); } io.out(""); io.out("(the full reference: asp help all)"); return 0; }
+    } catch { /* no catalogue next to the program: fall through to the topic list */ }
+  }
   if (!found.length) { io.out(`nothing in the help matches "${args.join(" ")}". Topics: ${TOPICS.map((t) => t.name).join(", ")}`); return 1; }
   for (const t of found) { io.out(`${t.title}`); for (const l of t.body) io.out(`  ${l}`); io.out(""); }
   if (!exact && found.length === 3) io.out("(the three best matches; asp help <topic> shows one)");
@@ -4504,10 +8139,6 @@ function shimCmd(shell: string | undefined, io: Io): number {
 }
 
 // ---- standing jobs and the history of governed sessions, kept on this machine (prompts stay private) ----
-interface StandingJob { contract: string; agent: string; key: string; createdAt: string; expiresAt: string; scopes: string[]; hosts: string[]; gate?: string[]; sessions: number }
-const standingPath = (home: string) => join(home, "standing.json");
-function readStanding(home: string): Record<string, StandingJob> { try { return JSON.parse(readFileSync(standingPath(home), "utf8")); } catch { return {}; } }
-function writeStanding(home: string, s: Record<string, StandingJob>): void { mkdirSync(home, { recursive: true }); writeFileSync(standingPath(home), JSON.stringify(s, null, 2) + "\n"); }
 const standingKey = (agent: string, scopes: string[], hosts: string[], gate: string[] = []) => createHash("sha256").update(JSON.stringify(gate.length ? [agent, [...scopes].sort(), [...hosts].sort(), [...gate].sort()] : [agent, [...scopes].sort(), [...hosts].sort()])).digest("hex").slice(0, 16);
 
 interface SessionStart { t: "start"; /** The process of `asp run`, so a session whose process has gone without an end record can be called interrupted. */ pid?: number; sid: string; contract: string; at: string; runtime: string; agent: string; me: string; bank: string; purpose: string; scopes: string[]; hosts: string[] }
@@ -4531,14 +8162,85 @@ function sessionsOf(home: string): { start: SessionStart; end?: SessionEnd }[] {
   }
   return [...bySid.values()].sort((a, b) => b.start.at.localeCompare(a.start.at));
 }
+/**
+ * Every session of this machine, newest first, from the ASP home AND from <home>/local, where \`asp run --local\` keeps its own index; each entry says where it lives (\`src\`), because its stop file, its run log and its log are
+ * there. Found in the owner's first real run: a home that already held old sessions never looked at the local index (it was a fallback for an EMPTY home), so tonight's sessions were not listed, not found by id, and
+ * \`asp live report\` showed an old run.
+ */
+/** The environment for reading a --local session's records: the local log only, never the service of a saved login or of ASP_LOG_URL (a local session is recorded in <home>/local; read through a hosted login it showed no records). */
+function localOnlyEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv { const e: NodeJS.ProcessEnv = { ...env }; delete e.ASP_LOG_URL; delete e.ASP_LOG_TOKEN; return e; }
+/** The identities `asp run --local` made on this machine (<home>/local/local-identities.json), if any. */
+function localIdentities(home: string): { me: string; agent: string; bank: string } | undefined { try { return JSON.parse(readFileSync(join(home, "local", "local-identities.json"), "utf8")); } catch { return undefined; } }
+
+function sessionsAll(home: string): { start: SessionStart; end?: SessionEnd; src: string }[] {
+  const mine = sessionsOf(home).map((x) => ({ ...x, src: home }));
+  const isLocal = /[\\/]local[\\/]*$/.test(home);
+  const localHome = join(home, "local");
+  const local = !isLocal && existsSync(sessionIndexPath(localHome)) ? sessionsOf(localHome).map((x) => ({ ...x, src: localHome })) : [];
+  const seen = new Set<string>();
+  return [...mine, ...local].sort((a, b) => b.start.at.localeCompare(a.start.at)).filter((x) => (seen.has(x.start.sid) ? false : (seen.add(x.start.sid), true)));
+}
 const ago = (iso: string) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : s < 129600 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} d ago`; };
 
 function pidAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; }
 }
+/**
+ * asp trend [--days 7]: the same day-by-day and agent-by-agent (gap D8). asp today [--day YYYY-MM-DD | --since 24h] [--all]: what your agents did in a day, what was refused and why, what you answered, and whether anything is wrong (gap T14, docs/daily-view.md).
+ * Read from this machine's session index and run logs, and said to be so.
+ */
+async function todayCmd(home: string, v: Values, io: Io, trend = false): Promise<number> {
+  const sessions: DaySession[] = sessionsAll(home).map((s) => ({ start: s.start, ...(s.end ? { end: s.end } : { alive: !!s.start.pid && pidAlive(s.start.pid) }) }));
+  const eventsOf = (s: DaySession) => {
+    const p = s.end?.runLog;
+    if (!p || !existsSync(p)) return undefined;
+    const r = readRunLog(p);
+    return r.ok ? r.events : undefined;
+  };
+  if (trend) { for (const l of renderTrend(buildTrend(sessions, eventsOf, Number(v.days ?? 7)))) io.out(l); return 0; }
+  const period = periodOf({ day: v.day, since: v.since });
+  const lines = renderToday(buildToday(sessions, eventsOf, period), { ...period, all: !!v.all });
+  for (const l of lines) io.out(l);
+  // How long the person took to answer approvals (T32): from the signed Checkpoints and their resolutions in the log.
+  try {
+    // The sessions of --local live in <home>/local and their records in its log: each home is read through its own log.
+    const homes = [...new Set(sessionsAll(home).map((x) => x.src))];
+    const recs: never[] = [];
+    for (const h of homes.length ? homes : [home]) {
+      try { recs.push(...((await (await openLog(h, h === home ? logEnv : localOnlyEnv(io.env))).log.since(0, 1_000_000)) as never[])); } catch { /* that log cannot be read now */ }
+    }
+    io.out(renderApprovalTimes(approvalTimes(recs, period.from, period.to, new Set(sessions.map((x) => x.start.contract)))));
+  } catch { /* the log cannot be read now: the line is left out */ }
+  // What the agents returned for what they cost, and who paid for their presence (DK388, CY12, CY15): from the log's signed records and this machine's token count (the last 14 days of wakes).
+  const wakeRows = new DailyCeiling(join(home, "wakes.json")).report();
+  const agents = [...new Set(wakeRows.map((r) => r.agent))];
+  if (agents.length) {
+    try {
+      const log = (await openLog(home, logEnv)).log;
+      const recs = (await log.since(0, 1_000_000)) as never[];
+      io.out("");
+      io.out("What your agents returned for what they cost (tokens from this machine's last 14 days of wakes, credits from the log):");
+      for (const a of agents) {
+        const mine = wakeRows.filter((r) => r.agent === a);
+        const st = sponsorReturn(recs, a, { spent: mine.reduce((n, r) => n + r.tokens, 0), wakes: mine.reduce((n, r) => n + r.wakes, 0) }, (await log.reputationOf(a))?.tier ?? null);
+        for (const l of renderSponsorReturn(st)) io.out(`  ${l}`);
+      }
+    } catch (e) { io.out(`(the return statement needs the log: ${(e as Error).message.slice(0, 80)})`); }
+  }
+  return 0;
+}
+
 /** asp runs [--all] | asp runs <id>: what your governed sessions did, and what was refused. */
 async function runsCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  const all = sessionsOf(home);
+  // `asp run --local` keeps its sessions under <ASP_HOME>/local: with none here, list those.
+  const all = sessionsAll(home);
+  if (!id && v["html-file"]) {
+    // The sessions of this machine as one page (E8): what was asked, how it ended, what was refused.
+    const rows = all.slice(0, v.all ? all.length : 200).map((x) => ({ sid: x.start.sid, at: x.start.at, runtime: x.start.runtime, agent: x.start.agent, purpose: x.start.purpose, state: x.end?.state ?? (x.start.pid && !pidAlive(x.start.pid) ? "interrupted" : "running?"), ...(x.end ? { calls: x.end.calls, tokens: x.end.tokens, exitCode: x.end.exitCode, ...(x.end.stopped ? { stopped: x.end.stopped } : {}), ...(x.end.runLog ? { runLog: x.end.runLog } : {}) } : {}), refused: x.end?.refused ?? [] }));
+    writeFileSync(resolve(io.cwd, v["html-file"]), renderRunsHtml({ rows, generated: now(), machine: home }));
+    io.out(`wrote ${v["html-file"]} (${rows.length} session(s))`);
+    return 0;
+  }
   if (!id) {
     if (!all.length) { io.out("no sessions yet: asp run claude-code --prompt \"...\" starts one"); return 0; }
     for (const s of all.slice(0, v.all ? all.length : 15)) {
@@ -4553,11 +8255,13 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   const hit = all.filter((s) => s.start.sid.startsWith(id));
   if (!hit.length) throw new Error(`no session starts with ${id}; asp runs lists them`);
   if (hit.length > 1) throw new Error(`${id} matches ${hit.length} sessions; give more characters`);
-  const { start, end } = hit[0];
+  const { start, end, src } = hit[0];
+  const localSession = src !== home;
+  home = src; // the log and the run logs of a session are where its index is
   io.out(`session ${start.sid}`);
   io.out(`  started   ${start.at} (${ago(start.at)}), ${start.runtime} as ${start.agent}`);
   io.out(`  task      ${start.purpose}`);
-  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; no network"}  (standing job ${start.contract.slice(0, 19)}...)`);
+  io.out(`  mandate   ${start.scopes.join(", ")}${start.hosts.length ? `; network to ${start.hosts.join(", ")}` : "; the gateway refuses calls that reach the network"}  (standing job ${start.contract.slice(0, 19)}...)`);
   io.out(`  ended     ${end ? `${end.at} (${end.state}, exit ${end.exitCode})` : "no end recorded: still running, or the terminal was closed (asp stop <id> ends a running one)"}`);
   if (end) {
     io.out(`  calls     ${end.calls} judged, ${end.refused.length} refused, ${end.tokens} tokens`);
@@ -4566,7 +8270,7 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   }
   // What the log itself holds for the job.
   try {
-    const log = (await openLog(home, logEnv)).log;
+    const log = (await openLog(home, localSession ? localOnlyEnv(io.env) : logEnv)).log;
     const chain = await log.chain(start.contract);
     const actions = chain.length ? (await log.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
     const sets = actions.map((a) => a.record.body as { scopes_used?: string[]; blocked_attempts?: { scope: string; count: number }[]; assurance?: string });
@@ -4580,15 +8284,68 @@ async function runsCmd(home: string, id: string | undefined, v: Values, io: Io):
   return 0;
 }
 
+/** asp live preflight | report (live-run readiness): see live-cmd.ts. */
+async function liveCommand(home: string, sub: string | undefined, v: Values, io: Io): Promise<number> {
+  if (sub === "preflight") {
+    const cfg = (() => { try { return JSON.parse(readFileSync(join(home, "config.json"), "utf8")) as { identities?: { me?: string; agent?: string; bank?: string }; service?: string }; } catch { return undefined; } })();
+    return await livePreflight({
+      home, env: io.env, out: (l) => io.out(l),
+      flags: { ...(v.local ? { local: true } : {}), ...(v.port ? { port: v.port } : {}), ...(v.runtime ? { runtime: v.runtime } : {}), ...(v["api-key-env"] ? { keyEnv: v["api-key-env"] } : {}), ...(v.provider ? { provider: v.provider } : {}), ...(v.model ? { model: v.model } : {}), ...(v["budget-usd"] ? { budgetUsd: v["budget-usd"] } : {}), ...(v["price-in"] ? { priceIn: v["price-in"] } : {}), ...(v["price-out"] ? { priceOut: v["price-out"] } : {}), ...(v.contract ? { contract: v.contract } : {}), ...(v.json ? { json: true } : {}), ...(cfg?.service && !io.env.ASP_LOG_URL ? { service: cfg.service } : {}) },
+      stopAll: async (h) => await stopCmd(h, undefined, { all: true } as Values, { ...io, out: () => undefined, err: () => undefined }),
+      mandateOf: async (contract) => { const chain = (await (await openLog(home, logEnv)).log.chain(contract)).filter((x) => x.record.type === "asp.mandate/v0.2"); const b = chain.at(-1)?.record.body as { scopes?: string[] } | undefined; return b ? { scopes: b.scopes ?? [] } : undefined; },
+      identities: () => cfg?.identities,
+    });
+  }
+  if (sub === "report") {
+    const all = sessionsAll(home);
+    const pick = v.session ? all.filter((s) => s.start.sid.startsWith(v.session!)) : all.slice(0, 1);
+    if (!pick.length) throw new Error(v.session ? `no session starts with ${v.session}; asp runs lists them` : "no sessions yet: nothing to report");
+    if (pick.length > 1) throw new Error(`${v.session} matches ${pick.length} sessions; give more characters`);
+    const { start, end, src } = pick[0];
+    // A session of --local is recorded in the local log (<home>/local), never on the service of a saved login: reading it through that login found no records ("0 signed Action reports", the owner's run of 2026-11-22).
+    const localOnly = src !== home;
+    const localEnv: NodeJS.ProcessEnv = { ...io.env }; delete localEnv.ASP_LOG_URL; delete localEnv.ASP_LOG_TOKEN;
+    home = src; // the log, the run logs and the records of a session are where its index is
+    const runLogPath = end?.runLog && existsSync(end.runLog) ? end.runLog : findRunLog(home, start.contract);
+    let log: { records: number; actions: number } | undefined;
+    let share: { actions: number; unprompted: number; permille: number } | undefined;
+    try {
+      const l = (await openLog(home, localOnly ? localEnv : logEnv)).log;
+      const chain = await l.chain(start.contract);
+      const actions = chain.length ? (await l.since(0, 100000)).filter((s) => s.record.type === "asp.action/v0.2" && (s.record.body as { contract?: string }).contract === start.contract) : [];
+      log = { records: chain.length, actions: actions.length };
+      share = await l.unpromptedShare(start.contract);
+    } catch { /* the log could not be read: the report says what it has */ }
+    const report = buildReport({ session: start, ...(end ? { end } : {}), ...(runLogPath ? { runLogPath } : {}), ...(log ? { log } : {}), ...(share ? { unprompted: share } : {}) });
+    if (v.json) io.out(JSON.stringify(report, null, 2)); else { if (!v.session) io.out(`reporting the newest session, ${start.sid} (asp runs lists the others; asp live report --session <id> reports one of them)`); printReport(report, (l) => io.out(l)); }
+    return report.runLog.chainOk === false ? 1 : 0;
+  }
+  if (sub === "verify-local") {
+    const { verifyLocal, printVerify } = await import("./live-verify.ts");
+    const r = await verifyLocal({ sessions: sessionsAll(home) as never, ...(v.session ? { session: v.session } : {}), ...(v.log ? { logDir: resolve(io.cwd, v.log) } : {}), ...(v["expect-assurance"] ? { expectAssurance: v["expect-assurance"] } : {}), ...(v["no-starter"] ? { noStarter: true } : {}), findRunLog });
+    if (v.json) io.out(JSON.stringify(r, null, 2)); else printVerify(r, (l) => io.out(l));
+    return r.ok ? 0 : 1;
+  }
+  throw new UsageError("asp live preflight [--api-key-env <VAR>] [--model <m>] --budget-usd <n> [--contract <id>] [--json], or asp live report [--session <id>] [--json], or asp live verify-local [--session <id>] [--log <dir>] [--expect-assurance <level>] [--no-starter] [--json]");
+}
+
 /** asp stop [<id>]: ends a running session from another window. The gateway sees the stop, refuses the agent's next request and ends the tool; the standing job stays. */
 async function stopCmd(home: string, id: string | undefined, v: Values, io: Io): Promise<number> {
-  const running = sessionsOf(home).filter((s) => !s.end);
+  // The sessions of the home and of <home>/local (asp run --local): each stop file goes where that session's gateway looks.
+  const running = sessionsAll(home).filter((s) => !s.end);
   const pick = id ? running.filter((s) => s.start.sid.startsWith(id)) : running;
   if (!pick.length) { io.out(id ? `no running session starts with ${id}` : "nothing is running (asp runs lists sessions)"); return id ? 1 : 0; }
-  if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>"); }
-  const { start } = pick[0];
-  mkdirSync(home, { recursive: true });
-  writeFileSync(join(home, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
+  // Stop everything at once (US1): one stop file per running session on this machine, whichever agent it is for; each gateway ends its own tool within seconds. The standing jobs stay.
+  if (v.all) {
+    if (id) throw new UsageError("asp stop --all stops every running session; give no id with it");
+    for (const { start, src } of pick) { mkdirSync(src, { recursive: true }); writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`); }
+    io.out(`stopping ${pick.length} session${pick.length === 1 ? "" : "s"}: ${pick.map((s) => `${s.start.sid} (${s.start.agent})`).join(", ")}; each tool ends within a few seconds (the standing jobs stay; asp standing end ends those too)`);
+    return 0;
+  }
+  if (pick.length > 1) { for (const s of pick) io.out(`  ${s.start.sid}  ${ago(s.start.at)}  ${s.start.purpose.slice(0, 50)}`); throw new Error("more than one session is running; asp stop <id>, or asp stop --all"); }
+  const { start, src } = pick[0];
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, `stop-${start.sid}`), `${new Date().toISOString()}\n`);
   io.out(`stopping session ${start.sid}: its tool ends within a few seconds (the standing job stays; asp standing end ends that too)`);
   return 0;
 }
@@ -4635,7 +8392,41 @@ async function tokenCmd(sub: string | undefined, rest: string[], v: Values, io: 
  * asp agent add <name> [--purpose <text>] | list | use <name>: your agents on the service (launch blocker 12). Each is its own identity in your namespace, sponsored by you, with its
  * own key on this machine; `asp run <runtime> --agent <name>` runs it, and `use` makes one the default. An agent whose key is lost is recovered by you, its sponsor.
  */
+/**
+ * asp agent remove <name or did> [--reason <text>] [--yes] (register row T7; spec-delta S380): retires an agent. Without --yes it only says what will happen and what to back up first and changes nothing. With --yes the agent
+ * signs its own `identity_retirement` (the Registry's record): from then on the log takes no new Contract, Bond, Mandate, Proposal or purchase for it, its page says retired, and everything it did stays in the log.
+ * Its keys, its package and its run logs stay on this machine (asp account export keeps them; asp account close deletes the whole account).
+ */
+async function agentRemove(home: string, target: string | undefined, v: Values, io: Io): Promise<number> {
+  if (!target) throw new UsageError("usage: asp agent remove <name or did> [--reason <text>] [--yes]");
+  let did = target;
+  if (!target.startsWith("did:")) {
+    const cfg = readJoinConfig(home);
+    if (!cfg) throw new UsageError("give the agent's DID, or run asp join so a name can be resolved");
+    const fetched = (await (await fetchRetry(new URL("account", cfg.service + "/"), { headers: { authorization: `Bearer ${cfg.token}` } })).json().catch(() => undefined)) as { ok?: boolean; namespace?: { domain: string } } | undefined;
+    if (!fetched?.ok || !fetched.namespace) throw new Error("could not read your account from the service to resolve the name: give the DID instead");
+    did = didFor(fetched.namespace.domain, cfg.tenant, "agent", target);
+  }
+  const signer = new Keystore(home).forDid(did);
+  if (!signer) throw new Error(`no key for ${did} on this machine: only the agent itself retires its identity (a sponsor with the agent's recovery can first issue a new key: asp identity recover)`);
+  const local = await openLog(home, logEnv);
+  const passport = await local.log.passport(did);
+  if (!passport) throw new Error(`${did} has no passport in the log this machine uses`);
+  const reason = v.reason ?? "the sponsor removed the agent";
+  io.out(`${v.yes ? "removing" : "this would remove"} the agent ${did}:`);
+  io.out("  ends:      new jobs, bonds, Mandates, proposals and purchases for it are refused by the log; its page says retired");
+  io.out("  stays:     everything it did (the log is permanent and public); its keys, package and run logs on this machine; its past certificates until they expire");
+  io.out("  back up first: asp account export (keys, packages, commons entries and sealed run logs); a package you want to keep: asp pack --agent <did> --out <folder>");
+  io.out("  to stop a job already running: asp market revoke --contract <id> (a retired agent does not finish it by itself)");
+  if (!v.yes) { io.out("nothing changed. Run it again with --yes to remove the agent."); return 0; }
+  const rec = createRecord({ type: "registry_act" as never, issuer: did, subject: null, prev: null, body: { act: "identity_retirement", holder: did, reason }, issued_at: now() }, signer);
+  const res = await local.append(rec);
+  io.out(`removed ${did} (record ${res.id}, log seq ${res.seq}); asp registry lookup ${did} shows it as retired`);
+  return 0;
+}
+
 async function agentCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "remove") return await agentRemove(home, rest[0], v, io);
   const cfg = readJoinConfig(home);
   if (!cfg?.identities) throw new Error("you have not joined yet: run asp join first");
   const env = { ...io.env, ASP_LOG_URL: cfg.service, ASP_LOG_TOKEN: cfg.token };
@@ -4662,11 +8453,11 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const did = didFor(domain, cfg.tenant, "agent", name);
     const local = await openLog(home, { ...logEnv, ...env });
     if (!(await local.log.passport(did))) throw new Error(`no agent called ${name}; asp agent list shows yours`);
-    writeFileSync(joinConfigPath(home), JSON.stringify({ ...cfg, identities: { ...cfg.identities, agent: did } }, null, 2) + "\n", { mode: 0o600 });
+    writeFileSync(joinConfigPath(home), JSON.stringify(joinConfigForDisk({ ...cfg, identities: { ...cfg.identities, agent: did } } as JoinConfig), null, 2) + "\n", { mode: 0o600 });
     io.out(`${name} is now the agent asp run uses by default`);
     return 0;
   }
-  if (sub && sub !== "list") throw new UsageError("usage: asp agent add <name> [--purpose <text>] | list | use <name>");
+  if (sub && sub !== "list") throw new UsageError("usage: asp agent add <name> [--purpose <text>] | list | use <name> | remove <name or did> [--reason <text>] [--yes]");
   const keys = new Keystore(home);
   const sessions = sessionsOf(home);
   const standing = Object.values(readStanding(home));
@@ -4680,7 +8471,7 @@ async function agentCmd(home: string, sub: string | undefined, rest: string[], v
     const held = keys.entriesFor(a.did).map((e) => /#(key-\d+)$/.exec(e.kid)?.[1] ?? e.kid);
     io.out(`  ${short(a.did)}${a.did === cfg.identities.agent ? "  (default)" : ""}`);
     io.out(`      identity  ${a.did}`);
-    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery}`);
+    io.out(`      key       ${held.length ? `here on this machine (${held.join(", ")}); the secret is never shown` : "NOT ON THIS MACHINE"}; ${a.recovery === "sponsor" ? "recoverable by you" : a.recovery === "key-only" ? "not recoverable: key-only, no sponsor" : a.recovery}`);
     io.out(`      sessions  ${mine.length}${last ? `, last ${ago(last.start.at)}` : ""}${job ? `; standing job until ${job.expiresAt.slice(0, 10)}` : ""}`);
   }
   io.out(`${agents.length} agent(s); asp agent add <name> makes another`);
@@ -4780,17 +8571,105 @@ async function approvalsCmd(home: string, sub: string | undefined, rest: string[
     io.out("answer with: asp approvals approve [n]  or  asp approvals refuse [n]");
     return 0;
   }
-  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] | refuse [<n>]");
+  if (sub !== "approve" && sub !== "refuse") throw new UsageError("usage: asp approvals [list] | approve [<n>] [--always] | refuse [<n>]");
   const pick = rest[0] ? open.filter((o) => String(o.n) === rest[0]) : open;
   if (!pick.length) throw new Error(rest[0] ? `no waiting approval numbered ${rest[0]}` : "nothing is waiting for your answer");
   if (pick.length > 1) { for (const o of open) io.out(`  ${o.n}  ${o.question}`); throw new Error("more than one is waiting; asp approvals approve <n>"); }
   const o = pick[0];
+  // "Always" from the contract path (T21): asp approvals approve <n> --always allows this exact command for this agent from now on, as answering a at the prompt does. Only a shell command shown whole is remembered:
+  // not cut short, nothing masked, and a scope that is a command (shell.exec, tests.run); anything else is approved this once and says why it was not remembered.
+  let remembered: string | undefined;
+  if (v.always) {
+    if (sub !== "approve") throw new UsageError("--always goes with approve: asp approvals approve <n> --always");
+    const m = /^May (\S+) run .* \((shell\.exec|tests\.run)\)\?$/.exec(o.question);
+    if (!m) remembered = "not remembered: only a shell command is remembered";
+    else if (!o.action || o.action.endsWith("...") || o.action.includes("[redacted]")) remembered = "not remembered: the command was cut short or had secret-looking text masked, so what you read is not the whole command";
+    else {
+      const file = join(home, "always-allow.json");
+      const all = readAlways(file);
+      const mine = all[m[1]] ?? [];
+      if (!mine.some((r) => r.hash === commandKey(o.action))) mine.push({ hash: commandKey(o.action), command: o.action, at: new Date().toISOString() });
+      all[m[1]] = mine.slice(-200);
+      writeAlways(file, all);
+      remembered = "remembered: " + m[1].split(":").slice(-1)[0] + " may run that exact command without asking (asp approvals always lists them; asp approvals forget removes them)";
+    }
+  }
   const out: string[] = [], err: string[] = [];
-  const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
+  const code = await main(["market", "resolve", "--contract", o.contract, "--by", o.principal, "--about", o.checkpoint, "--verdict", sub === "approve" ? "approved" : "corrected", ...(sub === "approve" ? [] : ["--correction", "refused by you"])], { out: (l) => out.push(l), err: (l) => err.push(l), env: logEnv, cwd: io.cwd });
   if (code) throw new Error(`could not record your answer: ${(err.join("\n") || out.join("\n")).trim().slice(0, 300)}`);
   io.out(`${sub === "approve" ? "approved" : "refused"}: ${o.question}`);
+  if (remembered) io.out(`  ${remembered}`);
   void cfg;
   return 0;
+}
+
+/**
+ * asp work attest <file|folder>... --contract <id> --by <agent> [--out <file>] | verify <origin.json> [--dir <folder>] [--json] (register row T11): the origin of a piece of work. See work-origin.ts.
+ */
+async function workCmd(home: string, sub: string | undefined, rest: string[], v: Values, io: Io): Promise<number> {
+  if (sub === "attest") {
+    if (!rest.length || !v.contract || !v.by) throw new UsageError("asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] [--note <text>]");
+    const signer = new Keystore(home).forDid(v.by);
+    if (!signer) throw new UsageError("no key for " + v.by + " on this machine (the agent signs its own work origin)");
+    // The paths in the statement are relative to the folder the statement is written in (--out, else here), so a recipient who unpacks both together verifies with one command.
+    const out = resolve(io.cwd, v.out ?? "work-origin.json");
+    const base = dirname(out);
+    const files = hashWork(rest.map((r) => resolve(io.cwd, r)), base).filter((f) => resolve(base, f.path) !== out);
+    if (!files.length) throw new UsageError("no files under the given paths");
+    let mandate: string | undefined;
+    try { mandate = (await (await openLog(home, logEnv)).log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.id; } catch { /* no log to read: the statement names the contract only */ }
+    const runLogFile = findRunLog(home, v.contract);
+    const rl = runLogFile ? readRunLog(runLogFile) : undefined;
+    const body = { v: ORIGIN_VERSION as typeof ORIGIN_VERSION, kind: "origin" as const, agent: v.by, contract: v.contract, ...(mandate ? { mandate } : {}), ...(rl?.ok ? { run_log: rl.head } : {}), files, createdAt: now(), ...(v.note ? { note: v.note } : {}) };
+    const doc = signOrigin(body, signer);
+    writeFileSync(out, JSON.stringify(doc, null, 2) + "\n");
+    io.out("wrote " + (v.out ?? "work-origin.json") + ": " + files.length + " file(s) signed by " + v.by + " under contract " + v.contract.slice(0, 20) + (mandate ? " and its Mandate" : "") + (rl?.ok ? ", with the head of the run log (" + rl.head.events + " events)" : ""));
+    io.out("a recipient checks it with: asp work verify " + (v.out ?? "work-origin.json"));
+    return 0;
+  }
+  if (sub === "verify") {
+    if (!rest[0]) throw new UsageError("asp work verify <origin.json> [--dir <folder>] [--json]");
+    const file = resolve(io.cwd, rest[0]);
+    let doc: SignedOrigin;
+    try { doc = JSON.parse(readFileSync(file, "utf8")) as SignedOrigin; } catch (e) { throw new UsageError(rest[0] + " is not readable JSON: " + (e as Error).message); }
+    const bad = shapeProblem(doc);
+    if (bad) throw new UsageError(rest[0] + ": " + bad);
+    const dir = resolve(io.cwd, v.dir ?? dirname(file));
+    const problems: string[] = [], notes: string[] = [];
+    const files = checkFiles(doc, dir);
+    for (const m of files.missing) problems.push("missing: " + m);
+    for (const c of files.changed) problems.push("changed since it was signed: " + c);
+    // The signature, against the key the log holds for the agent when a log can be read, else only against itself.
+    let keyChecked = false, sigOk = false, contractInLog: boolean | undefined, mandateInLog: boolean | undefined;
+    try {
+      const lg = (await openLog(home, logEnv)).log;
+      const key = ((await lg.keys(doc.agent)) as { kid: string; publicKey: string; revokedAt: string | null }[]).find((k) => k.kid === doc.kid && !k.revokedAt);
+      if (key) { keyChecked = true; sigOk = verifyOriginSignature(doc, b64urlDecode(key.publicKey)); }
+      else notes.push("the signing key is not a current key of " + doc.agent + " in the log that was read");
+      contractInLog = !!(await lg.get(doc.contract));
+      if (doc.mandate) mandateInLog = !!(await lg.get(doc.mandate));
+    } catch { notes.push("no log could be read here: the key, the contract and the Mandate are not checked against a log"); }
+    if (!keyChecked) {
+      try { const pub = doc.agent.startsWith("did:key:") ? publicKeyFromDidKey(doc.agent) : undefined; if (pub) sigOk = verifyOriginSignature(doc, pub); else notes.push("the key of this agent is not one this machine can derive from its name: the signature is not checked"); } catch { /* not a did:key */ }
+    }
+    if (keyChecked || sigOk) { if (!sigOk) problems.push("the signature does not verify"); }
+    // The contract and the Mandate are judged only against a log that knows the agent: a log that has never heard of it is not the log the work was done under.
+    if (keyChecked && contractInLog === false) problems.push("the contract is not in the log");
+    if (keyChecked && mandateInLog === false) problems.push("the Mandate is not in the log");
+    if (!keyChecked && contractInLog === false) notes.push("this log does not hold the contract: the contract and the Mandate are not checked");
+    const verdict = !problems.length && sigOk ? (keyChecked ? "VERIFIED" : "SIGNATURE VALID") : "DOES NOT VERIFY";
+    if (v.json) { io.out(JSON.stringify({ verdict, agent: doc.agent, contract: doc.contract, mandate: doc.mandate ?? null, files: doc.files.length, problems, notes, key_checked_against_log: keyChecked, signature_ok: sigOk }, null, 2)); return problems.length || !sigOk ? 1 : 0; }
+    io.out(verdict + "  " + doc.files.length + " file(s) by " + doc.agent + " under contract " + doc.contract.slice(0, 20) + ", signed " + doc.createdAt);
+    io.out("  files     " + (files.ok ? "every file is exactly what was signed" : "do not match what was signed"));
+    io.out("  signature " + (sigOk ? "valid" + (keyChecked ? ", by a current key of the agent in the log" : ", but the key was not checked against a log") : "not shown valid"));
+    if (doc.mandate) io.out("  mandate   " + doc.mandate.slice(0, 20) + (!keyChecked || mandateInLog === undefined ? " (not checked against a log)" : mandateInLog ? " is in the log" : " is NOT in the log"));
+    if (doc.run_log) io.out("  run log   head of " + doc.run_log.events + " events, " + doc.run_log.hash.slice(0, 20) + " (asp run-log verify checks the log itself)");
+    for (const x of problems) io.out("  problem   " + x);
+    for (const x of notes) io.out("  note      " + x);
+    io.out("This shows who signed which bytes and under which Mandate the agent says it worked. It does not show that the work is good or that the agent did it alone.");
+    return problems.length || !sigOk ? 1 : 0;
+  }
+  throw new UsageError("usage: asp work attest <file|folder>... --contract <id> --by <agent did> [--out <file>] | verify <origin.json> [--dir <folder>] [--json]");
 }
 
 /** asp standing [end [<agent name>]]: the standing jobs sessions run under, and ending one (it is settled, and the next run makes a new one). */
@@ -4885,14 +8764,19 @@ async function autoSettleOnKill(local: LogHandle, home: string, contract: string
  * approved only for an `approved` resolution. Each request reopens the log fresh, because the principal
  * answers from another process, and requests are served one at a time (a job has one open Checkpoint).
  */
-function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void }) {
+function serveApprovals(o: { dir: string; home: string; contract: string; agent: string; pollMs: number; waitSeconds: number; io: Io; filter?: (command: string) => "ask" | "remembered" | "no-match"; onSkip?: (req: { tool: string; scope: string; summary: string }, why: string) => void; /** P29: tell the person once when approvals pile up; a name and facts for the run log. */ onEvent?: (name: string, data: Record<string, unknown>) => void; /** P29: the agent keeps asking for a call nobody approved: end the session (no strike, no slash). */ onGiveUp?: (why: string) => void }) {
   let stopped = false;
+  const pile = new ApprovalPile({ env: o.io.env });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Written to a temporary name and renamed, so a hook polling for the file never reads half of it (found by the Postgres CI job: it failed closed on "Unexpected end of JSON input").
+  // ASP_DEBUG_APPROVALS=1 keeps a timed trail of this side of the hand-off (gap T23).
+  const trail = (m: string) => { if (process.env.ASP_DEBUG_APPROVALS) { try { appendFileSync(join(o.dir, "debug.log"), `${new Date().toISOString().slice(11, 23)} approvals: ${m}\n`); } catch { /* a trail is optional */ } } };
   const decide = (id: string, d: { approved: boolean; reason?: string }) => {
     const tmp = join(o.dir, `${id}.decision.tmp`);
     writeFileSync(tmp, JSON.stringify(d));
     renameSync(tmp, join(o.dir, `${id}.decision.json`));
+    if (!d.approved && ApprovalPile.isUnanswered(d.reason)) pile.noteUnanswered();
+    trail(`${id}: wrote the decision (${d.approved ? "approved" : `refused: ${d.reason ?? ""}`})`);
   };
 
   // The hosted service limits how often one tenant may call it, and two terminals on one job poll twice as often (found live, UC-138): a rate limit, and a service that cannot be reached for a while (the wifi drops, the laptop sleeps, UC-35), are waited out, not taken for a refusal.
@@ -4918,9 +8802,10 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
     const timedOut = () => decide(req.id, { approved: false, reason: `the principal did not answer within ${o.waitSeconds} seconds` });
     // A job has one open Checkpoint at a time: wait for any earlier one to be resolved first.
     let lastReap = 0;
+    trail(`${req.id}: request seen; waiting for the job to be Running`);
     let local = await retry(() => openLog(o.home, logEnv));
     while ((await retry(() => local.log.chainInfo(o.contract)))?.state !== "Running") {
-      if (stopped) return;
+      if (stopped) { trail(`${req.id}: the run ended before this turn came`); return; }
       if (Date.now() >= giveUpAt) return timedOut();
       // An earlier Checkpoint whose session is gone and whose time has run out would hold this one back for ever: close it.
       // (Reading the whole chain for this is costly, so it is done every 15 seconds, not every poll: two terminals on one job ran into the service's request limit, UC-138.)
@@ -4942,8 +8827,10 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         expires: new Date(expiresMs).toISOString().replace(/\.\d{3}Z$/, "Z") },
     }, signer);
     await retry(() => local.append(checkpoint));
+    trail(`${req.id}: Checkpoint ${checkpoint.id.slice(7, 15)} raised`);
     o.io.err(`  APPROVAL NEEDED  ${req.scope}: ${shown}${masked.redacted ? "  (secret-looking text was masked)" : ""}`);
     o.io.err(`    answer with: asp market resolve --contract ${o.contract} --by ${principal} --verdict approved`);
+    let lastTrace = 0;
     for (;;) {
       // The run is over: wait out a nearly-expired request, but leave a far-off one open (it can be answered, or expired later).
       if (stopped && expiresMs + 1000 - Date.now() > 10_000) {
@@ -4954,13 +8841,27 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       const fresh = await retry(() => openLog(o.home, logEnv));
       // Only the job's state is polled (one cheap request): while it is still Checkpoint nobody has answered. The whole chain is read when the state changes. Reading it every second grew with
       // the job and, with two terminals, ran into the service's request limit (found live, UC-138).
-      if (Date.now() < expiresMs + 1000 && (await retry(() => fresh.log.chainInfo(o.contract)))?.state === "Checkpoint") continue;
+      const polledAt = Date.now();
+      const state = (await retry(() => fresh.log.chainInfo(o.contract)))?.state;
+      if (process.env.ASP_DEBUG_APPROVALS && (Date.now() - polledAt > 2000 || Date.now() - lastTrace > 5000)) { lastTrace = Date.now(); trail(`${req.id}: polling: state ${state}, the read took ${Date.now() - polledAt} ms`); }
+      if (Date.now() < expiresMs + 1000 && state === "Checkpoint") continue;
       const chain = await retry(() => marketChain(fresh.log, o.contract));
       const at = chain.findIndex((x) => x.id === checkpoint.id);
       const resolution = chain.slice(at + 1).find((x) => {
         const b = x.record.body as { kind?: string; about?: string };
         return x.record.type === "asp.attestation/v0.2" && b.kind === "checkpoint_resolution" && b.about === checkpoint.id;
       });
+      if (!resolution && process.env.ASP_DEBUG_APPROVALS && Date.now() - lastTrace > 5000) {
+        lastTrace = Date.now();
+        const about = chain.filter((x) => x.record.type === "asp.attestation/v0.2" && (x.record.body as { kind?: string }).kind === "checkpoint_resolution").map((x) => `${String((x.record.body as { about?: string }).about).slice(7, 15)}:${(x.record.body as { verdict?: string }).verdict}`);
+        trail(`${req.id}: state ${state} but no answer about ${checkpoint.id.slice(7, 15)} yet; position ${at} of ${chain.length}; resolutions in the chain are about: ${about.join(", ")}`);
+      }
+      if (!resolution && state !== "Checkpoint" && at >= 0 && chain.slice(at + 1).some((x) => x.record.type === "asp.attestation/v0.2" && (x.record.body as { kind?: string }).kind === "checkpoint_resolution")) {
+        // The job is running again and an answer was written after this Checkpoint, but it is not about this one: some other answer closed it. Not approved, and not left waiting for a yes that cannot come.
+        trail(`${req.id}: the Checkpoint was closed by an answer about another request: refused`);
+        o.io.err(`  approval closed for ${req.scope}: the Checkpoint was closed by an answer that was not about this request, so the call was refused; ask for it again if it is still wanted`);
+        return decide(req.id, { approved: false, reason: "the Checkpoint was closed by an answer that was not about this request; the call was not approved" });
+      }
       if (!resolution) {
         if (Date.now() < expiresMs + 1000) continue;
         const expired = createRecord({
@@ -4973,6 +8874,7 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
       }
       const b = resolution.record.body as { verdict: string; correction?: string };
       const approved = b.verdict === "approved";
+      trail(`${req.id}: Checkpoint ${checkpoint.id.slice(7, 15)} resolved: ${b.verdict}`);
       o.io.err(`  approval ${approved ? "granted" : "refused"} for ${req.scope}${b.correction ? `: ${b.correction}` : ""}`);
       return decide(req.id, approved ? { approved: true } : { approved: false, reason: b.correction ?? `the principal answered ${b.verdict}` });
     }
@@ -4987,7 +8889,16 @@ function serveApprovals(o: { dir: string; home: string; contract: string; agent:
         const path = join(o.dir, f);
         const req = JSON.parse(readFileSync(path, "utf8"));
         renameSync(path, join(o.dir, f.replace(".request.json", ".request.seen.json")));
-        try { await handle(req); } catch (e) { try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
+        if (pile.closed && !(o.filter && (req.tool === "Bash" || req.tool === "PowerShell") && req.scope === "shell.exec" && o.filter(req.summary) !== "ask")) {
+          // P29: nobody answered the last requests, so none is asked: no Checkpoint is raised and the hook is answered at once.
+          const piled = pile.refuseAtOnce(req.scope);
+          decide(req.id, { approved: false, reason: piled.reason });
+          trail(`${req.id}: refused at once (${pile.unansweredCount} unanswered)`);
+          if (piled.notify) { o.io.err(`  NOTICE   ${piled.notify}`); o.onEvent?.("approvals_piling", { unanswered: pile.unansweredCount }); }
+          if (piled.stop) { o.io.err(`  stopped  ${piled.stop}`); o.onEvent?.("approvals_stopped_run", { refused: pile.refusedAtOnceCount }); o.onGiveUp?.(piled.stop); }
+          continue;
+        }
+        try { await handle(req); trail(`${req.id}: handled`); } catch (e) { trail(`${req.id}: failed: ${(e as Error).message}`); try { decide(req.id, { approved: false, reason: `asp run could not raise the Checkpoint: ${(e as Error).message}` }); } catch { /* the run is ending */ } }
       }
       await sleep(o.pollMs);
     }
@@ -5028,7 +8939,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   const manifest = JSON.parse(readFileSync(join(pkgDir, "manifest.json"), "utf8")) as AspRecord;
   const harness = JSON.parse(readFileSync(join(pkgDir, "harness", "harness.json"), "utf8")) as Harness;
   const agent = report.agent!;
-  const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}`);
+  const runDir = join(home, "runs", `${slug(agent)}-${now().replace(/[:]/g, "")}-${randomBytes(2).toString("hex")}`);
   const maxStrikes = v["max-strikes"] === undefined ? 3 : Number(v["max-strikes"]);
   if (!Number.isInteger(maxStrikes) || maxStrikes < 1) throw new UsageError("--max-strikes must be a whole number, at least 1");
   const approvalWait = v["approval-wait"] === undefined ? 600 : Number(v["approval-wait"]);
@@ -5050,7 +8961,12 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       return 1;
     }
   }
-  const mandate = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  const mandateRaw = v.contract ? await local!.log.mandateOf(v.contract) : undefined;
+  // A fleet member is held to its ceiling here too (DK1471): the scopes and hosts the template allows, read from the log now.
+  const runCeiling = mandateRaw && v.contract ? await readFleetCeiling(local!, agent, mandateRaw.scopes, ((await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1)?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts) : undefined;
+  const mandate0 = mandateRaw && runCeiling ? { ...mandateRaw, scopes: runCeiling.scopes } : mandateRaw;
+  if (runCeiling?.removed.length) io.err(`  ceiling  ${runCeiling.label} bounds this member: ${runCeiling.removed.join(", ")} ${runCeiling.removed.length === 1 ? "is" : "are"} in its Mandate record but outside the template, so refused`);
+  const mandate = mandate0 ? await narrowForQuarantine(local!, agent, mandate0, now(), (l) => io.err(l)) : undefined;
   // The Mandate's irreversible policy: scopes that need the principal's approval first, or are forbidden.
   let gate: { scopes: string[]; mode: "ask" | "deny"; waitSeconds: number } | undefined;
   let mandateHosts: string[] | undefined;
@@ -5058,7 +8974,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   if (v.contract && mandate) {
     const mandateRecord = (await local!.log.chain(v.contract)).filter((x) => x.record.type === "asp.mandate/v0.2").at(-1);
     const irreversible = (mandateRecord?.record.body as { irreversible?: { policy?: string; scopes?: string[] } } | undefined)?.irreversible;
-    mandateHosts = (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
+    mandateHosts = runCeiling?.hostsOut ?? (mandateRecord?.record.body as { network?: { hosts?: string[] } } | undefined)?.network?.hosts;
     mandateRate = (mandateRecord?.record.body as { network?: { rate?: { per_host_per_minute?: number; total_per_minute?: number } } } | undefined)?.network?.rate;
     if (irreversible?.scopes?.length && irreversible.policy !== "allow") {
       gate = { scopes: irreversible.scopes, mode: irreversible.policy === "forbid" ? "deny" : "ask", waitSeconds: approvalWait };
@@ -5071,7 +8987,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   }
   const plan = await adapter.materialize({
     pkgDir, harness, project: resolve(io.cwd, v.project ?? "."), runDir, agentName: basename(agent.replace(/:/g, "/")), prompt: v.prompt, env: io.env,
-    mandateScopes: mandate?.scopes, mandateHosts, mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
+    mandateScopes: mandate?.scopes, mandateHosts, ...(runCeiling?.removed.length ? { mandateCeiling: { label: runCeiling.label, removed: runCeiling.removed } } : {}), ...(v.tripwire?.length ? { mandateTripwires: v.tripwire } : {}), mandateRate, mandateGate: gate, mandateKnownBad: knownBad.map((e) => ({ fingerprint: e.fingerprint, report: e.report })), model: v.model, endpoint: v.endpoint, apiKeyEnv: v["api-key-env"], sourceRuntime: (manifest.body as any).source_runtime?.name,
   });
 
   if (knownBad.length) io.err(plan.preventsCalls ? `  note     ${knownBad.length} known-bad command fingerprint(s) are enforced by the pre-call hook` : `  note     the known-bad list (${knownBad.length}) is not enforced: this runtime has no pre-call hook`);
@@ -5108,9 +9024,10 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   // Each out-of-scope call waits for its outcome (checkOutputForResult) before it is judged.
   const KILL_GRACE_MS = 3000;
   // The run log (E5): what the runtime's output shows, redacted, in the run folder; the Actions commit to its hash. Needs the output piped, which every
-  // adapter that reads it asks for; an interactive run with no prompt has no stream to read and keeps none.
-  const runLog = (v["no-run-log"] || !(plan.checkOutputForAction || plan.checkOutputForFailure)) ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
-  runLog?.event("run_start", { contract: v.contract, agent, backend, scopes: mandate?.scopes, ...(mandateHosts ? { hosts: mandateHosts } : {}), command: [plan.command, ...plan.args].join(" "), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed" });
+  // adapter that reads it asks for; an interactive run with no prompt has no stream to read: it keeps a log of its start and end only (output_read: false).
+  const streamRead = !!(plan.checkOutputForAction || plan.checkOutputForFailure);
+  const runLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+  runLog?.event("run_start", { contract: v.contract, agent, backend, scopes: mandate?.scopes, ...(mandateHosts ? { hosts: mandateHosts } : {}), command: [plan.command, ...plan.args].join(" "), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(streamRead ? {} : { output_read: false, note: "no output stream on this run (no --prompt): only the start, the end and what the hooks saw are kept" }) });
   if (runLog) io.err(`  run log  ${runLog.path}`);
   let hiddenFailure: string | undefined;
   const scopesSeen = new Set<string>();
@@ -5134,7 +9051,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
     });
     let killTimer: NodeJS.Timeout | undefined;
     const approvals = plan.approvalsDir && v.contract
-      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }) })
+      ? serveApprovals({ dir: plan.approvalsDir, home, contract: v.contract, agent, pollMs: Number(io.env.ASP_APPROVAL_POLL_MS) > 0 ? Number(io.env.ASP_APPROVAL_POLL_MS) : 1000, waitSeconds: approvalWait, io, filter: commandFilterFor(v, home, agent), onSkip: (r, why) => runLog?.event("gate_skipped", { tool: r.tool, scope: r.scope, why, input: r.summary }), onEvent: (n, d) => runLog?.event(n, d), onGiveUp: () => { if (child.exitCode === null && child.signalCode === null) { killTree(child, "SIGTERM"); killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS); } } })
       : undefined;
     const strike = (scope: string, how: string) => {
       strikes++;
@@ -5238,6 +9155,8 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         : `could not start ${plan.command}: ${e.message}`);
       void (approvals ? approvals.stop() : Promise.resolve()).then(() => done(-1));
     });
+    // A quarantine that begins while a hooked run goes on (DK500): the Mandate file the pre-call hook reads is rewritten with the freeze, so the next hooked call is judged on the new list, and again on release.
+    const stopQuarantineHook = mandate0 && local && plan.preventsCalls ? watchQuarantine(local, agent, mandate0.scopes, [...(mandate?.scopes ?? [])], (Number(v["quarantine-poll"]) > 0 ? Number(v["quarantine-poll"]) : 60) * 1000, now, (l) => io.err(l), (scopes) => { for (const f of [join(plan.runDir, "plugin", "asp-mandate.json"), join(plan.runDir, "asp-hook", "asp-mandate.json")]) rewriteHookScopes(f, scopes); }) : undefined;
     // "close", not "exit": every line of output is read (and every outcome judged) before the run is wrapped up.
     // asp stop on a session of a hooked runtime (Antigravity, OpenHands): the tool is ended; the standing job stays.
     const stopWatch = v["stop-file"] ? setInterval(() => {
@@ -5248,6 +9167,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
       killTimer ??= setTimeout(() => { if (child.exitCode === null && child.signalCode === null) killTree(child, "SIGKILL"); }, KILL_GRACE_MS);
     }, 300) : undefined;
     child.on("close", (c) => {
+      stopQuarantineHook?.();
       if (stopWatch) clearInterval(stopWatch);
       if (killTimer) clearTimeout(killTimer);
       void (approvals ? approvals.stop() : Promise.resolve())
@@ -5281,6 +9201,10 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   const blockedAttempts = [...blockedByScope].sort(([a], [b]) => a.localeCompare(b)).map(([scope, count]) => ({ scope, count }));
   // Network calls the pre-call hook refused for being over the rate limit: not strikes, but counted in the Action's metrics (H1).
   const rateLimited = plan.rateLimitedFile && existsSync(plan.rateLimitedFile) ? readFileSync(plan.rateLimitedFile, "utf8").split(/\r?\n/).filter(Boolean).length : 0;
+  const telemetryRefs = await captureTelemetry(io.env, [
+    ...(runLog && existsSync(join(runDir, "run-log.ndjson")) ? [{ kind: "trajectory", content: readFileSync(join(runDir, "run-log.ndjson"), "utf8"), did: agent }] : []),
+    ...(v.prompt ? [{ kind: "message", content: v.prompt, did: agent }] : []),
+  ]);
   runLog?.event("run_end", { exit_code: code, scopes_used: [...scopesSeen].sort(), blocked: blockedAttempts, strikes, ...(killed ? { killed: killed.reason } : {}), ...(hiddenFailure ? { failure: hiddenFailure } : {}), redactions: runLog?.redactions });
 
   if (killed) {
@@ -5296,7 +9220,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         body: {
           contract: v.contract!, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}, killed mid-run`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(artifactsSeen.length || runLog || telemetryRefs.length ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : []), ...telemetryRefs] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);
@@ -5326,7 +9250,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
         body: {
           contract: v.contract, scopes_used: [...scopesSeen].sort(), assurance: plan.preventsCalls ? "hook_enforced" : "runtime_observed", ...(backend === "claude-code" ? { sub_agents: "shared_identity" } : {}), summary: `${backend} run, ${runDir}`,
           ...(blockedAttempts.length ? { blocked_attempts: blockedAttempts } : {}),
-          ...(artifactsSeen.length || runLog ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : [])] } : {}),
+          ...(artifactsSeen.length || runLog || telemetryRefs.length ? { artifacts: [...artifactsSeen, ...(runLog ? [runLogArtifact(runLog.head())] : []), ...telemetryRefs] } : {}),
           ...(rateLimited ? { metrics: { rate_limited: rateLimited } } : {}),
         },
       }, actionSigner);
@@ -5351,6 +9275,7 @@ async function runInInner(pkgDir: string, home: string, backend: string, adapter
   // Write back: a backend swap and any memory the agent changed become signed lineage updates.
   const changes: LineageChange[] = [];
   if (swap) changes.push({ layer: "backend", description: `runtime ${current} -> ${backend}`, probationDays: 7 });
+  if (plan.memoryDir) for (const h of screenMemoryWriteBack(pkgDir, plan.memoryDir, baseMemory)) io.err(`  held back  memory/${h.file}: ${h.reasons.map((r) => r.reason).join("; ")} (see asp learned)`);
   const diff = plan.memoryDir ? diffTrees(baseMemory, plan.memoryDir) : undefined;
   const memoryChanged = !!diff && !isEmptyDiff(diff) && !v["no-write-back"];
   let memoryFrom = plan.memoryDir;
@@ -5409,6 +9334,8 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   const tasks = v.task ?? [];
   if (!tasks.length) throw new UsageError("--task is required at least once");
   const maxParallel = Math.max(1, Math.trunc(Number(v["max-parallel"] ?? 4)) || 1);
+  const nodeMandate = v.mandate as string | undefined;
+  if (nodeMandate && v.isolate) throw new UsageError("asp orchestrate --mandate does not work with --isolate: the Mandate is issued to this agent, not a copy made at run time");
 
   const resolved = await resolvePackage(resolve(io.cwd, pkg));
   let mutated = false;
@@ -5434,6 +9361,14 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
   const local = await openLog(home, logEnv);
   const inLocalLog = !!(await local.log.passport(agent));
   const dryRun = v["dry-run"] ?? false;
+  // A node that cites a Mandate is bound by it (max_parallel, expiry, gap T22); checked once up
+  // front so a bad --mandate fails before any node is spawned, not node by node.
+  if (nodeMandate) {
+    if (!inLocalLog) throw new UsageError(`asp orchestrate --mandate needs ${agent}'s passport in this machine's local log`);
+    const rec = await local.log.get(nodeMandate);
+    if (!rec || rec.record.type !== "asp.mandate/v0.2") throw new UsageError(`${nodeMandate} is not a Mandate in this log`);
+    if (rec.record.subject !== agent) throw new UsageError(`the Mandate ${nodeMandate} was issued to ${rec.record.subject}, not ${agent}`);
+  }
 
   const batchTag = Date.now().toString(36);
   const batchDir = join(home, "runs", `${slug(agent)}-fleet-${batchTag}`);
@@ -5485,10 +9420,21 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
         node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)),
         expires: new Date(Date.now() + 3600_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
         purpose: task.slice(0, 200),
+        ...(nodeMandate ? { mandate: nodeMandate } : {}),
       },
     }, liable.signer);
     if (inLocalLog) {
-      try { await local.append(nodeRecord); } catch { /* best-effort: node bookkeeping only */ }
+      try { await local.append(nodeRecord); }
+      catch (e) {
+        // With no Mandate at stake this grant is bookkeeping only (MOCKS.md): best-effort. A cited
+        // Mandate is real governance (gap T22: a node must not be left unbound), so a refusal
+        // (expiry past the Mandate's, too many live nodes) stops the node, not run ungoverned.
+        if (nodeMandate) {
+          const error = `the Mandate refused this node's key: ${(e as Error).message}`;
+          io.err(`  node ${index}  FAILED  ${error}`);
+          return { index, task, ok: false, runDir, error };
+        }
+      }
     }
     // A node whose task is abandoned shouldn't just sit there until its hour is up: chain an
     // immediate revocation onto its own grant the moment failure is known (the existing
@@ -5499,7 +9445,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
         const revokedAt = now();
         const revoke = createRecord({
           type: "node", issuer: liable.did, subject: liable.did, prev: nodeRecord.id, issued_at: revokedAt,
-          body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200) },
+          body: { node: nodeKid, public_key: b64urlEncode(publicKeyFromSeed(nodeSeed)), expires: revokedAt, purpose: task.slice(0, 200), ...(nodeMandate ? { mandate: nodeMandate } : {}) },
         }, liable.signer);
         await local.append(revoke);
       } catch { /* best-effort: node bookkeeping only */ }
@@ -5508,6 +9454,9 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
     const stdoutLog = join(runDir, "stdout.log");
     const stderrLog = join(runDir, "stderr.log");
     let hiddenFailure: string | undefined;
+    // The run log of this node (E5): a hash-chained log of its start and end, with the hashes of the output it wrote; the output itself is not read for text (output_read: false), as for an interactive `asp run`.
+    const nodeLog = v["no-run-log"] ? undefined : new RunRecorder(join(runDir, "run-log.ndjson"));
+    nodeLog?.event("run_start", { node: index, agent, backend: v.backend, command: [plan.command, ...plan.args].join(" "), output_read: false });
     const code = await new Promise<number>((done) => {
       const child = spawn(plan.command, plan.args, { cwd: plan.cwd, env: { ...io.env, ...plan.env }, stdio: ["ignore", "pipe", "pipe"] });
       let outCarry = "";
@@ -5526,6 +9475,7 @@ async function orchestrate(home: string, pkg: string | undefined, v: Values, nee
       });
       child.on("exit", (c) => done(c ?? 1));
     });
+    { const hash = (f: string) => existsSync(f) ? createHash("sha256").update(readFileSync(f)).digest("hex") : null; nodeLog?.event("run_end", { node: index, exit_code: code, output_read: false, stdout_sha256: hash(stdoutLog), stderr_sha256: hash(stderrLog), ...(hiddenFailure ? { failure: hiddenFailure } : {}) }); }
     if (code === -1) {
       await revokeAbandonedNode();
       return { index, task, ok: false, runDir, error: "could not start the runtime" };
@@ -5624,7 +9574,7 @@ function currentRuntime(pkgDir: string, manifest: AspRecord): string {
   const agent = (manifest.body as any).agent;
   const moves = history.filter((r) => r.type === "asp.lineage/v0.2" && (r.body as any).child === agent && (r.body as any).change?.layer === "backend");
   const last = moves.at(-1);
-  const to = last && /-> (\S+)$/.exec((last.body as any).change.description)?.[1];
+  const to = last && /-> (\S+?)(?:;|\s|$)/.exec((last.body as any).change.description)?.[1];
   return to ?? (manifest.body as any).source_runtime?.name;
 }
 

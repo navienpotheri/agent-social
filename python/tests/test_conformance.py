@@ -85,3 +85,128 @@ def test_resign_reproduces_typescript_bytes(case):
     )
     assert again["id"] == r["id"]
     assert again["sig"]["value"] == r["sig"]["value"]
+
+
+# ---- the world engine (docs/spec-deltas.md S170) ----
+from asp_core.world import GENERATOR, check_world_record, generate_day, seed_commitment  # noqa: E402
+
+WORLD = load("vectors/world.json")
+
+
+def test_world_generator_name():
+    assert WORLD["generator"] == GENERATOR
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=f"{c['seed']}-{c['day']}") for c in WORLD["generate"]])
+def test_world_generate(case):
+    assert generate_day(case["seed"], case["day"]) == case["events"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["seed"] or "empty") for c in WORLD["commitments"]])
+def test_world_commitment(case):
+    assert seed_commitment(case["seed"]) == case["commitment"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in WORLD["rules"]])
+def test_world_rule(case):
+    code, detail = code_of(lambda: check_world_record(case["issuer"], case["issued_at"], case["body"]))
+    if case["expect"] == "ok":
+        assert code is None
+    else:
+        assert (code, detail) == ("GUARD_FAILED", case["expect"])
+
+
+# ---- the Market's risk model (docs/spec-deltas.md S1404) ----
+from asp_core.risk import RISK_MODEL, only_removes_rule, suggest_risk  # noqa: E402
+
+RISK = load("vectors/risk.json")
+
+
+def test_risk_model_name():
+    assert RISK["model"] == RISK_MODEL
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["suggest"]])
+def test_risk_suggest(case):
+    assert suggest_risk(case["terms"], case["input"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in RISK["onlyRemoves"]])
+def test_risk_only_removes_rule(case):
+    assert only_removes_rule(case["prev"], case["next"]) == case["expected"]
+
+
+# ---- the Mandate template (docs/spec-deltas.md S1408) ----
+from asp_core.mandate_template import derive_mandate, mandate_violations  # noqa: E402
+
+MT = load("vectors/mandate-template.json")
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["violations"]])
+def test_mandate_violations(case):
+    assert mandate_violations(case["ceiling"], case["candidate"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["derive"]])
+def test_derive_mandate(case):
+    assert derive_mandate(case["template"], case["contract"], case["narrowing"]) == case["expected"]
+
+
+# ---- the job-data term of a contract (docs/spec-deltas.md S1569, register row JO3) ----
+from asp_core.data_handling import JOB_DATA_TERM, MAX_RETAIN_DAYS, data_handling_problem, read_data_handling  # noqa: E402
+
+DH = load("vectors/data-handling.json")
+
+
+def test_data_handling_constants():
+    assert DH["term"] == JOB_DATA_TERM
+    assert DH["maxRetainDays"] == MAX_RETAIN_DAYS
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in DH["cases"]])
+def test_data_handling(case):
+    assert data_handling_problem(case["input"]) == case["problem"]
+    assert read_data_handling(case["input"]) == case["reading"]
+
+
+# ---- the notice acknowledgement (docs/spec-deltas.md S1591, register row US8) ----
+from asp_core.notice_ack import KNOWN_NOTICES, notice_ack_problem  # noqa: E402
+
+NA = load("vectors/notice-ack.json")
+
+
+def test_known_notices():
+    assert list(KNOWN_NOTICES) == NA["notices"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in NA["cases"]])
+def test_notice_ack(case):
+    assert notice_ack_problem(case["input"]) == case["problem"]
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MT["privateScopes"]])
+def test_private_scopes(case):
+    from asp_core.mandate_template import private_scopes_problem  # noqa: PLC0415
+
+    assert private_scopes_problem(case["input"]) == case["problem"]
+
+
+# ---- the forum rank checkpoint's Merkle root (docs/spec-deltas.md S1599, register row DK1742) ----
+from asp_core.merkle import EMPTY_ROOT, merkle_leaf, merkle_proof, merkle_root, merkle_verify  # noqa: E402
+
+MK = load("vectors/merkle.json")
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["name"]) for c in MK["cases"]])
+def test_merkle(case):
+    assert merkle_root(case["leaves"]) == case["root"]
+    assert [merkle_leaf(t) for t in sorted(set(case["leaves"]))] == case["leaf_hashes"]
+    for p in case["proofs"]:
+        assert merkle_proof(case["leaves"], p["leaf"]) == p["proof"]
+        assert merkle_verify(case["root"], p["leaf"], p["proof"]) is True
+        assert merkle_verify(case["root"], p["leaf"] + "x", p["proof"]) is False
+
+
+def test_merkle_empty_and_missing():
+    assert merkle_root([]) == EMPTY_ROOT
+    assert merkle_proof(["a", "b"], "z") is None

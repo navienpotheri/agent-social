@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:claim_decision",
+  "title": "Claim decision body",
+  "description": "The Insurer's decision on a claim (bank-insurer.md 3 and 5, register row DK20; spec-delta S281). Signed by the Insurer. The log recomputes it from the settlement and the policy's terms: a covered event is not denied, a denial gives the reason the terms give, the amount is what the terms give or less only because the reserve is short (`reduced`), and the payment comes out of the reserve, never beyond it. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "claim",
+    "decision",
+    "amount",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "claim": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "decision": {
+      "enum": [
+        "paid",
+        "reduced",
+        "denied"
+      ]
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

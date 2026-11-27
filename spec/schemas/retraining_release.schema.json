@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:retraining_release",
+  "title": "Retraining release body",
+  "description": "The Clinic returns an agent that repeat slashes excluded (tier 0) to tier 1 (clinic.md CL-10, register row DK29). Signed by the Clinic. The log checks the agent is at tier 0, at least 30 days have passed since its last slash, the exam result is a passed one of the agent's, made after that slash, the sponsor's re-vouching is a record signed by the agent's sponsor after that slash, and the agent has not been returned more than twice. After it a Mandate may be granted to the agent again. Credits never buy it. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["agent", "exam_result", "revouch"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "exam_result": { "description": "A passed exam result of the agent's, issued after the last slash (the clean exam of the retraining path).", "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "revouch": { "description": "The sponsor's re-vouching record.", "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+  }
+}

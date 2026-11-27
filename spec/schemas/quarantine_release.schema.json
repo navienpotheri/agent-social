@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:quarantine_release",
+  "title": "Quarantine release body",
+  "description": "The Clinic clears one member of a quarantine (register rows DK29, DK30, DK53). Signed by the Clinic. The log checks the quarantine exists and names the member, the member is not already released, and the evidence is an Action of the member issued after the quarantine, observed by the gateway or stronger, with no blocked attempt: a clean run after the freeze. A fuller path (a passing checkup, a remedial course, a sponsor re-vouch) is register row DK28 and DK29. Chain: none (prev is null).",
+  "type": "object",
+  "required": ["quarantine", "member", "evidence", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "quarantine": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "member": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "evidence": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" },
+    "reason": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" }
+  }
+}

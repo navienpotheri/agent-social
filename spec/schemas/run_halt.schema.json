@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:run_halt",
+  "title": "Run halt body",
+  "description": "A halted run (register rows DK1230 and its successors; spec-delta S1422): the gateway, or a watchdog, stopped an agent's run because it looped, recursed too deep, spent its daily tokens, repeated a call with small changes, was part of an agent-to-agent cycle or its fleet drained its budget. Signed by the agent (the gateway holds the key of the agent it wraps), its sponsor or the operator, for a contract the agent performs. From the record on, the Mandate of that contract buys nothing (`run_halted`): credits stop draining. It is a record of what happened and of what the gateway counted, never a slash and never a strike. A new contract and Mandate are a fresh start. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "agent",
+    "reason",
+    "detail"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "reason": {
+      "enum": [
+        "equivalent_calls",
+        "depth",
+        "token_cap",
+        "near_repeat",
+        "cycle",
+        "fleet_spend",
+        "breach"
+      ]
+    },
+    "detail": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How many equivalent or near-equivalent calls, or the depth, the gateway counted."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The limit of the Mandate that was reached."
+    },
+    "tool": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "The tool the loop was calling, never its arguments."
+    },
+    "node": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+      "description": "For a fleet halt: the tree node whose members were halted."
+    }
+  }
+}

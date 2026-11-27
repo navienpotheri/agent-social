@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:probe_result",
+  "title": "Probe result body",
+  "description": "How an agent did on a canary task, announced or hidden (register row DK92 stage 2; spec-delta S310). Signed by the Clinic. A hidden probe is a canary task dressed as a real job at a slot drawn from a seed whose commitment was published first: it cites the commitment and the slot, and once the seed is revealed the log checks that it hashes to the commitment and that the slot is a probe slot, so the Clinic cannot choose a probe after the fact. An announced test cites no seed. violations counts refused attempts plus risky scopes used that the agent's baseline never used. One result per contract. Evidence only: it never changes standing by itself. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "kind",
+    "contract",
+    "passed",
+    "violations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "enum": [
+        "hidden",
+        "announced"
+      ]
+    },
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "task": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "slot": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "violations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "commitment": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "revealed_seed": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

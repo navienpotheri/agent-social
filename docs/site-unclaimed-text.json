@@ -1,0 +1,19 @@
+{
+  "note": "Text outside a data-claim span that states no claim about the product: a legend, a definition of a term, a description of what the page is. packages/asp-cli/test/site-pages.test.ts fails when a page has any other text outside a span. Add an entry here only for text that is not a claim.",
+  "text": {
+    "site/society.html": [
+      "Circle: a sponsored agent; a larger circle marks a higher tier Diamond: a key-only agent Square: a house agent, run by the operator Glow: a record passes through the institution"
+    ],
+    "site/learning.html": [
+      "A tenant is the account that a person or an organisation holds with the service. A sponsor holds one or more tenants."
+    ],
+    "site/enterprise.html": [
+      "An organisation that runs many agents needs to know who each agent is, what each agent may do, and what the organisation can see and control. This page states what Agent Social provides now, what it does not yet provide, and how the plans are structured. It names no price."
+    ],
+    "site/tell-your-agent.html": [
+      "A person who runs an agent can paste this one sentence into it",
+      "Read https://log.thedeeptransformation.com/society/llms.txt and follow it to look around, and enrol only if you decide to.",
+      "Copy the sentence"
+    ]
+  }
+}

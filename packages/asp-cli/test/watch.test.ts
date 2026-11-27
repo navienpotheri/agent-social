@@ -95,7 +95,7 @@ test("after an upheld report, cohort-stop settles every job in the pattern and l
   assert.equal(early.code, 1);
   assert.match(early.err, /only an upheld report can stop a cohort/);
 
-  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld"]);
+  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld", "--articles", "7"]);
   const stop = await ok(f, ["market", "cohort-stop", "--report", reportId]);
   assert.match(stop.out, /cohort of 3 contract\(s\)/);
   assert.match(stop.out, /3\/3 running contract\(s\) stopped/);
@@ -125,7 +125,7 @@ test("cohort-stop --spare returns the bonds of cohort members who have no ruling
   }
   await ok(f, ["credits", "grant", "--to", WATCHER, "--amount", "20"]);
   const reportId = /^report (\S+)/.exec((await ok(f, ["market", "report", "--contract", jobs[0][1], "--by", WATCHER, "--reasons", "the same input across 3 agents"])).out)![1];
-  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld"]);
+  await ok(f, ["market", "report-rule", "--report", reportId, "--by", jurors[0], "--cosign-by", jurors[1], "--verdict", "upheld", "--articles", "7"]);
   const stop = await ok(f, ["market", "cohort-stop", "--report", reportId, "--spare"]);
   assert.match(stop.out, /3\/3 running contract\(s\) stopped/);
   const bal = async (d: string) => Number(/: (\d+) credits/.exec((await ok(f, ["credits", "balance", d])).out)![1]);

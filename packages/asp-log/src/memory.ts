@@ -20,11 +20,12 @@ interface Tables {
   mandates: Map<string, MandateRow>;
   verifications: Map<string, VerificationRow>;
   reports: Map<string, ReportRow>;
+  markers: Map<string, string>;
 }
 
 const emptyTables = (): Tables => ({
   chains: new Map(), keys: new Map(), passports: new Map(), fleets: new Map(), probations: new Map(),
-  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(),
+  accounts: new Map(), escrows: new Map(), mints: new Map(), jurors: new Map(), reputations: new Map(), mandates: new Map(), verifications: new Map(), reports: new Map(), markers: new Map(),
 });
 
 /** Everything a MemoryStore holds, as plain JSON, for a snapshot (docs/spec-deltas.md S49). */
@@ -105,8 +106,13 @@ export class MemoryStore implements Store {
   async getProbation(did: string) { const p = this.tables.probations.get(did); return p && copy(p); }
   async keysForDid(did: string) { return [...this.tables.keys.values()].filter((k) => k.did === did).map(copy); }
   async getAccount(did: string) { const a = this.tables.accounts.get(did); return a && copy(a); }
+  async getMarker(key: string) { return this.tables.markers.get(key); }
   async getEscrow(contract: string) { const e = this.tables.escrows.get(contract); return e && copy(e); }
-  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted })); }
+  async allMints() { return [...this.tables.mints.values()].map((m) => ({ did: m.did, balance: m.totalMinted - (m.signedMinted ?? 0) + (m.adoptedMinted ?? 0) })).filter((m) => m.balance > 0); }
+  async ledgerRows() {
+    const t = this.tables;
+    return copy({ head: this.head, accounts: [...t.accounts.values()], mints: [...t.mints.values()], escrows: [...t.escrows.values()], jurors: [...t.jurors.values()], reports: [...t.reports.values()] });
+  }
   async getJuror(did: string) { const j = this.tables.jurors.get(did); return j && copy(j); }
   async activeJurors() { return [...this.tables.jurors.values()].filter((j) => j.staked > 0).map(copy); }
   async getReputation(did: string) { const r = this.tables.reputations.get(did); return r && copy(r); }
@@ -135,9 +141,20 @@ class MemoryTx implements LogTx {
 
   private get b() { return this.store.base(); }
 
+  async recordsSince(afterSeq: number, limit: number) { const base = await this.store.since(afterSeq, limit); const extra = this.newRecords.filter((r) => r.seq > afterSeq).map(copy); return [...base, ...extra].sort((x, y) => x.seq - y.seq).slice(0, limit); }
+
   private read<K extends keyof Tables>(name: K, key: string) {
     const v = (this.staged[name] as Map<string, unknown>).get(key) ?? (this.b.tables[name] as Map<string, unknown>).get(key);
     return v === undefined ? undefined : copy(v);
+  }
+
+  /** The rows of a table that match, copied after the filter so a scan over thousands of rows copies only the few it returns (the fleet and key lookups of a 10,000-agent log). */
+  private where<K extends keyof Tables>(name: K, keep: (v: Tables[K] extends Map<string, infer V> ? V : never) => boolean): (Tables[K] extends Map<string, infer V> ? V : never)[] {
+    const merged = new Map(this.b.tables[name] as Map<string, unknown>);
+    for (const [k, v] of this.staged[name] as Map<string, unknown>) merged.set(k, v);
+    const out: unknown[] = [];
+    for (const v of merged.values()) if (keep(v as never)) out.push(copy(v));
+    return out as never;
   }
 
   private all<K extends keyof Tables>(name: K): Tables[K] extends Map<string, infer V> ? V[] : never {
@@ -153,15 +170,16 @@ class MemoryTx implements LogTx {
   }
   async getChain(root: string) { return this.read("chains", root) as ChainRow | undefined; }
   async getKey(kid: string) { return this.read("keys", kid) as KeyRow | undefined; }
-  async keysForDid(did: string) { return this.all("keys").filter((k) => k.did === did); }
-  async nodeKeysForMandate(mandate: string) { return this.all("keys").filter((k) => k.kind === "node" && k.mandate === mandate); }
+  async keysForDid(did: string) { return this.where("keys", (k) => k.did === did); }
+  async nodeKeysForMandate(mandate: string) { return this.where("keys", (k) => k.kind === "node" && k.mandate === mandate); }
   async getPassport(did: string) { return this.read("passports", did) as PassportRow | undefined; }
   async getFleet(did: string) { return this.read("fleets", did) as FleetRow | undefined; }
-  async fleetMembers(fleet: string) { return this.all("passports").filter((p) => p.fleet === fleet); }
+  async fleetMembers(fleet: string) { return this.where("passports", (p) => p.fleet === fleet); }
   async getProbation(did: string) { return this.read("probations", did) as ProbationRow | undefined; }
   async getAccount(did: string) { return this.read("accounts", did) as AccountRow | undefined; }
   async getEscrow(contract: string) { return this.read("escrows", contract) as EscrowRow | undefined; }
   async getMint(did: string) { return this.read("mints", did) as MintRow | undefined; }
+  async getMarker(key: string) { return this.read("markers", key) as string | undefined; }
   async getJuror(did: string) { return this.read("jurors", did) as JurorRow | undefined; }
   async activeJurors() { return this.all("jurors").filter((j) => j.staked > 0); }
   async getReputation(did: string) { return this.read("reputations", did) as ReputationRow | undefined; }
@@ -179,6 +197,7 @@ class MemoryTx implements LogTx {
   async putAccount(row: AccountRow) { this.staged.accounts.set(row.did, copy(row)); }
   async putEscrow(row: EscrowRow) { this.staged.escrows.set(row.contract, copy(row)); }
   async putMint(row: MintRow) { this.staged.mints.set(row.did, copy(row)); }
+  async putMarker(key: string, value: string) { this.staged.markers.set(key, value); }
   async putJuror(row: JurorRow) { this.staged.jurors.set(row.did, copy(row)); }
   async putReputation(row: ReputationRow) { this.staged.reputations.set(row.did, copy(row)); }
   async putMandate(row: MandateRow) { this.staged.mandates.set(row.contract, copy(row)); }

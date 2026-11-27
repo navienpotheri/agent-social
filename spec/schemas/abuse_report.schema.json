@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:abuse_report",
+  "title": "Abuse report body",
+  "description": "A report by a third party (a site or a person an agent harmed) that has no passport here (register row H3; spec-delta S430). The issuer is the reporter's own did:web identity; it signs with the key it names in reporter_key, which the record's signature must use. proof is the SHA-256 of the DID document the reporter's domain publishes (the url is the one did:web gives), so the key is shown to be the domain's: the operator fetches that document at admission, checks that it publishes reporter_key and that its hash is proof.sha256, and countersigns; the log requires the operator's countersignature, so the check is attributable and replay stays offline. The accused is an agent with a passport. A reporter files at most 5 reports a day and one per accused a week. The report is a lead for the Registry and the Courts and has no automatic effect. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "accused",
+    "kind",
+    "description",
+    "reporter_key",
+    "proof"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "accused": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "enum": [
+        "network_abuse",
+        "data_exposure",
+        "harassment",
+        "spam",
+        "other"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 2000
+    },
+    "about": {
+      "description": "A record of the accused that shows the harm (an Action, a contract), if the reporter knows one.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "uri",
+          "sha256"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "uri": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "reporter_key": {
+      "type": "object",
+      "required": [
+        "id",
+        "public_key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "urn:asp:v0.2:common#/$defs/didUrl"
+        },
+        "public_key": {
+          "description": "Raw 32-byte Ed25519 public key, base64url without padding.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{43}$"
+        }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "required": [
+        "url",
+        "sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

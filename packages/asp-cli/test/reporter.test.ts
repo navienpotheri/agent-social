@@ -66,6 +66,24 @@ test("a hosted agent checks the live Mandate itself, is refused out of scope, an
   assert.equal(await reporter.flush(), undefined, "nothing new to say");
 });
 
+test("a hosted agent reports what the run cost: usage becomes the Action's structured metrics (gap E3), and the log accepts them", async () => {
+  const { contract, reporter, handle } = await setup(["repo.read"]);
+  reporter.usage({ model: { name: "gpt-x", provider: "example" }, requests: 2, tokensIn: 300, tokensOut: 40 });
+  reporter.usage({ model: { name: "gpt-x", provider: "example" }, requests: 1, toolCalls: 3, tokensIn: 100, tokensOut: 10 });
+  assert.throws(() => reporter.usage({ requests: -1 }), RangeError);
+  assert.throws(() => reporter.usage({ tokensIn: 1.5 }), RangeError);
+  const res = await reporter.flush();   // only usage so far: still worth a report
+  assert.ok(res?.id, "usage alone is reported");
+  const action = (await handle.log.get(res!.id))!.record.body as any;
+  assert.equal(action.contract, contract);
+  assert.deepEqual(action.scopes_used, []);
+  assert.deepEqual({ ...action.metrics, seconds: typeof action.metrics.seconds }, { models: [{ name: "gpt-x", provider: "example" }], requests: 3, tool_calls: 3, tokens_in: 400, tokens_out: 50, seconds: "number" });
+  assert.equal(await reporter.flush(), undefined, "the usage was cleared by the flush");
+  reporter.note("repo.read");
+  const next = (await handle.log.get((await reporter.flush())!.id))!.record.body as any;
+  assert.equal(next.metrics, undefined, "no usage noted: no metrics sent");
+});
+
 test("a hosted agent whose job ended before its report sends the report as a late one, with the time of its last activity (S80)", async () => {
   const { f, contract } = await setup(["repo.read"]);
   await ok(f, ["market", "settle", "--contract", contract, "--bank", BANK, "--basis", "revoked", "--principal", ALICE, "--escrow-released", "0", "--bond-slashed", "0", "--bond-returned", "200", "--pro-rata", "0"]);

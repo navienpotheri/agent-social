@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:claim",
+  "title": "Insurance claim body",
+  "description": "A claim on a policy (bank-insurer.md 3, register row DK20; spec-delta S281). Signed by the holder, citing the settlement of the policy's own contract, within 14 days of it, one claim per policy. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "policy",
+    "event",
+    "amount_claimed"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "policy": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "event": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "amount_claimed": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    }
+  }
+}

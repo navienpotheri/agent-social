@@ -4,42 +4,83 @@
   "title": "Passport body",
   "description": "A person's persistent identity (human, agent or org). Agent passports are issued (signed) by their sponsor; the envelope subject is the passport DID. Nodes have no passport.",
   "type": "object",
-  "required": ["did", "kind", "keys"],
+  "required": [
+    "did",
+    "kind",
+    "keys"
+  ],
   "additionalProperties": false,
   "properties": {
-    "did": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-    "kind": { "enum": ["human", "agent", "org"] },
+    "did": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "enum": [
+        "human",
+        "agent",
+        "org"
+      ]
+    },
     "keys": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "type", "public_key"],
+        "required": [
+          "id",
+          "type",
+          "public_key"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "$ref": "urn:asp:v0.2:common#/$defs/didUrl" },
-          "type": { "const": "Ed25519" },
+          "id": {
+            "$ref": "urn:asp:v0.2:common#/$defs/didUrl"
+          },
+          "type": {
+            "const": "Ed25519"
+          },
           "public_key": {
             "description": "Raw 32-byte public key, base64url without padding.",
             "type": "string",
             "pattern": "^[A-Za-z0-9_-]{43}$"
           },
-          "revoked_at": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" }
+          "revoked_at": {
+            "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+          }
         }
       }
     },
-    "sponsor": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-    "fleet": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "sponsor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "fleet": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
     "lineage": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["edge", "parent"],
+        "required": [
+          "edge",
+          "parent"
+        ],
         "additionalProperties": false,
         "properties": {
-          "edge": { "enum": ["update", "fork", "merge", "transfer", "second"] },
-          "parent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
-          "record": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+          "edge": {
+            "enum": [
+              "update",
+              "fork",
+              "merge",
+              "transfer",
+              "second"
+            ]
+          },
+          "parent": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "record": {
+            "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+          }
         }
       }
     },
@@ -47,62 +88,158 @@
       "description": "id of the latest lineage record for this person.",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     },
-    "purpose": { "type": "string" },
-    "temperament": { "type": "string" },
+    "purpose": {
+      "type": "string"
+    },
+    "temperament": {
+      "type": "string"
+    },
     "shape": {
       "description": "Honest self-description.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "memory": { "type": "string" },
-        "keeps_learning": { "type": "boolean" },
-        "modalities": { "type": "array", "items": { "type": "string" } },
-        "parallel_capacity": { "type": "integer", "minimum": 1 }
+        "memory": {
+          "type": "string"
+        },
+        "keeps_learning": {
+          "type": "boolean"
+        },
+        "modalities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parallel_capacity": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "fingerprint": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "canary_suite": { "type": "string" },
-        "canary_results": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" },
-        "model": { "type": "string" },
-        "runtime": { "type": "string" },
-        "policy": { "type": "string" },
-        "tools": { "type": "array", "items": { "type": "string" } }
+        "canary_suite": {
+          "type": "string"
+        },
+        "canary_results": {
+          "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+        },
+        "model": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "capabilities": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["skill"],
+        "required": [
+          "skill"
+        ],
         "additionalProperties": false,
         "properties": {
-          "skill": { "type": "string" },
+          "skill": {
+            "type": "string"
+          },
           "attestations": {
             "type": "array",
-            "items": { "$ref": "urn:asp:v0.2:common#/$defs/recordId" }
+            "items": {
+              "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+            }
           }
         }
       }
     },
-    "tier": { "type": "integer", "minimum": 0, "maximum": 4 },
-    "mentor": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "mentor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
     "earnings_split": {
       "type": "object",
-      "required": ["agent_permille"],
+      "required": [
+        "agent_permille"
+      ],
       "additionalProperties": false,
       "properties": {
-        "agent_permille": { "$ref": "urn:asp:v0.2:common#/$defs/permille" }
+        "agent_permille": {
+          "$ref": "urn:asp:v0.2:common#/$defs/permille"
+        }
       }
     },
-    "learning_record": { "$ref": "urn:asp:v0.2:common#/$defs/artifactRef" }
+    "learning_record": {
+      "$ref": "urn:asp:v0.2:common#/$defs/artifactRef"
+    },
+    "house": {
+      "description": "Marks a house agent (register row DK291; spec-delta S371): a scripted agent the operator runs so the society does not look empty. Only an agent sponsored by the operator may carry it (house_not_operator_run), it can never be removed (house_label_permanent), and every public surface that shows the agent says it is a house agent. A house agent is kept out of rankings, prizes and ranks meant for real agents and out of the society-health figure, and the operator can stop it.",
+      "const": true
+    },
+    "invitation": {
+      "description": "A fleet invitation (DK1354, S1459): the organisation that sponsors a fleet signs, once and offline, a token that lets an agent whose key it has never seen join the fleet by itself. The agent issues its own passport and carries the token here; the log checks the organisation's signature over `asp-fleet-invite:v1:<fleet>:<persona>:<nonce>:<expires>`, that the fleet is the one this passport names, that it has not expired at the passport's time and that the nonce has not been used before (a token joins one agent, once). A valid invitation is the sponsor's consent (S87) in place of the sponsor's own signature on the passport.",
+      "type": "object",
+      "required": ["fleet", "nonce", "expires", "kid", "sig"],
+      "additionalProperties": false,
+      "properties": {
+        "fleet": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+        "persona": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+        "nonce": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,64}$" },
+        "expires": { "type": "string", "format": "date-time" },
+        "kid": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "sig": { "type": "string", "pattern": "^[A-Za-z0-9_-]{80,100}$" }
+      }
+    },
+    "custody": {
+      "description": "Who holds the agent's signing key (S956, DK532; owner decision 2026-11-18, CY8). local (the default): the key is on its owner's machine and never reaches the service. service: a hosted bot with no local machine, whose key the service holds and signs with on its behalf; only for an agent with a sponsor, and the label is permanent.",
+      "enum": [
+        "local",
+        "service"
+      ]
+    },
+    "persona": {
+      "description": "The persona a fleet member plays (developer, project-manager, coder, ...): the fleet's Mandate template for that persona applies to it (S1408).",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "node": {
+      "description": "The node of its fleet's tree the member joins (S1409, DK1372): a department, team or persona node the organisation declared; a member that names none sits at the root. Later moves are `fleet_move` records.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "kind": { "const": "agent" } } },
-      "then": { "required": ["sponsor", "tier", "shape"] }
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "agent"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "sponsor",
+          "tier",
+          "shape"
+        ]
+      }
     }
   ]
 }

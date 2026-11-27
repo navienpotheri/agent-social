@@ -1,0 +1,288 @@
+<title>Society Map Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Concept: a spacious Chennai-inspired voxel city on a 176-block square. Districts are far apart with green between them, joined by curved avenues radiating from a central plaza; a river winds through, the sea is on the east edge, a campus sits on a hill, and a forest guards the gateway to the wild worlds. Buildings stand on plinths, roofs are stacked and supported, shadows fall with the sun, and walkers stay on the roads. */
+:root{--bg:#f3efe6;--ink:#2a2420;--muted:#6b5f55;--panel:#fbf8f1;--line:#d9cfbf;--accent:#b5472f;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181b;--ink:#ece6da;--muted:#a19a8e;--panel:#1d2226;--line:#333b40;--accent:#e0805f;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Inter",system-ui,sans-serif;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-direction:column;gap:8px}
+h1{font:600 18px/1.2 "Space Grotesk","Inter",sans-serif;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between}
+.sub{color:var(--muted);font-size:12px}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button{font:inherit;font-size:12px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stage{position:relative;flex:1;min-height:340px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#cfe3e6}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.feed{position:absolute;left:8px;bottom:8px;max-width:min(380px,72%);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;pointer-events:none}
+.feed div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.feed b{color:var(--accent);font-weight:600}
+.count{position:absolute;right:8px;top:8px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-size:12px;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+</style>
+<div class="bar">
+  <div><h1>Society map</h1><div class="sub">Prototype: drag to turn and tilt, wheel or pinch to zoom, tap a place to fly there. Mock credits, not money.</div></div>
+  <div class="ctl" role="group" aria-label="Controls"><span class="sub">Agents</span>
+    <button id="p8" aria-pressed="false">8</button><button id="p100" aria-pressed="true">100</button><button id="p1000" aria-pressed="false">1,000</button>
+    <button id="night" aria-pressed="false">Night</button><button id="green" aria-pressed="false">Greenery</button></div>
+</div>
+<div class="chips" id="chips" role="group" aria-label="Places"></div>
+<div class="stage" id="stage"><div class="count" id="count"></div><div class="feed" id="feed" aria-live="polite"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var stage = document.getElementById("stage");
+  var N = 176, HALF = 88;
+  var seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  var scene = new THREE.Scene(), DAY = 0xbfdde6, NIGHT = 0x0f1a26;
+  scene.background = new THREE.Color(DAY); scene.fog = new THREE.Fog(DAY, 260, 560);
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  var cam = new THREE.PerspectiveCamera(38, 1, 1, 1500);
+  var target = new THREE.Vector3(0, 0, 0), goal = target.clone(), yaw = 0.75, pitch = 0.78, dist = 190, goalDist = 190;
+  function place() { cam.position.set(target.x + Math.sin(yaw) * Math.cos(pitch) * dist, target.y + Math.sin(pitch) * dist, target.z + Math.cos(yaw) * Math.cos(pitch) * dist); cam.lookAt(target); }
+  function resize() { var w = stage.clientWidth, h = stage.clientHeight || 340; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); place(); }
+  var amb = new THREE.AmbientLight(0xffffff, 0.62), sun = new THREE.DirectionalLight(0xfff1d6, 0.95);
+  sun.position.set(-70, 110, 50); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  var sc = sun.shadow.camera; sc.left = -110; sc.right = 110; sc.top = 110; sc.bottom = -110; sc.near = 10; sc.far = 400; sun.shadow.bias = -0.0006;
+  scene.add(amb, sun);
+
+  // ---- terrain: solid columns, so nothing floats ----
+  var T = new Uint8Array(N * N), TOP = new Float32Array(N * N), ROAD = new Uint8Array(N * N);
+  function ix(i, j) { return j * N + i; }
+  function cx(x) { return Math.floor(x + HALF); }
+  function hillH(x, z) { var d = Math.hypot(x - 52, z + 32); return d < 13 ? 3 : d < 19 ? 2 : d < 25 ? 1 : 0; }
+  function segDist(px, pz, ax, az, bx, bz) { var dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz))); return Math.hypot(px - (ax + t * dx), pz - (az + t * dz)); }
+  var RIVER = [[-90, 22], [-60, 20], [-40, 26], [-20, 30], [0, 32], [20, 30], [40, 34], [60, 38], [90, 34]];
+  function nearRiver(x, z) { var m = 99; for (var k = 0; k < RIVER.length - 1; k++) m = Math.min(m, segDist(x, z, RIVER[k][0], RIVER[k][1], RIVER[k + 1][0], RIVER[k + 1][1])); return m; }
+  for (var j = 0; j < N; j++) for (var i = 0; i < N; i++) {
+    var x = i - HALF + 0.5, z = j - HALF + 0.5, t = 0, h = hillH(x, z);
+    if (x > 70) { t = 2; h = -1; } else if (x > 62) { t = 1; h = 0; } else if (x < -30 && z > 38) t = 5;
+    if (t !== 2 && nearRiver(x, z) < 3.2 && x < 70) { t = 2; h = -1; }
+    if (Math.hypot(x, z) < 11) { t = 4; h = 0; }
+    if (Math.hypot(x - 6, z - 6) < 4) { t = 6; h = -0.5; }
+    T[ix(i, j)] = t; TOP[ix(i, j)] = h;
+  }
+  var ENTRYP = {}, EXITP = {};
+  function doorPts(b) { var off = Math.max(2.6, b.w / 4), a = b.rot * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a), fw = b.d / 2 + 3.2; function wp(lx) { return [b.x + lx * ca + fw * sa, b.z - lx * sa + fw * ca]; } return { off: off, entry: wp(-off), exit: wp(off) }; }
+  // ---- road graph ----
+  var HR = 0xefe7d6, BR = 0xa5422f, CREAM = 0xefe4cc, TRIM = 0xf3ecdc;
+  var SPEC = [
+    { n: "Courts", x: -18, z: -54, w: 16, d: 12, fl: 3, c: BR, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 0, node: "CW" },
+    { n: "Registry", x: 0, z: -53, w: 12, d: 10, fl: 2, c: 0xb4553a, t: TRIM, r: 0x6f2e22, roof: "hip", rot: 0, node: "CR" },
+    { n: "Bank & Insurer", x: 17, z: -53, w: 14, d: 10, fl: 2, c: 0xc9ac6b, t: TRIM, r: 0x7a6a45, roof: "flat", columns: 1, rot: 0, node: "CB" },
+    { n: "Treasury", x: 8, z: -37, w: 12, d: 10, fl: 2, c: 0x9c3e2b, t: TRIM, r: 0x6f2e22, roof: "hip", dome: 1, rot: 2, node: "CT" },
+    { n: "Academy", x: 44, z: -38, w: 16, d: 12, fl: 3, c: CREAM, t: 0x1f7a78, r: 0x1f7a78, roof: "hip", columns: 1, rot: 0, node: "KA" },
+    { n: "Research & Commons", x: 60, z: -38, w: 14, d: 10, fl: 2, c: 0xe3d6b4, t: 0x2d6a5e, r: 0x2d6a5e, roof: "flat", rot: 0, node: "KR" },
+    { n: "Market", x: -44, z: -6, w: 18, d: 12, fl: 2, c: 0xd08a3a, t: TRIM, r: 0xe7c14a, roof: "flat", awning: 1, rot: 0, node: "M" },
+    { n: "Shops", x: -44, z: 12, w: 14, d: 10, fl: 2, c: 0xc86c4f, t: TRIM, r: 0xe9a23b, roof: "flat", awning: 1, rot: 2, node: "M" },
+    { n: "Forum", x: -4, z: -9, w: 12, d: 10, fl: 2, c: 0xe5d8b9, t: BR, r: 0xb5472f, roof: "hip", dome: 1, rot: 0, node: "FD" },
+    { n: "Clinic", x: 6, z: 58, w: 14, d: 10, fl: 2, c: 0xf2f2ee, t: 0x3f9d7a, r: 0x3f9d7a, roof: "flat", cross: 1, rot: 2, node: "CL" },
+    { n: "Leisure & Events", x: 60, z: 14, w: 12, d: 12, fl: 1, c: 0xf1cf6a, t: 0xe05a3a, r: 0xe05a3a, roof: "hip", rot: 3, node: "LD" }
+  ];
+  var Nd = { P: [0, 0], N1: [-4, -16], N2: [-6, -30], C: [-6, -46], CW: [-18, -45.5], CR: [0, -45.5], CT: [8, -44.5], CB: [17, -45.5],
+    E1: [20, -10], E2: [36, -22], K: [50, -29.5], KA: [44, -29.5], KR: [60, -29.5], F1: [24, 6], F2: [40, 12], LD: [50.5, 14], L1: [52, 30], L2: [48, 40], H: [40, 46],
+    S1: [2, 14], S2: [4, 30], S3: [6, 44], CL: [6, 50.5], W1: [-14, 2], W2: [-28, 4], M: [-44, 4], D1: [-12, 14], D2: [-28, 30], D3: [-44, 44], G: [-52, 56], GW: [-52, 60], FD: [-4, -1.5],
+    HA1: [30, 54], HA2: [20, 62], HB1: [52, 52], HB2: [56, 64], HC1: [38, 62], HC2: [30, 72] };
+  var E = [["P", "N1"], ["N1", "N2"], ["N2", "C"], ["CW", "C"], ["C", "CR"], ["CR", "CT"], ["CT", "CB"], ["P", "E1"], ["E1", "E2"], ["E2", "K"], ["KA", "K"], ["K", "KR"], ["P", "F1"], ["F1", "F2"], ["F2", "LD"], ["LD", "L1"], ["L1", "L2"], ["L2", "H"],
+    ["P", "S1"], ["S1", "S2"], ["S2", "S3"], ["S3", "CL"], ["P", "W1"], ["W1", "W2"], ["W2", "M"], ["P", "D1"], ["D1", "D2"], ["D2", "D3"], ["D3", "G"], ["G", "GW"], ["P", "FD"], ["H", "HA1"], ["HA1", "HA2"], ["H", "HB1"], ["HB1", "HB2"], ["H", "HC1"], ["HC1", "HC2"],
+    ["N2", "E1"], ["F1", "S1"], ["W1", "D1"], ["CT", "E2"], ["L1", "S3"], ["D2", "S2"]];  // cross streets that close the blocks
+  var LANE = { H: 1, HA1: 1, HA2: 1, HB1: 1, HB2: 1, HC1: 1, HC2: 1 };
+  function clear(a, c, b) { var pts = [[a, c], [c, b]]; for (var k = 0; k < 2; k++) { var p0 = pts[k][0], p1 = pts[k][1], len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); for (var u = 0; u <= len; u += 1) { var x = p0[0] + (p1[0] - p0[0]) * u / len, z = p0[1] + (p1[1] - p0[1]) * u / len; if (Math.hypot(x - a[0], z - a[1]) < 5 || Math.hypot(x - b[0], z - b[1]) < 5) continue; for (var r = 0; r < SPEC.length; r++) { var q = SPEC[r], hh = Math.max(q.w, q.d) / 2 + 1; if (Math.abs(x - q.x) < hh && Math.abs(z - q.z) < hh) return false; } } } return true; }
+  var EX = [];
+  E.forEach(function (e) {
+    var a = Nd[e[0]], b = Nd[e[1]], lane = !!(LANE[e[0]] && LANE[e[1]]);
+    if (Math.abs(a[0] - b[0]) < 0.6 || Math.abs(a[1] - b[1]) < 0.6) { EX.push([e[0], e[1], lane]); return; }
+    var c1 = [b[0], a[1]], c2 = [a[0], b[1]], pick = clear(a, c1, b) ? c1 : (clear(a, c2, b) ? c2 : c1), nm = e[0] + "_" + e[1];
+    Nd[nm] = pick; EX.push([e[0], nm, lane], [nm, e[1], lane]);
+  });
+  var NK = Object.keys(Nd);
+  var adj = {}; EX.forEach(function (e) { (adj[e[0]] = adj[e[0]] || []).push(e[1]); (adj[e[1]] = adj[e[1]] || []).push(e[0]); });
+  EX.forEach(function (e) {
+    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.01;
+    for (var s = 0; s <= len; s += 0.4) {
+      var px = a[0] + (b[0] - a[0]) * s / len, pz = a[1] + (b[1] - a[1]) * s / len;
+      for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) {
+        var qx = px + dx * 0.8, qz = pz + dz * 0.8; if (Math.max(Math.abs(qx - px), Math.abs(qz - pz)) > 2.0) continue;
+        var i = cx(qx), j = cx(qz); if (i < 0 || j < 0 || i >= N || j >= N) continue;
+        T[ix(i, j)] = 3; ROAD[ix(i, j)] = 1; TOP[ix(i, j)] = Math.max(0, hillH(i - HALF + 0.5, j - HALF + 0.5));
+      }
+    }
+  });
+  var houseNodes = [], HSPEC = [];
+  EX.filter(function (e) { return e[2]; }).forEach(function (e) {
+    var a = Nd[e[0]], b = Nd[e[1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), nx = (b[0] - a[0]) / len, nz = (b[1] - a[1]) / len;
+    for (var st = 7; st < len - 3; st += 10) [1, -1].forEach(function (sd) {
+      var ox = -nz * sd * 8, oz = nx * sd * 8, px = a[0] + nx * st + ox, pz = a[1] + nz * st + oz;
+      var rot = Math.abs(ox) > Math.abs(oz) ? (ox > 0 ? 3 : 1) : (oz > 0 ? 2 : 0);
+      HSPEC.push({ x: px, z: pz, w: 7 + ((st | 0) % 3), d: 6, fl: 1, c: [0xe09c78, 0xd98a6a, 0xf0d9a8, 0xc9d9c0][(st | 0) % 4], t: TRIM, r: BR, roof: "hip", rot: rot });
+    });
+    houseNodes.push(e[1]);
+  });
+
+  function paintSeg(ax, az, bx, bz) {
+    var len = Math.hypot(bx - ax, bz - az) || 0.01;
+    for (var u = 0; u <= len; u += 0.4) {
+      var px = ax + (bx - ax) * u / len, pz = az + (bz - az) * u / len;
+      for (var dz = -2; dz <= 2; dz++) for (var dx = -2; dx <= 2; dx++) {
+        var qx = px + dx * 0.8, qz = pz + dz * 0.8; if (Math.max(Math.abs(qx - px), Math.abs(qz - pz)) > 1.6) continue;
+        var i = cx(qx), j = cx(qz); if (i < 0 || j < 0 || i >= N || j >= N) continue;
+        T[ix(i, j)] = 3; ROAD[ix(i, j)] = 1; TOP[ix(i, j)] = Math.max(0, hillH(i - HALF + 0.5, j - HALF + 0.5));
+      }
+    }
+  }
+  // every building, institution or house, gets a spur from its front door to the nearest road, so all buildings are connected
+  SPEC.concat(HSPEC).forEach(function (b) {
+    var P = doorPts(b); if (b.n) { ENTRYP[b.n] = P.entry; EXITP[b.n] = P.exit; }
+    [P.entry, P.exit].forEach(function (dp) {
+      var best = null;
+      EX.forEach(function (e) { var A = Nd[e[0]], B = Nd[e[1]], vx = B[0] - A[0], vz = B[1] - A[1], L2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((dp[0] - A[0]) * vx + (dp[1] - A[1]) * vz) / L2)), fx = A[0] + vx * t, fz = A[1] + vz * t, d = Math.hypot(dp[0] - fx, dp[1] - fz); if (!best || d < best.d) best = { d: d, x: fx, z: fz }; });
+      if (best && best.d > 1.2) paintSeg(dp[0], dp[1], best.x, best.z);
+    });
+  });
+  var tm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), N * N);
+  tm.receiveShadow = true; var D = new THREE.Object3D(), col = new THREE.Color();
+  var PAL = { 0: 0x6fae52, 1: 0xe3cf9a, 2: 0x2f7f9d, 3: 0x55565a, 4: 0xd8cfbd, 5: 0x4a8a3c, 6: 0x4aa0c0 };
+  for (var q = 0; q < N * N; q++) {
+    var i2 = q % N, j2 = Math.floor(q / N), top = TOP[q], bot = -4, sy = top - bot;
+    D.position.set(i2 - HALF + 0.5, bot + sy / 2, j2 - HALF + 0.5); D.scale.set(1, sy, 1); D.updateMatrix(); tm.setMatrixAt(q, D.matrix);
+    col.setHex(PAL[T[q]]); var v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (T[q] === 0 && top > 0) v += 0.07; col.multiplyScalar(v); tm.setColorAt(q, col);
+  }
+  scene.add(tm);
+  var EARTH = { 0: 0xc9b48a, 5: 0xb39d74 };
+  function setGreen(on) { for (var q = 0; q < N * N; q++) { var t = T[q]; if (t !== 0 && t !== 5) continue; var i2 = q % N, j2 = Math.floor(q / N), v = 0.9 + ((i2 * 7 + j2 * 13) % 9) / 45; if (TOP[q] > 0 && on) v += 0.07; col.setHex(on ? PAL[t] : EARTH[t]).multiplyScalar(v); tm.setColorAt(q, col); } tm.instanceColor.needsUpdate = true; if (typeof trunk !== "undefined") { trunk.visible = on; leafA.visible = on; leafB.visible = on; } }
+  function heightAt(x, z) { var i = cx(x), j = cx(z); if (i < 0 || j < 0 || i >= N || j >= N) return 0; return Math.max(0, TOP[ix(i, j)]); }
+
+  // ---- buildings ----
+  var mats = {}; function mat(c) { return mats[c] || (mats[c] = new THREE.MeshLambertMaterial({ color: c })); }
+  var winMat = new THREE.MeshLambertMaterial({ color: 0x2b3b4a, emissive: 0x000000 });
+  var geoms = {}; function geo(w, h, d) { var k = w + "," + h + "," + d; return geoms[k] || (geoms[k] = new THREE.BoxGeometry(w, h, d)); }
+  function bx(g, w, h, d, x, y, z, c, shadow) { var m = new THREE.Mesh(geo(w, h, d), typeof c === "number" ? mat(c) : c); m.position.set(x, y + h / 2, z); m.castShadow = shadow !== false; m.receiveShadow = true; g.add(m); return m; }
+  var footprints = [], DOORS = {}, labels = [];
+  function labelSprite(text, x, y, z) {
+    var cv = document.createElement("canvas"); cv.width = 384; cv.height = 72; var g = cv.getContext("2d");
+    g.font = "600 34px Inter, system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; var tw = Math.min(g.measureText(text).width + 30, 380);
+    g.fillStyle = "rgba(22,20,18,.82)"; g.fillRect(192 - tw / 2, 8, tw, 56); g.fillStyle = "#fff"; g.fillText(text, 192, 37, 350);
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false })); s.scale.set(17, 3.2, 1); s.position.set(x, y, z); s.renderOrder = 9; scene.add(s); labels.push(s);
+  }
+  function building(s) {
+    var g = new THREE.Group(), by = heightAt(s.x, s.z), w = s.w, d = s.d, fl = s.fl, H = fl * 4;
+    bx(g, w + 1.2, 4, d + 1.2, 0, -4, 0, 0x8d877b);                                  // foundation down to solid ground
+    bx(g, w + 1.2, 0.8, d + 1.2, 0, 0, 0, 0xb9b2a5);                                  // plinth
+    bx(g, w, H, d, 0, 0.8, 0, s.c);                                                     // walls
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (k) { bx(g, 1.2, H + 0.3, 1.2, k[0] * (w / 2 - 0.3), 0.8, k[1] * (d / 2 - 0.3), s.t); }); // corner pilasters
+    bx(g, w + 0.6, 0.6, d + 0.6, 0, 0.8 + H, 0, s.t);                                   // cornice
+    for (var f = 0; f < fl; f++) {                                                      // windows on all four faces
+      for (var wx = -w / 2 + 2.2; wx <= w / 2 - 1.6; wx += 3) { [1, -1].forEach(function (sd) { if (sd === 1 && f === 0 && (Math.abs(wx + Math.max(2.6, w / 4)) < 2.4 || Math.abs(wx - Math.max(2.6, w / 4)) < 2.4)) return; bx(g, 1.2, 1.8, 0.2, wx, 2.2 + f * 4, sd * (d / 2 + 0.05), winMat, false); }); }
+      for (var wz = -d / 2 + 2.2; wz <= d / 2 - 1.6; wz += 3) { [1, -1].forEach(function (sd) { bx(g, 0.2, 1.8, 1.2, sd * (w / 2 + 0.05), 2.2 + f * 4, wz, winMat, false); }); }
+    }
+    var off = Math.max(2.6, w / 4);
+    [[-off, 0x3fae5f], [off, 0xe07a3a]].forEach(function (dd) {                         // an entry door (green sign) and an exit door (orange sign)
+      bx(g, 2.4, 3.2, 0.3, dd[0], 0.8, d / 2 + 0.1, 0x5b3a22); bx(g, 2.4, 0.5, 0.35, dd[0], 4.1, d / 2 + 0.2, dd[1]);
+      [0.6, 0.4, 0.2].forEach(function (sh, st) { bx(g, 3.2, sh, 0.8, dd[0], 0, d / 2 + 1.0 + st * 0.8, 0xb9b2a5); });
+    });
+    var ry = 0.8 + H + 0.6;
+    if (s.roof === "hip" && !s.dome) { var k = 0, rw = w + 1.4, rd = d + 1.4; while (rw > 2 && rd > 2) { bx(g, rw, 0.9, rd, 0, ry + k * 0.9, 0, s.r); rw -= 2; rd -= 2; k++; } }
+    else { bx(g, w + 0.6, 0.5, d + 0.6, 0, ry, 0, s.r); }
+    if (s.dome) { var dw = Math.min(w, d) * 0.62, dy = ry + 0.5; for (var k2 = 0; k2 < 6; k2++) { bx(g, dw - k2 * 1.8, 1.1, dw - k2 * 1.8, 0, dy + k2 * 1.1, 0, k2 % 2 ? s.t : s.r); } bx(g, 0.5, 1.8, 0.5, 0, dy + 6.6, 0, 0xf1d27a); }
+    if (s.awning) for (var ax = -w / 2 + 1.5; ax < w / 2 - 1; ax += 2.6) bx(g, 2.4, 0.4, 2.2, ax, 4.4, d / 2 + 1.1, ((ax * 10) | 0) % 2 ? 0xe05a3a : 0xf1cf6a);
+    if (s.cross) { bx(g, 4, 1.2, 0.3, 0, H - 0.2, d / 2 + 0.2, 0x3f9d7a); bx(g, 1.2, 4, 0.3, 0, H - 1.6, d / 2 + 0.2, 0x3f9d7a); }
+    if (s.columns) for (var cxx = -w / 2 + 2; cxx <= w / 2 - 1; cxx += 3.4) bx(g, 0.9, H, 0.9, cxx, 0.8, d / 2 + 2.2, 0xf3ecdc);
+    if (s.columns) bx(g, w, 0.8, 1.2, 0, 0.8 + H, d / 2 + 2.2, 0xf3ecdc);
+    g.position.set(s.x, by, s.z); g.rotation.y = s.rot * Math.PI / 2; scene.add(g);
+    var a = s.rot * Math.PI / 2, fw = d / 2 + 3, door = [s.x + Math.sin(a) * fw, s.z + Math.cos(a) * fw];
+    footprints.push([s.x, s.z, Math.max(w, d) / 2 + 3]);
+    if (s.n) { labelSprite(s.n, s.x, by + H + 12, s.z); DOORS[s.n] = s.node; }
+    return door;
+  }
+  SPEC.forEach(building);
+  // houses along the housing lanes
+  HSPEC.forEach(building);
+  DOORS["Housing"] = "H"; labelSprite("Housing", 36, 12, 56);
+  // gateway to worlds: two stone pylons, a lintel and a glowing portal, at the road end
+  var gw = new THREE.Group();
+  bx(gw, 3, 12, 3, -6, 0, 0, 0x6f5f4a); bx(gw, 3, 12, 3, 6, 0, 0, 0x6f5f4a); bx(gw, 15, 3, 3, 0, 12, 0, 0x6f5f4a);
+  var portal = new THREE.Mesh(new THREE.BoxGeometry(9, 12, 0.6), new THREE.MeshBasicMaterial({ color: 0x9a7cf0, transparent: true, opacity: 0.7 })); portal.position.set(0, 6, 0); gw.add(portal);
+  gw.position.set(-52, heightAt(-52, 60), 61); scene.add(gw); labelSprite("Gateway to Worlds", -52, 22, 61); DOORS["Worlds"] = "G";
+  // ---- trees (instanced): forest near the gateway, avenues and the plaza edge ----
+  function blocked(x, z) { var i = cx(x), j = cx(z); if (i < 1 || j < 1 || i >= N - 1 || j >= N - 1) return true; if (ROAD[ix(i, j)] || T[ix(i, j)] === 2 || T[ix(i, j)] === 4 || T[ix(i, j)] === 6 || T[ix(i, j)] === 1) return true; for (var k = 0; k < footprints.length; k++) if (Math.hypot(x - footprints[k][0], z - footprints[k][1]) < footprints[k][2] + 2) return true; return false; }
+  var trees = []; for (var tt = 0; tt < 2600 && trees.length < 420; tt++) {
+    var tx = -HALF + 2 + rnd() * (N - 4), tz = -HALF + 2 + rnd() * (N - 4), forest = tx < -30 && tz > 38, ok = forest ? rnd() < 0.55 : (Math.hypot(tx, tz) < 30 || rnd() < 0.07 || Math.hypot(tx - 52, tz + 32) < 28 && rnd() < 0.2);
+    if (ok && !blocked(tx, tz)) trees.push([tx, tz, 0.8 + rnd() * 0.5]);
+  }
+  var trunk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.8, 3, 0.8), mat(0x7a5a3a), trees.length), leafA = new THREE.InstancedMesh(new THREE.BoxGeometry(4, 2, 4), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees.length), leafB = new THREE.InstancedMesh(new THREE.BoxGeometry(2.6, 1.8, 2.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees.length);
+  trees.forEach(function (t, n) {
+    var y = heightAt(t[0], t[1]), s = t[2];
+    D.rotation.set(0, 0, 0); D.scale.set(1, s, 1); D.position.set(t[0], y + 1.5 * s, t[1]); D.updateMatrix(); trunk.setMatrixAt(n, D.matrix);
+    D.scale.set(s, 1, s); D.position.set(t[0], y + 3 * s + 1, t[1]); D.updateMatrix(); leafA.setMatrixAt(n, D.matrix);
+    D.position.set(t[0], y + 3 * s + 2.9, t[1]); D.updateMatrix(); leafB.setMatrixAt(n, D.matrix);
+    col.setHex(0x2f8f46).multiplyScalar(0.8 + rnd() * 0.4); leafA.setColorAt(n, col); leafB.setColorAt(n, col.clone().multiplyScalar(1.1));
+  });
+  leafA.castShadow = true; trunk.castShadow = true; scene.add(trunk, leafA, leafB);
+
+  // ---- agents and autos (instanced) ----
+  function bfs(a, b) { var q = [[a]], seen = {}; seen[a] = 1; while (q.length) { var p = q.shift(), n = p[p.length - 1]; if (n === b) return p; (adj[n] || []).forEach(function (m) { if (!seen[m]) { seen[m] = 1; q.push(p.concat(m)); } }); } return [a]; }
+  var dests = Object.keys(DOORS).concat(["Housing", "Housing"]);
+  var courses = ["Writing evolving evals", "Agent-to-agent message passing", "Reflection and memory", "Planning with held-out checks", "Study cohort: tool use"];
+  var MAXA = 1000, bodies = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 1.3, 0.6), new THREE.MeshLambertMaterial({ color: 0xffffff }), MAXA), heads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mat(0xe6b894), MAXA);
+  var legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), mat(0x33384a), MAXA); bodies.castShadow = true; scene.add(bodies, heads, legs);
+  var SH = [0x3b82c4, 0xd94f4f, 0x4caf7a, 0xe0a030, 0x8a5ac8, 0x2fa8a0, 0xd9608f, 0x6c7a89], agents = [], feedEl = document.getElementById("feed"), lastSay = 0;
+  function say(html) { var n = performance.now(); if (n - lastSay < 500) return; lastSay = n; var d = document.createElement("div"); d.innerHTML = html; feedEl.insertBefore(d, feedEl.firstChild); while (feedEl.children.length > 5) feedEl.removeChild(feedEl.lastChild); }
+  function routeTo(a, from, name) { var to = DOORS[name]; if (name === "Housing") to = houseNodes[(rnd() * houseNodes.length) | 0]; a.where = name; a.nodes = bfs(from, to); a.seg = 0; a.u = 0; a.dwell = 0; a.phase = 0; a.off = (rnd() - 0.5) * 2.2; }
+  function mk(i) { var a = { id: i + 1, sp: 3 + rnd() * 2, t: rnd() * 9, node: NK[(rnd() * NK.length) | 0] }; var p = Nd[a.node]; a.x = p[0]; a.z = p[1]; a.rot = 0; routeTo(a, a.node, dests[(rnd() * dests.length) | 0]); col.setHex(SH[i % SH.length]); bodies.setColorAt(i, col); return a; }
+  function setPop(n) { agents = []; for (var i = 0; i < n; i++) agents.push(mk(i)); bodies.count = n; heads.count = n; legs.count = n; bodies.instanceColor.needsUpdate = true;
+    ["p8", "p100", "p1000"].forEach(function (id) { document.getElementById(id).setAttribute("aria-pressed", String(id === "p" + (n === 1000 ? 1000 : n))); }); document.getElementById("count").textContent = n.toLocaleString() + " agents in the city"; }
+  var autos = []; var autoMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1.8, 1.1, 2.8), mat(0xf2c200), 14); autoMesh.castShadow = true; scene.add(autoMesh);
+  for (var au = 0; au < 14; au++) autos.push(mk(au + 2000)); autos.forEach(function (a) { a.sp = 7 + rnd() * 3; a.auto = true; });
+  function walk(a, tx, tz, dt) { var dx = tx - a.x, dz = tz - a.z, L = Math.hypot(dx, dz); if (L < 0.4) return true; var st = Math.min(a.sp * dt, L); a.x += dx / L * st; a.z += dz / L * st; a.rot = Math.atan2(dx, dz); return false; }
+  function step(a, dt, now) {
+    if (a.phase === 2) { a.dwell -= dt; if (a.dwell <= 0) { var ex = EXITP[a.where]; if (ex) { a.x = ex[0]; a.z = ex[1]; a.phase = 3; } else { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } } return; }
+    if (a.phase === 1) { var en = ENTRYP[a.where]; if (walk(a, en[0], en[1], dt)) { a.phase = 2; a.dwell = 1.5 + rnd() * 3; if (a.id % 5 === 0) say(a.where === "Academy" ? "<b>Agent " + a.id + "</b> paid " + (5 + ((a.id * 7) % 40)) + " credits: " + courses[a.id % courses.length] : a.where === "Worlds" ? "<b>Agent " + a.id + "</b> entered a world" : "<b>Agent " + a.id + "</b> visited " + a.where); } return; }
+    if (a.phase === 3) { var nd = Nd[a.nodes[a.nodes.length - 1]]; if (walk(a, nd[0], nd[1], dt)) { a.phase = 0; routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); } return; }
+    var A = Nd[a.nodes[a.seg]], B = Nd[a.nodes[a.seg + 1]];
+    if (!B) { if (a.auto) { routeTo(a, a.nodes[a.nodes.length - 1], dests[(rnd() * dests.length) | 0]); return; } if (ENTRYP[a.where]) { a.phase = 1; return; } a.phase = 2; a.dwell = 1.5 + rnd() * 3; return; }
+    var len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 0.01, dx = (B[0] - A[0]) / len, dz = (B[1] - A[1]) / len; a.u += a.sp * dt;
+    if (a.u >= len) { a.u -= len; a.seg++; if (a.seg + 1 >= a.nodes.length) { a.u = 0; a.seg = a.nodes.length - 1; } }
+    var f = Math.min(a.u / len, 1); a.x = A[0] + (B[0] - A[0]) * f - dz * a.off; a.z = A[1] + (B[1] - A[1]) * f + dx * a.off; a.rot = Math.atan2(dx, dz);
+  }
+  var clock = new THREE.Clock(), night = false;
+  function loop() {
+    var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    target.lerp(goal, 0.06); dist += (goalDist - dist) * 0.06; place();
+    for (var i = 0; i < agents.length; i++) { var a = agents[i]; step(a, dt, t); var y = heightAt(a.x, a.z) + Math.abs(Math.sin((t + a.t) * 9)) * 0.08;
+      var vs = a.phase === 2 ? 0.001 : 1; D.position.set(a.x, y + 1.15, a.z); D.rotation.set(0, a.rot, 0); D.scale.set(vs, vs, vs); D.updateMatrix(); bodies.setMatrixAt(i, D.matrix);
+      D.position.set(a.x, y + 0.25, a.z); D.updateMatrix(); legs.setMatrixAt(i, D.matrix);
+      D.position.set(a.x, y + 2.15, a.z); D.updateMatrix(); heads.setMatrixAt(i, D.matrix); }
+    bodies.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; legs.instanceMatrix.needsUpdate = true;
+    for (var k = 0; k < autos.length; k++) { var v = autos[k]; step(v, dt, t); D.position.set(v.x, heightAt(v.x, v.z) + 0.55, v.z); D.rotation.set(0, v.rot, 0); D.updateMatrix(); autoMesh.setMatrixAt(k, D.matrix); }
+    autoMesh.instanceMatrix.needsUpdate = true; portal.material.opacity = 0.55 + Math.sin(t * 2) * 0.2;
+    renderer.render(scene, cam); requestAnimationFrame(loop);
+  }
+  // ---- controls ----
+  var ptrs = {}, pinch = 0, cv = renderer.domElement;
+  cv.addEventListener("pointerdown", function (e) { ptrs[e.pointerId] = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener("pointermove", function (e) {
+    var p = ptrs[e.pointerId]; if (!p) return; var ids = Object.keys(ptrs);
+    if (ids.length === 2) { var o = ptrs[ids[0] == e.pointerId ? ids[1] : ids[0]], d = Math.hypot(e.clientX - o[0], e.clientY - o[1]); if (pinch) goalDist = Math.max(35, Math.min(300, goalDist * pinch / d)); pinch = d; }
+    else { yaw -= (e.clientX - p[0]) * 0.006; pitch = Math.max(0.25, Math.min(1.35, pitch + (e.clientY - p[1]) * 0.005)); }
+    ptrs[e.pointerId] = [e.clientX, e.clientY];
+  });
+  function up(e) { delete ptrs[e.pointerId]; pinch = 0; } cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", function (e) { e.preventDefault(); goalDist = Math.max(35, Math.min(300, goalDist * (1 + Math.sign(e.deltaY) * 0.1))); }, { passive: false });
+  var chips = document.getElementById("chips");
+  function chip(text, fn) { var b = document.createElement("button"); b.textContent = text; b.onclick = fn; chips.appendChild(b); }
+  chip("Whole city", function () { goal.set(0, 0, 0); goalDist = 190; });
+  SPEC.forEach(function (s) { chip(s.n, function () { goal.set(s.x, heightAt(s.x, s.z), s.z); goalDist = 62; }); });
+  chip("Housing", function () { goal.set(36, 0, 56); goalDist = 80; }); chip("Worlds gateway", function () { goal.set(-52, 0, 60); goalDist = 62; });
+  document.getElementById("p8").onclick = function () { setPop(8); }; document.getElementById("p100").onclick = function () { setPop(100); }; document.getElementById("p1000").onclick = function () { setPop(1000); };
+  document.getElementById("green").onclick = function () { var on = this.getAttribute("aria-pressed") !== "true"; this.setAttribute("aria-pressed", String(on)); setGreen(on); };
+  document.getElementById("night").onclick = function () {
+    night = !night; this.setAttribute("aria-pressed", String(night)); scene.background.set(night ? NIGHT : DAY); scene.fog.color.set(night ? NIGHT : DAY);
+    amb.intensity = night ? 0.28 : 0.62; sun.intensity = night ? 0.12 : 0.95; winMat.emissive.setHex(night ? 0xffd98a : 0x000000);
+  };
+  window.addEventListener("resize", resize); resize(); setGreen(false); setPop(100); loop();
+})();
+</script>

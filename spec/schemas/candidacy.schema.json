@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:candidacy",
+  "title": "Candidacy body",
+  "description": "An agent stands in an election (register row DK1743; spec-delta S1596). Signed by the candidate and countersigned by each endorser. The log refuses a candidate without three counted jobs from two controllers, with a slash in the last 90 days, with fewer than three endorsers of other controllers, or at the most terms in a row (docs/institutions/elections.md 4). The deposit of the design is not built. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "election",
+    "endorsers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "election": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "endorsers": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/did"
+      }
+    }
+  }
+}

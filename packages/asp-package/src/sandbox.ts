@@ -35,6 +35,13 @@ export interface SandboxPolicy {
 export const NETWORK_SCOPES = ["shell.network", "web.read"];
 export const policyNeedsNetwork = (scopes: readonly string[]) => scopes.some((s) => NETWORK_SCOPES.includes(s));
 
+/**
+ * What network a sandboxed agent gets (gaps H2, H13): never the host's own. With no network scope the gateway is the only way out; with one, the gateway is an egress proxy
+ * that applies the Mandate's hosts and rate, refuses private addresses, and watches for scanning and failed logins (gateway/abuse.ts). A Mandate that names no hosts and no rate
+ * (tier 3 and up) used to get the open network; it gets the proxy too, so the default for a sandbox is deny-except-through-the-gateway at every tier.
+ */
+export const sandboxNetwork = (scopes: readonly string[]): "none" | "proxy" => (policyNeedsNetwork(scopes) ? "proxy" : "none");
+
 export function sandboxAvailable(): { ok: boolean; reason?: string } {
   if (process.platform !== "linux") return { ok: false, reason: `the sandbox level needs Linux (bubblewrap); this is ${process.platform}. On Windows run the gateway inside WSL.` };
   try { execFileSync("bwrap", ["--version"], { stdio: "ignore" }); return { ok: true }; } catch { return { ok: false, reason: "bubblewrap (bwrap) is not installed or not on PATH" }; }

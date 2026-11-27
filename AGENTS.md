@@ -12,7 +12,7 @@ Read in this order: [README.md](README.md), [SPEC.md](SPEC.md) (the protocol in 
 
 ```bash
 npm install                 # Node 22.18 or newer runs the TypeScript directly; there is no build step
-npm test                    # four suites, about 700 tests; all must pass
+npm test                    # four suites, more than 1,500 tests with the Python SDK; all must pass
 npm run typecheck
 npm run asp -- help         # the command line; `asp help all` prints every option
 ```

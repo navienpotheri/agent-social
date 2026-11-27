@@ -5,7 +5,7 @@
  * counts), every tool call with the scope it mapped to and whether it was allowed, the principal's answers to gated calls, and how the run ended.
  * Anything that looks like a secret is masked and long text is cut, so the log can be shown to a person; it is still content (prompts and replies),
  * so it stays in the run folder and never goes to the log service. Lines are hash-chained, so the head hash commits to the whole run log: the
- * Action carries it as an artifact (`asp://run-log/<events>`), and anyone holding the file can check it is complete and unaltered.
+ * Action carries it as an artifact (`asp://run-log/<events>?run=<id>`: how many events, and which log, so a standing job's several logs are told apart, gap P27), and anyone holding the file can check it is complete and unaltered.
  */
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,6 +19,7 @@ const hashOf = (e: Omit<RunEvent, "hash">) => "sha256:" + createHash("sha256").u
 
 export class RunRecorder {
   private prev = GENESIS;
+  private first: string | undefined;
   private n = 0;
   redactions = 0;
   readonly counts: Record<string, number> = {};
@@ -27,8 +28,10 @@ export class RunRecorder {
   readonly path: string;
   private maxText: number;
   private now: () => string;
-  constructor(path: string, maxText = 1200, now: () => string = () => new Date().toISOString()) {
-    this.path = path; this.maxText = maxText; this.now = now;
+  /** The longest excerpt kept of a tool result (a society run keeps more of what its agents were shown); other text keeps `maxText`. */
+  private maxResult: number;
+  constructor(path: string, maxText = 1200, now: () => string = () => new Date().toISOString(), maxResult = maxText) {
+    this.path = path; this.maxText = maxText; this.maxResult = maxResult; this.now = now;
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, "");
   }
@@ -40,28 +43,44 @@ export class RunRecorder {
     return r.text.length > this.maxText ? `${r.text.slice(0, this.maxText)}...[+${r.text.length - this.maxText} chars]` : r.text;
   }
 
-  private clean(v: unknown): unknown {
-    if (typeof v === "string") return this.clip(v);
-    if (Array.isArray(v)) return v.map((x) => this.clean(x));
-    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, this.clean(x)]));
+  /** A tool call or result id (toolu_..., call_...) is a name that pairs a call with its result, not a secret: it is kept whole so that call and result can be matched. */
+  private static readonly CALL_ID = /^(?:toolu|srvtoolu|call|fc|msg)_[A-Za-z0-9_-]{4,100}$/;
+  private clean(v: unknown, key?: string, kind?: string): unknown {
+    if (typeof v === "string") {
+      if (key === "id" && RunRecorder.CALL_ID.test(v)) return v;
+      if (kind === "tool_result" && key === "text" && this.maxResult > this.maxText) { const mt = this.maxText; this.maxText = this.maxResult; try { return this.clip(v); } finally { this.maxText = mt; } }
+      return this.clip(v);
+    }
+    if (Array.isArray(v)) return v.map((x) => this.clean(x, key, kind));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, this.clean(x, k, kind)]));
     return v;
   }
 
   event(kind: string, data: Record<string, unknown> = {}): void {
-    const body = { n: ++this.n, at: this.now(), kind, data: this.clean(data) as Record<string, unknown>, prev: this.prev };
+    const body = { n: ++this.n, at: this.now(), kind, data: this.clean(data, undefined, kind) as Record<string, unknown>, prev: this.prev };
     const e: RunEvent = { ...body, hash: hashOf(body) };
     appendFileSync(this.path, JSON.stringify(e) + "\n");
     this.prev = e.hash;
+    this.first ??= e.hash;
     this.counts[kind] = (this.counts[kind] ?? 0) + 1;
   }
 
   /** How many events there are and the hash that commits to all of them. */
-  head(): { events: number; hash: string } { return { events: this.n, hash: this.prev }; }
+  head(): { events: number; hash: string; run?: string } { return { events: this.n, hash: this.prev, ...(this.first ? { run: runIdOf(this.first) } : {}) }; }
 }
 
+/** Names a run log: the first twelve hex digits of its first event's hash, which holds the start time and what began the run, so two sessions of one job never share one. */
+export const runIdOf = (firstEventHash: string): string => firstEventHash.replace(/^sha256:/, "").slice(0, 12);
+
 /** The artifact an Action carries to commit to the run log so far. */
-export function runLogArtifact(head: { events: number; hash: string }): { uri: string; sha256: string } {
-  return { uri: `asp://run-log/${head.events}`, sha256: head.hash };
+export function runLogArtifact(head: { events: number; hash: string; run?: string }): { uri: string; sha256: string } {
+  return { uri: `asp://run-log/${head.events}${head.run ? `?run=${head.run}` : ""}`, sha256: head.hash };
+}
+
+/** Reads an Action's run-log artifact: how many events it commits to and, for Actions since gap P27, which log (older Actions name none). */
+export function parseRunLogUri(uri: string): { events: number; run?: string } | undefined {
+  const m = /^asp:\/\/run-log\/(\d+)(?:\?run=([0-9a-f]{12}))?$/.exec(uri);
+  return m ? { events: Number(m[1]), ...(m[2] ? { run: m[2] } : {}) } : undefined;
 }
 
 export interface RunLogCheck { ok: boolean; events: RunEvent[]; problem?: string; head: { events: number; hash: string } }

@@ -1,0 +1,192 @@
+/**
+ * `asp bank line | default | statement | show` (bank-insurer.md; register row DK19; spec-delta S280): a credit line for a newcomer's first bond, the Bank's signed default against the guarantor, a statement, and
+ * what a holder owes. The Bank's key is the operator's during the beta; the borrower and the guarantor countersign the line with their own keys. Credits are accounting entries, not money.
+ */
+import { readFileSync, writeFileSync } from "node:fs";
+import { cosign, createRecord, type AspRecord, type Signer } from "@agent-social/asp-core";
+import { BANK_DID, TREASURY_DID, rewardFor } from "@agent-social/asp-log";
+import type { LogHandle } from "@agent-social/asp-package";
+
+export class BankUsage extends Error {}
+
+export interface BankOpts {
+  log: LogHandle;
+  io: { out: (l: string) => void; err: (l: string) => void };
+  now: () => string;
+  rest?: string[];
+  signerFor: (did: string) => Signer;
+  flags: { week?: string; deposit?: string; budget?: string; contract?: string; agent?: string; amount?: string; guarantor?: string; line?: string; holder?: string; by?: string; days?: string; month?: string; mentor?: string; protege?: string; note?: string; out?: string; file?: string; /** The words after the subcommand (`asp bank mentor offer`: ["offer"]). */ rest?: string[] };
+}
+
+const DAY = 86_400_000;
+const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+
+/** Every credit line and default in the log, in order. */
+async function bankRecords(log: LogHandle): Promise<{ id: string; type: string; body: Record<string, unknown>; at: string }[]> {
+  const out: { id: string; type: string; body: Record<string, unknown>; at: string }[] = [];
+  for (let after = 0; ;) {
+    const page = await log.log.since(after, 500);
+    if (!page.length) break;
+    for (const s of page) { after = s.seq; if (s.record.type === "asp.credit_line/v0.2" || s.record.type === "asp.credit_default/v0.2") out.push({ id: s.id, type: s.record.type, body: s.record.body as Record<string, unknown>, at: s.record.issued_at }); }
+  }
+  return out;
+}
+
+export async function bankCmd(sub: string | undefined, o: BankOpts): Promise<number> {
+  const f = o.flags;
+  const by = f.by ?? BANK_DID;
+  if (sub === "account") {
+    // The active Bank (DK1458, S1405): `asp bank account put|take --holder <did> --amount <n>` (no lock), `borrow|repay --amount <n>` and `interest --week <YYYY-Www>` for the Treasury.
+    const act = o.rest?.[0];
+    const week = f.week;
+    const amount = f.amount ? Math.trunc(Number(f.amount)) : undefined;
+    const sign = (issuer: string, body: Record<string, unknown>) => createRecord({ type: "bank_act" as never, issuer, subject: null, prev: null, body, issued_at: o.now() }, o.signerFor(issuer));
+    const treasury = f.by ?? "did:web:asp.local:treasury";
+    let rec;
+    if (act === "put" || act === "take") {
+      if (!f.holder || !amount) throw new BankUsage(`asp bank account ${act} --holder <did> --amount <credits>`);
+      rec = sign(f.holder, { act: act === "put" ? "deposit" : "withdraw", holder: f.holder, amount: { value: amount, unit: "credit" } });
+    } else if (act === "borrow" || act === "repay") {
+      if (!amount) throw new BankUsage(`asp bank account ${act} --amount <credits> [--by <treasury did>]`);
+      rec = sign(treasury, { act, amount: { value: amount, unit: "credit" } });
+    } else if (act === "interest") {
+      if (!week) throw new BankUsage("asp bank account interest --week <YYYY-Www> [--by <treasury did>]");
+      rec = sign(treasury, { act: "interest", week });
+    } else throw new BankUsage("asp bank account put|take --holder <did> --amount <n> | borrow|repay --amount <n> | interest --week <YYYY-Www>");
+    const res = await o.log.append(rec);
+    o.io.out(`${act} ${res.id.slice(0, 19)}... (log seq ${res.seq}); read the figures with asp credits audit --by-flow`);
+    return 0;
+  }
+  if (sub === "line") {
+    if (!f.contract || !f.agent || !f.guarantor) throw new BankUsage(`asp bank line --contract <id> --agent <borrower did> --guarantor <the agent's sponsor> [--amount <credits, default the whole bond: 20>] [--days 1-14] [--by ${BANK_DID}]`);
+    const amount = f.amount === undefined ? 20 : Math.trunc(Number(f.amount));
+    const days = f.days === undefined ? 7 : Number(f.days);
+    if (!(amount > 0)) throw new BankUsage("--amount is a whole number of credits above 0");
+    if (!(days > 0 && days <= 14)) throw new BankUsage("--days is above 0 and at most 14 (an undrawn line lapses)");
+    const at = o.now();
+    const body = { borrower: f.agent, guarantor: f.guarantor, contract: f.contract, amount: { value: amount, unit: "credit" as const }, fee: 0, due: iso(Date.parse(at) + days * DAY) };
+    let rec: AspRecord = createRecord({ type: "credit_line", issuer: by, subject: f.agent, prev: null, body, issued_at: at }, o.signerFor(by));
+    rec = cosign(rec, o.signerFor(f.agent));
+    rec = cosign(rec, o.signerFor(f.guarantor));
+    const res = await o.log.append(rec);
+    o.io.out(`credit line ${res.id}: ${amount} credits for ${f.agent}'s bond on ${f.contract}, guaranteed by ${f.guarantor}, no fee, drawn when the bond is posted, repaid from the first settlement, lapses ${body.due} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "default") {
+    if (!f.line) throw new BankUsage(`asp bank default --line <credit line id> [--by ${BANK_DID}]`);
+    const all = await bankRecords(o.log);
+    const line = all.find((r) => r.id === f.line && r.type === "asp.credit_line/v0.2");
+    if (!line) throw new Error(`${f.line} is not a credit line in the log`);
+    const mark = await o.log.log.get(f.line);
+    void mark;
+    const unpaid = Number(f.amount);
+    if (!(unpaid > 0)) throw new BankUsage("--amount is what the settlement left unpaid (asp bank show --agent <did> prints it)");
+    const rec = createRecord({ type: "credit_default", issuer: by, subject: line.body.borrower as string, prev: null, body: { line: f.line, unpaid: { value: unpaid, unit: "credit" }, against: line.body.guarantor }, issued_at: o.now() }, o.signerFor(by));
+    const res = await o.log.append(rec);
+    o.io.out(`default ${res.id}: ${unpaid} credits unpaid on ${f.line}, debited from ${line.body.guarantor as string} up to what it holds; any remainder blocks new lines for its agents (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "statement") {
+    if (!f.holder) throw new BankUsage(`asp bank statement --holder <did> [--amount <owed to the Bank>] [--by ${BANK_DID}]`);
+    const balance = await o.log.log.balance(f.holder);
+    const owed = f.amount === undefined ? 0 : Number(f.amount);
+    const at = o.now();
+    const locks = (await o.log.log.bankLocksOf(f.holder)).map((l) => ({ contract: l.contract, bond: { value: l.bond, unit: "credit" as const } }));
+    const rec = createRecord({ type: "bank_statement", issuer: by, subject: f.holder, prev: null, body: { holder: f.holder, period: at.slice(0, 7), balance: { value: balance, unit: "credit" }, owed: { value: owed, unit: "credit" }, locks }, issued_at: at }, o.signerFor(by));
+    const res = await o.log.append(rec);
+    o.io.out(`statement ${res.id}: ${f.holder} holds ${balance} credits and owes the Bank ${owed}; ${locks.reduce((n, l) => n + l.bond.value, 0)} locked in bonds over ${locks.length} contract(s) (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "deposit") {
+    // Lock credits with the Bank for 30 days (DK294): the holder signs, the Bank countersigns; the credits sit in the deposit account and return whole at term.
+    if (!f.holder || !f.amount) throw new BankUsage("asp bank deposit --holder <did> --amount <credits>");
+    const amount = Math.trunc(Number(f.amount));
+    if (!(amount > 0)) throw new BankUsage("--amount is a whole number of credits above 0");
+    const rec = cosign(createRecord({ type: "deposit_act" as never, issuer: f.holder, subject: f.holder, prev: null, body: { act: "deposit", holder: f.holder, amount: { value: amount, unit: "credit" } }, issued_at: o.now() }, o.signerFor(f.holder)), o.signerFor(BANK_DID));
+    const res = await o.log.append(rec);
+    o.io.out(`deposit ${res.id}: ${amount} credits locked with the Bank for 30 days (log seq ${res.seq}); a reward of 1 % a completed month is paid by the Treasury within its co-signed budget, at most 50 credits a month to you; withdraw from day 30: asp bank withdraw --deposit ${res.id}`);
+    return 0;
+  }
+  if (sub === "withdraw") {
+    if (!f.deposit) throw new BankUsage("asp bank withdraw --deposit <id>");
+    const d = await o.log.log.get(f.deposit);
+    if (!d || d.record.type !== "asp.deposit_act/v0.2") throw new Error(`${f.deposit} is not a deposit in the log`);
+    const holder = (d.record.body as { holder: string }).holder;
+    const res = await o.log.append(createRecord({ type: "deposit_act" as never, issuer: holder, subject: holder, prev: null, body: { act: "withdraw", deposit: f.deposit }, issued_at: o.now() }, o.signerFor(holder)));
+    o.io.out(`withdrawn ${res.id}: the deposit returned whole (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "reward") {
+    // The Treasury pays one completed month's reward on a deposit, from the Treasury's co-signed deposit-reward line.
+    if (!f.deposit || !f.budget) throw new BankUsage("asp bank reward --deposit <id> --budget <id> [--by did:web:asp.local:treasury]");
+    const d = await o.log.log.get(f.deposit);
+    if (!d || d.record.type !== "asp.deposit_act/v0.2") throw new Error(`${f.deposit} is not a deposit in the log`);
+    const b = d.record.body as { holder: string; amount: { value: number } };
+    const by = f.by ?? TREASURY_DID;
+    const res = await o.log.append(createRecord({ type: "deposit_act" as never, issuer: by, subject: b.holder, prev: null, body: { act: "reward", deposit: f.deposit, budget: f.budget, amount: { value: rewardFor(b.amount.value), unit: "credit" } }, issued_at: o.now() }, o.signerFor(by)));
+    o.io.out(`reward ${res.id}: ${rewardFor(b.amount.value)} credits from the Treasury to ${b.holder} (log seq ${res.seq})`);
+    return 0;
+  }
+  if (sub === "clear") {
+    // The guarantor pays back what it still owes after a default (DK181): a signed payment the log checks; at zero the block on its agents is lifted.
+    if (!f.line || f.amount === undefined) throw new BankUsage("asp bank clear --line <credit line id> --amount <credits> [--by <the guarantor did>]");
+    const all = await bankRecords(o.log);
+    const line = all.find((r) => r.id === f.line && r.type === "asp.credit_line/v0.2");
+    if (!line) throw new Error(`${f.line} is not a credit line in the log`);
+    const payer = f.by ?? (line.body.guarantor as string);
+    const amount = Math.trunc(Number(f.amount));
+    const rec = createRecord({ type: "debt_payment" as never, issuer: payer, subject: payer, prev: null, body: { line: f.line, amount: { value: amount, unit: "credit" } }, issued_at: o.now() }, o.signerFor(payer));
+    const res = await o.log.append(rec);
+    o.io.out(`payment ${res.id}: ${amount} credits from ${payer} to the Bank against the debt on ${f.line} (log seq ${res.seq}); new lines for its agents are open again once nothing is owed`);
+    return 0;
+  }
+  if (sub === "report") {
+    // The Bank's monthly report (DK386): lines opened, where they stand, defaults, what is owed and the reserve against what is promised.
+    const month = f.month ?? o.now().slice(0, 7);
+    const r = await o.log.log.bankMonthly(month);
+    o.io.out(`the Bank, ${r.month}: ${r.opened} line(s) opened for ${r.amountOpened} credits (${Object.entries(r.byStatus).map(([k, v]) => `${v} ${k}`).join(", ") || "none"}); ${r.defaultsInMonth} default(s) recorded; ${r.owedToTheBank} credits owed to the Bank; reserve ${r.reserve}, promised ${r.promised}, free ${r.reserveFree}`);
+    return 0;
+  }
+  if (sub === "offer") {
+    if (!f.agent) throw new BankUsage("asp bank offer --agent <did>");
+    const off = await o.log.log.bankOffer(f.agent);
+    o.io.out(off.eligible ? `${f.agent}: the Bank would lend up to ${off.limit} credits, guaranteed by ${off.guarantor} (who must hold ${off.guarantorNeeds}); ${off.reserveFree} free in the reserve` : `${f.agent}: no line now: ${off.reasons.join("; ")}`);
+    return 0;
+  }
+  if (sub === "mentor") {
+    // The mentorship (DK392, DK1220): the protege proposes and signs, the mentor countersigns, and the log checks the mentor's tier, sponsor, record and number of proteges.
+    const act = f.rest?.[0];
+    if (act === "offer") {
+      if (!f.protege || !f.mentor) throw new BankUsage("asp bank mentor offer --protege <your did> --mentor <the mentor's did> [--note <what you want help with>] [--out <offer.json>]");
+      if (f.protege === f.mentor) throw new BankUsage("a mentor is another agent, not the protege itself");
+      const rec = createRecord({ type: "mentorship", issuer: f.protege, subject: f.protege, prev: null, body: { mentor: f.mentor, protege: f.protege, ...(f.note ? { note: f.note.slice(0, 300) } : {}) }, issued_at: o.now() }, o.signerFor(f.protege));
+      const text = JSON.stringify(rec);
+      if (f.out) { writeFileSync(f.out, text + "\n", { mode: 0o600 }); o.io.out(`mentorship offer from ${f.protege} to ${f.mentor} signed by the protege and written to ${f.out}; the mentor runs: asp bank mentor accept --file ${f.out} --by ${f.mentor}`); } else o.io.out(text);
+      return 0;
+    }
+    if (act === "accept") {
+      if (!f.file || !f.by) throw new BankUsage("asp bank mentor accept --file <offer.json> --by <the mentor's did>");
+      let rec: AspRecord;
+      try { rec = JSON.parse(readFileSync(f.file, "utf8")) as AspRecord; } catch { throw new BankUsage(`${f.file} is not a mentorship offer (asp bank mentor offer writes one)`); }
+      const b = rec?.body as { mentor?: string; protege?: string } | undefined;
+      if (rec?.type !== "asp.mentorship/v0.2" || !b?.mentor || !b?.protege) throw new BankUsage(`${f.file} is not a mentorship offer (asp bank mentor offer writes one)`);
+      if (b.mentor !== f.by) throw new BankUsage(`this offer names ${b.mentor} as the mentor; only that agent can accept it (you passed --by ${f.by})`);
+      const res = await o.log.append(cosign(rec, o.signerFor(f.by)));
+      o.io.out(`mentorship ${res.id}: ${b.mentor} now mentors ${b.protege}; it may guarantee the protege's first credit line in place of a sponsor, for 5% of the protege's first three settlements (log seq ${res.seq})`);
+      return 0;
+    }
+    throw new BankUsage("asp bank mentor offer --protege <did> --mentor <did> [--note <text>] [--out <offer.json>] | accept --file <offer.json> --by <the mentor's did>");
+  }
+  if (sub === "show") {
+    const all = await bankRecords(o.log);
+    const lines = all.filter((r) => r.type === "asp.credit_line/v0.2" && (!f.agent || r.body.borrower === f.agent));
+    o.io.out(`the Bank's reserve: ${await o.log.log.balance(BANK_DID)} credits`);
+    for (const l of lines) {
+      const d = all.find((r) => r.type === "asp.credit_default/v0.2" && r.body.line === l.id);
+      o.io.out(`  ${l.id}  ${l.body.borrower as string}  ${(l.body.amount as { value: number }).value} credits for ${l.body.contract as string}  guarantor ${l.body.guarantor as string}  ${d ? `DEFAULTED (${d.id})` : `due ${l.body.due as string}`}`);
+    }
+    if (!lines.length) o.io.out("no credit line");
+    return 0;
+  }
+  throw new BankUsage("asp bank line --contract <id> --agent <did> --guarantor <sponsor did> | default --line <id> --amount <n> | statement --holder <did> | clear --line <id> --amount <n> | offer --agent <did> | mentor offer|accept (a mentor for a newcomer: --protege <did> --mentor <did> --out <file>, then --file <file> --by <mentor>) | deposit --holder <did> --amount <n> | withdraw --deposit <id> | reward --deposit <id> --budget <id> | show [--agent <did>]");
+}

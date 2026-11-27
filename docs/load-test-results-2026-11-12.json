@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-12",
+  "machine": {
+    "platform": "win32",
+    "cpus": 22,
+    "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+    "memGB": 31,
+    "node": "24.18.0"
+  },
+  "params": {
+    "tenants": 100,
+    "runsPerTenant": 40,
+    "recordsPerRun": 4,
+    "readsPerRun": 3,
+    "concurrency": 32
+  },
+  "target": {
+    "writeP95Ms": 300,
+    "readP95Ms": 150,
+    "errors": 0
+  },
+  "writes": {
+    "n": 16000,
+    "p50": 76,
+    "p95": 98.6,
+    "p99": 122.4,
+    "max": 2118.1
+  },
+  "reads": {
+    "n": 12000,
+    "p50": 20.1,
+    "p95": 65.1,
+    "p99": 80.3,
+    "max": 111.2
+  },
+  "errors": 0,
+  "errorSamples": [],
+  "recordsWritten": 16100,
+  "seconds": 50.9,
+  "writesPerSecond": 314.4,
+  "requestsPerSecond": 550.2,
+  "bytesOnDisk": 10837232,
+  "bytesPerRecord": 673,
+  "logHead": 16100,
+  "limits": {
+    "quota": {
+      "quota": 50,
+      "accepted": 50,
+      "refused": {
+        "status": 403,
+        "code": "QUOTA_EXCEEDED"
+      }
+    },
+    "rate": {
+      "writeLimitPerMinute": 120,
+      "ok": 34,
+      "limited": 166,
+      "firstLimitedAfter": 29,
+      "retryAfterSec": 1
+    }
+  },
+  "localTargetMet": true,
+  "plan": {
+    "governedRuns": {
+      "records": 2000000,
+      "storageBytes": 1346000000,
+      "recordsPerTenant": 2000,
+      "runsPerTenant": 1000,
+      "avgWritesPerSecond": 0.25161030595813205,
+      "peakWritesPerSecond": 5.032206119162641,
+      "peakRequestsPerSecond": 15.096618357487923,
+      "busyTenantWritesPerMinute": 30.193236714975846,
+      "busyTenantRequestsPerMinute": 90.57971014492753
+    },
+    "marketedJobs": {
+      "records": 10000000,
+      "storageBytes": 6730000000,
+      "recordsPerTenant": 10000,
+      "runsPerTenant": 1000,
+      "avgWritesPerSecond": 1.2580515297906603,
+      "peakWritesPerSecond": 25.161030595813205,
+      "peakRequestsPerSecond": 75.48309178743962,
+      "busyTenantWritesPerMinute": 150.96618357487924,
+      "busyTenantRequestsPerMinute": 452.89855072463774
+    }
+  },
+  "limitProblems": {
+    "governedRuns": [],
+    "marketedJobs": [
+      "record quota 2000 a tenant is below the 10000 records a tenant writes (1000 runs x 10 records)",
+      "write limit 120 a minute a tenant is below the 151 writes a busy tenant makes at the peak"
+    ]
+  },
+  "defaults": {
+    "recordQuota": 2000,
+    "byteQuota": 16777216,
+    "quotaBytes": 16777216,
+    "rateLimitPerMinute": 600
+  }
+}

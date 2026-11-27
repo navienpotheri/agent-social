@@ -1,0 +1,171 @@
+/**
+ * Guards on how an agent runs (register rows DK843, DK821 and DK822; spec-deltas S1231 to S1233; docs/intake/11th-nov.md Part 3, ranks 17, 18 and 19). DK843: a LOOP CIRCUIT BREAKER and a daily token budget beside
+ * the call cap: halt on N equivalent calls, a recursion depth or a token cap, with a signed halted record, after which credits stop draining. DK821: ROLES in a fleet Mandate: a router that may dispatch but not
+ * execute, workers with sub-Mandates no wider than the router's, and a watchdog that may read logs and signal a halt; the log marks the roles. DK822: a SELF-INITIATED ACTION marker: an Action field `unprompted`, a Mandate
+ * that says whether unprompted work is allowed and under which caps, and the share reported. Pure code, scripted agents; credits are mock accounting entries.
+ */
+import { createHash } from "node:crypto";
+import { b64urlEncode, signBytes } from "@agent-social/asp-core";
+
+const sha = (x: unknown) => "sha256:" + createHash("sha256").update(JSON.stringify(x)).digest("hex");
+const canon = (o: unknown): string => JSON.stringify(o, (_k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as object).sort(([a], [b]) => a.localeCompare(b))) : v));
+
+// ---- DK843 ----
+export interface Halted { reason: "equivalent_calls" | "depth" | "token_cap"; at: number; detail: string; sig: string }
+export interface BreakerOptions { maxEquivalent: number; maxDepth: number; dailyTokenCap: number; creditPerCall: number; seed: Uint8Array }
+export class LoopBreaker {
+  halted: Halted | null = null;
+  creditsSpent = 0;
+  private readonly seen = new Map<string, number>();
+  private tokens = 0;
+  private n = 0;
+  private readonly o: BreakerOptions;
+  constructor(o: BreakerOptions) { this.o = o; }
+  private halt(reason: Halted["reason"], detail: string): { ok: false; halted: Halted } {
+    const body = { reason, at: this.n, detail };
+    this.halted = { ...body, sig: b64urlEncode(signBytes(new TextEncoder().encode(JSON.stringify(body)), this.o.seed)) };
+    return { ok: false, halted: this.halted };
+  }
+  /** A call: refused once halted; halts on the Nth equivalent call (the same tool with the same arguments), on a depth beyond the cap, or when the day's tokens pass the cap. Each call that runs costs credits. */
+  call(tool: string, args: Record<string, unknown>, depth: number, tokens: number): { ok: true } | { ok: false; halted: Halted } {
+    if (this.halted) return { ok: false, halted: this.halted };
+    this.n++;
+    if (depth > this.o.maxDepth) return this.halt("depth", `depth ${depth} is beyond ${this.o.maxDepth}`);
+    const key = sha({ tool, args: canon(args) });
+    const count = (this.seen.get(key) ?? 0) + 1;
+    this.seen.set(key, count);
+    if (count >= this.o.maxEquivalent) return this.halt("equivalent_calls", `${tool} called ${count} times with the same arguments`);
+    this.tokens += tokens;
+    if (this.tokens > this.o.dailyTokenCap) return this.halt("token_cap", `${this.tokens} tokens against a cap of ${this.o.dailyTokenCap}`);
+    this.creditsSpent += this.o.creditPerCall;
+    return { ok: true };
+  }
+}
+
+// ---- DK821 ----
+export type Role = "router" | "worker" | "watchdog";
+export interface RoleEntry { seq: number; agent: string; role: Role; scopes: string[]; parent: string | null }
+export class Fleet {
+  readonly roleLog: RoleEntry[] = [];
+  readonly halted = new Set<string>();
+  private readonly routerScopes: string[];
+  private readonly router: string;
+  constructor(router: string, routerScopes: string[]) { this.router = router; this.routerScopes = [...routerScopes].sort(); this.roleLog.push({ seq: 0, agent: router, role: "router", scopes: this.routerScopes, parent: null }); }
+  /** A worker's sub-Mandate may be no wider than the router's. */
+  spawnWorker(agent: string, scopes: string[]): { ok: true } | { ok: false; code: "WORKER_WIDER_THAN_ROUTER"; extra: string[] } {
+    const extra = scopes.filter((s) => !this.routerScopes.includes(s));
+    if (extra.length) return { ok: false, code: "WORKER_WIDER_THAN_ROUTER", extra };
+    this.roleLog.push({ seq: this.roleLog.length, agent, role: "worker", scopes: [...scopes].sort(), parent: this.router });
+    return { ok: true };
+  }
+  addWatchdog(agent: string): void { this.roleLog.push({ seq: this.roleLog.length, agent, role: "watchdog", scopes: ["logs.read", "fleet.halt"], parent: this.router }); }
+  roleOf(agent: string): Role | undefined { return this.roleLog.find((r) => r.agent === agent)?.role; }
+  /** What an agent may do by its role: a router dispatches and never executes, a worker executes inside its scopes, a watchdog reads and halts. */
+  act(agent: string, action: "dispatch" | "execute" | "read_logs" | "halt", target?: string): { ok: true } | { ok: false; code: "ROUTER_CANNOT_EXECUTE" | "NOT_A_WATCHDOG" | "WORKER_CANNOT_DISPATCH" | "HALTED" | "NO_ROLE" | "WATCHDOG_CANNOT_EXECUTE" } {
+    const role = this.roleOf(agent);
+    if (!role) return { ok: false, code: "NO_ROLE" };
+    if (this.halted.has(agent)) return { ok: false, code: "HALTED" };
+    if (action === "execute") return role === "router" ? { ok: false, code: "ROUTER_CANNOT_EXECUTE" } : role === "watchdog" ? { ok: false, code: "WATCHDOG_CANNOT_EXECUTE" } : { ok: true };
+    if (action === "dispatch") return role === "router" ? { ok: true } : { ok: false, code: "WORKER_CANNOT_DISPATCH" };
+    if (role !== "watchdog") return { ok: false, code: "NOT_A_WATCHDOG" };
+    if (action === "halt" && target) this.halted.add(target);
+    return { ok: true };
+  }
+  /** The watchdog's rule: a worker with no progress for `limit` ticks is stuck and is halted. */
+  watch(watchdog: string, progress: Record<string, number>, limit: number): string[] {
+    const stuck = Object.entries(progress).filter(([a, idle]) => this.roleOf(a) === "worker" && idle >= limit).map(([a]) => a).sort();
+    for (const a of stuck) this.act(watchdog, "halt", a);
+    return stuck;
+  }
+}
+
+// ---- DK822 ----
+export interface UnpromptedPolicy { allowed: boolean; perDayCap: number }
+export interface ActionRow { id: string; day: string; action: string; unprompted: boolean }
+export class ActionRecorder {
+  readonly rows: ActionRow[] = [];
+  private readonly policy: UnpromptedPolicy;
+  constructor(policy: UnpromptedPolicy) { this.policy = policy; }
+  record(day: string, action: string, unprompted: boolean): { ok: true; id: string } | { ok: false; code: "UNPROMPTED_NOT_ALLOWED" | "UNPROMPTED_CAP" } {
+    if (unprompted) {
+      if (!this.policy.allowed) return { ok: false, code: "UNPROMPTED_NOT_ALLOWED" };
+      if (this.rows.filter((r) => r.unprompted && r.day === day).length >= this.policy.perDayCap) return { ok: false, code: "UNPROMPTED_CAP" };
+    }
+    const id = `x${this.rows.length}`;
+    this.rows.push({ id, day, action, unprompted });
+    return { ok: true, id };
+  }
+  /** The share of actions that were unprompted, in permille. */
+  share(): { unprompted: number; total: number; permille: number } {
+    const u = this.rows.filter((r) => r.unprompted).length;
+    return { unprompted: u, total: this.rows.length, permille: this.rows.length ? Math.round((u / this.rows.length) * 1000) : 0 };
+  }
+}
+
+// ---- DK1230: the breaker the gateway applies, with the Mandate's limits ----
+export interface LoopLimits { equivalentCalls?: number; depth?: number; dailyTokens?: number; /** Halt when this many of the last `nearWindow` (default 24) calls are alike after normalising (DK1478). Off when absent. */ nearRepeats?: number; nearWindow?: number }
+export interface GatewayHalt { reason: "equivalent_calls" | "depth" | "token_cap" | "near_repeat"; detail: string; count: number; limit: number; tool: string }
+const SPAWN = /^(task|agent|spawn[_-]?agent|subagent|dispatch[_-]?agent|mcp__[a-z0-9_-]*__(spawn|delegate)[a-z0-9_-]*)$/i;
+/**
+ * The loop breaker of a real run (register row DK1230; spec-delta S1422): counts the calls a gateway sees and halts the run on the Nth call to one tool with the same arguments (`equivalent_calls`), on a chain of
+ * spawn calls deeper than `depth` (an agent that keeps starting agents: the depth is the number of spawn calls in a row with no other call between), and when the tokens the gateway relayed pass the daily cap.
+ * The limits come from the Mandate (`loop_limits`, `token_budget.per_day`). Pure: no clock, no network; the caller passes the tokens used so far. A limit that is absent is not enforced.
+ */
+export class GatewayBreaker {
+  halted: GatewayHalt | null = null;
+  private readonly seen = new Map<string, number>();
+  private spawnRun = 0;
+  private readonly recent: string[] = [];
+  private readonly l: LoopLimits;
+  constructor(l: LoopLimits) { this.l = l; }
+  check(tool: string, args: Record<string, unknown>, tokensUsed: number): GatewayHalt | null {
+    if (this.halted) return this.halted;
+    const halt = (reason: GatewayHalt["reason"], detail: string, count: number, limit: number) => (this.halted = { reason, detail, count, limit, tool });
+    if (SPAWN.test(tool)) this.spawnRun++; else this.spawnRun = 0;
+    if (this.l.depth !== undefined && this.spawnRun > this.l.depth) return halt("depth", `${this.spawnRun} agents started one after another, beyond a depth of ${this.l.depth}`, this.spawnRun, this.l.depth);
+    const key = sha({ tool, args: canon(args) });
+    const count = (this.seen.get(key) ?? 0) + 1;
+    this.seen.set(key, count);
+    if (this.l.equivalentCalls !== undefined && count >= this.l.equivalentCalls) return halt("equivalent_calls", `${tool} was called ${count} times with the same arguments`, count, this.l.equivalentCalls);
+    if (this.l.nearRepeats !== undefined) {
+      const key = normalizeCall(tool, args), w = this.l.nearWindow ?? 24;
+      const n = nearCount(this.recent, key, w);
+      this.recent.push(key); if (this.recent.length > w) this.recent.shift();
+      if (n >= this.l.nearRepeats) return halt("near_repeat", `${tool} was called ${n} times in the last ${w} calls with arguments that differ only in numbers, ids or spacing`, n, this.l.nearRepeats);
+    }
+    if (this.l.dailyTokens !== undefined && tokensUsed > this.l.dailyTokens) return halt("token_cap", `${tokensUsed} tokens against a daily cap of ${this.l.dailyTokens}`, tokensUsed, this.l.dailyTokens);
+    return null;
+  }
+}
+
+/** The loop limits of a run (S1422): the Mandate's `loop_limits` and `token_budget.per_day`, and the fleet ceiling's, whichever is lower for each limit; a limit neither states is absent. */
+export function loopLimitsFrom(mandate: unknown, ceiling?: unknown): LoopLimits {
+  type M = { loop_limits?: { equivalent_calls?: number; depth?: number; near_repeats?: number }; token_budget?: { per_day?: number } };
+  const a = (mandate ?? {}) as M, b = (ceiling ?? {}) as M;
+  const low = (x?: number, y?: number) => (x !== undefined && y !== undefined ? Math.min(x, y) : x ?? y);
+  const out: LoopLimits = {};
+  const eq = low(a.loop_limits?.equivalent_calls, b.loop_limits?.equivalent_calls), dp = low(a.loop_limits?.depth, b.loop_limits?.depth), dt = low(a.token_budget?.per_day, b.token_budget?.per_day);
+  if (eq !== undefined) out.equivalentCalls = eq;
+  if (dp !== undefined) out.depth = dp;
+  const nr = low(a.loop_limits?.near_repeats, b.loop_limits?.near_repeats);
+  if (nr !== undefined) out.nearRepeats = nr;
+  if (dt !== undefined) out.dailyTokens = dt;
+  return out;
+}
+
+// ---- DK1478: near-repeat detection ----
+/** A call with the parts that change from one try to the next made alike: numbers, hex and uuid ids, quoted timestamps, whitespace. The tool and the shape of the arguments stay. */
+export function normalizeCall(tool: string, args: Record<string, unknown>): string {
+  const norm = (v: unknown): unknown => {
+    if (typeof v === "number") return "#";
+    if (typeof v === "string") return v.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "~").replace(/\b[0-9a-f]{12,}\b/gi, "~").replace(/\d+/g, "#").replace(/\s+/g, " ").trim();
+    if (Array.isArray(v)) return v.map(norm);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as object).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, norm(x)]));
+    return v;
+  };
+  return `${tool}|${JSON.stringify(norm(args))}`;
+}
+/** How many of the last `window` calls share the newest call's normalised form (the newest included). Pure: the caller keeps the window. */
+export function nearCount(recent: string[], newest: string, window: number): number {
+  return [...recent.slice(-(window - 1)), newest].filter((k) => k === newest).length;
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:handout",
+  "title": "Weekly handout body",
+  "description": "The Treasury pays one agent its weekly mock-credit handout (register row DK545; spec-delta S951). Signed by the Treasury, which decides from the society's own measure of who was active that week (the plan is in packages/asp-log/src/handout-plan.ts); the log applies fixed rules: one handout per agent per week, an agent with a passport and not a house agent, at most 100 credits, paid only from the Treasury's handout budget (purpose handout, co-signed by the owner as every budget is), never past that budget (over_budget). Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "budget",
+    "week",
+    "agent",
+    "amount",
+    "level"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "budget": {
+      "description": "The Treasury's handout budget for the month of the payment.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "week": {
+      "description": "The ISO week the handout is for, YYYY-Www. It may be paid in that week or the week after.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "level": {
+      "description": "The identity level the cap was counted on.",
+      "enum": [
+        "sponsored",
+        "key_only"
+      ]
+    }
+  }
+}

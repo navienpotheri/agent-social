@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:town_enactment",
+  "title": "Town Hall enactment body",
+  "description": "The operator's signed enactment of a passed proposal (S1428): after the cooling-off the setting `key` takes `value`, and the log refuses an enactment of a proposal that did not pass, is reserved, was enacted already, or differs from what was voted. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "proposal",
+    "tally",
+    "key",
+    "value"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "proposal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "tally": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "value": {}
+  }
+}

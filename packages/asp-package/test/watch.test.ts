@@ -43,3 +43,21 @@ test("different fingerprints do not add up", () => {
   const mixed = ["a", "b", "c"].map((i, n) => act(i, n, { artifacts: [{ uri: "asp://tool-call/Bash", sha256: "sha256:" + String(n).repeat(64) }] }));
   assert.deepEqual(findContagion(mixed, { minAgents: 3 }), []);
 });
+
+test("BM10: one agent refused the same scope again and again is a finding about that agent alone, at the default threshold", () => {
+  const tries = (n: number, step = 30) => Array.from({ length: n }, (_, i) => act("solo", i * step, { scopesUsed: ["repo.read"], artifacts: [], blocked: [{ scope: "shell.network", count: 1 }] }));
+  const found = findContagion(tries(5));
+  assert.equal(found.length, 1);
+  assert.equal(found[0].kind, "repeat-probe");
+  assert.deepEqual(found[0].issuers, ["solo"]);
+  assert.equal(found[0].key, "shell.network");
+  assert.equal(found[0].contracts[0], "contract-solo");
+  assert.deepEqual(findContagion(tries(4)), [], "four refusals is not yet a pattern");
+  assert.deepEqual(findContagion(tries(5, 400)), [], "five refusals spread over more than the window is not a pattern");
+  assert.equal(findContagion([act("solo", 0, { scopesUsed: [], artifacts: [], blocked: [{ scope: "shell.network", count: 5 }] })]).length, 1, "a count of five on one action counts");
+  // Three agents each refused twice are still one same-probe cluster, not three repeat findings.
+  const three = ["a", "b", "c"].map((i, n) => act(i, n * 30, { scopesUsed: [], artifacts: [], blocked: [{ scope: "shell.network", count: 2 }] }));
+  assert.deepEqual(findContagion(three).map((c) => c.kind), ["same-probe"]);
+  // An ordinary agent refused once or twice is left alone.
+  assert.deepEqual(findContagion([act("honest", 0, { scopesUsed: [], artifacts: [], blocked: [{ scope: "repo.push", count: 2 }] })]), []);
+});

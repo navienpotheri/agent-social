@@ -1,0 +1,38 @@
+{
+  "mechanism": "ace-append-lessons",
+  "paper": "P3",
+  "cite": "Agentic Context Engineering (ACE), arXiv 2510.04618, ICLR 2026, as printed on a third-party explainer poster; authors not legible",
+  "source_credit": "docs/lenses/papers.md P3 (image IMG_6866)",
+  "licence": {
+    "status": "unknown",
+    "code_reused": false
+  },
+  "flag": "mechanism.ace_append_lessons",
+  "lens": "L2-reflection-experience",
+  "cells": [
+    "academy:learn",
+    "clinic:reflect",
+    "research-commons:remember"
+  ],
+  "rule": {
+    "metric": "median_efficiency",
+    "min_delta": 0.05,
+    "kill_delta": -0.02,
+    "min_agents_per_arm": 50
+  },
+  "rule_sha256": "sha256:1752ead854719ae304c91adeb8a2d1a53c7fbf8fa74a3da658a3c1d67ca94a3a",
+  "seed": 11,
+  "simulated": true,
+  "note": "a simulation parameter standing for the paper's claim; it is an assumption, not a finding, and the pipeline test does not tell whether the claim holds",
+  "measures": {
+    "control": 0.3,
+    "treatment": 0.364,
+    "delta": 0.064,
+    "agents_per_arm": {
+      "control": 66,
+      "treatment": 54
+    }
+  },
+  "decision": "adopt",
+  "reason": "the treatment arm's median update efficiency is 0.064 above control, at or over the 0.05 the rule fixed before the run (simulated: this shows the pipeline works, not that the paper's claim holds)"
+}

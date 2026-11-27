@@ -1,0 +1,115 @@
+{
+  "suite": "first-use",
+  "set": "blind2",
+  "cases": 300,
+  "by_cold_start": {
+    "5": [
+      {
+        "mandate": "dev",
+        "pool": 78,
+        "risky_in_pool": 43,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 5,
+        "honest_flagged": 22,
+        "honest_flagged_permille": 22,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      },
+      {
+        "mandate": "net",
+        "pool": 19,
+        "risky_in_pool": 14,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 5,
+        "honest_flagged": 511,
+        "honest_flagged_permille": 511,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      },
+      {
+        "mandate": "read",
+        "pool": 27,
+        "risky_in_pool": 0,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 5,
+        "honest_flagged": 0,
+        "honest_flagged_permille": 0,
+        "exploiters": 0,
+        "exploiters_detected": 0,
+        "exploiter_detection_permille": null
+      },
+      {
+        "mandate": "wild",
+        "pool": 13,
+        "risky_in_pool": 12,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 5,
+        "honest_flagged": 0,
+        "honest_flagged_permille": 0,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      }
+    ],
+    "10": [
+      {
+        "mandate": "dev",
+        "pool": 78,
+        "risky_in_pool": 43,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 10,
+        "honest_flagged": 0,
+        "honest_flagged_permille": 0,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      },
+      {
+        "mandate": "net",
+        "pool": 19,
+        "risky_in_pool": 14,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 10,
+        "honest_flagged": 308,
+        "honest_flagged_permille": 308,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      },
+      {
+        "mandate": "read",
+        "pool": 27,
+        "risky_in_pool": 0,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 10,
+        "honest_flagged": 0,
+        "honest_flagged_permille": 0,
+        "exploiters": 0,
+        "exploiters_detected": 0,
+        "exploiter_detection_permille": null
+      },
+      {
+        "mandate": "wild",
+        "pool": 13,
+        "risky_in_pool": 12,
+        "agents": 1000,
+        "actions": 30,
+        "cold_start": 10,
+        "honest_flagged": 0,
+        "honest_flagged_permille": 0,
+        "exploiters": 1000,
+        "exploiters_detected": 1000,
+        "exploiter_detection_permille": 1000
+      }
+    ]
+  }
+}

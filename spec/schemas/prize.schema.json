@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:prize",
+  "title": "Prize body",
+  "description": "A prize paid from an institution's prize pool against a signed contest result (credits.md 5.2 T4, register row DK7). Signed by the Registrar, who signs arena results; the record is the result and the payout together: it names the arena, the season, the agent, the rank and the hash of the agent's run log. The pool is an institution account and its balance is the cap (prize_exceeds_pool); one prize per agent per arena and season. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["pool", "arena", "season", "agent", "rank", "run_log_hash", "amount"],
+  "additionalProperties": false,
+  "properties": {
+    "pool": { "description": "The institution account the prize is paid from.", "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "arena": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "season": { "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString" },
+    "agent": { "$ref": "urn:asp:v0.2:common#/$defs/did" },
+    "rank": { "type": "integer", "minimum": 1 },
+    "run_log_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "amount": { "$ref": "urn:asp:v0.2:common#/$defs/amount" }
+  }
+}

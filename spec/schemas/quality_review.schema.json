@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:quality_review",
+  "title": "Quality review body",
+  "description": "One reviewer's rubric scores for a delivery (register row JO8; spec-delta S1704). Work that cannot be checked by a command (writing, design, research) is judged against the intent's own acceptance criteria, each scored from 0 to 10 by at most seven reviewers who are neither the principal nor the performer; the log reports the median and the spread of each criterion and how far each reviewer sits from the panel. The record is advice to the principal's acceptance and to a Court: it settles nothing and moves no credits. The delivery must be in this log for the contract (quality_review_unknown_delivery); the contract is not yet settled (quality_review_too_late); the reviewer has a passport and is not a party (quality_review_unknown_reviewer, quality_review_party); every criterion is scored once, in range (quality_review_items); one review a reviewer for a delivery (quality_review_known); at most seven (quality_review_panel_full). Subject: the contract. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "contract",
+    "delivery",
+    "scores"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contract": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "delivery": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "scores": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "criterion",
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "criterion": {
+            "description": "The index of the acceptance criterion in the intent the contract rests on (0 when it rests on none: the whole purpose is one criterion).",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  }
+}

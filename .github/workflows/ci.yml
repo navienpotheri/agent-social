@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   # The TypeScript packages: typecheck, every package's tests, and the conformance vectors are the ones the generator produces.
-  # Every combination must pass: Linux and Windows, Node 24 and 22.18 (the declared minimum). An `experimental: true` entry shows a failure in the run
+  # Every combination must pass: Linux and Windows, Node 24 and 22.18 (the declared minimum); macOS runs too and is shown without blocking (T1). An `experimental: true` entry shows a failure in the run
   # without failing it; use it for a combination being tried (docs/gaps-register.md O14).
   node:
     name: node (${{ matrix.os }}, node ${{ matrix.node }})
@@ -29,6 +29,9 @@ jobs:
           - { os: ubuntu-latest, node: "22.18", experimental: false }
           - { os: windows-latest, node: "24", experimental: false }
           - { os: windows-latest, node: "22.18", experimental: false }
+          # macOS (T1): shown, not blocking, until it has passed enough runs to be trusted (docs/gaps-register.md O14); the first-minutes job below already runs macOS and zsh.
+          - { os: macos-latest, node: "24", experimental: true }
+          - { os: macos-latest, node: "22.18", experimental: true }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -156,3 +159,37 @@ jobs:
         run: |
           echo "node: ${{ needs.node.result }}, python: ${{ needs.python.result }}, postgres: ${{ needs.postgres.result }}, smoke: ${{ needs.smoke.result }}, old-node: ${{ needs.old-node.result }}"
           test "${{ needs.node.result }}" = "success" && test "${{ needs.python.result }}" = "success" && test "${{ needs.postgres.result }}" = "success" && test "${{ needs.smoke.result }}" = "success" && test "${{ needs.old-node.result }}" = "success"
+
+  # T3/T23: the two-sessions test that fails only on Linux CI. It runs here on its own, several times, with the approval hand-off trail on (ASP_DEBUG_APPROVALS=1), and the trail is kept as an
+  # artifact whether it passes or not, so the cause can be read. Not blocking (`continue-on-error`): the claim of the one-open-Checkpoint rule across two sessions stays off until this passes.
+  approvals-debug:
+    name: two sessions, approvals trail (T3, T23)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    env:
+      ASP_DEBUG_APPROVALS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: The concurrent-session test, five times
+        run: |
+          for i in 1 2 3 4 5; do
+            echo "--- run $i"
+            node --test packages/asp-cli/test/run-concurrent.test.ts || echo "run $i failed" >> approvals-debug-failures.txt
+          done
+          test ! -f approvals-debug-failures.txt
+      - name: Keep the trail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: approvals-trail
+          path: |
+            approvals-debug-failures.txt
+            **/debug*.log
+            **/approvals-trail*
+          if-no-files-found: ignore

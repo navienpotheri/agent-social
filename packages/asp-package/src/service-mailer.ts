@@ -3,16 +3,21 @@
  *
  *   - the end-of-Mandate mail to the principal when a job settles (mail.ts: buildMandateMail),
  *   - an alert to the principal at once for a kill, an upheld report or an expired Mandate (buildAlertMail),
- *   - a note to the operator when a dispute opens, so a ruling does not wait unseen (the court is the operator's, S97).
+ *   - a note to the operator when a dispute opens, so a ruling does not wait unseen (the court is the operator's, S97),
+ *   - the nightly credit audit (register rows DK1 and DK9, credits.md 6.2, CR-18): at most once every `auditIntervalMs`, and a mail to the
+ *     operator, through the same channel as the other operator notes, the moment the supply rule stops balancing (the recommendation of
+ *     credits.md section 11, decision 8).
  *
  * The recipient is the verified Google email of the tenant that wrote as the principal's identity; a principal with no such tenant gets nothing (the reason is kept).
  * Every mail carries an unsubscribe link and the List-Unsubscribe headers; a bounce or a complaint from the provider, or an unsubscribe, suppresses the address for good.
  * What was sent, skipped or suppressed is kept in a small file, so a restart sends nothing twice. A busy provider is retried on later passes, up to five times.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import type { OwnerStore, Tenant } from "@agent-social/asp-log";
+import { renewalNotices, type OwnerStore, type Tenant } from "@agent-social/asp-log";
 import { buildAlertMail, buildMandateMail, collectMandateFacts, findAlerts, type MailLog } from "./mail.ts";
+import { buildRunEndMail, collectRunEndFacts, findRunEnds } from "./mail-run.ts";
 import { RetryableMailError, unsubscribeOk, unsubscribeToken, verifySvix, type MailTransport } from "./mail-send.ts";
 
 export interface MailerOptions {
@@ -22,8 +27,14 @@ export interface MailerOptions {
   transport: MailTransport;
   /** "Agent Social <noreply@example.org>" */
   from: string;
-  /** Where operator notes go (a dispute opened); omit to send none. */
+  /** Where operator notes go (a dispute opened, a credit-audit mismatch); omit to send none. */
   operatorTo?: string;
+  /** Runs the credit audit (credit-audit.ts `auditLedger`, over `creditAudit()`); omit to run no audit. */
+  audit?: () => Promise<{ verdict: "balanced" | "mismatch"; difference: number; problems: string[]; head: { seq: number; logHash: string } }>;
+  /** How often the audit runs (default 86,400,000 ms: once a day). */
+  auditIntervalMs?: number;
+  /** The Insurer's stress replay (BI-18, DK491): run once in each UTC quarter, the first pass of the quarter; the result is kept in the state and mailed to the operator as one line. Omit to run none. */
+  stress?: (at: string) => Promise<{ stress: { verdict: string; note: string; windowDays: number; multiplier: number; minStressed: number; floorStressed: number }; line: { reserveStatus: string; policies: number; claims: number } }>;
   /** The service's public address (read when a link is made), for the unsubscribe links. */
   publicUrl: () => string;
   secret: Buffer;
@@ -43,6 +54,21 @@ interface State {
   skipped: Record<string, string>;
   suppressed: Record<string, { reason: string; at: string }>;
   attempts: Record<string, number>;
+  /** When the credit audit last ran (epoch ms); absent or 0 means it has never run. */
+  auditedAt?: number;
+  /** The audit's last verdict, so `asp serve` can report it without re-running the audit. */
+  lastAuditVerdict?: "balanced" | "mismatch";
+  /** An address a tenant proved it holds (KO2): a key-only tenant has no verified Google address, so it names one and enters the code the service sent there. */
+  tenantAddress?: Record<string, { email: string; confirmedAt: string }>;
+  /** A code sent, not yet entered: only an HMAC of it is kept. */
+  pendingAddress?: Record<string, { email: string; codeMac: string; expiresAt: string; attempts: number }>;
+  /** When each tenant asked for a code (the limit of three a day survives a confirmation). */
+  addressAsked?: Record<string, string[]>;
+  /** Mail with no address to go to, kept with the reason and tried again on every pass until it has one (or until it is too old to be worth sending). */
+  held?: Record<string, { why: string; at: string }>;
+  /** The UTC quarter (2026-Q4) of the last stress replay, and what it found, kept so a restart does not run it again in the same quarter. */
+  stressQuarter?: string;
+  lastStress?: { quarter: string; at: string; verdict: string; note: string; reserveStatus: string };
 }
 
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -73,16 +99,63 @@ export class ServiceMailer {
     this.save();
   }
   counts() { return { sent: Object.keys(this.state.sent).length, skipped: Object.keys(this.state.skipped).length, suppressed: Object.keys(this.state.suppressed).length }; }
+  /** When the credit audit last ran and what it found, for `asp serve`'s own startup and status lines. */
+  lastAudit(): { at: string | undefined; verdict: "balanced" | "mismatch" | undefined } {
+    return { at: this.state.auditedAt !== undefined ? new Date(this.state.auditedAt).toISOString() : undefined, verdict: this.state.lastAuditVerdict };
+  }
+  /** The last quarterly stress replay (BI-18), or undefined when none has run. */
+  lastStress(): State["lastStress"] { return this.state.lastStress; }
   unsubscribeUrl(email: string): string { return `${this.o.publicUrl().replace(/\/$/, "")}/mail/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubscribeToken(email, this.o.secret)}`; }
   verifyUnsubscribe(email: string, token: string): boolean { return unsubscribeOk(email, token, this.o.secret); }
 
-  /** The verified email of the open tenant that wrote as this identity, if any. */
+  /** The address mail for this identity goes to: the verified Google email of the open tenant that wrote as it, or the address that tenant proved it holds (KO2). */
   recipientFor(did: string): string | undefined {
     for (const t of this.o.tenants()) {
       if (t.closed || t.role === "admin") continue;
-      if (this.o.owners.of(t.name).includes(did) && t.signup?.google?.email) return t.signup.google.email;
+      if (this.o.owners.of(t.name).includes(did)) { const e = t.signup?.google?.email ?? this.state.tenantAddress?.[t.name]?.email; if (e) return e; }
     }
     return undefined;
+  }
+
+  // ---- KO2: a key-only tenant names an address and proves it (a code sent to it, entered back) ----
+  private macOf(tenant: string, email: string, code: string): string { return createHmac("sha256", this.o.secret).update(`addr|${tenant}|${email.toLowerCase()}|${code}`).digest("hex"); }
+  /** What this tenant's mail address is, what is waiting for a code, and what has been held for want of one. */
+  addressState(tenant: string): { address?: { email: string; source: "google" | "confirmed"; confirmedAt?: string }; pending?: { email: string; expiresAt: string }; held: { key: string; why: string; at: string }[] } {
+    const t = this.o.tenants().find((x) => x.name === tenant);
+    const dids = new Set(this.o.owners.of(tenant));
+    const held = Object.entries(this.state.held ?? {}).filter(([, h]) => { const d = /(did:[^ ]+)$/.exec(h.why)?.[1]; return !!d && dids.has(d); }).map(([key, h]) => ({ key, ...h }));
+    const google = t?.signup?.google?.email, conf = this.state.tenantAddress?.[tenant], pend = this.state.pendingAddress?.[tenant];
+    return { ...(google ? { address: { email: google, source: "google" as const } } : conf ? { address: { email: conf.email, source: "confirmed" as const, confirmedAt: conf.confirmedAt } } : {}), ...(pend && Date.parse(pend.expiresAt) > this.now() ? { pending: { email: pend.email, expiresAt: pend.expiresAt } } : {}), held };
+  }
+  /** Sends a code to the address (at most 3 a day for a tenant, and none to an address that unsubscribed). The address is NOT used for any mail until the code comes back. */
+  async requestAddress(tenant: string, email: string): Promise<{ ok: true; expiresAt: string } | { ok: false; status: number; message: string }> {
+    if (!/^[^ @]+@[^ @]+[.][^ @]+$/.test(email) || email.length > 254) return { ok: false, status: 400, message: "that does not look like an email address" };
+    if (this.isSuppressed(email)) return { ok: false, status: 409, message: "that address asked not to be mailed by this service, so no code is sent to it" };
+    const p = (this.state.pendingAddress ??= {});
+    const asked = (this.state.addressAsked?.[tenant] ?? []).filter((t) => this.now() - Date.parse(t) < 86_400_000);
+    if (asked.length >= 3) return { ok: false, status: 429, message: "three codes have been sent today; wait, or use the last one" };
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const expiresAt = new Date(this.now() + 30 * 60_000).toISOString();
+    const text = [`Someone entered this address for the agent account ${tenant} on Agent Social.`, "", `The code is ${code}. It works for 30 minutes.`, "", "If you did not ask for this, ignore this mail: nothing is sent to this address until the code is entered, and you can leave it unused.", "A mail may not arrive; the signed log is the record.", ""].join("\n");
+    try {
+      await this.o.transport.send({ from: this.o.from, to: email, subject: "Your code to confirm this address for Agent Social", text, html: `<p>Someone entered this address for the agent account <b>${esc(tenant)}</b> on Agent Social.</p><p>The code is <b>${code}</b>. It works for 30 minutes.</p><p>If you did not ask for this, ignore this mail: nothing is sent to this address until the code is entered.</p>` });
+    } catch (e) { return { ok: false, status: e instanceof RetryableMailError ? 503 : 502, message: `the code could not be sent: ${(e as Error).message}` }; }
+    p[tenant] = { email: email.toLowerCase(), codeMac: this.macOf(tenant, email, code), expiresAt, attempts: 0 };
+    (this.state.addressAsked ??= {})[tenant] = [...asked, new Date(this.now()).toISOString()];
+    this.save();
+    return { ok: true, expiresAt };
+  }
+  /** The code comes back: the address becomes the tenant's (five wrong tries end the code). */
+  confirmAddress(tenant: string, code: string): { ok: true; email: string } | { ok: false; status: number; message: string } {
+    const pend = this.state.pendingAddress?.[tenant];
+    if (!pend || Date.parse(pend.expiresAt) <= this.now()) return { ok: false, status: 404, message: "there is no code waiting (it may have expired): ask for a new one" };
+    if (pend.attempts >= 5) return { ok: false, status: 429, message: "too many wrong tries: ask for a new code" };
+    const want = Buffer.from(pend.codeMac, "hex"), got = Buffer.from(this.macOf(tenant, pend.email, String(code).trim()), "hex");
+    if (want.length !== got.length || !timingSafeEqual(want, got)) { pend.attempts++; this.save(); return { ok: false, status: 400, message: `that is not the code (${5 - pend.attempts} tries left)` }; }
+    (this.state.tenantAddress ??= {})[tenant] = { email: pend.email, confirmedAt: new Date(this.now()).toISOString() };
+    delete this.state.pendingAddress![tenant];
+    this.save();
+    return { ok: true, email: pend.email };
   }
 
   private recentTo(email: string): number {
@@ -93,7 +166,10 @@ export class ServiceMailer {
   /** Sends one mail unless it was handled, the address is suppressed, or a limit holds it. Returns whether it was sent. */
   private async deliver(key: string, to: string | undefined, why: string, build: (to: string, unsubscribe: string) => { subject: string; text: string; html: string }, operator = false): Promise<boolean> {
     if (this.state.sent[key] || this.state.skipped[key]) return false;
-    if (!to) { this.state.skipped[key] = `no address: ${why}`; this.save(); return false; }
+    // No address: the mail is HELD with the reason and tried again on every pass (an address may be confirmed later, KO2); a mail held for more than a week is not sent late.
+    if (!to) { const h = (this.state.held ??= {}); if (!h[key]) { h[key] = { why: `no address: ${why}`, at: new Date(this.now()).toISOString() }; this.save(); } return false; }
+    const heldAt = this.state.held?.[key]?.at;
+    if (heldAt && this.now() - Date.parse(heldAt) > 7 * 86_400_000) { this.state.skipped[key] = "held longer than a week with no address; not sent late"; delete this.state.held![key]; this.save(); return false; }
     if (!operator && this.isSuppressed(to)) { this.state.skipped[key] = "address suppressed"; this.save(); return false; }
     if (!operator && this.recentTo(to) >= (this.o.maxPerRecipientPerHour ?? 10)) return false; // held until the hour clears
     if ((this.state.attempts[key] ?? 0) >= 5) { this.state.skipped[key] = "gave up after 5 attempts"; this.save(); return false; }
@@ -107,6 +183,7 @@ export class ServiceMailer {
         ...(operator ? {} : { headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } }),
       });
       this.state.sent[key] = { to, at: new Date(this.now()).toISOString(), id: r.id };
+      if (this.state.held?.[key]) delete this.state.held[key];
       this.save();
       this.say(`mail sent: ${key} -> ${to} (${r.id})`);
       return true;
@@ -158,6 +235,14 @@ export class ServiceMailer {
         if (!f) continue;
         if (await this.deliver(key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildMandateMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
       }
+      // The end of a governed run (ML1): `asp run` signs a final Action report and settles no contract, so the run's end is read from that report; one mail for each run.
+      for (const e of await findRunEnds(log)) {
+        if (sent >= budget) break;
+        if (this.state.sent[e.key] || this.state.skipped[e.key]) continue;
+        const f = await collectRunEndFacts(log, e);
+        if (!f) continue;
+        if (await this.deliver(e.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildRunEndMail(f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
       // Alerts.
       for (const a of await findAlerts(log, this.now())) {
         if (sent >= budget) break;
@@ -165,6 +250,62 @@ export class ServiceMailer {
         const f = await collectMandateFacts(log, a.contract);
         if (!f) continue;
         if (await this.deliver(a.key, this.recipientFor(f.contract.principal), `principal ${f.contract.principal}`, (to) => buildAlertMail(a, f, { to, from: this.o.from, ...(this.o.linkBase ? { linkBase: this.o.linkBase } : {}) }))) sent++;
+      }
+      // The sponsor's renewal mail (RG-10, row DK384): 30 and 7 days before an agent's identity term ends and once when it has lapsed; each only once per term.
+      for (const n of renewalNotices(all.map((s) => ({ ...s.record, id: s.id })) as never, new Date(this.now()).toISOString())) {
+        if (sent >= budget) break;
+        if (this.state.sent[n.key] || this.state.skipped[n.key]) continue;
+        const subject = n.stage === "lapsed" ? `The identity of ${n.did} has lapsed` : `The identity of ${n.did} needs renewing in ${n.daysLeft} day(s)`;
+        const text = [subject, "", `You sponsor ${n.did}. Its identity term ${n.stage === "lapsed" ? "ended" : "ends"} on ${n.due}.`, n.stage === "lapsed" ? "A lapsed identity renews in one command, and keeps its name for 30 days after the term:" : "Renew it in one command (the agent signs, you countersign):", `  asp registry renew --by ${n.did}`, "", "-- Agent Social. Credits are accounting entries, not money.", ""].join("\n");
+        const html = `<!doctype html><html><body style="font-family:sans-serif"><p><strong>${esc(subject)}</strong></p><p>You sponsor <code>${esc(n.did)}</code>. Its identity term ${n.stage === "lapsed" ? "ended" : "ends"} on ${esc(n.due)}.</p><p>Renew it: <code>asp registry renew --by ${esc(n.did)}</code></p></body></html>`;
+        if (await this.deliver(n.key, this.recipientFor(n.sponsor), `sponsor ${n.sponsor}`, () => ({ subject, text, html }))) sent++;
+      }
+      // The credit audit (DK1, DK9): at most once every auditIntervalMs; a mismatch mails the operator at once, through the same channel as
+      // the other operator notes (credits.md decision 8). Running it costs a full ledger read, so it is not on every pass like the mail above.
+      if (this.o.audit) {
+        const interval = this.o.auditIntervalMs ?? 86_400_000;
+        if (this.state.auditedAt === undefined || this.now() - this.state.auditedAt >= interval) {
+          this.state.auditedAt = this.now();
+          try {
+            const audit = await this.o.audit();
+            this.state.lastAuditVerdict = audit.verdict;
+            this.save();
+            this.say(`credit audit: ${audit.verdict}${audit.verdict === "mismatch" ? ` (${audit.problems.join("; ")})` : ""} at log seq ${audit.head.seq}`);
+            if (audit.verdict !== "balanced" && this.o.operatorTo && sent < budget) {
+              const key = `audit-mismatch:${audit.head.seq}`;
+              const subject = `Credit audit mismatch: ${Math.abs(audit.difference)} credit(s) at log seq ${audit.head.seq}`;
+              const text = [subject, "", ...audit.problems, "", "Recompute: asp credits audit --json", ""].join("\n");
+              const html = `<!doctype html><html><body style="font-family:sans-serif"><p><strong>${esc(subject)}</strong></p><ul>${audit.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul><p>Recompute: <code>asp credits audit --json</code></p></body></html>`;
+              if (await this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html }), true)) sent++;
+            }
+          } catch (e) {
+            this.save();
+            this.say(`credit audit failed: ${(e as Error).message}`);
+          }
+        }
+      }
+      // The Insurer's stress replay (BI-18): once in each UTC quarter, on the first pass of it. It reads the log and writes none; the operator gets one line whatever the verdict, because a quarter with no news is also news.
+      if (this.o.stress) {
+        const at = new Date(this.now());
+        const quarter = `${at.getUTCFullYear()}-Q${Math.floor(at.getUTCMonth() / 3) + 1}`;
+        if (this.state.stressQuarter !== quarter) {
+          this.state.stressQuarter = quarter;
+          try {
+            const r = await this.o.stress(at.toISOString());
+            this.state.lastStress = { quarter, at: at.toISOString(), verdict: r.stress.verdict, note: r.stress.note, reserveStatus: r.line.reserveStatus };
+            this.save();
+            this.say(`insurer stress replay ${quarter}: ${r.stress.verdict}; reserve ${r.line.reserveStatus}`);
+            if (this.o.operatorTo && sent < budget) {
+              const subject = `Insurer stress replay ${quarter}: ${r.stress.verdict}`;
+              const text = [subject, "", `The last ${r.stress.windowDays} days of policies and paid claims, replayed with claims multiplied by ${r.stress.multiplier} (a simulation: nothing was written).`, r.stress.note, `Lowest reserve under the stress ${r.stress.minStressed}; the floor ${r.stress.floorStressed}. ${r.line.policies} policies, ${r.line.claims} paid claims; the reserve is ${r.line.reserveStatus}.`, "", "Recompute: asp insure stress", ""].join(String.fromCharCode(10));
+              const html = `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>`;
+              if (await this.deliver(`stress:${quarter}`, this.o.operatorTo, "operator", () => ({ subject, text, html }), true)) sent++;
+            }
+          } catch (e) {
+            this.save();
+            this.say(`insurer stress replay failed: ${(e as Error).message}`);
+          }
+        }
       }
       // A dispute opened: the operator.
       if (this.o.operatorTo) {
@@ -179,6 +320,36 @@ export class ServiceMailer {
     } finally { this.running = false; }
     return { sent };
   }
+
+  /** One mail to a tenant's verified Google address, once per key (a token alert with its confirmation code, DK1717). False when the tenant has no verified address or the key was handled. */
+  async tellTenant(tenant: string, key: string, subject: string, text: string): Promise<boolean> {
+    const t = (this.o.tenants() as { name: string; signup?: { google?: { email?: string } } }[]).find((x) => x.name === tenant);
+    const to = t?.signup?.google?.email;
+    return this.deliver(key, to, "tenant", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);
+  }
+
+  /**
+   * A breach was reported to the service (DK1714, E10): the operator is told at once, and so is the sponsor of the agent (and the agent's own verified tenant, if it has one), once each per report. The service cannot
+   * quarantine (the Clinic's key is the owner's): the mail says what was reported and what the owner runs, so the alert does not wait on the owner's machine. Returns who was mailed.
+   */
+  async tellBreach(b: { id: string; agent: string; cause: string; summary: string; at: string; sponsor?: string | null }): Promise<string[]> {
+    const told: string[] = [];
+    const subject = `Breach reported: ${b.cause} by ${b.agent}`;
+    const text = [subject, "", `At ${b.at}: ${b.summary}`, "", "The agent is not yet quarantined: the owner signs the quarantine and the incident record with `asp breach respond --from-service`.", "Nothing is paid to an outside party in credits; a remedy the operator records follows an upheld finding."].join("\n");
+    const html = `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>`;
+    if (await this.tellOperator(`breach:${b.id}:operator`, subject, text)) told.push("operator");
+    for (const who of [b.sponsor ?? undefined, b.agent]) {
+      if (!who) continue;
+      const to = this.recipientFor(who);
+      if (to && (await this.deliver(`breach:${b.id}:${who}`, to, `breach ${who}`, () => ({ subject, text, html }), true))) told.push(who);
+    }
+    return told;
+  }
+
+  /** One mail to the operator, once per key (a finding from the society watcher, DK52). False when there is no operator address or the key was already handled. */
+  async tellOperator(key: string, subject: string, text: string): Promise<boolean> {
+    return this.deliver(key, this.o.operatorTo, "operator", () => ({ subject, text, html: `<!doctype html><html><body style="font-family:sans-serif"><pre>${esc(text)}</pre></body></html>` }), true);
+  }
 }
 
 // ---- the routes the provider and the reader call: no sign-in, so they check their own proof ----
@@ -189,8 +360,8 @@ async function readText(req: IncomingMessage, max: number): Promise<string | und
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** `publicRoutes` for createLogServer: /mail/unsubscribe (GET shows a page, POST does it: also the one-click POST) and /mail/webhook/resend. */
-export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: string; now?: () => number }) {
+/** `publicRoutes` for createLogServer: /mail/unsubscribe (GET shows a page, POST does it: also the one-click POST), /mail/webhook/resend, and (with `auth`) /mail/address for a tenant to name an address and prove it (KO2). */
+export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: string; now?: () => number; auth?: (req: IncomingMessage) => { name: string; role?: string } | undefined }) {
   const page = (res: ServerResponse, status: number, title: string, body: string) => {
     res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'" });
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:34rem;margin:2rem auto;padding:0 1rem}button{padding:.6rem 1rem;font:inherit}</style></head><body><h1>${esc(title)}</h1>${body}</body></html>`);
@@ -203,6 +374,21 @@ export function mailPublicRoutes(mailer: ServiceMailer, o: { webhookSecret?: str
       if (req.method === "POST") { await readText(req, 1024); mailer.suppress(email, "unsubscribed"); page(res, 200, "You are unsubscribed", `<p>${esc(email)} will get no more mail from Agent Social about jobs and alerts.</p>`); return true; }
       if (req.method === "GET") { page(res, 200, "Stop these mails?", `<p>Stop mail about your agents' jobs and alerts to <strong>${esc(email)}</strong>?</p><form method="post" action="${esc(url.pathname + url.search)}"><button type="submit">Unsubscribe</button></form>`); return true; }
       res.writeHead(405); res.end(); return true;
+    }
+    if (url.pathname === "/mail/address" || url.pathname === "/mail/address/confirm") {
+      const json = (status: number, body: unknown) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(body)); return true; };
+      const tenant = o.auth?.(req);
+      if (!tenant || tenant.role === "admin") return json(401, { ok: false, error: { code: "UNAUTHORIZED", message: "sign in with your token" } });
+      if (req.method === "GET" && url.pathname === "/mail/address") return json(200, { ok: true, ...mailer.addressState(tenant.name) });
+      if (req.method !== "POST") { res.writeHead(405); res.end(); return true; }
+      let body: { address?: string; code?: string } = {};
+      try { body = JSON.parse((await readText(req, 4096)) ?? "{}"); } catch { return json(400, { ok: false, error: { code: "BAD_REQUEST", message: "send JSON" } }); }
+      if (url.pathname === "/mail/address") {
+        const r = await mailer.requestAddress(tenant.name, String(body.address ?? "").trim());
+        return r.ok ? json(200, { ok: true, expiresAt: r.expiresAt, message: "a code was sent to that address; enter it with asp notices address confirm <code>" }) : json(r.status, { ok: false, error: { code: "ADDRESS", message: r.message } });
+      }
+      const c = mailer.confirmAddress(tenant.name, String(body.code ?? ""));
+      return c.ok ? json(200, { ok: true, address: c.email }) : json(c.status, { ok: false, error: { code: "CODE", message: c.message } });
     }
     if (url.pathname === "/mail/webhook/resend") {
       if (req.method !== "POST") { res.writeHead(405); res.end(); return true; }

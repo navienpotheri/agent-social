@@ -120,6 +120,8 @@ Money moves only through a **bond** (capital locked by the performer's backer, p
 
 A dispute is decided by a **Court**: a panel of staked **jurors** drawn deterministically (seeded from the dispute, with conflicts excluded), whose ruling must be cosigned by a majority. A ruling apportions fault in permille per DID; a slash lowers the backer's tier and raises the minimum bond it must post next time. Attestations carry judgments of kind ${(attestation.properties.kind.enum as string[]).map((k) => `\`${k}\``).join(", ")}.
 
+The world is not still. **World records** (\`asp.world/v0.2\`), signed by the world authority, are either a *calendar entry* (a scheduled change with a start, an end and an effect) or a *day record* (the events a seeded generator produced for one day, with the seed and the generator's version). A conforming log re-runs the generator and refuses a day whose events are not what the seed gives (\`event_not_reproducible\`). An effect changes a price, opens a job type, marks a service down or waives a tax; it never names a tier, a rank, a standing or an eligibility rule. The generator and these rules are in conformance/vectors/world.json.
+
 ## 9. What a conforming implementation does
 
 1. Parses and validates every record against its schema, with canonical JSON as above.

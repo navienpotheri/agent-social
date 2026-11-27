@@ -54,6 +54,12 @@ test("asp help lists the topics, shows one, and searches by words", async () => 
   const none = await asp(f, ["help", "xyzzy"]);
   assert.equal(none.code, 1);
   assert.match(none.out, /nothing in the help matches/);
+  // a command with no topic of its own answers from the command catalogue (the live-run runbook tells the owner to type these)
+  for (const word of ["budget", "enrol", "journey", "pause", "resume", "academy", "runtimes"]) {
+    const r = await asp(f, ["help", word]);
+    assert.equal(r.code, 0, word);
+    assert.match(r.out, new RegExp(`asp ${word}`), word);
+  }
 });
 
 test("asp ask shows the command it understood before anything runs, asks first, never runs what cannot be undone, and says so when it does not understand", async () => {

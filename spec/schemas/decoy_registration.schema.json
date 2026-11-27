@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:decoy_registration",
+  "title": "Decoy registration body",
+  "description": "A honeypot registered with a Court before it is placed (register row DK1744; spec-delta S1603): `text` is what the decoy says, `carries_real_secret` and `forbidden_by_mandate` are stated, `scope` is a random audit (at most 2 percent of runs: `audit_share_permille` at most 20) or an open investigation. Signed by the Courts. The log refuses a decoy that holds something real (decoy_real_secret), that invites a touch (decoy_entices), that no Mandate forbids (decoy_not_forbidden) or that covers more than 2 percent of runs on a random audit (decoy_audit_share), and a decoy id registered twice (decoy_known). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "decoy",
+    "text",
+    "carries_real_secret",
+    "forbidden_by_mandate",
+    "scope"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "decoy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "carries_real_secret": {
+      "type": "boolean"
+    },
+    "forbidden_by_mandate": {
+      "type": "boolean"
+    },
+    "scope": {
+      "enum": [
+        "open_investigation",
+        "random_audit"
+      ]
+    },
+    "audit_share_permille": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    }
+  }
+}

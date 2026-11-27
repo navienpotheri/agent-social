@@ -1,6 +1,6 @@
 # The day's view: what a person sees after a day of agents running
 
-Status: design, 2026-10-13. Nothing here is built except what is marked "today". The numbers in the examples are real: they are the sessions of one fresh account (`navien-livetest`) during the live walkthrough on 2026-10-13, read from its session index.
+Status: design, 2026-10-13; `asp today` and `asp trend` built 2026-11-11 (gap T14, D8): tables A, B, C, D, E and the health line of F, as the design set them out, from this machine's session index and run logs, with the decisions taken as recommended (the local day, `--since 24h`, the whole command with secrets masked, the machine's records said to be the machine's). What is not built is gap T32. Otherwise nothing here is built except what is marked "today". The numbers in the examples are real: they are the sessions of one fresh account (`navien-livetest`) during the live walkthrough on 2026-10-13, read from its session index.
 
 ## What a person wants to know at the end of a day
 
@@ -99,7 +99,7 @@ Needs: a per-session "recorded or not" flag (today it is only a warning line in 
 
 | Place | Form | Status |
 |---|---|---|
-| Terminal: `asp today` (also `asp today --day 2026-10-12`) | Tables A, C, D and the one-line health of F; B, E on `--all` | Not built |
+| Terminal: `asp today` (also `asp today --day 2026-10-12`, `--since 24h`), and `asp trend` for the days and agents side by side | Tables A, C, D and the one-line health of F; B, E on `--all` | Built (T14, D8); missing columns in T32 |
 | `asp dashboard` | The same tables as a page, plus the existing agents, jobs, credits | Page exists, tables not built |
 | End-of-day mail | A, C and F as text, to the verified address, only if something was refused or failed | Mail exists per job; no day trigger |
 | For another person (a parent, a team lead, a court) | The same tables from the signed records only, with no local files | Design only |

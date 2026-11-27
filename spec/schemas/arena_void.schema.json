@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:arena_void",
+  "title": "Arena void body",
+  "description": "The Registrar declares an arena season void (register row DK131; spec-delta S485): the season has closed and cannot give any agent the independent opponents a result needs (the entrants come from no more than min_distinct_sponsors sponsors, or there are none). The log checks that, forbids any result for the season afterwards, and lets the Academy refund the entry fees (a receipt of status refunded on each fee purchase). Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "arena",
+    "season",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "arena": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "season": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "reason": {
+      "enum": [
+        "too_few_sponsors",
+        "no_entries"
+      ]
+    }
+  }
+}

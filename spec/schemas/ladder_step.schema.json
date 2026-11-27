@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:ladder_step",
+  "title": "Ladder step body",
+  "description": "One rung of the Clinic's mitigation ladder for an agent (register row DK92 stage 3; spec-delta S310): warn, tighten (a new Mandate may not grant a risky or network scope), hold (and its irreversible calls wait for approval), quarantine (cites the Clinic's quarantine record), refer (the evidence goes to the Courts) or lift (one rung back after 5 clean hidden probes in a row, cited). Signed by the Clinic. One rung at a time, naming the agent's current step in previous, resting on the agent's own probe results, diagnoses or Actions. Nothing here slashes, settles or takes credits. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "agent",
+    "step",
+    "reason",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "step": {
+      "enum": [
+        "warn",
+        "tighten",
+        "hold",
+        "quarantine",
+        "refer",
+        "lift"
+      ]
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+      }
+    },
+    "previous": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "quarantine": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "way_back": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

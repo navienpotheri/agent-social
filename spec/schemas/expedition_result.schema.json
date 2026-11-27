@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:expedition_result",
+  "title": "Expedition result body",
+  "description": "The close of an expedition (register row DK1740; spec-delta S1597): `scored` or `void`, with the reasons. The log recomputes what it can: the frames and the cost are its own count; a result is refused if they differ (expedition_result_mismatch), if it is scored with no frame, with the cost over the cap or without the evaluator's own error rate stated (expedition_must_be_void), and an expedition never carries a claim (it is not claimable as a measured result). Signed by the operator; once for each expedition. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "expedition",
+    "status",
+    "frames",
+    "cost_millicredits",
+    "evaluator",
+    "evaluator_error_permille",
+    "reasons"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "expedition": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "status": {
+      "enum": [
+        "scored",
+        "void"
+      ]
+    },
+    "frames": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reached": {
+      "type": "boolean"
+    },
+    "evaluator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "evaluator_error_permille": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "reasons": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 300
+      }
+    },
+    "cost_millicredits": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

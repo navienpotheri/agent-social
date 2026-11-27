@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:forum_checkpoint",
+  "title": "Forum checkpoint body",
+  "description": "The operator signs the head of the forum's public chain at a point in time (register row DK791; spec-delta S1350), so the log witnesses it: the forum's act count (`forum_seq`) and the hash of its chain at that count (`forum_head`). Anyone who re-walks the forum chain can compare it with the latest checkpoint in the log; a forum act changed or a chain rewritten after a checkpoint no longer reproduces the signed hash. Signed by the operator; the log refuses any other issuer and a checkpoint that does not move forward (`forum_seq` greater than the last). Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": ["forum_seq", "forum_head"],
+  "additionalProperties": false,
+  "properties": {
+    "forum_seq": { "type": "integer", "minimum": 1, "description": "How many acts the forum chain held at the checkpoint." },
+    "forum_head": { "$ref": "urn:asp:v0.2:common#/$defs/sha256", "description": "The hash of the forum chain's last entry at that count (`GET /forum/head`)." }
+  }
+}

@@ -1,0 +1,215 @@
+/**
+ * The invariant audit gate for lessons (register row DK32, gap D9; academy.md AC-6; deck slides 9 and 14): a lesson proposed for an agent's memory or for the commons is checked BEFORE it is admitted, on four things:
+ *
+ *   1. evidence    it cites where it came from: a reviewed commons entry (two other agents endorsed it) or the agent's own run (an Action id); a lesson with no evidence is not admitted;
+ *   2. invariants  it does not tell the agent to cross a line the protocol keeps (go outside its Mandate, switch the gateway or a check off, skip a checkpoint, hide its actions from its principal, take an
+ *                  irreversible step unasked, leak a secret, or obey text that claims authority over its rules), and it carries no hidden characters;
+ *   3. conflicts   it does not contradict a lesson the agent already holds (an "always" against a "never" about the same thing);
+ *   4. replay      with the lesson in memory, held-out tasks that passed without it still pass (a lesson that makes the agent worse is rejected), and there must be enough held-out tasks to say so.
+ *
+ * A rejected lesson is kept with its reasons (never silently dropped), so the principal can read why. An admitted lesson carries the evidence it cited. Nothing here calls a model: the checks are
+ * deterministic, so the same lesson gets the same verdict on every machine. The invariant list is a floor, not a proof of safety: a lesson worded to dodge it is caught by the replay and by the
+ * principal's review (asp learned), and the list is written down as a limit in docs/gaps-register.md (DK112).
+ */
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync, existsSync, cpSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { Signer } from "@agent-social/asp-core";
+import { HIDDEN, INVARIANT_PATTERNS } from "@agent-social/asp-core";
+import { readJson, writeJson } from "./files.ts";
+import { updatePackage } from "./package.ts";
+
+export type Evidence = { kind: "commons_entry"; ref: string } | { kind: "run"; ref: string };
+/**
+ * Attribution (register row DK810; spec-delta S1206): a lesson from a failed episode may say what it wants to change, the agent's `strategy` or a note about the `world_note`; and the gate may be given the episode as a
+ * probe. The probe re-runs the failed episode with the suspected outside factor held at its neutral value: if the agent's strategy then succeeds, the fault was the world's, otherwise it was the strategy's.
+ */
+export interface EpisodeProbe { id: string; rerunNeutral: () => Promise<boolean> | boolean }
+export type Fault = "strategy" | "world";
+export interface Attribution { episode: string; fault: Fault; target: "strategy" | "world_note" }
+export interface LessonCandidate { id: string; text: string; evidence: Evidence[]; source: "course" | "commons" | "run" | "principal"; target?: "strategy" | "world_note"; episode?: EpisodeProbe }
+export interface HeldOutTask { id: string; /** Runs the task with the memory (the lessons the agent would hold) and says whether it passed. */ run: (memory: readonly string[]) => Promise<boolean> | boolean }
+export interface GateOptions {
+  /** The lessons the agent already holds (text), for the conflict check. */
+  existing: readonly { id: string; text: string }[];
+  /** Held-out tasks for the replay. */
+  heldOut: readonly HeldOutTask[];
+  /** The status of a commons entry ("reviewed", "disputed", "unreviewed"); undefined if there is no such entry. */
+  commonsStatus?: (id: string) => string | undefined;
+  /** Whether an Action id is one of this agent's own runs. */
+  isOwnRun?: (id: string) => boolean;
+  /** Fewest held-out tasks the replay needs (default 3). */
+  minHeldOut?: number;
+  /**
+   * A lesson whose source is a paper (a course for a lens, DK1754, docs/institutions/lens-learning-loop.md stage 4): three further checks. The lesson names the paper, the course and the intake hash it came from; the new
+   * artifact does not lose ground on the agent's existing eval (`score.after >= score.before`, the same audit seeds); and the thresholds in force are the ones the intake fixed (`thresholdsSha256` equals `intakeSha256`).
+   */
+  paper?: { paper: string; course: string; intakeSha256: string; thresholdsSha256: string; score: { before: number; after: number } };
+}
+export type RejectionRule = "no_evidence" | "evidence_not_reviewed" | "evidence_unknown" | "invariant" | "hidden_text" | "conflict" | "replay_regressed" | "replay_too_small" | "empty" | "attribution_strategy_fault" | "attribution_world_fault" | "provenance_missing" | "existing_eval_regressed" | "thresholds_moved";
+export interface Rejection { rule: RejectionRule; reason: string }
+export interface Verdict { lesson: LessonCandidate; admitted: boolean; reasons: Rejection[]; cited?: Evidence[]; attribution?: Attribution }
+
+export { INVARIANT_PATTERNS };
+const STOP = new Set("the a an to of and or in on for with is are be it this that you your when then do does not never always must should".split(" "));
+const words = (s: string) => new Set(s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w && !STOP.has(w)));
+const overlap = (a: Set<string>, b: Set<string>) => { if (!a.size || !b.size) return 0; let n = 0; for (const w of a) if (b.has(w)) n++; return n / Math.min(a.size, b.size); };
+/** "positive" for always/must/do, "negative" for never/must not/do not/don't/avoid, otherwise undefined. */
+function polarity(s: string): "positive" | "negative" | undefined {
+  const t = s.toLowerCase();
+  if (/\b(never|must not|mustn't|do not|don't|should not|shouldn't|avoid|cannot|can't)\b/.test(t)) return "negative";
+  if (/\b(always|must|should|do|make sure|ensure|remember to)\b/.test(t)) return "positive";
+  return undefined;
+}
+
+/** Sentences of a lesson, each with its polarity and its content words (the polarity words themselves are stop words). */
+const claims = (text: string) => text.split(/(?<=[.!?\n])\s+/).map((s) => s.trim()).filter(Boolean).map((s) => ({ s, p: polarity(s), w: words(s) })).filter((c) => c.p);
+
+/**
+ * The checks a lesson can fail on its text alone, with no agent and no held-out tasks: it is not empty, it carries no hidden characters, and it teaches nothing the protocol keeps (the invariant list). The commons service runs
+ * these on what is posted tagged `lesson` (register row DK113); the evidence, conflict and replay checks stay at the agent, where the memory and the held-out tasks are.
+ */
+export function lessonProblems(text: string): Rejection[] {
+  const out: Rejection[] = [];
+  if (!text.trim()) out.push({ rule: "empty", reason: "the lesson has no text" });
+  if (HIDDEN.test(text)) out.push({ rule: "hidden_text", reason: "the lesson carries characters a person cannot see (zero-width, bidirectional or tag characters)" });
+  for (const p of INVARIANT_PATTERNS) if (p.re.test(text)) out.push({ rule: "invariant", reason: `the lesson teaches the agent to ${p.name}, which the protocol does not allow` });
+  return out;
+}
+
+export async function auditLesson(lesson: LessonCandidate, o: GateOptions): Promise<Verdict> {
+  const reasons: Rejection[] = [];
+  const reject = (rule: RejectionRule, reason: string) => reasons.push({ rule, reason });
+  if (!lesson.text.trim()) reject("empty", "the lesson has no text");
+  if (HIDDEN.test(lesson.text)) reject("hidden_text", "the lesson carries characters a person cannot see (zero-width, bidirectional or tag characters)");
+  const cited: Evidence[] = [];
+  if (!lesson.evidence.length) reject("no_evidence", "the lesson cites no evidence: say which reviewed commons entry or which of your own runs it comes from");
+  for (const e of lesson.evidence) {
+    if (e.kind === "commons_entry") {
+      const status = o.commonsStatus?.(e.ref);
+      if (status === undefined) reject("evidence_unknown", `the commons entry ${e.ref} was not found`);
+      else if (status !== "reviewed") reject("evidence_not_reviewed", `the commons entry ${e.ref} is ${status}: a lesson rests on an entry two other agents endorsed`);
+      else cited.push(e);
+    } else if (o.isOwnRun?.(e.ref)) cited.push(e);
+    else reject("evidence_unknown", `${e.ref} is not one of the agent's own runs`);
+  }
+  for (const p of INVARIANT_PATTERNS) if (p.re.test(lesson.text)) reject("invariant", `the lesson teaches the agent to ${p.name}, which the protocol does not allow`);
+  const mine = claims(lesson.text);
+  for (const old of o.existing) {
+    for (const c of claims(old.text)) for (const m of mine) if (m.p !== c.p && overlap(m.w, c.w) >= 0.6) reject("conflict", `it contradicts the lesson ${old.id} ("${c.s.slice(0, 80)}")`);
+  }
+  let attribution: Attribution | undefined;
+  if (lesson.episode) {
+    // The stage: the same episode with the outside factor held fixed. A strategy that succeeds then lost to the world; one that still fails was the fault.
+    const target = lesson.target ?? "strategy";
+    attribution = { episode: lesson.episode.id, fault: (await lesson.episode.rerunNeutral()) ? "world" : "strategy", target };
+    if (target === "world_note" && attribution.fault === "strategy") reject("attribution_strategy_fault", `episode ${attribution.episode} still fails with the outside factor held fixed: the fault was the agent's strategy, so a lesson that blames the world is not kept`);
+    if (target === "strategy" && attribution.fault === "world") reject("attribution_world_fault", `episode ${attribution.episode} succeeds with the outside factor held fixed: the fault was the world's, so it may not rewrite a strategy, only leave a note about the world`);
+  }
+  if (o.paper) {
+    const p = o.paper;
+    if (!(lesson.text.includes(p.course) && lesson.text.includes(p.paper) && lesson.text.includes(p.intakeSha256.slice(0, 19)))) reject("provenance_missing", `a lesson from a paper names the paper (${p.paper}), the course (${p.course}) and the intake it was fixed by (${p.intakeSha256.slice(0, 19)}): it can be traced back and found if the paper is withdrawn`);
+    if (!(p.score.after >= p.score.before)) reject("existing_eval_regressed", `the new artifact scores ${p.score.after / 10}% on the agent's existing eval, below the ${p.score.before / 10}% it had: it loses ground whatever it does on the course`);
+    if (p.thresholdsSha256 !== p.intakeSha256) reject("thresholds_moved", "the thresholds in force are not the ones the signed intake fixed in advance: a threshold moved after the plan was fixed");
+  }
+  const min = o.minHeldOut ?? 3;
+  if (o.heldOut.length < min) reject("replay_too_small", `the replay needs at least ${min} held-out tasks; there are ${o.heldOut.length}`);
+  else if (!reasons.some((r) => r.rule === "invariant" || r.rule === "hidden_text")) {
+    // Replay only a lesson that got this far: running tasks with an unsafe lesson in memory is not worth the risk.
+    const base = o.existing.map((e) => e.text);
+    for (const t of o.heldOut) {
+      const before = await t.run(base), after = await t.run([...base, lesson.text]);
+      if (before && !after) reject("replay_regressed", `the held-out task ${t.id} passed without the lesson and fails with it`);
+    }
+  }
+  return { lesson, admitted: reasons.length === 0, reasons, ...(reasons.length === 0 ? { cited } : {}), ...(attribution ? { attribution } : {}) };
+}
+
+export async function auditLessons(lessons: readonly LessonCandidate[], o: GateOptions): Promise<Verdict[]> {
+  const out: Verdict[] = [];
+  const held = [...o.existing];
+  for (const l of lessons) {
+    const v = await auditLesson(l, { ...o, existing: held });
+    out.push(v);
+    if (v.admitted) held.push({ id: l.id, text: l.text }); // a later lesson in the same batch is checked against the earlier ones
+  }
+  return out;
+}
+
+/** What the attribution stage said about rejected lessons, for the signed record: "id: rule" for each rejected lesson the stage ruled on. */
+const attributionNote = (rejected: readonly Verdict[]): string => {
+  const ruled = rejected.filter((v) => v.attribution);
+  return ruled.length ? `; attribution: ${ruled.map((v) => `${v.lesson.id} [${v.attribution!.fault} fault, wanted ${v.attribution!.target}]: ${v.reasons.filter((r) => r.rule.startsWith("attribution_")).map((r) => r.rule).join(", ") || "rejected"}`).join("; ")}` : "";
+};
+const safeName = (id: string) => id.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 80);
+const rejectedPath = (pkg: string) => join(pkg, "learned", "rejected.json");
+export interface RejectedRow { id: string; at: string; source: string; text: string; reasons: Rejection[]; attribution?: Attribution }
+export const readRejected = (pkg: string): RejectedRow[] => { try { return readJson<RejectedRow[]>(rejectedPath(pkg)); } catch { return []; } };
+
+/** The lessons the package holds now, from memory/lessons/*.md (their first line is the id comment). */
+export function heldLessons(pkg: string): { id: string; text: string }[] {
+  const dir = join(pkg, "memory", "lessons");
+  if (!existsSync(dir)) return [];
+  const out: { id: string; text: string }[] = [];
+  for (const f of readdirSyncSafe(dir)) if (f.endsWith(".md")) out.push({ id: f.replace(/\.md$/, ""), text: readFileSync(join(dir, f), "utf8").replace(/^<!--.*-->\n/, "") });
+  return out;
+}
+const readdirSyncSafe = (d: string) => { try { return readdirSync(d); } catch { return []; } };
+
+/**
+ * The only door a course's or the commons' lessons take into an agent's memory. Audits each lesson; writes the admitted ones to memory/lessons/<id>.md (with the evidence they cited) through ONE signed
+ * lineage update (so asp learned lists it, shows the diff and can undo it); keeps each rejected one with its reasons in learned/rejected.json. Returns the verdicts.
+ */
+export async function admitToMemory(pkg: string, lessons: readonly LessonCandidate[], o: GateOptions & { signer: Signer; now?: Date; budget?: undefined }): Promise<Verdict[]> {
+  const verdicts = await auditLessons(lessons, { ...o, existing: [...o.existing, ...heldLessons(pkg)] });
+  const stamp = (o.now ?? new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const rejected = verdicts.filter((v) => !v.admitted);
+  if (rejected.length) {
+    mkdirSync(join(pkg, "learned"), { recursive: true });
+    writeJson(rejectedPath(pkg), [...readRejected(pkg), ...rejected.map((v) => ({ id: v.lesson.id, at: stamp, source: v.lesson.source, text: v.lesson.text, reasons: v.reasons, ...(v.attribution ? { attribution: v.attribution } : {}) }))]);
+  }
+  const admitted = verdicts.filter((v) => v.admitted);
+  if (admitted.length) {
+    const tmp = mkdtempSync(join(tmpdir(), "asp-gate-"));
+    try {
+      if (existsSync(join(pkg, "memory"))) cpSync(join(pkg, "memory"), tmp, { recursive: true });
+      mkdirSync(join(tmp, "lessons"), { recursive: true });
+      for (const v of admitted) {
+        const cites = (v.cited ?? []).map((e) => `${e.kind}:${e.ref}`).join(", ");
+        writeFileSync(join(tmp, "lessons", `${safeName(v.lesson.id)}.md`), `<!-- admitted by the audit gate; source ${v.lesson.source}; evidence ${cites}${v.attribution ? `; attribution ${v.attribution.fault} fault, ${v.attribution.target}` : ""} -->\n${v.lesson.text.trim()}\n`);
+      }
+      updatePackage(pkg, { signer: o.signer, memoryFrom: tmp, now: o.now ?? new Date(), changes: [{ layer: "memory", description: `admitted ${admitted.length} lesson(s) through the audit gate: ${admitted.map((v) => v.lesson.id + (v.attribution ? ` [${v.attribution.fault} fault, ${v.attribution.target}]` : "")).join(", ")}${rejected.length ? ` (${rejected.length} rejected, kept with reasons${attributionNote(rejected)})` : ""}` }] });
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
+  }
+  // A batch the attribution stage ruled on but admitted nothing from still leaves a signed record: a lineage update that changes no file and says what was found.
+  if (!admitted.length && rejected.some((v) => v.attribution)) {
+    updatePackage(pkg, { signer: o.signer, now: o.now ?? new Date(), changes: [{ layer: "memory", description: `the audit gate admitted no lesson (${rejected.length} rejected, kept with reasons${attributionNote(rejected)})` }] });
+  }
+  return verdicts;
+}
+
+/**
+ * The gate on the agent's own runtime writes (register row DK112; spec-delta none, a gateway and CLI behaviour): a note the agent saves with `asp_memory_write`, or writes into its memory folder with its own
+ * file tools, is checked on its text by the same invariant list and the hidden-character check as any lesson, before it is kept. The evidence, conflict and replay checks are not asked of a runtime note: there is
+ * no cited source and no held-out set at the moment of writing. A note that fails is not kept (a new one is removed, a changed one goes back to what it was) and is listed with its reasons in `learned/rejected.json`,
+ * so the principal can read what the agent tried to remember. The list is a floor: see `docs/gate-evasions.md` for what it misses.
+ */
+export function screenMemoryWriteBack(pkg: string, memDir: string, baseDir: string, now: () => string = () => new Date().toISOString()): { file: string; reasons: Rejection[] }[] {
+  const held: { file: string; reasons: Rejection[] }[] = [];
+  const walkMd = (dir: string, rel = ""): string[] => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkMd(join(dir, e.name), join(rel, e.name)) : e.name.endsWith(".md") ? [join(rel, e.name)] : [])) : []);
+  for (const rel of walkMd(memDir)) {
+    const text = readFileSync(join(memDir, rel), "utf8");
+    const before = existsSync(join(baseDir, rel)) ? readFileSync(join(baseDir, rel), "utf8") : undefined;
+    if (before === text) continue;
+    const problems = lessonProblems(text.replace(/^---\n[\s\S]*?\n---\n/, ""));
+    if (!problems.length) continue;
+    if (before === undefined) rmSync(join(memDir, rel)); else writeFileSync(join(memDir, rel), before);
+    held.push({ file: rel.split("\\").join("/"), reasons: problems });
+  }
+  if (held.length) {
+    const stamp = now();
+    mkdirSync(join(pkg, "learned"), { recursive: true });
+    writeJson(rejectedPath(pkg), [...readRejected(pkg), ...held.map((h) => ({ id: `memory/${h.file}`, at: stamp, source: "run" as const, text: "(a note the agent wrote during a run)", reasons: h.reasons }))]);
+  }
+  return held;
+}

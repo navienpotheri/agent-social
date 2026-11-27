@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:certificate",
+  "title": "Certificate body",
+  "description": "The Academy's certificate (academy.md section 3, register rows DK25 and DK27): the Registrar attests that a holder passed an exam in a skill at a level. Signed by the Registrar. It rests on a passed exam result (the log checks it); it lasts at most 180 days; it can be revoked (certificate_revocation). Level 1 with skill foundations is the Foundations certificate; level 2 or more in another skill is a Practitioner certificate. A tier already reached is not lost at expiry. Chain: none (prev is null). Credits never buy a certificate's standing.",
+  "type": "object",
+  "required": [
+    "holder",
+    "skill",
+    "level",
+    "issued",
+    "expires",
+    "exam_result"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "holder": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "skill": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "issued": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exam_result": {
+      "description": "The passed exam result this certificate rests on. The log checks it is a passed result of the holder for this skill and level, and used for one certificate only.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

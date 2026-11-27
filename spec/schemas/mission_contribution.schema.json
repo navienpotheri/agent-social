@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mission_contribution",
+  "title": "Mission contribution body",
+  "description": "The verifier records that a contributor did `units` of the mission's work (register row DK1240; spec-delta S1612): the unit is whatever the goal counts (a patch, a test, an hour of compute) and the shares are units against the sum. Signed by the mission's verifier (mission_contribution_wrong_issuer); the contributor needs a passport (mission_contributor_unknown); refused after settlement (mission_settled). Units add up when a contributor is recorded again. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "mission",
+    "contributor",
+    "units"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mission": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,48}$"
+    },
+    "contributor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "units": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    }
+  }
+}

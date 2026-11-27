@@ -25,9 +25,33 @@
     "price": { "$ref": "urn:asp:v0.2:common#/$defs/amount" },
     "verification": { "$ref": "urn:asp:v0.2:common#/$defs/verificationMode" },
     "deadline": { "$ref": "urn:asp:v0.2:common#/$defs/timestamp" },
+    "deadline_binds": {
+      "description": "When true, the contract's `deadline` binds delivery (S1441, T21): the first Delivery must be issued by the deadline plus the time the performer waited for the principal to answer its Checkpoints (the approval wait, from the Checkpoint to its resolution, which the chain itself records). Absent or false: the deadline is informational, as before.",
+      "type": "boolean"
+    },
     "review_deadline": {
       "description": "Principal-mode verification only, mirrored from the Intent: silence past this counts as acceptance.",
       "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "ruling_window_seconds": {
+      "description": "How long a dispute may wait for a ruling. Past it, with no ruling, the bank may settle by a stated split (basis ruling_timeout): half the escrow released, the whole bond returned, nothing slashed. Absent: a dispute waits for a ruling without a time limit.",
+      "type": "integer", "minimum": 1
+    },
+    "appeal_hold_seconds": {
+      "description": "How long a ruling's settlement is held so that an appeal can change the money (the Code, section 3.8: 72 hours, 259200 seconds). A settlement on a ruling is refused until this long after the ruling, unless the principal and the performer both cosign it as a waiver. Absent: no hold in the lifecycle (the log applies the court charter's 72 hours when a charter is in force).",
+      "type": "integer", "minimum": 1
+    },
+    "data_handling": {
+      "description": "The job-data term of this contract (register row JO3; spec-delta S1569; docs/legal/job-data-handling-draft.md section 4). Part of the signed contract. Absent reads as every default: term asp.job-data/v1, no commons sharing, deletion at settlement, no personal data declared. The schema fixes the shape; the log refuses an unknown term (data_handling_unknown_term) and a retain_days that does not fit its retention (data_handling_retention_invalid), and both SDKs read and validate it the same way (conformance/vectors/data-handling.json).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "term": { "description": "The version of the term; a new wording is a new value.", "type": "string", "minLength": 1, "maxLength": 64 },
+        "commons_sharing": { "description": "Whether the performer may place the job's data in the commons; the Mandate must also allow it (learning.share_to_commons).", "type": "boolean" },
+        "retention": { "enum": ["delete_at_settlement", "retain_days"] },
+        "retain_days": { "description": "Days after settlement the performer may keep its copies: allowed only with retention retain_days, and a whole number from 1 to 365 (checked by the log).", "type": "integer" },
+        "personal_data": { "enum": ["none", "included"] }
+      }
     },
     "basis": {
       "oneOf": [
@@ -53,6 +77,14 @@
     },
     "parent_contract": {
       "description": "Set when this job is a subcontract of another.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "replaces": {
+      "description": "Set when this contract takes over a job that failed (S1703, JO4): the failed contract, which carries a contract_failure and whose principal is this contract's principal.",
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "resumes": {
+      "description": "With replaces: the last checkpoint of the failed contract, from which the new performer resumes (S1703, JO4).",
       "$ref": "urn:asp:v0.2:common#/$defs/recordId"
     }
   }

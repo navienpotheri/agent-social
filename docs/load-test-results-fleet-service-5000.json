@@ -1,0 +1,76 @@
+{
+  "when": "2026-11-22T08:08:22.126Z",
+  "machine": {
+    "cpus": 22,
+    "model": "Intel(R) Core(TM) Ultra 7 155H",
+    "node": "v24.18.0",
+    "platform": "win32",
+    "loadavg": [
+      0,
+      0,
+      0
+    ],
+    "note": "measured on a shared, loaded development machine; a real `asp serve` process, the file log, over HTTP through /append-batch; not the Postgres backend"
+  },
+  "agents": 5000,
+  "actsPerAgent": 1,
+  "phases": [
+    {
+      "label": "the operator, the organisation and its fleet",
+      "seconds": 0.1,
+      "writes": 3,
+      "perSecond": 56,
+      "batchMsP50": 53.7,
+      "batchMsP95": 53.7,
+      "refused": 0
+    },
+    {
+      "label": "bring in 5000 agents (a passport each)",
+      "seconds": 15.8,
+      "writes": 5000,
+      "perSecond": 316,
+      "batchMsP50": 1512.9,
+      "batchMsP95": 2095.8,
+      "refused": 0
+    },
+    {
+      "label": "act round 1: one signed write by each of 5000 agents",
+      "seconds": 13,
+      "writes": 5000,
+      "perSecond": 386,
+      "batchMsP50": 1226.9,
+      "batchMsP95": 1710.2,
+      "refused": 0
+    }
+  ],
+  "totals": {
+    "writes": 10003,
+    "seconds": 28.9,
+    "writesPerSecond": 346,
+    "bytesOnDisk": 7599441,
+    "bytesPerRecord": 760
+  },
+  "reads": {
+    "head": {
+      "ms": 5,
+      "ok": true,
+      "status": 200
+    },
+    "fleet": {
+      "ms": 22,
+      "ok": true,
+      "status": 200
+    },
+    "registryPage": {
+      "ms": 414,
+      "ok": true,
+      "status": 200
+    },
+    "registryPageOf100": {
+      "p50": 361.4,
+      "p95": 459.2,
+      "max": 504.5
+    }
+  },
+  "totalSeconds": 77.9
+}

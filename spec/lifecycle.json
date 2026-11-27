@@ -15,7 +15,7 @@
     {
       "from": [null], "type": "contract", "to": "Contracted",
       "issuer": "principal",
-      "guards": ["cosigned_by_performer"]
+      "guards": ["not_self_hire", "cosigned_by_performer"]
     },
     {
       "from": ["Contracted"], "type": "bond", "to": "Bonded",
@@ -45,7 +45,7 @@
     {
       "from": ["Running"], "type": "delivery", "to": "Delivered",
       "issuer": "performer",
-      "guards": ["refs_contract"]
+      "guards": ["refs_contract", "delivered_in_time"]
     },
     {
       "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "accepted" }, "to": "Delivered",
@@ -56,7 +56,8 @@
     {
       "from": ["Delivered"], "type": "attestation", "when": { "kind": "acceptance", "verdict": "rejected" }, "to": "Disputed",
       "issuer": "principal",
-      "guards": ["about_latest_delivery", "not_yet_accepted"]
+      "guards": ["about_latest_delivery", "not_yet_accepted"],
+      "effects": ["mark_disputed"]
     },
     {
       "from": ["Disputed"], "type": "delivery", "to": "Delivered",
@@ -78,7 +79,7 @@
     {
       "from": ["Disputed"], "type": "settlement", "when": { "basis": "ruling" }, "to": "Settled",
       "issuer": "bank",
-      "guards": ["refs_contract", "cites_ruling"]
+      "guards": ["refs_contract", "cites_ruling", "past_appeal_window"]
     },
     {
       "from": ["Contracted", "Bonded", "Running", "Checkpoint"], "type": "settlement", "when": { "basis": "revoked" }, "to": "Settled",
@@ -89,6 +90,11 @@
       "from": ["Delivered"], "type": "settlement", "when": { "basis": "silence" }, "to": "Settled",
       "issuer": "bank",
       "guards": ["refs_contract", "past_review_deadline"]
+    },
+    {
+      "from": ["Disputed"], "type": "settlement", "when": { "basis": "ruling_timeout" }, "to": "Settled",
+      "issuer": "bank",
+      "guards": ["refs_contract", "no_ruling_yet", "past_ruling_window"]
     }
   ],
   "errors": {

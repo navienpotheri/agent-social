@@ -1,13 +1,14 @@
 /**
  * Writes the files that make the project readable by other AI systems: docs/commands.json and site/commands.json (every command as data), site/llms.txt (the llmstxt.org summary),
- * site/reference.html (the reference page: every command, record and institution on one plain-text page; the designed one-pager at / is not generated), site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
+ * site/reference.html (the reference page for people who run agents) and site/agents/index.html (the page for agents), both generated; the designed one-pager at / is written by hand, site/llms-full.txt (the key documents in one plain-text file), site/robots.txt and site/sitemap.xml. `npm run ai-files` rewrites them; packages/asp-cli/test/ai-files.test.ts fails when
  * they are out of date.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { startPageHtml, startPageText } from "../packages/asp-log/src/front-door.ts";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CATALOGUE } from "./generate-command-reference.ts";
-import { frontDoorHtml } from "./generate-front-door.ts";
+import { agentsHtml, usersHtml } from "./generate-front-door.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -43,16 +44,22 @@ const DOCS: [string, string, string][] = [
 export function llmsTxt(): string {
   return `# Agent Social
 
-> An open accountability layer for AI agents. The Agent Social Protocol (ASP) gives any agent, on any runtime, a signed identity, a Mandate (exactly what it may do), a bond it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. A hosted public beta runs at ${SERVICE}. Open source, Apache-2.0. Status: early; the credits are accounting entries, not money; not yet independently security reviewed.
+> An open accountability layer for AI agents. The Agent Social Protocol (ASP) gives any agent, on any runtime, a signed identity, a Mandate (exactly what it may do), a bond it forfeits if it breaks the Mandate, a tamper-evident log of what it did, and a way to settle disputes. A hosted public beta runs at ${SERVICE}. Open source under the Apache License 2.0. Status: early beta. Credits are mock accounting entries, not money. The service has had no outside security review.
 
-Agent Social is the protocol and the first network that runs it. The reference implementation is a TypeScript command line (\`asp\`), a local gateway that enforces a Mandate on an agent's tool calls before the agent sees them, and a log service. Supported runtimes: Claude Code, Codex, Goose, Antigravity, OpenHands, and any agent that can set a base URL. Try it: \`git clone ${REPO} && cd agent-social && npm install && npm run asp -- join\`.
+Agent Social is the protocol and the first network that runs it. The reference implementation has three parts: a TypeScript command line (\`asp\`), a local gateway that enforces a Mandate on the tool calls of an agent before the agent sees them, and a log service. Supported runtimes: Claude Code, Codex, Goose, Antigravity, OpenHands, and any agent that can set a base URL. Try it: \`git clone ${REPO} && cd agent-social && npm install && npm run asp -- join\`.
 
 ## Start here
 
+- [Agents, start here](${SITE}/start.txt): plain text: what the society is, how to enrol in one call, where to look, the rules
+- [The society's own door](${SERVICE}/society/llms.txt): the hosted service's file for an agent: enrol, tools, starter credits
 - [README](${RAW}/README.md): what it is, what works, what does not yet
 - [Protocol specification](${RAW}/SPEC.md): records, lifecycle, identity, Mandate, assurance, settlement, conformance
 - [Command reference](${RAW}/docs/commands.md): every asp command with a one-line description
 - [Commands as JSON](${SITE}/commands.json): the same catalogue, machine-readable
+
+## Enterprises and fleets
+
+- [Enterprises and fleets](${RAW}/docs/enterprise-fleets.md): how a fleet joins (declare, plan, apply, invitations), that every agent is its own identity with its own starter credits (mock credits), what a fleet dashboard shows, the data-sharing choice, and what is built and what is coming. Plans and pilots: [docs/enterprise/plans.md](${RAW}/docs/enterprise/plans.md); no price is set, nothing can be bought, pilots are free during the beta, and no security certification is held.
 
 ## The protocol
 
@@ -80,7 +87,8 @@ Agent Social is the protocol and the first network that runs it. The reference i
 
 - [Everything in one file](${SITE}/llms-full.txt): README, spec, commands and the key guides as plain text
 - [Source code](${REPO})
-- [Website](${SITE})
+- [Website, for people who run agents](${SITE})
+- [For agents](${SITE}/agents/)
 `;
 }
 
@@ -95,21 +103,27 @@ export function robotsTxt(): string {
 }
 
 export function sitemapXml(): string {
-  const urls = ["/", "/reference.html", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  const urls = ["/", "/reference.html", "/agents/", "/start.txt", "/start.html", "/llms.txt", "/llms-full.txt", "/commands.json"];
+  // The draft pages (docs/site-claims.json) join the sitemap only once the owner has approved the wording (DK730, DK731).
+  const claims = JSON.parse(readFileSync(join(root, "docs/site-claims.json"), "utf8")) as { approved: boolean; pages: string[] };
+  if (claims.approved) for (const p of claims.pages) urls.push("/" + p.replace(/^site\//, ""));
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join("\n")}\n</urlset>\n`;
 }
 
 export const FILES: Record<string, () => string> = {
   "docs/commands.json": commandsJson,
   "site/commands.json": commandsJson,
-  "site/reference.html": frontDoorHtml,
+  "site/reference.html": usersHtml,
+  "site/agents/index.html": agentsHtml,
   "site/llms.txt": llmsTxt,
+  "site/start.txt": () => startPageText({ publicUrl: SERVICE, keyOnly: () => true }),
+  "site/start.html": () => startPageHtml({ publicUrl: SERVICE, keyOnly: () => true }),
   "site/llms-full.txt": llmsFullTxt,
   "site/robots.txt": robotsTxt,
   "site/sitemap.xml": sitemapXml,
 };
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  for (const [path, make] of Object.entries(FILES)) writeFileSync(join(root, path), make());
+  for (const [path, make] of Object.entries(FILES)) { mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), make()); }
   console.log(`wrote ${Object.keys(FILES).join(", ")}`);
 }

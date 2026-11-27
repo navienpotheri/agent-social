@@ -76,3 +76,46 @@ test("the end mail and the facts say what the rate limit was and how many calls 
   assert.match(mail.text, /4 network call\(s\) were refused for going over the rate limit \(not counted as strikes\)\./);
   assert.match(mail.text, /Nothing was blocked\./, "a rate limit is not a block");
 });
+
+test("E13: who hears about an alert: the principal always; the sponsor for a kill or an upheld report; the reporter of an upheld report; only those with an address, each person once", async () => {
+  const { alertRecipients, buildAlertMail } = await import("../src/mail.ts");
+  const base = { contract: "c", at: "2026-11-14T10:00:00Z", detail: "d", record: "r" };
+  const addr = { "did:p": "p@example.com", "did:s": "s@example.com", "did:r": "r@example.com" };
+  const killed = { ...base, key: "alert:killed:c", kind: "killed" as const };
+  assert.deepEqual(alertRecipients(killed, "did:p", "did:s", addr).map((x) => [x.role, x.to, x.key]), [["principal", "p@example.com", "alert:killed:c"], ["sponsor", "s@example.com", "alert:killed:c#sponsor"]]);
+  const upheld = { ...base, key: "alert:report:x", kind: "report_upheld" as const, reporter: "did:r" };
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:s", addr).map((x) => x.role), ["principal", "sponsor", "reporter"]);
+  const expired = { ...base, key: "alert:expired:c", kind: "expired" as const };
+  assert.deepEqual(alertRecipients(expired, "did:p", "did:s", addr).map((x) => x.role), ["principal"], "an expired Mandate is for the principal only");
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:s", { "did:s": "s@example.com" }).map((x) => x.role), ["sponsor"], "no address, no copy");
+  assert.deepEqual(alertRecipients(upheld, "did:p", "did:p", addr).map((x) => x.role), ["principal", "reporter"], "the principal who is also the sponsor gets one copy");
+  assert.deepEqual(alertRecipients(upheld, "did:p", null, addr).map((x) => x.role), ["principal", "reporter"], "an agent with no sponsor");
+  // the copies read for their role
+  const facts = { contract: { id: "c", purpose: "Fix the bug", performer: "did:agent", principal: "did:p" }, activity: { blocked: [], strikes: 0 }, evidence: { contractRecord: "sha256:" + "a".repeat(64) } } as never;
+  assert.match(buildAlertMail(killed, facts, { to: "s@example.com", role: "sponsor" }).subject, /^An agent you sponsor was stopped by the kill switch/);
+  assert.match(buildAlertMail(upheld, facts, { to: "r@example.com", role: "reporter" }).subject, /^The report you made was upheld/);
+  assert.match(buildAlertMail(upheld, facts, { to: "p@example.com" }).subject, /^A report against your agent was upheld/);
+});
+
+// Mutation check (launch-bar-2, 2026-11-22): a link base that ends in a slash gives one slash in the run page link; an address that appears twice (the principal is also the sponsor) is mailed once; the sponsor is told of
+// a kill and an upheld report and not of an expiry; the reporter only of an upheld report; each role has its own key so that each is mailed once.
+test("the run page link has one slash whether or not the base ends in one", async () => {
+  const f = (await collectMandateFacts(fakeLog([contract, mandate("2027-01-01T00:00:00Z")], { c1: "Running" }), "c1"))!;
+  const alert = { key: "alert:x", kind: "killed" as const, contract: "c1", at: "2026-10-02T00:00:00Z", detail: "d", record: "k1" };
+  for (const base of ["https://dash.example.org", "https://dash.example.org/"]) {
+    assert.ok(buildAlertMail(alert, f, { to: "a@b.co", linkBase: base }).text.includes("Run page: https://dash.example.org/#/job/c1"), base);
+  }
+  const mandateMail = buildMandateMail(f, { to: "a@b.co", linkBase: "https://dash.example.org/" });
+  assert.ok(mandateMail.text.includes("Run page: https://dash.example.org/#/job/c1") && !mandateMail.text.includes("org//#"));
+});
+
+test("who is told: the sponsor of a kill and an upheld report and not of an expiry, the reporter of an upheld report only, nobody twice", async () => {
+  const { alertRecipients } = await import("../src/mail.ts");
+  const addr = { "did:alice": "alice@x.co", "did:sponsor": "sponsor@x.co", "did:reporter": "rep@x.co" };
+  const base = { contract: "c1", at: "t", detail: "d", record: "r" };
+  const roles = (kind: "killed" | "report_upheld" | "expired", sponsor: string | null, reporter?: string) => alertRecipients({ key: `alert:${kind}`, kind, ...base, ...(reporter ? { reporter } : {}) }, "did:alice", sponsor, addr).map((r) => `${r.role}:${r.key}`);
+  assert.deepEqual(roles("killed", "did:sponsor"), ["principal:alert:killed", "sponsor:alert:killed#sponsor"]);
+  assert.deepEqual(roles("report_upheld", "did:sponsor", "did:reporter"), ["principal:alert:report_upheld", "sponsor:alert:report_upheld#sponsor", "reporter:alert:report_upheld#reporter"]);
+  assert.deepEqual(roles("expired", "did:sponsor", "did:reporter"), ["principal:alert:expired"], "an expiry is for the principal only");
+  assert.deepEqual(roles("killed", "did:alice"), ["principal:alert:killed"], "the principal who is also the sponsor is mailed once");
+});

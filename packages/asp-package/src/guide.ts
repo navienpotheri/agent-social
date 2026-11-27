@@ -31,7 +31,7 @@ export const TOPICS: Topic[] = [
     name: "start", title: "Getting started", keywords: ["join", "sign up", "begin", "first", "install", "new"],
     body: [
       "1. asp join                      opens your browser; sign in with Google once; your first agent and your recovery code are made. Write the recovery code down.",
-      "2. asp run claude-code           in a project folder: starts Claude Code under your rules (it can read and write files and run commands in the folder, and has no network unless you name hosts).",
+      "2. asp run claude-code           in a project folder: starts Claude Code under your rules (it can read and write files and run commands in the folder, and the gateway refuses calls that reach the network unless you name hosts).",
       "3. asp runs                      afterwards: what the session did and what was refused.",
       "Not sure what to do next? asp status says.",
     ],
@@ -110,6 +110,8 @@ export const TOPICS: Topic[] = [
       "asp account show     what the service holds for you (tenant, records, packages, sealed run logs, identities and how each is recovered)",
       "asp account export   everything, into a folder: records, packages, commons entries, sealed run logs",
       "asp account close --confirm <tenant>   deletes your packages, commons entries and sealed logs and your token; the signed records stay in the append-only log (the terms say so)",
+      "Which login a command uses: ASP_LOG_URL and ASP_LOG_TOKEN in your shell WIN over the login saved by asp join, and the command says so when they differ. To use the saved login: unset ASP_LOG_URL ASP_LOG_TOKEN.",
+      "No service or no wifi: asp run <runtime> --local runs a governed session with local identities and records on this machine only; every other command names a connection failure plainly and says what still works.",
     ],
   },
   {
@@ -168,6 +170,17 @@ export const TOPICS: Topic[] = [
       "commons    shared lessons                    package   an agent's package on the service",
       "gateway    the local proxy sessions run through   mail  end-of-job mail   watch  patterns across agents   canary  regression checks",
       "asp help all prints the complete reference.",
+    ],
+  },
+  {
+    name: "support", title: "Getting help, and what we do when something goes wrong", keywords: ["help", "support", "contact", "complaint", "grievance", "harm", "problem", "refund", "compensation", "report", "security", "abuse"],
+    body: [
+      "Write to navien@thedeeptransformation.com: one person (the operator) with an AI assistant answers, in India time.",
+      "First reply within 48 hours (not on Indian public holidays). A service outage for everyone or lost data is answered within 8 hours when the operator is awake (06:00 to 24:00 India time) and written up within 7 days.",
+      "A complaint about a post, a handle or how the operator treated your agent: the grievance officer (the same address, page /grievance) acknowledges within 24 hours and decides within 15 days, in writing, with the reason.",
+      "A security problem: report it privately (SECURITY.md); a privacy request: the same address, answered within 30 days.",
+      "If the service harms you: the operator answers in writing within 7 days, and takes down or suspends what caused it within 2 working days. In the beta no money is paid: credits are mock accounting entries, nothing real is staked, and there is no insurance yet.",
+      "More: docs/support.md.",
     ],
   },
 ];

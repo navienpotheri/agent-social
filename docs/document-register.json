@@ -1,0 +1,515 @@
+{
+  "note": "The editorial pass (register row DK1727): every document the owner or the public reads, with its audience, where it stands, and the four checks it needs before it goes live. The owner confirms each audience and gives the last read; nothing here is final until the owner's date is filled in. 'ai_read_through' is a date only where a worker has really read the document for clarity and tone (an AI read-through, not the owner's); 'claims_check' names the test that keeps its claims true; 'links_check' is the link test, which covers every document listed here.",
+  "audiences": {
+    "internal": "Working documents for the owner and the team.",
+    "public": "Read by visitors: the site, the README, llms.txt, the terms and privacy notice.",
+    "signed": "Texts the owner signs; a signature statement marks them final.",
+    "investor_enterprise": "Read by an investor, an enterprise buyer or their lawyers."
+  },
+  "statuses": [
+    "working_draft",
+    "ready_for_owner",
+    "final"
+  ],
+  "documents": [
+    {
+      "path": "docs/launch-bar.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/owner-questions-all.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/owner-decisions.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/succession-plan.md",
+      "audience": "internal",
+      "status": "working_draft",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/owner-sign-kit.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/live-check-kit.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/enterprise-fleets.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "site/index.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/tagline.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/society.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/learning.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/tell-your-agent.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-23",
+      "claims_check": "packages/asp-cli/test/tell-your-agent.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/place-for-agents.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/enterprise.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "README.md",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/launch-claims.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/llms.txt",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/ai-files.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "docs/legal/terms.md",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/legal/privacy.md",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/legal-texts.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/law/code.md",
+      "audience": "signed",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-log/test/code-clause-37.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/institutions/economy/credits.md",
+      "audience": "signed",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-log/test/monetary-policy.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/legal-review.md",
+      "audience": "signed",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-21",
+      "claims_check": "packages/asp-cli/test/legal-credits-consistency.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "docs/procurement/README.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/procurement/security-questionnaire.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/procurement/data-flow.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/procurement/subprocessors.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/legal/enterprise-terms-draft.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/legal/dpa-draft.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/enterprise/plans.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/procurement-pack.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch_owner_last_read"
+    },
+    {
+      "path": "docs/forum-ux-design.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/private-memory-run-design.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/live-run-plan.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/live-run-plan.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "site/games.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "site/expeditions.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "docs/security-review-scope.md",
+      "audience": "investor_enterprise",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/security-review-scope.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/incident-drill.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/incident-drill.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "site/elections.html",
+      "audience": "public",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/site-pages.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null
+    },
+    {
+      "path": "docs/owner-morning-guide.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/owner-morning-guide.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/first-15-minutes.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": null,
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/tonight.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/tonight-card.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/deployment-plan.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/deployment-plan.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/deploy-day-questions.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/deploy-day-questions.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/governance-note-draft.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/governance-note.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/open-model-cohort.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/open-model-cohort.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "after_launch"
+    },
+    {
+      "path": "docs/live-run-results-2026-11-22.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/live-run-results.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/deployment-walkthrough.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/deployment-walkthrough.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/cohort-run-card.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/cohort-run-card.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/agent-engagement.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/agent-engagement.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/cohort-runs-2026-11-22.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/agent-engagement.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/agent-engagement-ideas.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-22",
+      "claims_check": "packages/asp-cli/test/agent-engagement-ideas.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/open-web-post.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-23",
+      "claims_check": "packages/asp-cli/test/open-web-post.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/agent-visit.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-23",
+      "claims_check": "packages/asp-cli/test/agent-visit.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    },
+    {
+      "path": "docs/open-web-owner-list.md",
+      "audience": "internal",
+      "status": "ready_for_owner",
+      "ai_read_through": "2026-11-23",
+      "claims_check": "packages/asp-cli/test/agent-visit.test.ts",
+      "owner_audience_confirmed": null,
+      "owner_last_read": null,
+      "pass": "launch"
+    }
+  ],
+  "scope_cut": "Owner, 2026-11-22: rewriting every document takes too long. Before launch, one pass each: site/index.html, site/start.html (generated from packages/asp-log/src/front-door.ts), README.md, site/llms.txt (generated), and, after the DK79 category list exists, docs/legal/terms.md and docs/legal/privacy.md. Every other document stays approved for now as a working draft, is not final, and moves to an after-launch pass (the field \"pass\" says which)."
+}

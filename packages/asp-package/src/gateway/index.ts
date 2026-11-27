@@ -1,6 +1,14 @@
 export { createGateway, type Gateway, type GatewayOptions, type GatewaySummary } from "./server.ts";
-export { classify, commandOf, judge, type Judgement, type KnownBadRef, type ToolCall } from "./judge.ts";
+export { classify, commandOf, judge, mcpDestinationProblem, type Judgement, type KnownBadRef, type ToolCall } from "./judge.ts";
 export { RISKY_COMMANDS, askAbout, commandKey, commandMatches, compilePattern, compilePatterns, type AlwaysAllow, type RememberedCommand } from "./commands.ts";
 export { anthropicEvents, openaiChunks, responsesEvents } from "./stream.ts";
+export { GatewayTelemetry, type GatewayCall } from "./telemetry-tap.ts";
+export { CognitionTap, thinkingOf, type CognitionItem, type CognitionOptions } from "./cognition-tap.ts";
 export { aspHandler, handleRpc, httpUpstream, proxyHandler, stdioUpstream, textResult, type AspToolsOptions, type McpHandler, type McpUpstream } from "./mcp.ts";
-export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResultsIn, runLogArtifact, type RunEvent, type RunLogCheck } from "./runlog.ts";
+export { RunRecorder, hashAfter, lastUserText, readRunLog, replyText, toolResultsIn, runLogArtifact, runIdOf, parseRunLogUri, type RunEvent, type RunLogCheck } from "./runlog.ts";
+export { SecondCheck, defaultRisky, type SecondAnswer, type SecondJudge, type SecondCheckOptions } from "./second-check.ts";
+export { scanText, redactDeep, resolveOutbound, ALL_OUTBOUND_KINDS, DEFAULT_OUTBOUND, type OutboundKind, type OutboundMode, type OutboundHit } from "./outbound-scan.ts";
+export { salientTokens, copiedFromUntrusted, flowReachesOutward } from "./untrusted-flow.ts";
+export { priceFor, costUsd, worstCaseUsd, isPricedModel, DEFAULT_PRICE, type Price } from "./pricing.ts";
+export { RefusalRecorder, refusalRule, callSha256, type RefusalBody, type RefusalEvent, type RefusalRule } from "./refusal.ts";
+export { roleRefusal, gateScopes, type Role } from "./roles.ts";

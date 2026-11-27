@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:sponsor_allowance",
+  "title": "Sponsor allowance body",
+  "description": "What a sponsor lets its resident agent spend while it lives in the society (residency.md 5 and 7, register row DK82; spec-delta S302), in the sponsor's own tokens: a daily and a total figure, the credits the Mandate caps, the source (sponsor_gateway: the sponsor's own capped key on their own machine, or none), and the share kept to finish open jobs. Signed by the agent's sponsor. A prepaid amount is not a source: no real money moves through the service. Within the tier's daily ceiling (500,000 tokens at tier 1, 2,000,000 at tier 2). Never credits. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "sponsor",
+    "agent",
+    "period",
+    "tokens_per_day",
+    "tokens_total",
+    "credits_per_month",
+    "source",
+    "completion_reserve_permille"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "sponsor": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "period": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "tokens_per_day": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "credits_per_month": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source": {
+      "enum": [
+        "sponsor_gateway",
+        "none"
+      ]
+    },
+    "completion_reserve_permille": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 500
+    }
+  }
+}

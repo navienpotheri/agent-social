@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:memory_key",
+  "title": "Memory key body",
+  "description": "An identity publishes the PUBLIC half of its X25519 memory key (register rows D12 and DK272; spec-delta S1604; docs/private-memory-run-design.md 1), so a principal-agent pair can seal a private memory scope to each other's keys from a second machine. `did` is the issuer (an agent signs its own; a sponsor does not publish for it), `name` the entry (memory-1, memory-2), `public_key` the RAW 32-byte key in base64url without padding (43 characters), `at` the time, `revokes` the record id of the entry a rotation replaces. The log refuses a signer who is not the identity (memory_key_wrong_issuer), an identity with no passport (memory_key_unknown_identity), anything that is not exactly 32 raw bytes, such as a PKCS8 or SPKI blob that could carry private material (memory_key_private_material), a second live key (memory_key_live: name the one it replaces in `revokes`) and a `revokes` that is not this identity's live entry (memory_key_revokes_unknown). The latest un-revoked entry is the live key (`memoryKey(did)`). Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "did",
+    "name",
+    "public_key",
+    "at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "did": {
+      "type": "string",
+      "pattern": "^did:"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "public_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "at": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "revokes": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    }
+  }
+}

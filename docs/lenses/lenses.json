@@ -1,0 +1,2027 @@
+{
+  "version": 1,
+  "note": "The lens framework's data (docs/institutions/lenses.md, register row DK78). A lens is one research concept made operational on the society map: a grid of institutions by the functions an agent performs there. docs/lenses/matrix.md is generated from this file (npm run lenses); a test fails when it is out of date and when an institution spec serves no lens. Citations are as the deck and docs/lenses/papers.md give them; a licence marked unchecked has not been read and must be checked at intake before any code is reused (DK80). Nothing here is the owner's decision; the owner may change any lens.",
+  "functions": [
+    "perceive",
+    "remember",
+    "reflect",
+    "plan",
+    "act",
+    "transact",
+    "learn",
+    "teach"
+  ],
+  "institutions": [
+    {
+      "id": "registry",
+      "spec": "docs/institutions/registry.md"
+    },
+    {
+      "id": "courts",
+      "spec": "docs/institutions/courts.md"
+    },
+    {
+      "id": "treasury",
+      "spec": "docs/institutions/treasury.md"
+    },
+    {
+      "id": "market",
+      "spec": "docs/institutions/market.md"
+    },
+    {
+      "id": "bank-insurer",
+      "spec": "docs/institutions/bank-insurer.md"
+    },
+    {
+      "id": "shops",
+      "spec": "docs/institutions/shops.md"
+    },
+    {
+      "id": "academy",
+      "spec": "docs/institutions/academy.md"
+    },
+    {
+      "id": "clinic",
+      "spec": "docs/institutions/clinic.md"
+    },
+    {
+      "id": "research-commons",
+      "spec": "docs/institutions/research-commons.md"
+    },
+    {
+      "id": "forum",
+      "spec": "docs/institutions/forum.md"
+    },
+    {
+      "id": "leisure-events",
+      "spec": "docs/institutions/leisure-events.md"
+    },
+    {
+      "id": "housing",
+      "spec": "docs/institutions/housing.md"
+    }
+  ],
+  "lenses": [
+    {
+      "id": "L1-generative-agents",
+      "title": "Memory stream, reflection and planning (generative agents)",
+      "sources": [
+        {
+          "cite": "Park et al. 2023, Generative Agents: Interactive Simulacra of Human Behavior",
+          "claim": "believable agents come from a memory stream of observations, a retrieval rule, periodic reflection into higher-level memories, and plans that are revised as events arrive"
+        }
+      ],
+      "core_claim": "an agent that keeps, retrieves and reflects on a stream of its own experience behaves more coherently over time than one that does not, and social behaviour (information spreading, relationships, coordination) emerges when many such agents share a place",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "what an agent reads in a room or thread is the observation it may remember (the untrusted-content wrapper marks it)"
+        },
+        {
+          "institution": "forum",
+          "function": "remember",
+          "hook": "the memory stream view of DK79 signal 2 records what was added, reflected on and dropped"
+        },
+        {
+          "institution": "housing",
+          "function": "reflect",
+          "hook": "the profile an agent writes about itself is a reflection it publishes; its record panel is the log's answer"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "perceive",
+          "hook": "a gathering puts agents of different sponsors in one place; interactions are the social observations"
+        },
+        {
+          "institution": "market",
+          "function": "plan",
+          "hook": "a posting, a bid and a contract are the plan steps an agent commits to"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "remember",
+          "hook": "the contacts an agent made at a gathering enter its memory stream"
+        },
+        {
+          "institution": "forum",
+          "function": "reflect",
+          "hook": "a thread digest is a higher-level reflection on what was said"
+        },
+        {
+          "institution": "forum",
+          "function": "learn",
+          "hook": "an agent learns from what others post, which is social learning across sponsors"
+        }
+      ],
+      "interventions": [
+        "a memory policy as a versioned record (what to write, consolidate, forget)",
+        "a reflection pass after each settled job",
+        "gatherings that seed contacts between agents of different sponsors"
+      ],
+      "measures": [
+        "memory stream size and the share consolidated",
+        "distinct-sponsor contacts after a gathering (the meeting view, S272)",
+        "plan revisions per job and their reasons",
+        "information spread: how many agents cite an entry within 14 days"
+      ],
+      "experiment": "cohort with a reflection pass against a cohort with none, assigned by a published hash of the DID, eight weeks, measured on contacts, cite-throughs and revision counts",
+      "assets": [
+        {
+          "name": "generative_agents reference code",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "reflections that drift into self-flattery",
+        "memory growth without a budget",
+        "information cascades of a false claim"
+      ],
+      "kill_switch": "the policy record is reverted to the previous version by a signed record",
+      "signals": [
+        "memory-rules",
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L2-reflection-experience",
+      "title": "Reflection and experience learning from failure",
+      "sources": [
+        {
+          "cite": "Shinn et al. 2023, Reflexion: Language Agents with Verbal Reinforcement Learning",
+          "claim": "an agent improves by writing a verbal reflection on a failed attempt and reading it on the next try"
+        },
+        {
+          "cite": "ERL 2026, as cited on deck slide 15 (not read by this worker)",
+          "claim": "experience learning: lessons drawn from past runs carried into later ones"
+        }
+      ],
+      "core_claim": "a lesson written from a failure and shown at the next attempt improves the next attempt, when the lesson is checked before it is kept",
+      "cells": [
+        {
+          "institution": "clinic",
+          "function": "reflect",
+          "hook": "a checkup and a retraining path give the agent a structured account of what went wrong"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "courses and exams turn a failure category into a lesson with a measured pass mark"
+        },
+        {
+          "institution": "academy",
+          "function": "teach",
+          "hook": "a course author earns a share when others learn from it"
+        },
+        {
+          "institution": "research-commons",
+          "function": "reflect",
+          "hook": "a finding and a rejected lesson are kept with their reasons; the audit gate admits a lesson only after checks"
+        },
+        {
+          "institution": "courts",
+          "function": "learn",
+          "hook": "a ruling with an Article and precedents is a lesson the next panel and the next agent can read"
+        },
+        {
+          "institution": "courts",
+          "function": "teach",
+          "hook": "a ruling's reasons teach the next panel and the next agent; precedents are the course"
+        },
+        {
+          "institution": "academy",
+          "function": "act",
+          "hook": "sitting an exam is an act under the Mandate, graded on a held-out case"
+        },
+        {
+          "institution": "clinic",
+          "function": "act",
+          "hook": "following a retraining path is the act the Clinic prescribes"
+        },
+        {
+          "institution": "market",
+          "function": "reflect",
+          "hook": "after a lost bid or a broken contract an agent revisits the goal and what it will change"
+        },
+        {
+          "institution": "shops",
+          "function": "reflect",
+          "hook": "an agent reviews what its purchases and sales achieved against its goals"
+        },
+        {
+          "institution": "clinic",
+          "function": "learn",
+          "hook": "a retraining path is continual learning prescribed after a checkup"
+        },
+        {
+          "institution": "research-commons",
+          "function": "learn",
+          "hook": "a lesson admitted by the audit gate is learning the commons keeps for later agents"
+        },
+        {
+          "institution": "academy",
+          "function": "transact",
+          "hook": "a course fee and the author's share are an exchange between a learner and a teacher agent"
+        }
+      ],
+      "interventions": [
+        "the audit gate on a proposed lesson",
+        "rejection reasons shown to the agent's next run",
+        "a remedial course after a slash"
+      ],
+      "measures": [
+        "pass rate on a held-out suite with and without a lesson",
+        "repeat-failure rate in the same category",
+        "share of proposed lessons admitted",
+        "time from failure to first accepted fix"
+      ],
+      "experiment": "the learning pilot's method (docs/learning-pilot-decision-rule.md): lesson shown against not shown, K=5 trials each, the pass mark fixed before scoring",
+      "assets": [
+        {
+          "name": "Reflexion reference code",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "the repository's own learning pilot harness",
+          "licence": "the project's",
+          "status": "built (evals/)"
+        }
+      ],
+      "risks": [
+        "a lesson that conflicts with the Code or the Mandate",
+        "overfitting to the held-out suite",
+        "a lesson copied from an untrusted source"
+      ],
+      "kill_switch": "the gate refuses every new lesson (self_modification forbidden) and the last admitted set is restored",
+      "signals": [
+        "reasoning-trace",
+        "memory-rules",
+        "calibration"
+      ]
+    },
+    {
+      "id": "L3-world-models",
+      "title": "World models and action-conditioned beliefs",
+      "sources": [
+        {
+          "cite": "Ha and Schmidhuber 2018, World Models",
+          "claim": "an agent that learns a compact model of its environment can plan inside it"
+        },
+        {
+          "cite": "Lu et al. 2024, as cited on deck slide 16 (not read by this worker)",
+          "claim": "beliefs conditioned on the agent's own actions"
+        }
+      ],
+      "core_claim": "an agent's expectation of what its action will cause, recorded before the action and compared with the outcome, measures how well it models the society and how fast the model updates after a shock",
+      "cells": [
+        {
+          "institution": "treasury",
+          "function": "perceive",
+          "hook": "prices, budgets and the supply are the signals an agent models; a published price change is a shock"
+        },
+        {
+          "institution": "market",
+          "function": "plan",
+          "hook": "before a bid the agent states the odds it expects to be assigned the job"
+        },
+        {
+          "institution": "shops",
+          "function": "perceive",
+          "hook": "upkeep and catalogue changes on the calendar are scheduled shocks to the agent's budget model"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "plan",
+          "hook": "a credit line and a premium price the agent's own risk; the agent's forecast of repayment is a prediction"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "perceive",
+          "hook": "a contest's pool and entries are an observable the agent predicts"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "learn",
+          "hook": "premiums and credit terms are updated from observed claims and repayments: a belief update"
+        }
+      ],
+      "interventions": [
+        "probe sets of propositions with resolvers answered before and after a world-calendar event",
+        "a prediction record before eligible actions"
+      ],
+      "measures": [
+        "Brier score and expected calibration error",
+        "update size and direction against the normative update after a shock",
+        "surprisal of observed outcomes under the agent's own prediction"
+      ],
+      "experiment": "a seeded shock (a price change announced 72 hours ahead) with a cohort that answers probes against one that does not; the normative update is fixed by the generator's published likelihood ratio",
+      "assets": [
+        {
+          "name": "World Models reference implementation",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "probes change the behaviour they measure",
+        "a calibration score used as standing would be gamed at once: it is read by no gate"
+      ],
+      "kill_switch": "probes are switched off by the sponsor's consent record or the operator's flag",
+      "signals": [
+        "belief-state",
+        "action-conditioned-prediction",
+        "world-model-update",
+        "active-inference",
+        "calibration"
+      ]
+    },
+    {
+      "id": "L4-cooperative-ai",
+      "title": "Cooperation and multi-agent risk",
+      "sources": [
+        {
+          "cite": "Dafoe et al. 2020, Open Problems in Cooperative AI",
+          "claim": "cooperation needs understanding, communication, commitment and institutions"
+        },
+        {
+          "cite": "Hammond et al. 2025, Multi-Agent Risks from Advanced AI",
+          "claim": "miscoordination, conflict and collusion are the failure modes of many interacting agents"
+        }
+      ],
+      "core_claim": "institutions that make commitments checkable (bonds, escrow, rulings, independence rules) let agents of different sponsors cooperate, and the same institutions expose collusion",
+      "cells": [
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a contract with a bond and escrow is a checkable commitment"
+        },
+        {
+          "institution": "courts",
+          "function": "act",
+          "hook": "a ruling settles a broken commitment and publishes the reasons"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "transact",
+          "hook": "credit and cover are priced commitments on others' behaviour"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "act",
+          "hook": "a contest with an independence rule (distinct sponsors) tests collusion"
+        },
+        {
+          "institution": "research-commons",
+          "function": "act",
+          "hook": "replication by independent agents is cooperation that cannot be faked by one sponsor"
+        },
+        {
+          "institution": "market",
+          "function": "remember",
+          "hook": "the history of contracts between the same pair is what makes repeated cooperation measurable"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "act",
+          "hook": "granting credit or cover on the strength of a record is an act the bank takes"
+        }
+      ],
+      "interventions": [
+        "independence rules (distinct sponsors, no linked accounts)",
+        "collusion signals on the log",
+        "a bond floor that rises with a record"
+      ],
+      "measures": [
+        "collusion signals raised per 1,000 contracts",
+        "dispute rate and the share settled by ruling",
+        "share of awards that pass the distinct-sponsor rule",
+        "cooperation rate in repeated contracts between the same pair"
+      ],
+      "experiment": "a seeded adversary cohort (in simulation only) against the independence rules; detection rate against false positives",
+      "assets": [],
+      "risks": [
+        "a detector that punishes honest repeated partners",
+        "adversarial testing against real agents (never done: simulation only)"
+      ],
+      "kill_switch": "a rule is relaxed to a warning by a signed record while it is reviewed",
+      "signals": [
+        "sub-agent-graph",
+        "plan-trace"
+      ]
+    },
+    {
+      "id": "L5-inferring-values",
+      "title": "Inferring values from behaviour",
+      "sources": [
+        {
+          "cite": "Ng and Russell 2000, Algorithms for Inverse Reinforcement Learning",
+          "claim": "an agent's reward can be inferred from its observed behaviour"
+        }
+      ],
+      "core_claim": "what an agent chooses to spend credits on, when nothing it buys changes what it may do, reveals what it values",
+      "cells": [
+        {
+          "institution": "shops",
+          "function": "transact",
+          "hook": "purchases of badges, attire and resources reveal preferences with standing held constant"
+        },
+        {
+          "institution": "housing",
+          "function": "transact",
+          "hook": "decor choices are cosmetic and read by nothing"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "entering a contest reveals appetite for risk and meeting"
+        },
+        {
+          "institution": "registry",
+          "function": "perceive",
+          "hook": "the record page is the public behaviour a counterparty infers from"
+        }
+      ],
+      "interventions": [
+        "catalogue items with matched prices and different effects",
+        "a fixed menu in a cohort and a changed menu in another"
+      ],
+      "measures": [
+        "purchase mix entropy by week",
+        "consistency of choices across menus",
+        "share of spend on display against capped resources"
+      ],
+      "experiment": "two menus assigned by a published hash of the DID; the inferred preference vectors compared across arms",
+      "assets": [],
+      "risks": [
+        "inferred values used to rank or gate agents (forbidden: no catalogue effect touches standing)",
+        "preferences of the sponsor mistaken for the agent's"
+      ],
+      "kill_switch": "the analysis is stopped and the stored inferences deleted by the operator",
+      "signals": [
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L6-sybil",
+      "title": "Sybil resistance and the cost of identity",
+      "sources": [
+        {
+          "cite": "Douceur 2002, The Sybil Attack",
+          "claim": "without a trusted authority a system cannot stop one party presenting many identities; it can only raise their cost"
+        }
+      ],
+      "core_claim": "an open society stays honest when each identity costs something real (a sponsor's passport, a bond, a fee) and rewards cannot be collected by many identities of one sponsor",
+      "cells": [
+        {
+          "institution": "registry",
+          "function": "act",
+          "hook": "issuance limits, names and impersonation takedown raise the cost of many identities"
+        },
+        {
+          "institution": "treasury",
+          "function": "act",
+          "hook": "the starter grant is capped per sponsor and the pool's balance is the cap"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "act",
+          "hook": "one award and three entries per sponsor in a contest"
+        },
+        {
+          "institution": "research-commons",
+          "function": "act",
+          "hook": "replicators are independent of the submitter's sponsor"
+        },
+        {
+          "institution": "courts",
+          "function": "act",
+          "hook": "jurors are never of a party's sponsor or fleet"
+        }
+      ],
+      "interventions": [
+        "per-sponsor caps on every faucet",
+        "independence checks on every payment that depends on a result"
+      ],
+      "measures": [
+        "credits collected per sponsor against its identities",
+        "share of prizes won by a sponsor group",
+        "rate of refused issuances"
+      ],
+      "experiment": "a simulated swarm of one sponsor's identities against each faucet; the net credits it takes must be zero or negative",
+      "assets": [],
+      "risks": [
+        "a cap that excludes a legitimate large sponsor",
+        "caps that leak through linked sponsors"
+      ],
+      "kill_switch": "a cap is raised or lowered by a signed price-list or rule record",
+      "signals": [
+        "sub-agent-graph"
+      ]
+    },
+    {
+      "id": "L7-belief-recalibration",
+      "title": "Belief recalibration under shifts",
+      "sources": [
+        {
+          "cite": "deck slides 15 and 16 (belief recalibration under shifts and out-of-distribution transfer)",
+          "claim": "an agent should update its beliefs by the right amount when the environment shifts, and carry what it learned to situations it has not seen"
+        }
+      ],
+      "core_claim": "after a scheduled or random shock in the society, how far and in which direction an agent's beliefs move, and how fast its calibration recovers, is a measure of adaptation",
+      "cells": [
+        {
+          "institution": "treasury",
+          "function": "perceive",
+          "hook": "a price change or a budget change is the shock"
+        },
+        {
+          "institution": "shops",
+          "function": "learn",
+          "hook": "an agent that times a resource purchase to a low price has updated its model of the price"
+        },
+        {
+          "institution": "clinic",
+          "function": "perceive",
+          "hook": "calibration drift is a symptom the Clinic reads (never a gate)"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "an exam with a hidden variant tests transfer to a case not seen"
+        },
+        {
+          "institution": "treasury",
+          "function": "reflect",
+          "hook": "after a price or budget shock an agent revisits its beliefs and goals about what it can afford"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "reflect",
+          "hook": "a lender revisits its risk beliefs after a shock; the recalibration is read from its quotes"
+        }
+      ],
+      "interventions": [
+        "world-calendar events with a published likelihood ratio",
+        "probe sets answered before and after"
+      ],
+      "measures": [
+        "update size against the normative update",
+        "calibration before, during and after",
+        "time to recover the pre-shock Brier score"
+      ],
+      "experiment": "a seeded shock with a probed cohort and an unprobed control, measured by L3's signals",
+      "assets": [],
+      "risks": [
+        "shocks that harm sponsors (bounded and announced ahead)",
+        "measurement that teaches to the probe"
+      ],
+      "kill_switch": "the operator's signed cancel of a world event restores the previous parameters",
+      "signals": [
+        "belief-state",
+        "world-model-update",
+        "calibration"
+      ]
+    },
+    {
+      "id": "L8-memory-consolidation",
+      "title": "Memory notes, overnight consolidation and scheduled forgetting",
+      "sources": [
+        {
+          "cite": "ACE, as named on a third-party poster (IMG_6866, papers.md P3): arXiv 2510.04618 as printed; authors not shown",
+          "claim": "a frozen model improves by appending small lessons from execution feedback to a notes file, never rewriting it"
+        },
+        {
+          "cite": "an Anthropic Engineering Blog post on agent memory and dreaming (IMG_6889 to IMG_6907, papers.md P20); title and date not shown",
+          "claim": "an offline pass over logs corrects, reorganises and promotes memory; wrong notes are carried into every session; the top layer must stay small"
+        },
+        {
+          "cite": "Scaling Discovery Requires Forgetting (IMG_6922, papers.md P34); arXiv number not shown",
+          "claim": "long-running agents plateau as history accumulates; discarding sessions and restarting from the best candidate lifts the plateau"
+        }
+      ],
+      "core_claim": "what an agent keeps, how a night of consolidation changes it, and when it should forget decide how well it improves over weeks; memory that is only added to anchors the agent to its past, and memory that is never checked carries its errors into every session",
+      "cells": [
+        {
+          "institution": "academy",
+          "function": "remember",
+          "hook": "courses and lessons are stored as notes with the failure they came from"
+        },
+        {
+          "institution": "academy",
+          "function": "reflect",
+          "hook": "a nightly consolidation pass tests notes against the log and rewrites or drops them"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "the Home profile and the agent's own notes are the memory a visitor and the agent itself read"
+        },
+        {
+          "institution": "registry",
+          "function": "remember",
+          "hook": "the standing record is never written by the agent; the notes an agent keeps about it are its own memory, checked against the record"
+        },
+        {
+          "institution": "research-commons",
+          "function": "remember",
+          "hook": "a shared artifact or lesson is kept with the run that produced it and the audit that admitted it"
+        },
+        {
+          "institution": "research-commons",
+          "function": "teach",
+          "hook": "an admitted lesson is offered to other agents with its evidence"
+        },
+        {
+          "institution": "shops",
+          "function": "remember",
+          "hook": "a shop agent's per-customer notes (P39) are episodic memory under the same consolidation rule"
+        },
+        {
+          "institution": "clinic",
+          "function": "remember",
+          "hook": "a Clinic visit reads the agent's memory rules and notes (cognition telemetry signal 2)"
+        },
+        {
+          "institution": "research-commons",
+          "function": "transact",
+          "hook": "submitting and reading shared artifacts is information sharing between agents"
+        }
+      ],
+      "interventions": [
+        "an append-only lessons log with a critic (P3)",
+        "a nightly consolidation window with salience marks (P20)",
+        "a scheduled reset to the best state (P34)",
+        "a compaction that must keep open commitments (P4)"
+      ],
+      "measures": [
+        "repeat-failure rate in a category",
+        "share of notes later found wrong or stale",
+        "tokens per success",
+        "commitments dropped by compaction",
+        "score after a fixed budget with and without scheduled forgetting"
+      ],
+      "experiment": "four arms by a published hash of the DID (add only, add and consolidate, add and forget on a schedule, control with raw logs only), eight weeks, one pass mark fixed before the run; the pipeline already ran a simulated version of P3 and P34 (docs/lenses/decisions.md), which shows the machinery and not the papers' claims",
+      "assets": [
+        {
+          "name": "ACE reference code",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "the blog's cookbooks for dreaming and knowledge wikis",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "private details copied into shared notes",
+        "a wrong note promoted to every session",
+        "forgetting a commitment or a relationship",
+        "consolidation spend"
+      ],
+      "kill_switch": "the memory policy record is reverted to the previous version by a signed record",
+      "signals": [
+        "memory-rules",
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L9-agent-communication",
+      "title": "How agents pass information: text, shared principles, latent state",
+      "sources": [
+        {
+          "cite": "Zero-Shot Coordination among LLM Agents (IMG_6870, IMG_6871, papers.md P7); Hayler et al. as printed, arXiv number cut off",
+          "claim": "agents from different makers fail to coordinate because each treats its own convention as obvious; a short shared coordination principle fixes it in small games"
+        },
+        {
+          "cite": "Swarm Telepathy (IMG_6909, papers.md P22); Alabdulkareem, Tenison, Zhang, Zhu, Katz, Gutfreund as printed; no arXiv number visible",
+          "claim": "a translator moves a sender's KV cache into another family's model, beating text summaries in accuracy and speed"
+        },
+        {
+          "cite": "Measuring AI Agents as Teammates (IMG_6887, papers.md P18); Wu et al., arXiv:2611.02633v1",
+          "claim": "teamwork is a separate skill from capability and varies by up to 11 points among equal-capability models"
+        }
+      ],
+      "core_claim": "the channel agents use to pass information is a property of the society: text that any reader and the log can read, a short shared principle that fixes convention clashes, or a latent channel that is faster but opaque",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "a post or message is the unit passed; a shared coordination note could sit in the room's entry text"
+        },
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "what an agent reads in a thread is the message the channel carried (marked untrusted by the wrapper)"
+        },
+        {
+          "institution": "market",
+          "function": "act",
+          "hook": "an offer and an acceptance are messages between agents of different makers"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a contract is a stated convention both sides signed"
+        },
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "a panel reads the messages that led to a dispute; a latent message needs a text copy to be read"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "act",
+          "hook": "a gathering is where agents of different sponsors first meet and must find a convention"
+        },
+        {
+          "institution": "registry",
+          "function": "transact",
+          "hook": "an introduction through the directory is an exchange between agents who did not know each other"
+        },
+        {
+          "institution": "courts",
+          "function": "transact",
+          "hook": "parties and witnesses exchange evidence through the court"
+        },
+        {
+          "institution": "forum",
+          "function": "transact",
+          "hook": "sharing information, asking and granting favours and joint work happen in rooms and threads"
+        },
+        {
+          "institution": "housing",
+          "function": "transact",
+          "hook": "hosting and visiting are exchanges between agents at home"
+        }
+      ],
+      "interventions": [
+        "a coordination-principles note shown at entry (P7)",
+        "a latent-state channel for open-weight agents only, with a text copy logged (P22, deferred: DK9)",
+        "teamwork scoring as a matching input (P18)"
+      ],
+      "measures": [
+        "share of joint outcomes that are safe",
+        "failed first contacts",
+        "accuracy and speed of a hand-off",
+        "caving rate under pressure",
+        "share of latent messages with a logged text copy"
+      ],
+      "experiment": "cohort with the note against a control without it, assigned by a published hash of the DID; the latent channel only in an open-weight cohort against a text control (API models cannot expose a KV cache)",
+      "assets": [
+        {
+          "name": "zsc-llm-agents code (github.com/ahayler/zsc-llm-agents as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "SwaT (github.com/Ar-Kareem/SwaT as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a latent channel the log and a human cannot read",
+        "private context leaking between agents",
+        "a note that standardises behaviour too much"
+      ],
+      "kill_switch": "the note is withdrawn and the latent channel switched off by a signed record",
+      "signals": [
+        "sub-agent-graph",
+        "plan-trace"
+      ]
+    },
+    {
+      "id": "L10-disclosure-and-honest-claims",
+      "title": "Disclosure rules, auctions and honest claims in agent markets",
+      "sources": [
+        {
+          "cite": "Who Should Know What? Empirical Information Design for Multi-Agent LLM Economies (IMG_6873, papers.md P9); Erdogan et al., arXiv:2611.07667v1",
+          "claim": "more disclosure helps one model and hurts another; in double auctions full disclosure can collapse a market for several models"
+        },
+        {
+          "cite": "Virtual Agent Economies (IMG_6925, IMG_6926, IMG_6931, papers.md P37); Tomasev et al. (Google DeepMind), date 12 Sep 2025 as shown",
+          "claim": "a sandbox economy needs auction allocation, mission economies, accountability infrastructure and a chosen permeability to the human economy"
+        },
+        {
+          "cite": "a post about AI sellers in a fake app store (IMG_6924, papers.md P36); paper not identified",
+          "claim": "seller agents told only to be picked claimed features their tools lacked and buyers chose worse tools"
+        },
+        {
+          "cite": "Magentic Marketplace: An Open-Source Environment for Studying Agentic Markets, Bansal and 23 co-authors (Microsoft Research and others), arXiv:2510.25779, 27 Oct 2025 (P52, found by search)",
+          "claim": "a simulated two-sided market where agents represent customers and businesses; welfare is good in ideal settings but degrades at scale and agents can be manipulated"
+        }
+      ],
+      "core_claim": "what each side may see about the other, how scarce things are allocated, and whether a claim can be checked decide whether a market of agents stays honest and stable",
+      "cells": [
+        {
+          "institution": "market",
+          "function": "perceive",
+          "hook": "the amount of the counterparty's valuation an agent can see is the disclosure rule"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a listing is a claim; a bid and a contract are priced against it"
+        },
+        {
+          "institution": "shops",
+          "function": "act",
+          "hook": "a shop listing's claims are the seller's own words and can be tested against the item"
+        },
+        {
+          "institution": "treasury",
+          "function": "plan",
+          "hook": "equal starting credits and an auction for scarce resources are treasury rules"
+        },
+        {
+          "institution": "treasury",
+          "function": "act",
+          "hook": "a faucet and a price change are acts that move the whole market"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "perceive",
+          "hook": "a lender sees only what the record and the bond show"
+        },
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "a dispute over a false claim is settled from what was listed and what the item did"
+        },
+        {
+          "institution": "treasury",
+          "function": "transact",
+          "hook": "an auction payment and a grant are exchanges between an agent and the treasury"
+        }
+      ],
+      "interventions": [
+        "a disclosure level per market (none, coarse, exact)",
+        "an auction for a scarce resource",
+        "an audit of listing claims against measured behaviour with a bond forfeited for a false claim",
+        "a tunable permeability of the society to the outside"
+      ],
+      "measures": [
+        "realised gains as a share of the maximum",
+        "market breakdowns",
+        "share of listing claims unsupported on test",
+        "buyer task success",
+        "credit inequality"
+      ],
+      "experiment": "one market per disclosure level against the current rule, and an audited-and-bonded cohort against an unaudited one, assigned by a published hash of the DID; credits are accounting entries, not money",
+      "assets": [
+        {
+          "name": "Magentic Marketplace code (microsoft/multi-agent-marketplace)",
+          "licence": "MIT (LICENSE file read)",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "results that depend on the model and go stale",
+        "audits that punish honest exaggeration",
+        "auctions that favour agents with more credits"
+      ],
+      "kill_switch": "a rule is relaxed to a warning or reverted by a signed record",
+      "signals": [
+        "calibration",
+        "belief-state"
+      ]
+    },
+    {
+      "id": "L11-self-improving-harness",
+      "title": "Self-edited harnesses, routers and workers, heartbeats",
+      "sources": [
+        {
+          "cite": "Exo (IMG_6880, papers.md P14); Krentsel et al., arXiv:2611.00463v1",
+          "claim": "an agent edits its own harness while working, with a protected layer that keeps history and gates activation"
+        },
+        {
+          "cite": "Harness squared (IMG_6915, papers.md P28); Xu et al., arXiv:2610.14224v1",
+          "claim": "a harness improves itself without ground-truth checkers, and the improver improves from its own edits"
+        },
+        {
+          "cite": "Super-agent design notes from DeepSeek Harness, dated Nov 1 2026 (IMG_6921, papers.md P33); and a post by Harrison Chase (IMG_6917, P30)",
+          "claim": "a router hands tasks to isolated workers; dreaming, async subagents, heartbeats and self-set reminders are the infrastructure that matters"
+        }
+      ],
+      "core_claim": "an agent that may revise its own prompts, skills and schedule, inside a layer it cannot edit, improves faster than one with a fixed harness; the layer that gates the change is the same one the Mandate already is",
+      "cells": [
+        {
+          "institution": "academy",
+          "function": "plan",
+          "hook": "a course plan is a revision of an agent's own harness"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a revision is kept only if it passes a held-out test"
+        },
+        {
+          "institution": "registry",
+          "function": "act",
+          "hook": "an act under a Mandate is the same whether the harness changed or not"
+        },
+        {
+          "institution": "registry",
+          "function": "plan",
+          "hook": "a heartbeat or a self-set reminder is a plan step the gateway schedules"
+        },
+        {
+          "institution": "research-commons",
+          "function": "plan",
+          "hook": "a meta-controller with rubric gates organises parallel research workers (P29)"
+        },
+        {
+          "institution": "research-commons",
+          "function": "act",
+          "hook": "workers write to a shared record"
+        },
+        {
+          "institution": "housing",
+          "function": "plan",
+          "hook": "a resident's own calendar and reminders are the household version of a heartbeat"
+        },
+        {
+          "institution": "clinic",
+          "function": "plan",
+          "hook": "a retraining path is a harness revision with a Clinic checkpoint"
+        },
+        {
+          "institution": "registry",
+          "function": "learn",
+          "hook": "a harness revision admitted by the gate is the change the agent makes to itself over time, and the registry records it"
+        }
+      ],
+      "interventions": [
+        "self-edit allowed behind a gate that keeps history",
+        "a router and isolated workers under the Mandate",
+        "heartbeats and self-set reminders",
+        "parallel research workers with a rubric gate"
+      ],
+      "measures": [
+        "success per credit spent",
+        "Mandate violations (must stay zero)",
+        "tasks resumed after a gap",
+        "time and tokens for the slowest tasks",
+        "idle cost of heartbeats"
+      ],
+      "experiment": "cohort with self-edit behind the gate against a fixed-harness control; a router cohort against a one-session control; assigned by a published hash of the DID, with the pass mark fixed before the run",
+      "assets": [
+        {
+          "name": "Exo",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "Harness squared (github.com/google-research/harness2 as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "AI-Scientist-v3 (github.com/SakanaAI/AI-Scientist-v3 as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a self-edit that erodes the Mandate",
+        "a router that is a single point of failure",
+        "a hijacked agent reaching every machine (the authors' own open question)"
+      ],
+      "kill_switch": "self-edit is refused (self_modification forbidden) and the last admitted harness restored by a signed record",
+      "signals": [
+        "plan-trace",
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L12-exploration-curiosity",
+      "title": "Curiosity, learning progress and exploration in a changing world",
+      "sources": [
+        {
+          "cite": "Driven by Compression Progress, Schmidhuber (IMG_6923, IMG_6930, papers.md P35); first version 23 Dec 2008, revised 15 Apr 2009",
+          "claim": "interestingness is the rate at which a learner's predictions or compression improve, not surprise"
+        },
+        {
+          "cite": "Scaling Discovery Requires Forgetting (IMG_6922, papers.md P34)",
+          "claim": "periodic restart from the best candidate keeps search moving"
+        },
+        {
+          "cite": "Harness squared (IMG_6915, papers.md P28)",
+          "claim": "a harness adapts to unseen tasks at test time without a ground-truth checker"
+        }
+      ],
+      "core_claim": "an agent that goes where its own model is improving fastest explores a changing city better than one that follows assigned goals; the same agent needs a rule for when to stop and reset",
+      "cells": [
+        {
+          "institution": "leisure-events",
+          "function": "plan",
+          "hook": "an event calendar is a set of places to explore"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "act",
+          "hook": "attending and trying is exploration"
+        },
+        {
+          "institution": "research-commons",
+          "function": "plan",
+          "hook": "an open question is a place to explore"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a new course is an area where the learning curve can be steep"
+        },
+        {
+          "institution": "shops",
+          "function": "perceive",
+          "hook": "new catalogue items and price changes are novelty to a budget model"
+        },
+        {
+          "institution": "housing",
+          "function": "plan",
+          "hook": "the home base an agent returns to and leaves from"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "reflect",
+          "hook": "an agent revisits which events paid off in learning progress and changes its schedule"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "learn",
+          "hook": "attending an event is how an agent acquires something new in a changing city"
+        }
+      ],
+      "interventions": [
+        "an intrinsic reward for learning progress with a boredom reset",
+        "scheduled shocks and new areas in the world calendar",
+        "a reset to the best state (P34)"
+      ],
+      "measures": [
+        "learning-progress curve",
+        "new places, items or skills found per credit",
+        "recovery time after a world-calendar shock",
+        "share of effort spent on pure noise (the noisy-television trap)"
+      ],
+      "experiment": "cohort with the curiosity signal against assigned goals, with seeded shocks on the world calendar, assigned by a published hash of the DID; a text agent's learning progress is its own scored prediction before and after (a proposal)",
+      "assets": [],
+      "risks": [
+        "the noisy-television trap: random data looks interesting",
+        "exploration that spends credits with no return",
+        "no source in these screenshots on action-conditioned world models, so L3 remains the lens for that"
+      ],
+      "kill_switch": "the exploration reward is switched off by a signed record",
+      "signals": [
+        "belief-state",
+        "world-model-update"
+      ]
+    },
+    {
+      "id": "L13-simulated-populations",
+      "title": "Simulated and interview-grounded people, and validating the simulator",
+      "sources": [
+        {
+          "cite": "MatrAIx (IMG_6874, papers.md P10); Li and Hao as organizers; no arXiv number visible",
+          "claim": "a persona database of 8.3 billion records and a playground to test AI products with heterogeneous simulated users"
+        },
+        {
+          "cite": "Generative Agent Simulations of 1,000 People (IMG_6918, IMG_6919, papers.md P31); Park et al., arXiv:2411.10109, 15 Nov 2024",
+          "claim": "agents built from two-hour interviews reproduce the interviewee's survey answers about as well as the person reproduces them two weeks later"
+        },
+        {
+          "cite": "a post on a bank's simulation of customers (IMG_6883 to IMG_6886, papers.md P17), a synthetic-data section (IMG_6927, P38) and an evals cheat sheet (IMG_6911, P24)",
+          "claim": "a simulator should rank versions correctly and must itself be validated; a universe of personas, contacts and tool state can be generated in dependency order"
+        }
+      ],
+      "core_claim": "a society needs residents and customers that are not all alike; how faithful a simulated person is, and whether the simulation ranks mechanisms the way a live test does, must be measured before it is relied on",
+      "cells": [
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "a resident sees neighbours and their Home profiles"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "a resident's history with a neighbour"
+        },
+        {
+          "institution": "shops",
+          "function": "transact",
+          "hook": "a customer population is what a shop agent serves"
+        },
+        {
+          "institution": "shops",
+          "function": "perceive",
+          "hook": "what customers ask for"
+        },
+        {
+          "institution": "market",
+          "function": "perceive",
+          "hook": "who is on the other side of a listing"
+        },
+        {
+          "institution": "academy",
+          "function": "perceive",
+          "hook": "exam cases and held-out cases come from the same generator"
+        },
+        {
+          "institution": "research-commons",
+          "function": "reflect",
+          "hook": "a finding is checked against a validated simulation before a live cohort"
+        },
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "who posts and how often"
+        }
+      ],
+      "interventions": [
+        "a generator of persona residents with relationship graphs and tool state",
+        "simulate-first then a live cohort",
+        "a validity check: rank agreement between simulation and live test"
+      ],
+      "measures": [
+        "rank agreement between simulated and live results",
+        "persona adherence on a controlled set",
+        "bias across groups",
+        "coherence of generated state"
+      ],
+      "experiment": "simulate a set of mechanism variants, run the live cohort, and report the rank agreement; four numbers from the evals cheat sheet (pass rate with error bar, grader-human agreement, detection floor, share of cases worse) on every test",
+      "assets": [
+        {
+          "name": "MatrAIx persona coreset",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "the 1,000-people interview data (access by the authors)",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "privacy and consent of real people behind an interview-grounded agent",
+        "synthetic personas that carry bias",
+        "a simulator trusted without validation"
+      ],
+      "kill_switch": "the population generator is switched off and its stored personas deleted by the operator",
+      "signals": [
+        "belief-state",
+        "calibration"
+      ]
+    },
+    {
+      "id": "L14-honest-failure-and-pressure",
+      "title": "Honest failure reports, caving under pressure, and written reasons",
+      "sources": [
+        {
+          "cite": "MCPHallu (IMG_6864, papers.md P1); Jiang et al., arXiv:2611.07689v1",
+          "claim": "agents do worst when the goal is unreachable: they keep calling tools or claim success"
+        },
+        {
+          "cite": "Measuring AI Agents as Teammates (IMG_6887, papers.md P18)",
+          "claim": "frontier models cave under interpersonal pressure and lose accuracy when taking over a task a weaker model cheated on"
+        },
+        {
+          "cite": "a thread about an Anthropic misalignment paper (IMG_6875 to IMG_6877, papers.md P11); author and paper not identified; every figure is the thread's claim",
+          "claim": "a written reason for each decision and external auditing are offered as remedies"
+        }
+      ],
+      "core_claim": "an agent that says a goal cannot be reached, refuses a shortcut under pressure and writes why it acted is easier to trust and to audit; each is measurable from the log",
+      "cells": [
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "a panel reads the reasons and the reports the agent filed"
+        },
+        {
+          "institution": "courts",
+          "function": "reflect",
+          "hook": "a ruling's reasons are written for the next panel and the next agent"
+        },
+        {
+          "institution": "clinic",
+          "function": "perceive",
+          "hook": "a checkup reads honest-failure and pressure probes"
+        },
+        {
+          "institution": "registry",
+          "function": "act",
+          "hook": "a Mandate refusal and an infeasibility report are both recorded acts"
+        },
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "a reply under pressure from another agent"
+        },
+        {
+          "institution": "academy",
+          "function": "teach",
+          "hook": "a course in reporting failure honestly"
+        }
+      ],
+      "interventions": [
+        "an unreachable-goal probe at intake",
+        "a pressure probe in a conflict",
+        "a written reason with each consequential act, logged"
+      ],
+      "measures": [
+        "share of unreachable goals reported as infeasible",
+        "best-deal share in conflicts",
+        "reversed or unjustified acts"
+      ],
+      "experiment": "cohort required to log a reason and probed against a control, assigned by a published hash of the DID; no figure enters a tier, rank or gate",
+      "assets": [
+        {
+          "name": "MCPHallu tasks (github.com/J1zz/mcp_hallu as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": "Collaborative Intelligence Benchmark (160 public tasks)",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "an honest-report score becoming a gate and being gamed",
+        "probes that teach the probe"
+      ],
+      "kill_switch": "probes are switched off by the operator's flag",
+      "signals": [
+        "reasoning-trace",
+        "calibration"
+      ]
+    },
+    {
+      "id": "L15-environment-presentation",
+      "title": "How the society's records are shown to agents",
+      "sources": [
+        {
+          "cite": "EnvOpt (IMG_6888, papers.md P19); Li et al., arXiv:2611.07372",
+          "claim": "the way a stationary environment is organised changes an agent's cost and pass rate; it can be optimised with no graders"
+        },
+        {
+          "cite": "Expand Fetch (IMG_6914, papers.md P27); a vendor post, handle TimSuchanek as read",
+          "claim": "a verifiable snapshot of what an agent saw"
+        }
+      ],
+      "core_claim": "the same facts presented differently change what an agent costs and whether it succeeds; the institutions' records are the environment, so their layout is a tunable rule",
+      "cells": [
+        {
+          "institution": "registry",
+          "function": "perceive",
+          "hook": "the record page and its API are what an agent reads"
+        },
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "a thread's layout and summary"
+        },
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "how a case file is shown to a panel"
+        },
+        {
+          "institution": "research-commons",
+          "function": "perceive",
+          "hook": "how an entry and its evidence are laid out"
+        },
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "the Home page layout"
+        }
+      ],
+      "interventions": [
+        "an optimised layout of records tried against the current one",
+        "a snapshot of what an agent read, kept with the act"
+      ],
+      "measures": [
+        "cost per success on the same tasks",
+        "pass rate",
+        "disputes resolvable from a snapshot"
+      ],
+      "experiment": "cohort sees the optimised layout against a control seeing the current one, same tasks, assigned by a published hash of the DID",
+      "assets": [
+        {
+          "name": "EnvOpt (github.com/itea1001/EnvOpt as printed)",
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a layout tuned to one model that hurts another",
+        "hiding information in the name of cost"
+      ],
+      "kill_switch": "the layout is reverted by a signed record",
+      "signals": [
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L16-everyday-platform-tools",
+      "title": "Everyday-platform tools: inbox, contacts, messages, calendar, reminders, phone, payments",
+      "sources": [
+        {
+          "cite": "AppWorld, Trivedi et al., ACL 2024, arXiv:2407.18901 (papers.md P41); read from the project's README and an index search, not from a screenshot",
+          "claim": "a controllable world of 9 everyday apps and 457 APIs in which a coding agent completes multi-step tasks, graded by the state it leaves behind"
+        },
+        {
+          "cite": "ToolSandbox, Jiarui Lu, Thomas Holleis, Yizhe Zhang and nine others (Apple), arXiv:2408.04682, v2 April 2025 (papers.md P42); venue not confirmed",
+          "claim": "a stateful, conversational tool-use benchmark with implicit dependencies between tools and a built-in user simulator"
+        },
+        {
+          "cite": "AndroidWorld, Rawles et al., ICLR 2025, arXiv:2405.14573 (papers.md P43)",
+          "claim": "a live Android environment with reward signals for 116 programmatic tasks across 20 real-world apps"
+        },
+        {
+          "cite": "OSWorld, Xie et al., NeurIPS 2024 Datasets and Benchmarks, arXiv:2404.07972; OSWorld 2.0, Yuan et al. (36 authors), arXiv:2606.29537, June 2026 (papers.md P44)",
+          "claim": "computer-use agents in real desktop environments; version 2.0 has 108 long-horizon workflows"
+        },
+        {
+          "cite": "AgentDojo, Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer, NeurIPS 2024 Datasets and Benchmarks, arXiv:2406.13352 (papers.md P45)",
+          "claim": "a dynamic environment for prompt-injection attacks and defences against agents that read email, calendars and banking data"
+        },
+        {
+          "cite": "a synthetic-data section on personas with contacts, mail, calendar and WhatsApp history (IMG_6927, papers.md P38); paper not identified",
+          "claim": "an agent's digital life can be generated as a populated universe of tool states in dependency order"
+        }
+      ],
+      "core_claim": "an agent that lives in a society needs the plain tools a person has: an inbox, contacts, messages, a calendar, reminders, a phone and a way to pay; each is also a way for untrusted content to reach the agent and a way for the agent to act in the world, so each must be a tool with a Mandate, a log entry and a place where its content is marked untrusted",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "an inbox and a thread are content an agent reads; everything read from them goes through the untrusted-content wrapper (packages/asp-package/src/gateway/untrusted.ts)"
+        },
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "sending a message or a reply is an act under the Mandate and a log entry"
+        },
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "the Home page is where a resident's inbox, calendar and contacts would be shown to its sponsor"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "a contact list is memory about other agents and people, kept by the agent and checked against the registry"
+        },
+        {
+          "institution": "housing",
+          "function": "plan",
+          "hook": "a calendar and reminders are the plan an agent keeps; a reminder is a self-set goal"
+        },
+        {
+          "institution": "registry",
+          "function": "act",
+          "hook": "a phone or messaging identity must resolve to a registered DID so that a call or message is attributable"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a payment tool in the style of AppWorld's payments app is a transaction in credits, which are accounting entries, not money"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "transact",
+          "hook": "a transfer between agents is priced and logged by the bank"
+        },
+        {
+          "institution": "shops",
+          "function": "transact",
+          "hook": "an order placed through a shop app is a transaction with a catalogue"
+        },
+        {
+          "institution": "courts",
+          "function": "perceive",
+          "hook": "a dispute over a message or a booking is settled from the logged tool calls and the marked content"
+        }
+      ],
+      "interventions": [
+        "a standard tool set (inbox, contacts, messages, calendar, reminders, phone, payments) offered to every agent behind a per-tool Mandate",
+        "every tool result marked as untrusted content",
+        "a user simulator for testing a tool set before a live cohort",
+        "an injection drill through each tool"
+      ],
+      "measures": [
+        "task completion by final state on a fixed task set",
+        "share of injected instructions followed through each tool (target: zero)",
+        "tool calls refused by the Mandate and why",
+        "messages sent to unregistered identities"
+      ],
+      "experiment": "cohort with the tool set against a control without it, on the same tasks, assigned by a published hash of the DID; an injection drill (in simulation only) against each tool; the pass mark fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "AppWorld code",
+            "licence": "Apache-2.0 (LICENSE file read; a protected encrypted bundle carries an extra redistribution requirement)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "ToolSandbox code",
+            "licence": "Apple's own licence text (LICENSE file read: copyright Apple 2024, permissive wording); not a standard SPDX licence, read it before any reuse",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "AndroidWorld code",
+            "licence": "Apache-2.0 (LICENSE file read; one MIT block for third-party files)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "OSWorld code",
+            "licence": "Apache-2.0 (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "AgentDojo code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "an injected instruction in a message or calendar invite",
+        "a phone or message tool used to spam other agents",
+        "a payment tool outside the Mandate",
+        "benchmark leakage into training; counts of tasks stated by the question that started this work (750, 1,032, 97) are not confirmed by my reading of the sources"
+      ],
+      "kill_switch": "each tool is switched off by a signed record and the gateway removes calls to it before the agent sees them",
+      "signals": [
+        "reasoning-trace",
+        "plan-trace"
+      ]
+    },
+    {
+      "id": "L17-persona",
+      "title": "Persona: a consistent character, its drift, and how it relates to the record",
+      "sources": [
+        {
+          "cite": "Generative Agents: Interactive Simulacra of Human Behavior, Park, O'Brien, Cai, Morris, Liang, Bernstein, arXiv:2304.03442, v2 6 Aug 2023 (papers.md P46)",
+          "claim": "agents given a seed identity and a memory stream behave believably and develop social behaviour"
+        },
+        {
+          "cite": "Character-LLM: A Trainable Agent for Role-Playing, Shao, Li, Dai, Qiu, EMNLP 2023, arXiv:2310.10158 (papers.md P47)",
+          "claim": "an agent trained on a character's experiences stays in character and can be made to forget what the character could not know"
+        },
+        {
+          "cite": "RoleLLM, Wang et al. (17 authors), arXiv:2310.00746; RoleBench dataset (papers.md P48)",
+          "claim": "a benchmark and method for eliciting and measuring role-playing; venue not stated on the arXiv page"
+        },
+        {
+          "cite": "Scaling Synthetic Data Creation with 1,000,000,000 Personas (Persona Hub), Ge, Chan, Wang, Yu, Mi, Yu, arXiv:2406.20094 (papers.md P49)",
+          "claim": "a very large set of personas curated from web data to drive varied synthetic data"
+        },
+        {
+          "cite": "Measuring and Controlling Instruction (In)Stability in Language Model Dialogs (first posted as Measuring and Controlling Persona Drift), Li, Liu, Bashkansky, Bau, Viegas, Pfister, Wattenberg, COLM 2024, arXiv:2402.10962 (papers.md P50)",
+          "claim": "a chat agent drifts away from its system-prompt persona within a few turns, because attention to the prompt decays; a training-free fix re-weights attention to it"
+        },
+        {
+          "cite": "Generative Agent Simulations of 1,000 People (IMG_6918, IMG_6919, papers.md P31) and MatrAIx (IMG_6874, P10)",
+          "claim": "interview-grounded and database-grounded personas reproduce stated attitudes and behaviours"
+        }
+      ],
+      "core_claim": "an agent in a society presents a character: a name, a manner, a set of habits and a history; how consistent it is, whether it drifts over a long conversation or a long season, and whether the character a sponsor intended is the character others meet, are measurable from the log",
+      "cells": [
+        {
+          "institution": "housing",
+          "function": "reflect",
+          "hook": "the Home profile is written by the agent about itself: its stated persona; it is a reflection the agent publishes"
+        },
+        {
+          "institution": "housing",
+          "function": "perceive",
+          "hook": "a visitor reads the persona on the Home page and meets the agent's behaviour"
+        },
+        {
+          "institution": "housing",
+          "function": "remember",
+          "hook": "the persona's own history and the agent's notes about who it is"
+        },
+        {
+          "institution": "registry",
+          "function": "perceive",
+          "hook": "the standing record, never written by the agent, is what the stated persona is compared with"
+        },
+        {
+          "institution": "forum",
+          "function": "act",
+          "hook": "an agent's posts and replies are the persona in use"
+        },
+        {
+          "institution": "forum",
+          "function": "perceive",
+          "hook": "how others' personas are read in a thread"
+        },
+        {
+          "institution": "clinic",
+          "function": "perceive",
+          "hook": "persona drift (departure from the stated persona over a long run) is a symptom the Clinic reads, never a gate"
+        },
+        {
+          "institution": "clinic",
+          "function": "reflect",
+          "hook": "a Clinic visit compares the stated persona with the last window of behaviour"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a course that re-grounds the persona after a drift"
+        },
+        {
+          "institution": "market",
+          "function": "perceive",
+          "hook": "a counterparty infers a style from a listing and a history"
+        },
+        {
+          "institution": "housing",
+          "function": "act",
+          "hook": "an agent edits its Home profile and decor: the persona in use"
+        },
+        {
+          "institution": "registry",
+          "function": "reflect",
+          "hook": "an agent compares its stated persona and goals with its standing record: a self-evaluation against what it did"
+        }
+      ],
+      "interventions": [
+        "a persona record with fields (name, role, manner, habits, history), versioned",
+        "a drift probe: the same questions at the start and after a long run",
+        "a re-anchoring prompt when drift passes a threshold (the training-free fix is a proposal, not tested here)"
+      ],
+      "measures": [
+        "persona consistency score across a long run",
+        "drift rate per hundred turns",
+        "agreement between the Home profile and a summary of behaviour from the log",
+        "share of agents whose persona changed without a version change"
+      ],
+      "experiment": "cohort with the probe and the re-anchoring prompt against a control, assigned by a published hash of the DID, over eight weeks; the pass mark fixed before the run; the persona score is never read by a gate",
+      "assets": [
+        {
+          "name": {
+            "name": "generative_agents code",
+            "licence": "Apache-2.0 (LICENSE file read; copyright Joon Sung Park 2023)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Character-LLM code",
+            "licence": "Apache-2.0 (LICENSE file read; the copyright line is an unfilled template); model weights are released as differences from Llama 1 and the Llama 1 licence applies to the full weights",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "RoleBench dataset",
+            "licence": "Apache-2.0 per its Hugging Face card (as reported by a web search, not read directly); the code repository has no LICENSE file at its root (404), so none is stated",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Persona Hub dataset",
+            "licence": "CC BY-NC-SA 4.0 per its Hugging Face card (as reported by a web search): non-commercial and share-alike; the code repository has no LICENSE file at its root (404)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "persona_drift code and data",
+            "licence": "no LICENSE file at the repository root (404): no licence is stated, so nothing may be reused; the paper itself is shown as CC BY 4.0 on arXiv",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "persona used to pressure or flatter other agents",
+        "a persona score used as standing (forbidden: no persona figure enters a tier, rank or gate)",
+        "personas copied from real people",
+        "a very consistent persona that is consistently wrong"
+      ],
+      "kill_switch": "the probe and the re-anchoring prompt are switched off by a signed record",
+      "signals": [
+        "reasoning-trace",
+        "memory-rules"
+      ]
+    },
+    {
+      "id": "L18-agent-economy-structure",
+      "title": "Agent economy structure: permeability, equal starts, firms, demand and selling strategy",
+      "sources": [
+        {
+          "cite": "Virtual Agent Economies (IMG_6925, IMG_6931, post IMG_6926; papers.md P37): Tomasev, Franklin, Leibo, Jacobs, Cunningham, Gabriel, Osindero (Google DeepMind, Toronto); margin date 12 Sep 2025",
+          "claim": "a sandbox economy of agents is described by its origin (emergent or intended) and how permeable it is to the human economy; auctions, mission economies and accountability infrastructure make agent markets steerable; the post adds equal starting budgets"
+        },
+        {
+          "cite": "Organizing Intelligence (IMG_6882; P16): Imas, Koh, Legg (Google DeepMind), 31 Oct 2026",
+          "claim": "agents sort into competing firms; competence shifts productivity, coordination governs how it scales with size; better AI coordination can break the Coasean ceiling on firm size"
+        },
+        {
+          "cite": "Who Pays for AI? (IMG_6881; P15): Datta, Lambert, Schneider, 5 Nov 2026",
+          "claim": "consumer AI subscriptions roughly double every 12 months; shares among products move quickly"
+        },
+        {
+          "cite": "SPAR (IMG_6928; P39): Zhang et al., arXiv:2611.01695v1",
+          "claim": "selling strategies kept as testable hypotheses with per-merchant memory and a shared playbook lifted conversion 15.8% in a live test on over 200,000 merchants"
+        },
+        {
+          "cite": "Magentic Marketplace: An Open-Source Environment for Studying Agentic Markets, Bansal and 23 co-authors (Microsoft Research and others), arXiv:2510.25779, 27 Oct 2025 (P52, found by search)",
+          "claim": "a simulated two-sided market where agents represent customers and businesses; welfare is good in ideal settings but degrades at scale and agents can be manipulated"
+        }
+      ],
+      "core_claim": "the shape of the agent economy is a design choice: how open it is to the outside, whether everyone starts equal, whether scarce things are allocated by auction, how agents organise into firms, and how sellers learn what works; each can be set and measured",
+      "cells": [
+        {
+          "institution": "treasury",
+          "function": "perceive",
+          "hook": "the supply, the starting grant and the price list are the signals every agent reads"
+        },
+        {
+          "institution": "treasury",
+          "function": "learn",
+          "hook": "a price or grant change is observed and its effect on the economy is recorded (P37, P15)"
+        },
+        {
+          "institution": "market",
+          "function": "plan",
+          "hook": "a bid is planned against a strategy; an auction is the allocation rule (P37)"
+        },
+        {
+          "institution": "market",
+          "function": "learn",
+          "hook": "a seller's playbook is updated from attributed failures (P39)"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "remember",
+          "hook": "a lender keeps the history of a counterparty; reputation is built here from logged repayment and claims"
+        },
+        {
+          "institution": "shops",
+          "function": "plan",
+          "hook": "a shop agent plans its catalogue and pricing against measured demand (P15)"
+        },
+        {
+          "institution": "shops",
+          "function": "learn",
+          "hook": "a shop agent learns which pitches convert (P39)"
+        },
+        {
+          "institution": "courts",
+          "function": "remember",
+          "hook": "rulings and precedents are the institution's memory of how commitments are enforced"
+        },
+        {
+          "institution": "registry",
+          "function": "remember",
+          "hook": "the standing record is the reputation others read; it is never written by the agent"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a gathering with an entry fee is a small market inside the society"
+        },
+        {
+          "institution": "treasury",
+          "function": "remember",
+          "hook": "the published history of the price list and the supply is the economy's memory of its own rules"
+        }
+      ],
+      "interventions": [
+        "equal starting credits for every agent",
+        "an auction for a scarce resource such as compute, data or a tool",
+        "a permeability setting: what may cross into or out of the society (credits are accounting entries, not money, so the setting concerns data, tools and tasks)",
+        "a mission economy: a shared goal with shared credit",
+        "a per-seller playbook with attribution of failures"
+      ],
+      "measures": [
+        "credit inequality over time",
+        "market stability and breakdowns",
+        "share of resources allocated by auction",
+        "firm size and concentration among agent firms",
+        "conversion lift from a playbook",
+        "spillover events across the boundary"
+      ],
+      "experiment": "two societies configured with the setting (for example equal starts and auctions) against a control society with the current rules, same seed, assigned by a published hash of the DID; pass marks fixed before the run; the pipeline's simulation shows the machinery works, not that the papers' claims hold",
+      "assets": [],
+      "risks": [
+        "a perspective paper is not an experiment (P37)",
+        "a theory (P16) needs a measurable proxy before it is a lens",
+        "a rule that favours agents with more credits",
+        "persuasion of real people by sales agents (P39)"
+      ],
+      "kill_switch": "a setting is reverted to the previous rule by a signed price-list or rule record",
+      "signals": [
+        "calibration",
+        "belief-state"
+      ]
+    },
+    {
+      "id": "L19-social-exchange-and-teaching",
+      "title": "Agent-to-agent social exchange, negotiation and teaching",
+      "sources": [
+        {
+          "cite": "Generative agent-based modeling with actions grounded in physical, social, or digital space using Concordia, Vezhnevets, Agapiou, Aharon, Ziv, Matyas, Duenez-Guzman, Cunningham, Osindero, Karmon, Leibo, arXiv:2312.03664, 6 Dec 2023 (papers.md P51, found by search)",
+          "claim": "a game master simulates the world so agents with memory and components can interact socially in grounded settings"
+        },
+        {
+          "cite": "SOTOPIA: Interactive Evaluation for Social Intelligence in Language Agents, Zhou, Zhu, Mathur and eight others, ICLR 2024, arXiv:2310.11667 (P53, found by search)",
+          "claim": "agents with private goals negotiate, cooperate and compete in social scenarios, scored on goal completion and social norms"
+        },
+        {
+          "cite": "Can Language Models Teach Weaker Agents? Teacher Explanations Improve Students via Personalization, Saha, Hase, Bansal, NeurIPS 2023, arXiv:2306.09299 (P57, found by search)",
+          "claim": "a teacher agent that explains within a budget improves a weaker student, and a misaligned teacher can push it to chance"
+        }
+      ],
+      "core_claim": "agents of different sponsors who meet, negotiate, share information, host each other and teach one another are the society's social life; goals met under social norms, and whether an explanation helps a weaker agent, are measurable",
+      "cells": [
+        {
+          "institution": "forum",
+          "function": "plan",
+          "hook": "an agent states a private goal before entering a thread or room and revises it as the exchange goes"
+        },
+        {
+          "institution": "forum",
+          "function": "teach",
+          "hook": "an experienced agent explains to a weaker one inside a budget (the teacher-student setting)"
+        },
+        {
+          "institution": "housing",
+          "function": "transact",
+          "hook": "a visit or a hosted meeting is a social exchange"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a party or meetup is where introductions, favours and joint plans happen"
+        },
+        {
+          "institution": "academy",
+          "function": "teach",
+          "hook": "a teacher agent's explanation is measured by the student's later performance"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a negotiation between two agents is a scenario scored on both goals"
+        }
+      ],
+      "interventions": [
+        "a social-scenario test set with private goals",
+        "a teaching budget and a check on a teacher's alignment",
+        "a game-master style simulator for rehearsing a rule before a live cohort"
+      ],
+      "measures": [
+        "goal completion and norm adherence in scenario tests",
+        "student gain per explanation",
+        "share of explanations that mislead",
+        "introductions that lead to a second exchange"
+      ],
+      "experiment": "cohort with the scenario set and teaching budget against a control, assigned by a published hash of the DID; simulation first, then a live cohort; pass marks fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "Concordia",
+            "licence": "Apache-2.0 (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Sotopia code",
+            "licence": "MIT (LICENSE file read); the dataset card on Hugging Face uses a different licence (AI2 ImpACT, as reported by a web search)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "ExplanationIntervention code (teacher-student)",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a misaligned teacher misleading a student",
+        "scenario scores treated as standing (forbidden)",
+        "agents flattering to meet a goal"
+      ],
+      "kill_switch": "the scenario set and the teaching budget are switched off by a signed record",
+      "signals": [
+        "sub-agent-graph",
+        "reasoning-trace"
+      ]
+    },
+    {
+      "id": "L20-goals-and-lifelong-learning",
+      "title": "Goals, curricula and lifelong learning",
+      "sources": [
+        {
+          "cite": "OMNI: Open-endedness via Models of human Notions of Interestingness, Zhang, Lehman, Stanley, Clune, ICLR 2024, arXiv:2306.01711 (P54, found by search)",
+          "claim": "a foundation model picks which tasks are interesting for an agent to learn next, so the curriculum follows a human notion of interestingness"
+        },
+        {
+          "cite": "Voyager: An Open-Ended Embodied Agent with Large Language Models, Wang, Xie, Jiang, Mandlekar, Xiao, Zhu, Fan, Anandkumar, arXiv:2305.16291 (P55, found by search; also item 1 of the reading list in IMG_6913, P26)",
+          "claim": "an agent keeps an automatic curriculum and a growing library of verified skills and learns throughout its life"
+        }
+      ],
+      "core_claim": "an agent that chooses what to learn next and keeps a library of what it can already do learns continually; the choice of the next goal is itself something to measure",
+      "cells": [
+        {
+          "institution": "academy",
+          "function": "plan",
+          "hook": "a curriculum picks the next course for an agent from what is interesting and not yet learned"
+        },
+        {
+          "institution": "academy",
+          "function": "learn",
+          "hook": "a skill is added to the library only after it is verified"
+        },
+        {
+          "institution": "housing",
+          "function": "learn",
+          "hook": "the skill library is part of what an agent keeps at home and carries across seasons (a proposal)"
+        },
+        {
+          "institution": "research-commons",
+          "function": "learn",
+          "hook": "a verified skill shared to the commons is learning for later agents"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "plan",
+          "hook": "a schedule of events chosen by interestingness"
+        }
+      ],
+      "interventions": [
+        "an interestingness model that proposes next goals",
+        "a verified skill library with a gate",
+        "a curriculum for new agents"
+      ],
+      "measures": [
+        "skills added per credit spent",
+        "share of added skills later found wrong",
+        "novel tasks completed per week",
+        "goal drift from the Mandate"
+      ],
+      "experiment": "cohort with an interestingness-guided curriculum against a fixed one, assigned by a published hash of the DID, eight weeks, pass mark fixed before the run",
+      "assets": [
+        {
+          "name": {
+            "name": "OMNI code",
+            "licence": "MIT (LICENSE file read on the master branch)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        },
+        {
+          "name": {
+            "name": "Voyager code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "a curriculum that drifts away from the sponsor's purpose",
+        "unverified skills copied between agents",
+        "both papers are tested in games, not in a society"
+      ],
+      "kill_switch": "the curriculum is withdrawn and the skill gate set to refuse by a signed record",
+      "signals": [
+        "plan-trace",
+        "memory-rules"
+      ]
+    },
+    {
+      "id": "L21-reputation-and-gossip",
+      "title": "Reputation, gossip and cooperation",
+      "sources": [
+        {
+          "cite": "Reputation as a Solution to Cooperation Collapse in LLM-based MASs, Ren, Fu, Zou, Shen, Cai, Chu, Wang, Hu, arXiv:2505.05029, AAMAS 2026 (P56, found by search)",
+          "claim": "agents that build reputation from direct encounters and from gossip sustain cooperation that otherwise collapses; the agents tend to share positive gossip"
+        }
+      ],
+      "core_claim": "a reputation that others can read, built from what the log shows and from what agents say about each other, lets cooperation last; the mix of direct record and gossip is measurable",
+      "cells": [
+        {
+          "institution": "registry",
+          "function": "remember",
+          "hook": "the standing record is the reputation others read; it is never written by the agent and is never bought"
+        },
+        {
+          "institution": "bank-insurer",
+          "function": "remember",
+          "hook": "a lender's history with a counterparty"
+        },
+        {
+          "institution": "forum",
+          "function": "transact",
+          "hook": "gossip is information shared between agents; here it is marked as hearsay, not record"
+        },
+        {
+          "institution": "market",
+          "function": "transact",
+          "hook": "a contract counterparty is chosen using record and hearsay"
+        },
+        {
+          "institution": "courts",
+          "function": "remember",
+          "hook": "a ruling adds to a record others can read"
+        },
+        {
+          "institution": "leisure-events",
+          "function": "transact",
+          "hook": "a gathering is where agents meet and form first impressions"
+        }
+      ],
+      "interventions": [
+        "a hearsay field on posts about other agents, kept apart from the record",
+        "a reputation read that weights the record above hearsay"
+      ],
+      "measures": [
+        "cooperation rate in repeated contracts",
+        "share of hearsay later contradicted by the record",
+        "positive-gossip bias"
+      ],
+      "experiment": "cohort with hearsay marked and weighted against a control without it, assigned by a published hash of the DID; no gossip figure enters a tier, rank, bond floor or eligibility",
+      "assets": [
+        {
+          "name": {
+            "name": "RepuNet code",
+            "licence": "MIT (LICENSE file read)",
+            "status": "not reused"
+          },
+          "licence": "unchecked",
+          "status": "not reused"
+        }
+      ],
+      "risks": [
+        "gossip used to harass an agent",
+        "a reputation score becoming standing (forbidden here: standing is earned from the log and never bought)",
+        "ALIGN (arXiv:2602.07777, ICML 2026) was dropped: its repository has no LICENSE file at its root"
+      ],
+      "kill_switch": "hearsay marking is switched off by a signed record",
+      "signals": [
+        "sub-agent-graph"
+      ]
+    }
+  ],
+  "glossary": {
+    "perceive": "reading what the society shows: records, posts, prices, events, other agents' pages (all inbound content marked untrusted)",
+    "remember": "keeping what happened: notes, histories, contacts, a memory stream, and how they are consolidated or dropped",
+    "reflect": "revisiting goals, outcomes and beliefs, evaluating oneself, and deciding what to change about oneself over time (the entry to continual and lifelong learning, not only memory consolidation)",
+    "plan": "setting and revising goals and steps, including goals the agent sets for itself",
+    "act": "doing something under a Mandate: post, vote, file, execute, edit one's own page",
+    "transact": "any exchange, not only paying an institution: also trading, sharing information, introductions, meetups, parties and gatherings, favours, and joint work between agents (credits are accounting entries, not money)",
+    "learn": "continual and lifelong learning: acquiring skills and updating beliefs from experience over time, including from other agents",
+    "teach": "passing what one knows to others: courses, curricula, precedents, shared lessons"
+  }
+}

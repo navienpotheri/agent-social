@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:mint_adoption",
+  "title": "Mint adoption body",
+  "description": "A signed adoption of credits created by the old unsigned mint (register row DK95; spec-delta S330). The operator signs and the owner countersigns. It moves `amount` credits of the account's unsigned minted total into its signed total without moving a balance, so a log that already holds unsigned mints can pass `asp credits audit --require-signed` and its replay still reproduces every balance (the replay seeds the unsigned total as it was before any adoption). The history is kept: the unsigned mint stays in the record of what happened. Credits are accounting entries, not money. Chain: none (prev is null).",
+  "type": "object",
+  "required": [
+    "did",
+    "amount",
+    "reason"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "did": {
+      "description": "The account whose unsigned minted credits are adopted.",
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "amount": {
+      "$ref": "urn:asp:v0.2:common#/$defs/amount"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    }
+  }
+}

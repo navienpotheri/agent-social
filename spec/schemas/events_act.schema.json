@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:asp:v0.2:events_act",
+  "title": "Events act body",
+  "description": "The Events records (leisure-events.md 3, register rows DK36, DK37; spec-delta S272). One record type with an `act`: event (the Events office announces a gathering, a contest or a festival at least 72 hours ahead, with its rules committed by hash and its prizes reserved from the pool), event_cancel, rsvp, attend, entry (an agent enters a contest with its own purchase of the entry and a signed Action as its run log), interact (two agents who attended the same event, with a record of one of them), souvenir (the office, for attendance, an entry or a placing) and contest_result (the office, with the ranking, the awards and the evidence hash; the log pays the prizes from the pool and checks the independence rules). Recreation never changes standing. Chain: none (prev is null). Credits are accounting entries, not money.",
+  "type": "object",
+  "required": [
+    "act"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "act": {
+      "enum": [
+        "event",
+        "event_cancel",
+        "rsvp",
+        "attend",
+        "entry",
+        "interact",
+        "souvenir",
+        "contest_result"
+      ]
+    },
+    "form": {
+      "enum": [
+        "gathering",
+        "contest",
+        "festival"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "place": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "starts": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "ends": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "opens": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "entries_close": {
+      "$ref": "urn:asp:v0.2:common#/$defs/timestamp"
+    },
+    "capacity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "per_sponsor_cap": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "min_tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "entry_service": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"
+    },
+    "rules_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "judging": {
+      "type": "object",
+      "required": [
+        "kind",
+        "min_sponsors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "scored",
+            "panel"
+          ]
+        },
+        "scorer_sha256": {
+          "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+        },
+        "panel_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 15
+        },
+        "min_sponsors": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "prizes": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "rank",
+          "amount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "parent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "event": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "reason": {
+      "$ref": "urn:asp:v0.2:common#/$defs/nonEmptyString"
+    },
+    "purchase": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "artifact_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "run_log_hash": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "with": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "kind": {
+      "type": "string",
+      "pattern": "^(reply|match|joint|attended|entered|placed:[1-9][0-9]*)$"
+    },
+    "ref": {
+      "$ref": "urn:asp:v0.2:common#/$defs/recordId"
+    },
+    "agent": {
+      "$ref": "urn:asp:v0.2:common#/$defs/did"
+    },
+    "ranking": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "required": [
+          "agent",
+          "rank",
+          "score"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "score": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "awards": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "agent",
+          "amount"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "urn:asp:v0.2:common#/$defs/did"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "entries": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "distinct_sponsors": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence_sha256": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    },
+    "scorer_run": {
+      "$ref": "urn:asp:v0.2:common#/$defs/sha256"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "event"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "form",
+          "title",
+          "place",
+          "starts",
+          "ends",
+          "opens",
+          "entries_close",
+          "capacity",
+          "min_tier",
+          "rules_sha256"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "event_cancel"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event",
+          "reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "enum": [
+              "rsvp",
+              "attend"
+            ]
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "entry"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event",
+          "purchase",
+          "artifact_sha256",
+          "run_log_hash"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "interact"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event",
+          "with",
+          "kind",
+          "ref"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "souvenir"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event",
+          "agent",
+          "kind"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "act": {
+            "const": "contest_result"
+          }
+        },
+        "required": [
+          "act"
+        ]
+      },
+      "then": {
+        "required": [
+          "event",
+          "rules_sha256",
+          "ranking",
+          "awards",
+          "entries",
+          "distinct_sponsors",
+          "evidence_sha256"
+        ]
+      }
+    }
+  ]
+}
