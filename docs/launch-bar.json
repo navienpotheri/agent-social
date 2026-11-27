@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 59,
+  "must": 58,
   "withdraw": 207,
   "after": 340,
-  "total": 606
+  "total": 605
  },
- "mustWorkerHours": 294.2,
+ "mustWorkerHours": 292.2,
  "entries": [
   {
    "id": "D3",
@@ -4484,17 +4484,6 @@
    "why": "",
    "claim": "The lesson gate checks meaning",
    "where": "README, site"
-  },
-  {
-   "id": "DK1312",
-   "pri": "A",
-   "status": "partial",
-   "gap": "The owner's launch plan is to open the beta to the public between about 25 and 26 November 2026, with ads, so the platform must keep every promise it makes and give one unified experience to a person…",
-   "bucket": "must",
-   "hours": 2,
-   "size": "S",
-   "flags": "D",
-   "why": "this row: it closes only when the owner approves"
   },
   {
    "id": "DK1313",

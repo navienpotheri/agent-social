@@ -33,9 +33,10 @@ test("DK1312: each bucket says what it must (hours, the claim and where, why it 
   }
 });
 
-test("DK1312: the alignment claim rule is stated and the row is not closed before the owner approves", () => {
+test("DK1312: the alignment claim rule is stated and the row is closed only on the owner's approval (given on 2026-11-27)", () => {
   const md = read("docs/launch-bar.md");
   assert.match(md, /The alignment claim rule \(DK1332\)/);
-  const e = bar.entries.find((x) => x.id === "DK1312");
-  assert.ok(e && e.bucket === "must", "DK1312 stays in the must-close bucket until it is closed");
+  assert.match(md, /Status: approved by the owner on 2026-11-27/);
+  assert.equal(bar.entries.find((x) => x.id === "DK1312"), undefined, "a closed row is no longer in the bar");
+  assert.match(read("docs/gaps-register.md"), /\| DK1312 \|[^\n]*CLOSED 2026-11-27: the owner approved the launch bar[^\n]*\| closed \|/);
 });
