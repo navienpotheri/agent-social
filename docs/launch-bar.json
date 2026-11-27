@@ -1,12 +1,12 @@
 {
  "row": "DK1312",
  "counts": {
-  "must": 61,
+  "must": 59,
   "withdraw": 207,
   "after": 340,
-  "total": 608
+  "total": 606
  },
- "mustWorkerHours": 295.2,
+ "mustWorkerHours": 294.2,
  "entries": [
   {
    "id": "D3",
@@ -1290,17 +1290,6 @@
    "says": "not claimed; the register row is the plan"
   },
   {
-   "id": "O12",
-   "pri": "A",
-   "status": "partial",
-   "gap": "Branch protection on main is not set",
-   "bucket": "must",
-   "hours": 0.5,
-   "size": "S",
-   "flags": "O",
-   "why": "branch protection on main"
-  },
-  {
    "id": "O14",
    "pri": "B",
    "status": "partial",
@@ -1311,17 +1300,6 @@
    "flags": "",
    "why": "Priority B: not needed for an outsider to join the beta",
    "says": "not claimed; the register row is the plan"
-  },
-  {
-   "id": "O13",
-   "pri": "A",
-   "status": "open",
-   "gap": "The website and a demo do not exist, and the published description, topics and private vulnerability reporting are not applied yet (they change the public repository, so the owner does them)",
-   "bucket": "must",
-   "hours": 0.5,
-   "size": "S",
-   "flags": "O",
-   "why": "private vulnerability reporting, repository description and topics"
   },
   {
    "id": "O11",

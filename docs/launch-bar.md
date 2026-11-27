@@ -5,9 +5,9 @@ Drafted 2026-11-21 by the launch-bar worker from `claude/open-forum` at `22bb971
 ## 1. One page for the owner
 
 <!-- BEGIN SUMMARY -->
-**The date 25 to 26 November cannot hold.** 608 register rows are not closed (336 at priority A, 224 at B, 48 at C). Sorted:
+**The date 25 to 26 November cannot hold.** 606 register rows are not closed (334 at priority A, 224 at B, 48 at C). Sorted:
 
-- **Must close before launch: 61 rows, 295 worker-hours.** 11 need your decision, 13 a live run, 2 an outside party and 18 an action only you can take (GitHub settings, the deployed start line, a Mac).
+- **Must close before launch: 59 rows, 294 worker-hours.** 11 need your decision, 13 a live run, 2 an outside party and 16 an action only you can take (GitHub settings, the deployed start line, a Mac).
 - **Withdraw the claim until done: 207 rows.** The site, README, llms.txt, deck and ads must not say what the row says is not true yet. Most are the society's institutions and the deck's roadmap, which exist as built and tested with scripted agents, not run live with real agents.
 - **After launch: 340 rows.** Priority B and C work, and a few priority A rows that are polish, research programmes or your own decisions. The right-hand column of bucket 3 says what the beta says meanwhile.
 
@@ -15,9 +15,9 @@ Three honest dates, at about 10 productive build-hours a day for one worker (an 
 
 | Bar | Worker-hours | Earliest date |
 |---|---|---|
-| **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 30 | **2026-11-25** |
-| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 59 | 2026-11-27 |
-| **Full**: all 61 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 295 | 2026-12-21 |
+| **Core**: the legal minimum, operations, telemetry with its disclosure, the stranger's first 15 minutes, mail, the money remedy and the court disclosure (20 rows, section 4) | 29 | **2026-11-24** |
+| **Reduced**: Core plus enrolment, the run log, token recovery, export and close, and housekeeping (43 rows) | 58 | 2026-11-27 |
+| **Full**: all 59 must-close rows, including the open forum's live launch, the society map and house agents, the enterprise release and the engine of change | 294 | 2026-12-21 |
 
 The live run with a real model agent is postponed by the owner, so T15, T22, DK650 and P21 cannot be proved; their claims move to "withdraw". **Recommendation:** the Core bar can hold its date only if your decisions and actions arrive (the legal acceptance, the status page, the GitHub settings, the deployed start line, the live-check day); ads on the Core date, with the forum, society map and house agents described as "not open yet" if they are not ready, are possible; the Full bar is later. A decision only you can make: the forum is live at the beta launch (FD2), which is part of Full.
 
@@ -41,10 +41,10 @@ A row can move: DK65 (capacity) is in bucket 1 with a load test; if the test is 
 
 | Bucket | Rows |
 |---|---|
-| Must close before launch | 61 (295.2 worker-hours; 11 need an owner decision, 13 a live run, 2 an outside party, 18 an owner action) |
+| Must close before launch | 59 (294.2 worker-hours; 11 need an owner decision, 13 a live run, 2 an outside party, 16 an owner action) |
 | Withdraw the claim until done | 207 |
 | After launch | 340 |
-| Total not closed | 608 |
+| Total not closed | 606 |
 
 ### Bucket 1: must close before launch (closable by one worker in one session first: no flag; then rows that need a decision, a live run, an outside party or an owner action; smallest first within each)
 
@@ -86,8 +86,6 @@ Flags: D owner decision, L live run, X outside party, O owner action.
 | DK1362 | A | partial | 16 | L | - | the 10,000-agent load test, limits by plan and a batch route |
 | DK1359 | A | partial | 30 | L | - | enterprise tenancy: organisation tenant, roles, OIDC single sign-on, private log; the enterprise release must be ready at launch (owner) |
 | O11 | A | open | 0.2 | S | O | revoke the OpenRouter key |
-| O12 | A | partial | 0.5 | S | O | branch protection on main |
-| O13 | A | open | 0.5 | S | O | private vulnerability reporting, repository description and topics |
 | DK1204 | A | partial | 1 | S | O | hosted price list lacks forum.post.long and forum.comment.long |
 | DK1340 | A | partial | 1 | S | D | drafted under LC1 (docs/legal-review.md, an AI analysis); the owner reads it and signs the acceptance box for risks A1 to A11; row closes on that |
 | DK421 | A | partial | 1 | S | D | operator succession: the owner chooses and signs (OD-DK421) |
